@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf9f6;
+  --foreground: #2c2c2c;
+  
+  /* Classic Theme Colors - Warm Earth Tones */
+  --primary: #8b6f47;
+  --primary-dark: #6b5435;
+  --primary-light: #a6895f;
+  --secondary: #c9a96b;
+  --secondary-dark: #a88a4f;
+  --accent: #d4a574;
+  --accent-dark: #b8905a;
+  --terracotta: #c17a5f;
+  --sage: #9caf88;
+  --cream: #f5f1eb;
+  --beige: #e8e0d6;
+  --success: #7a9b7a;
+  --warning: #d4a574;
+  --error: #c17a5f;
+  --info: #8b9dc4;
+  
+  /* Classic Gradients */
+  --gradient-primary: linear-gradient(135deg, #8b6f47 0%, #c9a96b 100%);
+  --gradient-warm: linear-gradient(135deg, #d4a574 0%, #c17a5f 100%);
+  --gradient-soft: linear-gradient(135deg, #f5f1eb 0%, #e8e0d6 100%);
+  --gradient-natural: linear-gradient(135deg, #9caf88 0%, #7a9b7a 100%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-inter);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --primary: #818cf8;
+    --primary-dark: #6366f1;
+    --primary-light: #a5b4fc;
   }
+}
+
+* {
+  scroll-behavior: smooth;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  overflow-x: hidden;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+/* Classic Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-playfair), 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.font-serif {
+  font-family: var(--font-playfair), 'Playfair Display', serif;
+}
+
+.font-elegant {
+  font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8b6f47 0%, #c9a96b 100%);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #6b5435 0%, #a88a4f 100%);
+}
+
+/* Classic decorative elements */
+.classic-divider {
+  position: relative;
+  text-align: center;
+  margin: 3rem 0;
+}
+
+.classic-divider::before,
+.classic-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #d4a574, transparent);
+}
+
+.classic-divider::before {
+  left: 0;
+}
+
+.classic-divider::after {
+  right: 0;
+}
+
+.classic-divider span {
+  position: relative;
+  padding: 0 1rem;
+  background: var(--background);
+  color: var(--primary);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
