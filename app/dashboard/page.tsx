@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Heart, ShoppingCart, Package, User, LogOut, ChevronRight, Star, Trash2, Plus } from 'lucide-react';
+import { Heart, ShoppingCart, Package, User, LogOut, ChevronRight, Trash2, Plus } from 'lucide-react';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'wishlist' | 'cart' | 'orders'>('overview');
@@ -16,7 +16,7 @@ export default function DashboardPage() {
     { id: 3, name: 'USB-C Hub Pro', price: 49.99, image: '🔌', inStock: false },
     { id: 4, name: 'Mechanical Keyboard RGB', price: 149.99, image: '⌨️', inStock: true },
   ]);
-  const [orders, setOrders] = useState([
+  const [orders] = useState([
     {
       id: '#ORD001',
       date: '2025-12-08',
@@ -56,7 +56,7 @@ export default function DashboardPage() {
     setWishlistItems(wishlistItems.filter(item => item.id !== id));
   };
 
-  const moveToCart = (item: any) => {
+  const moveToCart = (item: typeof wishlistItems[0]) => {
     setCartItems([...cartItems, { ...item, quantity: 1, image: item.image }]);
     removeFromWishlist(item.id);
   };
@@ -142,7 +142,7 @@ export default function DashboardPage() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'overview' | 'cart' | 'wishlist' | 'orders')}
               className={`px-4 py-3 font-medium border-b-2 transition flex items-center gap-2 ${
                 activeTab === tab.id
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -297,7 +297,7 @@ export default function DashboardPage() {
               {orders.length === 0 ? (
                 <div className="text-center py-12">
                   <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400 text-lg">You haven't placed any orders yet</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-lg">You haven&apos;t placed any orders yet</p>
                 </div>
               ) : (
                 <div className="space-y-4">

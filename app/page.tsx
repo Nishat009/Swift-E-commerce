@@ -130,6 +130,73 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Featured Categories Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.8 }}
+        className="py-16 sm:py-20 md:py-24 bg-[#faf9f6] dark:bg-gray-950"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12 sm:mb-16"
+          >
+            <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-2">
+              Featured Categories
+            </h2>
+            <p className="text-[#6b6b6b] dark:text-gray-400 text-lg">
+              Browse our curated categories for every style
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { name: 'Sofa & Chair', icon: '🪑', bgColor: 'bg-[#f5e6d3]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
+              { name: 'Kitchen', icon: '🍽️', bgColor: 'bg-[#f0e5d8]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
+              { name: 'Bathroom', icon: '🚿', bgColor: 'bg-[#ebe1d3]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
+              { name: 'Home Decor', icon: '🎨', bgColor: 'bg-[#e6dccf]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
+            ].map((category, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -8, transition: { duration: 0.2 } }}
+              >
+                <Link href={`/products?category=${category.name.toLowerCase().replace(' ', '-')}`}>
+                  <div className={`${category.bgColor} ${category.darkBg} border border-[#d4c4b0] ${category.borderColor} rounded-lg p-8 cursor-pointer group overflow-hidden relative h-64 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-lg hover:border-[#8b6f47]`}>
+                    {/* Background Pattern - Subtle */}
+                    <div className="absolute inset-0 opacity-5">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#8b6f47] rounded-full -mr-16 -mt-16"></div>
+                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-[#8b6f47] rounded-full -ml-12 -mb-12"></div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="relative z-10 text-center">
+                      <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                        {category.icon}
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-semibold text-[#2c2c2c] dark:text-[#f5e6d3]">
+                        {category.name}
+                      </h3>
+                      <div className="flex items-center justify-center mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <ArrowRight className="w-5 h-5 text-[#8b6f47] dark:text-[#c9a96b]" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.section>
+
       {/* Featured Collection Section */}
       {featuredProducts.length > 0 && (
         <motion.section
