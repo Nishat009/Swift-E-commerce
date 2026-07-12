@@ -9,10 +9,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CartDrawer from '@/components/ui/CartDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { theme, toggleTheme } = useThemeStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,11 +58,16 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className={`sticky top-0 z-40 border-b border-[#e8e0d6] shadow-sm transition-all duration-300 ${
+        className={`sticky top-0 z-40 border-b border-border-theme/50 transition-all duration-300 ${
           isScrolled
-            ? 'bg-white/98 backdrop-blur-md shadow-md'
-            : 'bg-white'
+            ? 'bg-background/80 backdrop-blur-xl shadow-lg'
+            : 'bg-background/60 backdrop-blur-md'
         }`}
+        style={{
+          backgroundImage: `linear-gradient(135deg, var(--primary) 0%, transparent 40%), linear-gradient(225deg, var(--accent) 0%, transparent 30%)`,
+          backgroundSize: '100% 100%',
+          backgroundBlendMode: 'soft-light',
+        }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -72,7 +79,7 @@ export default function Navbar() {
               >
                 <ShoppingCart className="w-8 h-8 text-[#8b6f47]" />
               </motion.div>
-              <span className="text-xl font-serif font-bold text-[#2c2c2c] group-hover:text-[#8b6f47] transition-colors">
+              <span className="text-xl font-serif font-bold text-foreground group-hover:text-primary transition-colors">
                 SwiftCart
               </span>
             </Link>
@@ -89,7 +96,7 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search products..."
-                  className="w-full px-4 py-2 pl-10 border border-[#e8e0d6] rounded-sm bg-[#faf9f6] text-[#2c2c2c] placeholder-[#9c9c9c] focus:outline-none focus:ring-2 focus:ring-[#8b6f47] transition-all duration-200"
+                  className="w-full px-4 py-2 pl-10 border border-border-theme rounded-sm bg-background text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               </motion.div>
@@ -108,15 +115,15 @@ export default function Navbar() {
                     href={link.href}
                     className={`relative px-3 py-2 rounded-sm text-sm font-medium transition-all duration-200 ${
                       pathname === link.href
-                        ? 'text-[#8b6f47] bg-[#f5f1eb]'
-                        : 'text-[#6b6b6b] hover:bg-[#faf9f6]'
+                        ? 'text-primary bg-cream'
+                        : 'text-text-muted hover:bg-background'
                     }`}
                   >
                     {link.label}
                     {pathname === link.href && (
                       <motion.div
                         layoutId="activeTab"
-                        className="absolute inset-0 bg-blue-50 dark:bg-blue-900/20 rounded-md -z-10"
+                        className="absolute inset-0 bg-cream rounded-md -z-10"
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -128,7 +135,7 @@ export default function Navbar() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={toggleTheme}
-                className="p-2 rounded-sm text-[#6b6b6b] hover:bg-[#faf9f6] transition-colors"
+                className="p-2 rounded-sm text-text-muted hover:bg-background transition-colors"
                 aria-label="Toggle theme"
               >
                 <motion.div
@@ -143,7 +150,7 @@ export default function Navbar() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsCartOpen(true)}
-                className="relative p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="relative p-2 rounded-sm text-text-muted hover:bg-background/50 transition-colors"
                 aria-label="Open cart"
               >
                 <ShoppingCart className="w-5 h-5" />
@@ -153,7 +160,7 @@ export default function Navbar() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                      className="absolute top-0 right-0 bg-[#c17a5f] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
                     >
                       {totalItems > 9 ? '9+' : totalItems}
                     </motion.span>
@@ -163,8 +170,8 @@ export default function Navbar() {
 
               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                 <Link
-                  href="/auth/login"
-                  className="p-2 rounded-sm text-[#6b6b6b] hover:bg-[#faf9f6] transition-colors"
+                  href={user ? '/dashboard' : '/auth/login'}
+                  className="p-2 rounded-sm text-text-muted hover:bg-background transition-colors"
                 >
                   <User className="w-5 h-5" />
                 </Link>
@@ -175,7 +182,7 @@ export default function Navbar() {
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-700 dark:text-gray-300"
+              className="md:hidden p-2 rounded-sm text-foreground"
             >
               <AnimatePresence mode="wait">
                 {isMenuOpen ? (
@@ -211,7 +218,7 @@ export default function Navbar() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="md:hidden overflow-hidden border-t border-gray-200 dark:border-gray-800"
+                className="md:hidden overflow-hidden border-t border-border-theme/50"
               >
                 <div className="py-4">
                   <motion.form
@@ -227,7 +234,7 @@ export default function Navbar() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search products..."
-                        className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 pl-10 border border-border-theme rounded-sm bg-background text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     </div>
@@ -243,10 +250,10 @@ export default function Navbar() {
                         <Link
                           href={link.href}
                           onClick={() => setIsMenuOpen(false)}
-                          className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                          className={`block px-3 py-2 rounded-sm text-base font-medium transition-colors ${
                             pathname === link.href
-                              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                              : 'text-gray-700 dark:text-gray-300'
+                              ? 'text-primary bg-cream'
+                              : 'text-foreground hover:bg-background'
                           }`}
                         >
                           {link.label}
@@ -261,7 +268,7 @@ export default function Navbar() {
                     >
                       <button
                         onClick={toggleTheme}
-                        className="px-3 py-2 rounded-md text-gray-700 dark:text-gray-300 flex items-center space-x-2"
+                        className="px-3 py-2 rounded-sm text-foreground hover:bg-background flex items-center space-x-2 transition-colors"
                       >
                         {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         <span>Toggle Theme</span>
@@ -271,7 +278,7 @@ export default function Navbar() {
                           setIsCartOpen(true);
                           setIsMenuOpen(false);
                         }}
-                        className="relative px-3 py-2 rounded-md text-gray-700 dark:text-gray-300 flex items-center space-x-2"
+                        className="relative px-3 py-2 rounded-sm text-foreground hover:bg-background flex items-center space-x-2 transition-colors"
                       >
                         <ShoppingCart className="w-5 h-5" />
                         {totalItems > 0 && (

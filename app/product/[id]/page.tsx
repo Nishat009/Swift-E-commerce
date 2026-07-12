@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { fetchProductById } from '@/lib/api';
+import { fetchProductById, fetchProducts } from '@/lib/api';
+import apiClient from '@/lib/apiClient';
 import { Product } from '@/types';
 import Loading from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
@@ -11,11 +12,19 @@ import ProductCard from '@/components/ui/ProductCard';
 import { useCartStore } from '@/stores/cartStore';
 import { ShoppingCart, Star, Minus, Plus, Heart, ZoomIn, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Review } from '@/data/mockData';
+
+interface Review {
+  id: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  date: string;
+  verified: boolean;
+}
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const productId = parseInt(params.id as string);
+  const productId = params.id as string;
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +51,13 @@ export default function ProductDetailPage() {
       setProduct(prod);
       setSelectedImage(0);
 
-      // Load related products from same category
-      const { getRelatedProducts, getProductReviews } = await import('@/data/mockData');
-      setRelatedProducts(getRelatedProducts(productId, 4));
-      setReviews(getProductReviews(productId));
+      // Load related products from backend
+      const related = await fetchProducts({ category: prod.category, limit: 5 });
+      setRelatedProducts(related.products.filter((p) => String(p.id) !== String(prod.id)).slice(0, 4));
+
+      // Load reviews from backend
+      const reviewsResponse = await apiClient.get(`/reviews/product/${productId}`);
+      setReviews(reviewsResponse.data.data || []);
     } catch (err) {
       setError('Failed to load product. Please try again later.');
       console.error('Error loading product:', err);

@@ -8,6 +8,8 @@ import Input from '@/components/ui/Input';
 import { Address, Order } from '@/types';
 import { CreditCard, MapPin, CheckCircle } from 'lucide-react';
 
+import apiClient from '@/lib/apiClient';
+
 type Step = 'address' | 'payment' | 'confirmation';
 
 export default function CheckoutPage() {
@@ -70,24 +72,27 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validatePayment()) {
-      // Simulate order creation
-      const order: Order = {
-        id: `ORD-${Date.now()}`,
-        items,
-        total,
-        address,
-        paymentMethod,
-        createdAt: new Date().toISOString(),
-      };
+      try {
+        const response = await apiClient.post('/orders', {
+          products: items.map((item) => ({
+            product: item.product.id,
+            quantity: item.quantity,
+          })),
+          shippingAddress: address,
+          paymentMethod,
+        });
 
-      // In a real app, you would save this to a backend
-      console.log('Order created:', order);
-
-      clearCart();
-      setStep('confirmation');
+        if (response.data?.success) {
+          await clearCart();
+          setStep('confirmation');
+        }
+      } catch (err: any) {
+        console.error('Checkout error:', err);
+        setErrors({ form: err.response?.data?.message || 'Failed to place order. Please try again.' });
+      }
     }
   };
 
@@ -240,6 +245,7 @@ export default function CheckoutPage() {
 
           {step === 'payment' && (
             <form onSubmit={handlePaymentSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              {errors.form && <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded mb-4">{errors.form}</div>}
               <div className="flex items-center mb-6">
                 <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400 mr-2" />
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Method</h2>

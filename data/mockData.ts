@@ -200,9 +200,9 @@ export const mockProducts: Product[] = [
     stock: 45,
     brand: 'OutdoorLiving',
     category: 'outdoor',
-    thumbnail: 'https://images.unsplash.com/photo-1578922746466-caaae2541431?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1578922746466-caaae2541431?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=400&h=400&fit=crop',
       'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=800&fit=crop',
     ],
   },
@@ -340,6 +340,7 @@ export const getRelatedProducts = (productId: number, limit: number = 4): Produc
 export const getProductReviews = (productId: number): Review[] => {
   return mockReviews[productId] || [];
 };
+
 
 
 

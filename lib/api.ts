@@ -1,66 +1,38 @@
 import { Product } from '@/types';
-import {
-  mockProducts,
-  mockCategories,
-  getProductsByCategory,
-  searchProducts as searchMockProducts,
-  getProductById,
-} from '@/data/mockData';
-
-// Simulate API delay for realistic feel
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import apiClient from './apiClient';
 
 export const fetchProducts = async (params?: {
   limit?: number;
   skip?: number;
   category?: string;
   search?: string;
+  sortBy?: string;
 }): Promise<{ products: Product[]; total: number; skip: number; limit: number }> => {
-  await delay(300); // Simulate network delay
-
-  let products: Product[] = [];
-
-  if (params?.search) {
-    products = searchMockProducts(params.search);
-  } else if (params?.category) {
-    products = getProductsByCategory(params.category);
-  } else {
-    products = mockProducts;
-  }
-
-  const skip = params?.skip || 0;
-  const limit = params?.limit || 12;
-  const total = products.length;
-  const paginatedProducts = products.slice(skip, skip + limit);
-
+  const response = await apiClient.get('/products', { params });
   return {
-    products: paginatedProducts,
-    total,
-    skip,
-    limit,
+    products: response.data.products,
+    total: response.data.total,
+    skip: response.data.skip,
+    limit: response.data.limit,
   };
 };
 
-export const fetchProductById = async (id: number): Promise<Product> => {
-  await delay(200);
-  const product = getProductById(id);
-  if (!product) {
-    throw new Error('Product not found');
-  }
-  return product;
+export const fetchProductById = async (id: string | number): Promise<Product> => {
+  const response = await apiClient.get(`/products/${id}`);
+  return response.data.data;
 };
 
 export const fetchCategories = async (): Promise<string[]> => {
-  await delay(100);
-  return mockCategories.filter((cat) => cat !== 'all');
+  // Use format=names query parameter to return array of strings for frontend compatibility
+  const response = await apiClient.get('/categories', { params: { format: 'names' } });
+  return response.data;
 };
 
 export const searchProducts = async (query: string): Promise<{ products: Product[]; total: number }> => {
-  await delay(300);
-  const products = searchMockProducts(query);
+  const response = await apiClient.get('/products', { params: { search: query } });
   return {
-    products,
-    total: products.length,
+    products: response.data.products,
+    total: response.data.total,
   };
 };
 

@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #faf9f6;
   --foreground: #2c2c2c;
+  --text-muted: #6b6b6b;
+  --border-color: #e8e0d6;
+  --card-bg: #ffffff;
   
   /* Classic Theme Colors - Warm Earth Tones */
   --primary: #8b6f47;
@@ -31,22 +36,39 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-text-muted: var(--text-muted);
+  --color-border-theme: var(--border-color);
+  --color-card-bg: var(--card-bg);
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
   --color-primary-light: var(--primary-light);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
+  --color-cream: var(--cream);
+  --color-beige: var(--beige);
   --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --primary: #818cf8;
-    --primary-dark: #6366f1;
-    --primary-light: #a5b4fc;
-  }
+:root.dark,
+.dark {
+  --background: #0f0f0e;
+  --foreground: #f5f1eb;
+  --text-muted: #a6a6a6;
+  --border-color: #2c2a26;
+  --card-bg: #181715;
+  --primary: #c9a96b;
+  --primary-dark: #a88a4f;
+  --primary-light: #d4a574;
+  --secondary: #8b6f47;
+  --secondary-dark: #6b5435;
+  --accent: #d4a574;
+  --accent-dark: #b8905a;
+  --cream: #1c1a17;
+  --beige: #2c2a26;
+  --success: #8bb38b;
+  --warning: #e0b484;
+  --error: #cf8c74;
+  --info: #9db0d6;
 }
 
 * {

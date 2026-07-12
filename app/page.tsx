@@ -63,9 +63,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       {/* Classic Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#faf9f6] via-[#f5f1eb] to-white dark:from-gray-950 dark:via-gray-900 dark:to-gray-900">
+      <section className="relative overflow-hidden bg-gradient-to-b from-background via-cream to-card-bg">
         <motion.div
           style={{ y: y1, opacity }}
           className="absolute inset-0 z-0"
@@ -77,7 +77,7 @@ export default function Home() {
             className="object-cover opacity-20"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#faf9f6]/95 via-[#f5f1eb]/90 to-white/95 dark:from-gray-950/95 dark:via-gray-900/90 dark:to-gray-900/95"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-cream/45 to-card-bg/55"></div>
         </motion.div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 md:py-36">
           <motion.div
@@ -136,7 +136,7 @@ export default function Home() {
         whileInView={{ opacity: 1 }}
         viewport={{ once: true, margin: '-100px' }}
         transition={{ duration: 0.8 }}
-        className="py-16 sm:py-20 md:py-24 bg-[#faf9f6] dark:bg-gray-950"
+        className="py-16 sm:py-20 md:py-24 bg-background"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div

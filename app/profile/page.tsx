@@ -1,53 +1,148 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { User, Package, MapPin, Heart, LogOut, Edit2, ShoppingBag, Award, Clock, TrendingUp } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useCartStore } from '@/stores/cartStore';
+import apiClient from '@/lib/apiClient';
+import { Product, Order, Address } from '@/types';
+import Loading from '@/components/ui/Loading';
 
 export default function DashboardPage() {
+  const { user, logout, updateProfile, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const addItem = useCartStore((state) => state.addItem);
   const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'orders' | 'addresses' | 'wishlist'>('overview');
   const [isEditing, setIsEditing] = useState(false);
-  
+
+  const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 234 567 8900',
-    address: '123 Main St',
-    city: 'New York',
-    state: 'NY',
-    zipCode: '10001',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    password: '',
+    confirmPassword: ''
   });
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+    } else if (user) {
+      const defaultAddr = user.addresses?.find((a: any) => a.isDefault) || user.addresses?.[0];
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: defaultAddr?.street || '',
+        city: defaultAddr?.city || '',
+        state: defaultAddr?.state || '',
+        zipCode: defaultAddr?.zipCode || '',
+        password: '',
+        confirmPassword: ''
+      });
+      loadProfileData();
+    }
+  }, [user, authLoading]);
+
+  const loadProfileData = async () => {
+    setLoadingData(true);
+    try {
+      await Promise.all([loadWishlist(), loadOrders()]);
+    } catch (err) {
+      console.error('Error loading profile tabs:', err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const loadWishlist = async () => {
+    try {
+      const res = await apiClient.get('/wishlist');
+      if (res.data?.success) {
+        setWishlistItems(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load wishlist:', err);
+    }
+  };
+
+  const loadOrders = async () => {
+    try {
+      const res = await apiClient.get('/orders');
+      if (res.data?.success) {
+        setOrders(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+    }
+  };
+
+  const removeFromWishlist = async (productId: string | number) => {
+    try {
+      const res = await apiClient.delete(`/wishlist/${productId}`);
+      if (res.data?.success) {
+        setWishlistItems(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to remove from wishlist:', err);
+    }
+  };
+
   const userStats = [
-    { label: 'Total Orders', value: '24', icon: ShoppingBag, color: 'blue' },
-    { label: 'Wishlist Items', value: '12', icon: Heart, color: 'red' },
-    { label: 'Points', value: '2,450', icon: Award, color: 'yellow' },
-    { label: 'Member Since', value: '2 years', icon: TrendingUp, color: 'green' },
+    { label: 'Total Orders', value: String(orders.length), icon: ShoppingBag, color: 'blue' },
+    { label: 'Wishlist Items', value: String(wishlistItems.length), icon: Heart, color: 'red' },
+    { label: 'Points', value: '150', icon: Award, color: 'yellow' },
+    { 
+      label: 'Member Since', 
+      value: user?.createdAt ? new Date(user.createdAt).getFullYear().toString() : new Date().getFullYear().toString(), 
+      icon: TrendingUp, 
+      color: 'green' 
+    },
   ];
 
-  const recentOrders = [
-    { id: '#ORD001', date: '2025-12-08', total: '$299.99', status: 'Delivered', items: 3 },
-    { id: '#ORD002', date: '2025-12-05', total: '$149.50', status: 'Processing', items: 2 },
-    { id: '#ORD003', date: '2025-11-28', total: '$89.99', status: 'Delivered', items: 1 },
-  ];
+  const recentOrders = orders.slice(0, 3).map(order => ({
+    id: order.orderNumber || order.id,
+    date: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A',
+    total: `$${order.total.toFixed(2)}`,
+    status: order.orderStatus || 'Pending',
+    items: order.products ? order.products.reduce((acc, p) => acc + p.quantity, 0) : 0
+  }));
 
-  const addresses = [
-    { type: 'Home', address: '123 Main St, New York, NY 10001', default: true },
-    { type: 'Office', address: '456 Business Ave, New York, NY 10002', default: false },
-  ];
+  const userAddresses: Address[] = user?.addresses || [];
 
-  const wishlistItems = [
-    { id: 1, name: 'Premium Wireless Headphones', price: '$199.99', image: '🎧' },
-    { id: 2, name: 'Smart Watch Series 5', price: '$299.99', image: '⌚' },
-    { id: 3, name: 'USB-C Hub Pro', price: '$49.99', image: '🔌' },
-  ];
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Profile updated:', formData);
-    setIsEditing(false);
+    setError(null);
+
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    try {
+      await updateProfile(
+        formData.name,
+        formData.email,
+        formData.phone,
+        formData.password || undefined
+      );
+      setIsEditing(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update profile');
+    }
   };
 
   return (
@@ -248,20 +343,32 @@ export default function DashboardPage() {
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  {addresses.map((addr, index) => (
-                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{addr.type}</h3>
-                            {addr.default && <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-medium">Default</span>}
+                  {userAddresses.length === 0 ? (
+                    <p className="text-gray-600 dark:text-gray-400">No addresses saved yet.</p>
+                  ) : (
+                    userAddresses.map((addr, index) => (
+                      <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-900 dark:text-white">
+                                {addr.isDefault ? 'Default Address' : `Address ${index + 1}`}
+                              </h3>
+                              {addr.isDefault && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-medium">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-600 dark:text-gray-400 mt-2">
+                              {addr.street}, {addr.city}, {addr.state} {addr.zipCode}, {addr.country}
+                            </p>
                           </div>
-                          <p className="text-gray-600 dark:text-gray-400 mt-2">{addr.address}</p>
+                          <Button variant="outline" size="sm">Edit</Button>
                         </div>
-                        <Button variant="outline" size="sm">Edit</Button>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -270,19 +377,45 @@ export default function DashboardPage() {
             {activeTab === 'wishlist' && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">My Wishlist</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {wishlistItems.map((item) => (
-                    <div key={item.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-lg transition">
-                      <div className="text-5xl mb-3">{item.image}</div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{item.name}</h3>
-                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-4">{item.price}</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" className="flex-1">Add to Cart</Button>
-                        <Button variant="outline" size="sm" className="flex-1">Remove</Button>
+                {wishlistItems.length === 0 ? (
+                  <p className="text-gray-600 dark:text-gray-400">No items in your wishlist yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {wishlistItems.map((item) => (
+                      <div key={item.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-lg transition flex flex-col justify-between">
+                        <div>
+                          <div className="relative w-full h-32 mb-3 bg-gray-100 rounded overflow-hidden">
+                            <Image
+                              src={item.thumbnail}
+                              alt={item.title}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                          <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">{item.title}</h3>
+                          <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-4">${item.price}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => addItem(item, 1)}
+                            size="sm" 
+                            className="flex-1"
+                          >
+                            Add to Cart
+                          </Button>
+                          <Button 
+                            onClick={() => removeFromWishlist(item.id)}
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                          >
+                            Remove
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

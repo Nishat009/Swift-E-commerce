@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingBag, Zap, Heart } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -40,15 +42,10 @@ export default function RegisterPage() {
     }
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // In a real app, you would register with NextAuth here
-      console.log('Registration successful:', formData);
-      // Redirect to dashboard after registration
-      router.push('/dashboard');
-    } catch (error) {
+      await register(formData.name, formData.email, formData.password);
+    } catch (error: any) {
       console.error('Registration error:', error);
-      setErrors({ form: 'An error occurred. Please try again.' });
+      setErrors({ form: error.message || 'An error occurred during registration. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -140,6 +137,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Form */}
+          {errors.form && <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded mb-4">{errors.form}</div>}
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

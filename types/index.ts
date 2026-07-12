@@ -1,8 +1,10 @@
 export interface Product {
-  id: number;
+  id: string | number;
   title: string;
   description: string;
+  shortDescription?: string;
   price: number;
+  salePrice?: number;
   discountPercentage: number;
   rating: number;
   stock: number;
@@ -21,6 +23,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  avatar?: string;
+  role?: 'customer' | 'admin';
+  createdAt?: string;
+  updatedAt?: string;
+  addresses?: Address[];
 }
 
 export interface Address {
@@ -29,14 +37,23 @@ export interface Address {
   state: string;
   zipCode: string;
   country: string;
+  isDefault?: boolean;
 }
 
 export interface Order {
   id: string;
-  items: CartItem[];
+  orderNumber?: string;
+  items?: CartItem[];
+  products?: { product: Product; quantity: number; price: number }[];
+  subtotal?: number;
+  shipping?: number;
+  tax?: number;
   total: number;
-  address: Address;
+  address?: Address;
+  shippingAddress?: Address;
   paymentMethod: string;
+  paymentStatus?: string;
+  orderStatus?: string;
   createdAt: string;
 }
 
