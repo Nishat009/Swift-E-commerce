@@ -2,8 +2,8 @@
 **/node_modules/
 
 # Next.js build
-frontend/.next/
-frontend/out/
+.next/
+out/
 
 # Production build
 **/build/
