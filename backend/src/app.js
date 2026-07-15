@@ -29,16 +29,20 @@ app.use(helmet({
 
 // 2. CORS configuration (allow frontend to pass credentials)
 const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, ''))
   : ['http://localhost:3000', 'http://localhost:3001'];
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl/postman)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+    
+    const cleanedOrigin = origin.replace(/\/$/, '');
+    
+    if (allowedOrigins.includes(cleanedOrigin) || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
+      console.warn(`[CORS Blocked] Incoming origin: "${origin}" is not in the allowed list:`, allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
