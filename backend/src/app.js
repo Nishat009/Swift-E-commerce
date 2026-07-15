@@ -19,6 +19,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const newsletterRoutes = require('./routes/newsletterRoutes');
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // 8. Swagger documentation endpoint
 setupSwagger(app);

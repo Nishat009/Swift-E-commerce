@@ -38,7 +38,7 @@ function ProductsPageContent() {
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, selectedCategory, searchQuery]);
+  }, [currentPage, selectedCategory, searchQuery, priceRange, sortBy]);
 
   const loadCategories = async () => {
     try {
@@ -59,6 +59,9 @@ function ProductsPageContent() {
         skip: number;
         category?: string;
         search?: string;
+        sortBy?: string;
+        priceMin?: number;
+        priceMax?: number;
       } = {
         limit: productsPerPage,
         skip,
@@ -72,29 +75,17 @@ function ProductsPageContent() {
         params.search = searchQuery;
       }
 
+      if (sortBy !== 'default') {
+        params.sortBy = sortBy;
+      }
+
+      // Filter by price on backend
+      params.priceMin = priceRange[0];
+      params.priceMax = priceRange[1];
+
       const data = await fetchProducts(params);
-      let filteredProducts = data.products;
-
-      // Apply price filter
-      filteredProducts = filteredProducts.filter(
-        (p) => p.price >= priceRange[0] && p.price <= priceRange[1]
-      );
-
-      // Apply sorting
-      filteredProducts = [...filteredProducts].sort((a, b) => {
-        switch (sortBy) {
-          case 'price-asc':
-            return a.price - b.price;
-          case 'price-desc':
-            return b.price - a.price;
-          case 'rating':
-            return b.rating - a.rating;
-          default:
-            return 0;
-        }
-      });
-
-      setProducts(filteredProducts);
+      
+      setProducts(data.products);
       setTotalProducts(data.total);
       setTotalPages(Math.ceil(data.total / productsPerPage));
     } catch (err) {
@@ -122,6 +113,7 @@ function ProductsPageContent() {
 
   const handleSortChange = (sort: typeof sortBy) => {
     setSortBy(sort);
+    setCurrentPage(1);
   };
 
   if (loading && products.length === 0) {
@@ -279,7 +271,7 @@ function ProductsPageContent() {
               <div
                 className={
                   viewMode === 'grid'
-                    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
                     : 'space-y-4'
                 }
               >

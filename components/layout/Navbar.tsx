@@ -50,7 +50,12 @@ export default function Navbar() {
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/products', label: 'Products' },
+    { href: '/dressing-room', label: 'Dressing Room' },
   ];
+
+  if (user && user.role === 'admin') {
+    navLinks.push({ href: '/admin', label: 'Admin Panel' });
+  }
 
   return (
     <>

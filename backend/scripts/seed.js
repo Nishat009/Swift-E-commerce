@@ -9,6 +9,15 @@ const Coupon = require('../src/models/Coupon');
 const Review = require('../src/models/Review');
 
 const categoriesData = [
+  { name: 'Top', slug: 'top', image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&h=400&fit=crop', featured: true },
+  { name: 'Pants', slug: 'pants', image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop', featured: true },
+  { name: 'Dress', slug: 'dress', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop', featured: true },
+  { name: 'Jacket', slug: 'jacket', image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop', featured: true },
+  { name: 'Shoes', slug: 'shoes', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop', featured: true },
+  { name: 'Hat', slug: 'hat', image: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=400&h=400&fit=crop', featured: false },
+  { name: 'Bag', slug: 'bag', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop', featured: false },
+  { name: 'Jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=400&fit=crop', featured: false },
+  { name: 'Glasses', slug: 'glasses', image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&h=400&fit=crop', featured: false },
   { name: 'Sofa', slug: 'sofa', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', featured: true },
   { name: 'Chair', slug: 'chair', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=400&h=400&fit=crop', featured: true },
   { name: 'Table', slug: 'table', image: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=400&h=400&fit=crop', featured: true },
@@ -21,6 +30,485 @@ const categoriesData = [
 
 // ─── Curated Product Catalog (50 products, unique names & images) ────────────
 const curatedProducts = [
+  // --- FASHION PRODUCTS ---
+  {
+    title: 'Cropped Ribbed Knit Tank',
+    description: 'A premium cropped tank top knitted in soft, ribbed organic cotton. Features a sleek scoop neck and flatlock seams for ultimate comfort. Designed to flatter and fit close to the body, perfect for layering or wearing standalone during warm weather.',
+    shortDescription: 'Premium cropped tank in ribbed organic cotton.',
+    category: 'top', brand: 'ZaraStyle', price: 39, salePrice: 35,
+    stock: 45, rating: 4.7, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&h=800&fit=crop'
+    ],
+    tags: ['minimalist', 'summer', 'casual'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'female',
+      'Color': '#e3dac9',
+      'Material': '95% Organic Cotton, 5% Elastane',
+      'Fabric': 'Ribbed stretch knit, lightweight & breathable',
+      'Delivery': '2-3 Business Days',
+      'Occasion': 'casual, seasonal',
+      'StyleTags': 'minimalist, summer, casual',
+      'SvgStyle': 'tank',
+      'SvgColor': '#f5f0e6',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Cozy Cable Knit Sweater',
+    description: 'An oversized, warm cable-knit sweater made from premium wool blend. Exquisitely detailed stitching patterns offer a classic heritage look while the modern slouchy silhouette ensures casual ease. Perfect for cold autumn and winter layering.',
+    shortDescription: 'Oversized warm wool blend cable-knit sweater.',
+    category: 'top', brand: 'H&MClassic', price: 89, salePrice: 80,
+    stock: 25, rating: 4.8, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1614975058789-41316d0e2e9c?w=800&h=800&fit=crop'
+    ],
+    tags: ['cozy', 'winter', 'casual'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'female',
+      'Color': '#8a7d72',
+      'Material': '60% Merino Wool, 40% Recycled Nylon',
+      'Fabric': 'Heavyweight cable weave, extremely soft and warm',
+      'Delivery': '3-5 Business Days',
+      'Occasion': 'casual, seasonal',
+      'StyleTags': 'cozy, winter, casual',
+      'SvgStyle': 'sweater',
+      'SvgColor': '#9c8e82',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'High-Rise Denim Jeans',
+    description: 'Classic straight-leg denim jeans in a vintage wash. Crafted from heavyweight rigid cotton denim that softens beautifully over time. High-rise fit hugs your waist while maintaining a relaxed straight fit through the legs.',
+    shortDescription: 'Classic straight-leg vintage denim jeans.',
+    category: 'pants', brand: 'ZaraStyle', price: 79, salePrice: 69,
+    stock: 35, rating: 4.6, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop'
+    ],
+    tags: ['streetwear', 'denim', 'vintage'],
+    specifications: {
+      'Layer': 'pants',
+      'Gender': 'female',
+      'Color': '#4a6b82',
+      'Material': '100% Rigid Organic Cotton',
+      'Fabric': '13.5 oz heavy denim, classic twilight wash',
+      'Delivery': '2-4 Business Days',
+      'Occasion': 'casual, office',
+      'StyleTags': 'streetwear, denim, vintage',
+      'SvgStyle': 'jeans',
+      'SvgColor': '#5888a5',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Tailored Linen Trouser',
+    description: 'Lightweight and airy wide-leg trousers tailored in pure flax linen. Featuring a high-rise waist with crisp double pleats, belt loops, and hidden front closure. Offers effortless elegance for warm-weather office chic or weekend resort wear.',
+    shortDescription: 'High-rise wide-leg pure linen trousers.',
+    category: 'pants', brand: 'ZaraStyle', price: 95,
+    stock: 18, rating: 4.9, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=800&h=800&fit=crop'
+    ],
+    tags: ['resort', 'smart-casual', 'office'],
+    specifications: {
+      'Layer': 'pants',
+      'Gender': 'female',
+      'Color': '#dfdcd6',
+      'Material': '100% European Flax Linen',
+      'Fabric': 'Lightweight plain weave, breathable & pre-washed',
+      'Delivery': '2-4 Business Days',
+      'Occasion': 'office, casual, seasonal',
+      'StyleTags': 'resort, smart-casual, office',
+      'SvgStyle': 'pants',
+      'SvgColor': '#e3ded5',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Floral Silk Slip Dress',
+    description: 'An elegant midi slip dress cut on the bias from luxurious mulberry silk. Adorned with a delicate watercolor floral print. Features skinny adjustable shoulder straps and a graceful cowl neck. Fits beautifully to outline the silhouette.',
+    shortDescription: 'Luxurious midi mulberry silk slip dress.',
+    category: 'dress', brand: 'ZaraStyle', price: 180, salePrice: 153,
+    stock: 12, rating: 4.9, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=800&fit=crop'
+    ],
+    tags: ['luxury', 'wedding-guest', 'summer-party'],
+    specifications: {
+      'Layer': 'dress',
+      'Gender': 'female',
+      'Color': '#e2b3c2',
+      'Material': '100% Mulberry Silk',
+      'Fabric': 'Ultra-soft, satin-faced silk charmeuse',
+      'Delivery': '1-2 Business Days',
+      'Occasion': 'party, wedding, seasonal',
+      'StyleTags': 'luxury, wedding-guest, summer-party',
+      'SvgStyle': 'dress',
+      'SvgColor': '#cca3b0',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Oversized Classic Trench Coat',
+    description: 'A timeless double-breasted trench coat tailored in durable cotton gabardine. Features adjustable shoulder epaulets, belted cuffs, a removable storm flap, and matching waist belt. Provides water resistance and effortless Parisian elegance.',
+    shortDescription: 'Classic double-breasted cotton gabardine trench.',
+    category: 'jacket', brand: 'H&MClassic', price: 220, salePrice: 202,
+    stock: 15, rating: 4.8, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=800&fit=crop'
+    ],
+    tags: ['classic', 'autumn', 'layering'],
+    specifications: {
+      'Layer': 'jacket',
+      'Gender': 'female',
+      'Color': '#c8b195',
+      'Material': '100% Water-Resistant Cotton Gabardine',
+      'Fabric': 'Densely woven weather-resistant gabardine',
+      'Delivery': '2-4 Business Days',
+      'Occasion': 'office, casual, seasonal',
+      'StyleTags': 'classic, autumn, layering',
+      'SvgStyle': 'trench',
+      'SvgColor': '#d0bc9c',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Minimalist Leather Shoulder Bag',
+    description: 'A structural shoulder bag crafted in smooth, full-grain Italian leather. Features a curved silhouette, thin adjustable strap, zip closure, and interior patch pockets. Finished with minimal silver-tone hardware for a refined aesthetic.',
+    shortDescription: 'Full-grain Italian leather shoulder bag.',
+    category: 'bag', brand: 'ZaraStyle', price: 150,
+    stock: 20, rating: 4.7, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=800&fit=crop'
+    ],
+    tags: ['accessory', 'luxury', 'sleek'],
+    specifications: {
+      'Layer': 'bag',
+      'Gender': 'female',
+      'Color': '#1c1c1c',
+      'Material': '100% Italian Nappa Leather, Cotton Lining',
+      'Fabric': 'Smooth leather finish with custom grain detailing',
+      'Delivery': '3-5 Business Days',
+      'Occasion': 'casual, office, party',
+      'StyleTags': 'accessory, luxury, sleek',
+      'SvgStyle': 'bag',
+      'SvgColor': '#2b2b2b',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Gold Hoop Earrings & Necklace Set',
+    description: 'A curated jewelry set featuring a 14k gold-plated choker chain and matching chunky round hoop earrings. Hypoallergenic, lightweight, and perfect for adding polished elegance to any basic top or cocktail dress.',
+    shortDescription: '14k gold-plated brass hoops and choker set.',
+    category: 'jewelry', brand: 'ZaraStyle', price: 45, salePrice: 40,
+    stock: 50, rating: 4.9, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=800&fit=crop'
+    ],
+    tags: ['accessory', 'gold', 'chic'],
+    specifications: {
+      'Layer': 'jewelry',
+      'Gender': 'female',
+      'Color': '#ffd700',
+      'Material': '14k Gold-Plated Recycled Brass',
+      'Fabric': 'Polished high-shine gold plating',
+      'Delivery': '2-3 Business Days',
+      'Occasion': 'party, office, wedding',
+      'StyleTags': 'accessory, gold, chic',
+      'SvgStyle': 'necklace',
+      'SvgColor': '#ffd700',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Premium Heavyweight Cotton Tee',
+    description: 'A structured crewneck t-shirt knitted from robust, 280gsm long-staple combed cotton. Offers an elegant dry-loop texture and a boxy, modern fit that retains its shape even after multiple washes. The ultimate wardrobe staple.',
+    shortDescription: '280gsm heavyweight crewneck boxy tee.',
+    category: 'top', brand: 'H&MClassic', price: 35,
+    stock: 60, rating: 4.8, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=800&fit=crop'
+    ],
+    tags: ['minimalist', 'streetwear', 'everyday'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'male',
+      'Color': '#ffffff',
+      'Material': '100% Combed Organic Cotton',
+      'Fabric': '280gsm heavyweight jersey knit, pre-shrunk',
+      'Delivery': '2-3 Business Days',
+      'Occasion': 'casual',
+      'StyleTags': 'minimalist, streetwear, everyday',
+      'SvgStyle': 'tshirt',
+      'SvgColor': '#fcfcfc',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Relaxed Oxford Cotton Shirt',
+    description: 'A classic button-down shirt constructed from premium long-fiber Oxford cotton fabric. Featuring a relaxed modern drape, chest pocket, curved hem, and mother-of-pearl buttons. Pre-washed for a soft texture and immediate comfort.',
+    shortDescription: 'Classic button-down pre-washed Oxford shirt.',
+    category: 'top', brand: 'H&MClassic', price: 65, salePrice: 60,
+    stock: 40, rating: 4.7, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&h=800&fit=crop'
+    ],
+    tags: ['smart-casual', 'preppy', 'office'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'male',
+      'Color': '#a0c4de',
+      'Material': '100% Long-Fiber Cotton',
+      'Fabric': 'Medium weight Oxford weave, breathable & soft',
+      'Delivery': '2-4 Business Days',
+      'Occasion': 'office, casual',
+      'StyleTags': 'smart-casual, preppy, office',
+      'SvgStyle': 'shirt',
+      'SvgColor': '#cbdceb',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Streetwear Cargo Utility Pants',
+    description: 'Rugged cargo pants crafted in heavy cotton ripstop fabric. Designed with an elastic waistband, internal drawstrings, articulated knees, and multiple utility flap pockets. Perfect for a functional, utilitarian street aesthetic.',
+    shortDescription: 'Rugged ripstop utility cargo trousers.',
+    category: 'pants', brand: 'NikeSports', price: 85, salePrice: 72,
+    stock: 30, rating: 4.5, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&h=800&fit=crop'
+    ],
+    tags: ['streetwear', 'utility', 'outdoor'],
+    specifications: {
+      'Layer': 'pants',
+      'Gender': 'male',
+      'Color': '#3d4b3c',
+      'Material': '98% Cotton Ripstop, 2% Elastane',
+      'Fabric': 'Woven ripstop cotton, abrasion-resistant',
+      'Delivery': '3-5 Business Days',
+      'Occasion': 'casual',
+      'StyleTags': 'streetwear, utility, outdoor',
+      'SvgStyle': 'cargo',
+      'SvgColor': '#586b57',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Classic Relaxed Chino',
+    description: 'A versatile flat-front chino trouser made from exceptionally soft cotton-twill stretch fabric. Features double-welt back pockets, side slant pockets, and a clean tapered hem. Ideal for effortless transitions from desk to dinner.',
+    shortDescription: 'Stretch cotton-twill flat-front chino trousers.',
+    category: 'pants', brand: 'H&MClassic', price: 69,
+    stock: 45, rating: 4.6, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=800&h=800&fit=crop'
+    ],
+    tags: ['smart-casual', 'office', 'preppy'],
+    specifications: {
+      'Layer': 'pants',
+      'Gender': 'male',
+      'Color': '#c2b29a',
+      'Material': '97% Cotton Twill, 3% Lycra',
+      'Fabric': 'Mid-weight stretch twill fabric',
+      'Delivery': '2-4 Business Days',
+      'Occasion': 'office, casual',
+      'StyleTags': 'smart-casual, office, preppy',
+      'SvgStyle': 'chinos',
+      'SvgColor': '#d8ccb9',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Eco-Leather Bomber Jacket',
+    description: 'A sleek bomber jacket crafted in premium vegan eco-leather. Features a rib-knit collar, hem, and cuffs, soft satin lining, silver zip closure, and angled snap pockets. Delivers a classic masculine edge with a modern eco-conscious design.',
+    shortDescription: 'Premium vegan eco-leather classic bomber jacket.',
+    category: 'jacket', brand: 'ZaraStyle', price: 140, salePrice: 126,
+    stock: 22, rating: 4.8, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=800&fit=crop'
+    ],
+    tags: ['edgy', 'winter', 'streetwear'],
+    specifications: {
+      'Layer': 'jacket',
+      'Gender': 'male',
+      'Color': '#1a1a1a',
+      'Material': '100% Water-Resistant Polyurethane',
+      'Fabric': 'Soft grain vegan leather, matte finish',
+      'Delivery': '3-5 Business Days',
+      'Occasion': 'casual, party',
+      'StyleTags': 'edgy, winter, streetwear',
+      'SvgStyle': 'bomber',
+      'SvgColor': '#2d2d2d',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Retro Denim Trucker Jacket',
+    description: 'An iconic classic trucker jacket built in heavy raw-indigo denim. Featuring double chest flap pockets, waist tabs, and copper buttons. Boxy retro cut, perfect for double-denim looks or layering over white t-shirts.',
+    shortDescription: 'Heavy 14oz raw-indigo classic trucker jacket.',
+    category: 'jacket', brand: 'ZaraStyle', price: 110, salePrice: 104,
+    stock: 20, rating: 4.7, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?w=800&h=800&fit=crop'
+    ],
+    tags: ['classic', 'vintage', 'layering'],
+    specifications: {
+      'Layer': 'jacket',
+      'Gender': 'male',
+      'Color': '#3b5266',
+      'Material': '100% Heavyweight Cotton Denim',
+      'Fabric': '14 oz raw denim, structured copper hardware',
+      'Delivery': '2-4 Business Days',
+      'Occasion': 'casual',
+      'StyleTags': 'classic, vintage, layering',
+      'SvgStyle': 'denimJacket',
+      'SvgColor': '#4d6980',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Air Platform Sneakers',
+    description: 'Sporty retro sneakers designed with a layered leather and mesh upper, supported by a chunky cushioned air platform sole. Combines heritage Nike running aesthetics with absolute daily comfort.',
+    shortDescription: 'Retro running platform sneakers with cushioned soles.',
+    category: 'shoes', brand: 'NikeSports', price: 120,
+    stock: 50, rating: 4.9, featured: true,
+    thumbnail: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop'
+    ],
+    tags: ['athletic', 'streetwear', 'comfort'],
+    specifications: {
+      'Layer': 'shoes',
+      'Gender': 'unisex',
+      'Color': '#f34c23',
+      'Material': '40% Premium Leather, 30% Mesh, Rubber Outsole',
+      'Fabric': 'Breathable athletic composite upper',
+      'Delivery': '2-3 Business Days',
+      'Occasion': 'casual',
+      'StyleTags': 'athletic, streetwear, comfort',
+      'SvgStyle': 'sneakers',
+      'SvgColor': '#e5e5e5',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Classic Leather Chelsea Boots',
+    description: 'A refined pair of pull-on Chelsea boots built in hand-finished full-grain leather. Designed with a flexible elastic side gusset, pull tabs, and robust Goodyear welted soles. Offers sophisticated masculine flair for formal or smart casual settings.',
+    shortDescription: 'Goodyear-welted full-grain leather Chelsea boots.',
+    category: 'shoes', brand: 'H&MClassic', price: 160, salePrice: 144,
+    stock: 15, rating: 4.8, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=800&h=800&fit=crop'
+    ],
+    tags: ['smart', 'classic', 'formal'],
+    specifications: {
+      'Layer': 'shoes',
+      'Gender': 'male',
+      'Color': '#5c4033',
+      'Material': '100% Full-Grain Calfskin Leather',
+      'Fabric': 'Waxed burnished finish, leather lining',
+      'Delivery': '3-5 Business Days',
+      'Occasion': 'office, casual, wedding',
+      'StyleTags': 'smart, classic, formal',
+      'SvgStyle': 'boots',
+      'SvgColor': '#4d3326',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Premium Wool Felt Fedora',
+    description: 'A sophisticated structured fedora hat crafted from premium Australian wool felt. Detailed with a tonal grosgrain ribbon trim and internal sweatband. Offers vintage styling options for any seasonal look.',
+    shortDescription: 'Structured fedora hat in premium Australian wool felt.',
+    category: 'hat', brand: 'ZaraStyle', price: 75,
+    stock: 12, rating: 4.6, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=800&fit=crop'
+    ],
+    tags: ['accessory', 'classic', 'wool'],
+    specifications: {
+      'Layer': 'hat',
+      'Gender': 'unisex',
+      'Color': '#2b2b2b',
+      'Material': '100% Australian Wool Felt',
+      'Fabric': 'Structured felted wool, sweat-resistant',
+      'Delivery': '3-5 Business Days',
+      'Occasion': 'casual, seasonal',
+      'StyleTags': 'accessory, classic, wool',
+      'SvgStyle': 'fedora',
+      'SvgColor': '#424242',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Canvas Sport Baseball Cap',
+    description: 'A casual six-panel baseball cap stitched in durable washed cotton canvas. Completed with an adjustable metal buckle tab, ventilation eyelets, and pre-curved brim. Ideal for athletic workouts or relaxed street styles.',
+    shortDescription: 'Six-panel washed cotton canvas baseball cap.',
+    category: 'hat', brand: 'NikeSports', price: 25,
+    stock: 80, rating: 4.7, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=800&fit=crop'
+    ],
+    tags: ['accessory', 'athletic', 'everyday'],
+    specifications: {
+      'Layer': 'hat',
+      'Gender': 'unisex',
+      'Color': '#3b4252',
+      'Material': '100% Washed Cotton Canvas',
+      'Fabric': 'Soft unstructured canvas twill',
+      'Delivery': '2-3 Business Days',
+      'Occasion': 'casual',
+      'StyleTags': 'accessory, athletic, everyday',
+      'SvgStyle': 'cap',
+      'SvgColor': '#4c566a',
+      'Assembly Required': 'No'
+    }
+  },
+  {
+    title: 'Retro Oval Acetate Sunglasses',
+    description: 'Chic, vintage-inspired oval sunglasses sculpted in glossy organic acetate frames with dark 100% UV protective lenses. Elegant gold metal branding studs on the temples. Perfect retro styling for beach or city outings.',
+    shortDescription: 'Retro oval sunglasses with 100% UV protection lenses.',
+    category: 'glasses', brand: 'ZaraStyle', price: 49, salePrice: 44,
+    stock: 40, rating: 4.8, featured: false,
+    thumbnail: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&h=400&fit=crop',
+    images: [
+      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=800&fit=crop'
+    ],
+    tags: ['accessory', 'retro', 'beach'],
+    specifications: {
+      'Layer': 'glasses',
+      'Gender': 'unisex',
+      'Color': '#111111',
+      'Material': '100% Biodegradable Acetate Frames',
+      'Fabric': 'Scratch-resistant CR-39 polar lenses',
+      'Delivery': '2-3 Business Days',
+      'Occasion': 'casual, seasonal',
+      'StyleTags': 'accessory, retro, beach',
+      'SvgStyle': 'sunglasses',
+      'SvgColor': '#2b2b2b',
+      'Assembly Required': 'No'
+    }
+  },
   // ── SOFA (7 products) ──
   {
     title: 'Modern Leather Sofa',
@@ -644,8 +1132,8 @@ const seed = async () => {
     // Create 1 Admin
     usersToCreate.push({
       name: 'Admin User',
-      email: 'admin@swiftcart.com',
-      password: 'password123',
+      email: 'admin@email.com',
+      password: '12345678',
       phone: '+1 800 555 0199',
       role: 'admin',
       addresses: [
@@ -691,19 +1179,23 @@ const seed = async () => {
 
     // 4. Seed Products from curated catalog
     console.log('Seeding products...');
-    const productsToCreate = curatedProducts.map((p, i) => ({
-      ...p,
-      SKU: `SC-${p.category.toUpperCase().slice(0, 3)}-${1000 + i}`,
-      discountPercentage: p.salePrice ? Math.round(((p.price - p.salePrice) / p.price) * 100) : 0,
-      totalReviews: 0,
-      specifications: new Map([
-        ['Material', 'Premium Quality Materials'],
-        ['Warranty', '2 Years Limited'],
-        ['Assembly Required', 'Yes'],
-        ['Origin', 'Imported']
-      ]),
-      active: true,
-    }));
+    const productsToCreate = curatedProducts.map((p, i) => {
+      const specs = {
+        'Material': 'Premium Quality Materials',
+        'Warranty': '2 Years Limited',
+        'Assembly Required': 'Yes',
+        'Origin': 'Imported',
+        ...(p.specifications || {})
+      };
+      return {
+        ...p,
+        SKU: `SC-${p.category.toUpperCase().slice(0, 3)}-${1000 + i}`,
+        discountPercentage: p.salePrice ? Math.round(((p.price - p.salePrice) / p.price) * 100) : 0,
+        totalReviews: 0,
+        specifications: new Map(Object.entries(specs)),
+        active: true,
+      };
+    });
 
     const createdProducts = await Product.create(productsToCreate);
     console.log(`Created ${createdProducts.length} products.`);

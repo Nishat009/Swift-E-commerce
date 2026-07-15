@@ -226,9 +226,9 @@ export default function Home() {
               whileInView="visible"
               viewport={{ once: true, margin: '-50px' }}
               variants={containerVariants}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
             >
-              {featuredProducts.slice(0, 4).map((product, index) => (
+              {featuredProducts.slice(0, 3).map((product, index) => (
                 <motion.div key={product.id} variants={itemVariants}>
                   <ProductCard product={product} index={index} />
                 </motion.div>
@@ -287,9 +287,9 @@ export default function Home() {
               whileInView="visible"
               viewport={{ once: true, margin: '-50px' }}
               variants={containerVariants}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
             >
-              {newArrivals.slice(0, 4).map((product, index) => (
+              {newArrivals.slice(0, 3).map((product, index) => (
                 <motion.div key={product.id} variants={itemVariants}>
                   <ProductCard product={product} index={index} />
                 </motion.div>
@@ -369,9 +369,9 @@ export default function Home() {
               whileInView="visible"
               viewport={{ once: true, margin: '-50px' }}
               variants={containerVariants}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
             >
-              {bestsellers.slice(0, 4).map((product, index) => (
+              {bestsellers.slice(0, 3).map((product, index) => (
                 <motion.div key={product.id} variants={itemVariants}>
                   <ProductCard product={product} index={index} />
                 </motion.div>

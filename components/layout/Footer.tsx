@@ -1,7 +1,29 @@
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
+import apiClient from '@/lib/apiClient';
 
 export default function Footer() {
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [submittingNewsletter, setSubmittingNewsletter] = useState(false);
+
+  const handleNewsletterSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail) return;
+    setSubmittingNewsletter(true);
+    try {
+      const res = await apiClient.post('/newsletter/subscribe', { email: newsletterEmail });
+      if (res.data?.success) {
+        alert(res.data.message || 'Subscribed successfully!');
+        setNewsletterEmail('');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to subscribe to newsletter.');
+    } finally {
+      setSubmittingNewsletter(false);
+    }
+  };
+
   return (
     <footer className="bg-cream border-t border-border-theme mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -14,6 +36,26 @@ export default function Footer() {
             <p className="text-sm text-text-muted">
               Your one-stop shop for all your shopping needs. Quality products, fast delivery.
             </p>
+            <div className="mt-6">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">Subscribe to our newsletter</h4>
+              <form onSubmit={handleNewsletterSubscribe} className="flex gap-2 max-w-sm">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  required
+                  className="flex-1 text-xs border border-gray-300 dark:border-gray-750 bg-white dark:bg-gray-900 rounded-xl px-3 py-2 text-gray-800 dark:text-gray-200 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={submittingNewsletter}
+                  className="text-xs bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950 px-4 py-2 rounded-xl font-bold hover:bg-[#725a38] transition-all disabled:opacity-50"
+                >
+                  Join
+                </button>
+              </form>
+            </div>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-4">Shop</h3>

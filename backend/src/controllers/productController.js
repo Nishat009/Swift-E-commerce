@@ -28,7 +28,7 @@ const getProducts = async (req, res, next) => {
 
     // 1. Category Filter
     if (category && category !== 'all') {
-      query.category = category;
+      query.category = category.toLowerCase();
     }
 
     // 2. Full-Text Search or Regex Match (Title, Brand, Category, Tags, Description)
@@ -44,10 +44,10 @@ const getProducts = async (req, res, next) => {
     }
 
     // 3. Price Filtering
-    if (priceMin !== undefined || priceMax !== undefined) {
+    if ((priceMin !== undefined && priceMin !== '') || (priceMax !== undefined && priceMax !== '')) {
       query.price = {};
-      if (priceMin !== undefined) query.price.$gte = Number(priceMin);
-      if (priceMax !== undefined) query.price.$lte = Number(priceMax);
+      if (priceMin !== undefined && priceMin !== '') query.price.$gte = Number(priceMin);
+      if (priceMax !== undefined && priceMax !== '') query.price.$lte = Number(priceMax);
     }
 
     // 4. Brand Filter
@@ -105,6 +105,8 @@ const getProducts = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
+      code: 200,
+      status: 200,
       products,
       total,
       skip: skipNum,

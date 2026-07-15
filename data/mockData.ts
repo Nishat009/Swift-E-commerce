@@ -1,4 +1,5 @@
 import { Product } from '@/types';
+import { fashionProducts } from './fashionCatalog';
 
 export interface Review {
   id: string;
@@ -11,6 +12,7 @@ export interface Review {
 }
 
 export const mockProducts: Product[] = [
+  ...fashionProducts,
   {
     id: 1,
     title: 'Modern Leather Sofa',
@@ -210,6 +212,15 @@ export const mockProducts: Product[] = [
 
 export const mockCategories = [
   'all',
+  'top',
+  'pants',
+  'dress',
+  'jacket',
+  'shoes',
+  'hat',
+  'bag',
+  'jewelry',
+  'glasses',
   'sofa',
   'chair',
   'table',

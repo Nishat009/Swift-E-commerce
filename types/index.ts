@@ -12,6 +12,7 @@ export interface Product {
   category: string;
   thumbnail: string;
   images: string[];
+  specifications?: Record<string, string>;
 }
 
 export interface CartItem {
@@ -43,6 +44,7 @@ export interface Address {
 export interface Order {
   id: string;
   orderNumber?: string;
+  user?: User | { name: string; email: string };
   items?: CartItem[];
   products?: { product: Product; quantity: number; price: number }[];
   subtotal?: number;
