@@ -47,6 +47,7 @@
   --color-cream: var(--cream);
   --color-beige: var(--beige);
   --font-sans: var(--font-inter);
+  --font-serif: var(--font-cormorant);
 }
 
 :root.dark,
@@ -92,7 +93,7 @@ body {
 
 /* Classic Typography */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-playfair), 'Playfair Display', serif;
+  font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.3;

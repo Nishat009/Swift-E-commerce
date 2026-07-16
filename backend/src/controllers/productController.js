@@ -21,14 +21,16 @@ const getProducts = async (req, res, next) => {
       newest,
       sort,
       order,
-      sortBy
+      sortBy,
+      color,
+      size
     } = req.query;
 
     const query = { active: true };
 
     // 1. Category Filter
     if (category && category !== 'all') {
-      query.category = category;
+      query.category = category.toLowerCase();
     }
 
     // 2. Full-Text Search or Regex Match (Title, Brand, Category, Tags, Description)
@@ -44,10 +46,10 @@ const getProducts = async (req, res, next) => {
     }
 
     // 3. Price Filtering
-    if (priceMin !== undefined || priceMax !== undefined) {
+    if ((priceMin !== undefined && priceMin !== '') || (priceMax !== undefined && priceMax !== '')) {
       query.price = {};
-      if (priceMin !== undefined) query.price.$gte = Number(priceMin);
-      if (priceMax !== undefined) query.price.$lte = Number(priceMax);
+      if (priceMin !== undefined && priceMin !== '') query.price.$gte = Number(priceMin);
+      if (priceMax !== undefined && priceMax !== '') query.price.$lte = Number(priceMax);
     }
 
     // 4. Brand Filter
@@ -58,6 +60,19 @@ const getProducts = async (req, res, next) => {
     // 5. Rating Filter
     if (rating) {
       query.rating = { $gte: Number(rating) };
+    }
+
+    // 5a. Color Filter
+    if (color) {
+      const colors = color.split(',').map(c => c.trim());
+      query['specifications.ColorName'] = { $in: colors };
+    }
+
+    // 5b. Size Filter
+    if (size) {
+      const sizes = size.split(',').map(s => s.trim());
+      const regexes = sizes.map(s => new RegExp(`\\b${s}\\b`, 'i'));
+      query['specifications.Sizes'] = { $in: regexes };
     }
 
     // 6. Availability Filter
@@ -105,6 +120,8 @@ const getProducts = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
+      code: 200,
+      status: 200,
       products,
       total,
       skip: skipNum,

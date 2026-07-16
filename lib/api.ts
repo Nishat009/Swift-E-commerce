@@ -7,6 +7,10 @@ export const fetchProducts = async (params?: {
   category?: string;
   search?: string;
   sortBy?: string;
+  priceMin?: number;
+  priceMax?: number;
+  color?: string;
+  size?: string;
 }): Promise<{ products: Product[]; total: number; skip: number; limit: number }> => {
   const response = await apiClient.get('/products', { params });
   return {

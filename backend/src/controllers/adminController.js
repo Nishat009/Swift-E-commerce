@@ -108,6 +108,50 @@ const getDashboardStats = async (req, res, next) => {
   }
 };
 
+const getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    return sendSuccess(res, 'Users list loaded successfully', users);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateUserRole = async (req, res, next) => {
+  const { role } = req.body;
+  if (!['admin', 'customer'].includes(role)) {
+    return res.status(400).json({ success: false, message: 'Invalid user role' });
+  }
+
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    user.role = role;
+    await user.save();
+    return sendSuccess(res, 'User role updated successfully', user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    await user.deleteOne();
+    return sendSuccess(res, 'User deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
+  getAllUsers,
+  updateUserRole,
+  deleteUser,
 };

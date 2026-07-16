@@ -135,9 +135,26 @@ const deleteReview = async (req, res, next) => {
   }
 };
 
+// @desc    Get all reviews
+// @route   GET /api/reviews
+// @access  Private/Admin
+const getAllReviews = async (req, res, next) => {
+  try {
+    const reviews = await Review.find({})
+      .populate('product', 'title thumbnail')
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+
+    return sendSuccess(res, 'All reviews retrieved successfully', reviews);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createReview,
   getProductReviews,
   updateReview,
   deleteReview,
+  getAllReviews,
 };

@@ -19,8 +19,11 @@ const orderRoutes = require('./routes/orderRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const newsletterRoutes = require('./routes/newsletterRoutes');
+const campaignRoutes = require('./routes/campaignRoutes');
 
 const app = express();
+
 
 // 1. Security HTTP Headers
 app.use(helmet({
@@ -28,9 +31,24 @@ app.use(helmet({
 }));
 
 // 2. CORS configuration (allow frontend to pass credentials)
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, ''))
+  : ['http://localhost:3000', 'http://localhost:3001'];
+
 app.use(cors({
-  origin: frontendUrl,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl/postman)
+    if (!origin) return callback(null, true);
+    
+    const cleanedOrigin = origin.replace(/\/$/, '');
+    
+    if (allowedOrigins.includes(cleanedOrigin) || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS Blocked] Incoming origin: "${origin}" is not in the allowed list:`, allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -67,6 +85,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // 8. Swagger documentation endpoint
 setupSwagger(app);

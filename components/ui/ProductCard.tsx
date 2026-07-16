@@ -4,11 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Product } from '@/types';
 import Card from './Card';
-import Button from './Button';
 import { useCartStore } from '@/stores/cartStore';
-import { ShoppingCart, Star } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { ShoppingCart, Heart, Star } from 'lucide-react';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useState, useRef, useEffect } from 'react';
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +19,61 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
   const addItem = useCartStore((state) => state.addItem);
   const discountedPrice = product.price * (1 - product.discountPercentage / 100);
   const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    // Detect touchscreen devices to fall back safely
+    const mediaQuery = window.matchMedia('(pointer: coarse)');
+    setIsTouchDevice(mediaQuery.matches);
+    const listener = (e: MediaQueryListEvent) => setIsTouchDevice(e.matches);
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, []);
+
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // Dynamic spring-loaded tilt physical rotation values
+  const springConfig = { stiffness: 150, damping: 25 };
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [10, -10]), springConfig);
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-10, 10]), springConfig);
+
+  // Dynamic light glow overlay coordinates following mouse position
+  const shineBackground = useTransform(
+    [x, y],
+    ([latestX, latestY]) => {
+      const xPos = (Number(latestX) + 0.5) * 100;
+      const yPos = (Number(latestY) + 0.5) * 100;
+      return `radial-gradient(circle at ${xPos}% ${yPos}%, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 55%)`;
+    }
+  );
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isTouchDevice || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Normalize coordinates to [-0.5, 0.5] range
+    const relativeX = (mouseX / width) - 0.5;
+    const relativeY = (mouseY / height) - 0.5;
+
+    x.set(relativeX);
+    y.set(relativeY);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+    setIsHovered(false);
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,9 +90,9 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
         whileHover={{ scale: 1.01 }}
       >
         <Link href={`/product/${product.id}`}>
-          <Card className="p-4 flex flex-row gap-4 hover:shadow-md transition-shadow duration-300">
+          <Card className="p-4 flex flex-row gap-4 hover:shadow-md transition-shadow duration-300 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl">
             <motion.div
-              className="relative w-32 h-32 flex-shrink-0 rounded-sm overflow-hidden"
+              className="relative w-32 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-950"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
             >
@@ -48,47 +102,41 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                 fill
                 className="object-cover"
               />
+              {product.discountPercentage > 0 && (
+                <div className="absolute bottom-2 left-2 bg-red-650 text-white px-2 py-0.5 rounded text-[8px] font-bold">
+                  -{product.discountPercentage}%
+                </div>
+              )}
             </motion.div>
             <div className="flex-1 flex flex-col justify-between">
               <div>
-                <h3 className="text-lg font-serif font-semibold text-[#2c2c2c] mb-1">
+                <span className="block text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-0.5">
+                  {product.brand}
+                </span>
+                <h3 className="text-base font-serif font-semibold text-gray-900 dark:text-white mb-1 leading-tight">
                   {product.title}
                 </h3>
-                <p className="text-sm text-[#6b6b6b] line-clamp-2 mb-2">
+                <p className="text-xs text-gray-500 line-clamp-2">
                   {product.description}
                 </p>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center">
-                    <Star className="w-4 h-4 fill-[#d4a574] text-[#d4a574]" />
-                    <span className="text-sm text-[#6b6b6b] ml-1">
-                      {product.rating}
-                    </span>
-                  </div>
-                  <span className="text-sm text-[#9c9c9c]">
-                    ({product.stock} in stock)
-                  </span>
-                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-serif font-bold text-[#8b6f47]">
-                    ${discountedPrice.toFixed(2)}
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm sm:text-base font-black text-gray-950 dark:text-white">
+                    ${discountedPrice.toFixed(0)}
                   </span>
                   {product.discountPercentage > 0 && (
-                    <>
-                      <span className="text-sm text-[#9c9c9c] line-through">
-                        ${product.price.toFixed(2)}
-                      </span>
-                      <span className="text-sm text-[#c17a5f] font-medium">
-                        -{product.discountPercentage}%
-                      </span>
-                    </>
+                    <span className="text-xs text-gray-400 line-through">
+                      ${product.price.toFixed(0)}
+                    </span>
                   )}
                 </div>
-                <Button onClick={handleAddToCart} size="sm" variant="outline" className="border-[#8b6f47] text-[#8b6f47]">
-                  <ShoppingCart className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
+                <button
+                  onClick={handleAddToCart}
+                  className="text-[10px] font-bold bg-gray-50 dark:bg-gray-800 hover:bg-[#8b6f47] hover:text-white text-gray-600 dark:text-gray-300 py-1.5 px-3 rounded-full transition-all border border-gray-100 dark:border-gray-700"
+                >
+                  Buy
+                </button>
               </div>
             </div>
           </Card>
@@ -97,22 +145,88 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
     );
   }
 
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  const handleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsWishlisted(!isWishlisted);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -6 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
+      style={{ perspective: 1000 }}
       className="h-full"
     >
-      <Link href={`/product/${product.id}`}>
-        <Card className="overflow-hidden group h-full flex flex-col hover:shadow-lg transition-all duration-300 bg-white">
-          <motion.div
-            className="relative w-full h-56 sm:h-64 bg-[#f5f1eb] overflow-hidden"
-            whileHover={{ scale: 1.03 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
+      <Link href={`/product/${product.id}`} className="block h-full">
+        <motion.div
+          ref={cardRef}
+          onMouseMove={handleMouseMove}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          style={
+            !isTouchDevice
+              ? {
+                  rotateX,
+                  rotateY,
+                  transformStyle: 'preserve-3d',
+                }
+              : {}
+          }
+          className="overflow-hidden group h-80 sm:h-96 flex flex-col justify-end bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-5 shadow-sm relative text-zinc-900 dark:text-zinc-100"
+        >
+          {/* Dynamic Shine Overlay */}
+          {!isTouchDevice && (
+            <motion.div
+              style={{
+                background: shineBackground,
+              }}
+              className="absolute inset-0 pointer-events-none z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            />
+          )}
+
+          {/* Wishlist Heart Button (Top-Right) */}
+          <button
+            onClick={handleWishlist}
+            className="absolute top-4 right-4 z-20 bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-white p-2 rounded-full shadow-md transition-colors border border-gray-200/50 dark:border-gray-800"
+            title="Wishlist"
+          >
+            <Heart 
+              className={`w-3.5 h-3.5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-700 dark:text-white'}`} 
+            />
+          </button>
+
+          {/* Product Image Section (Card Background - Dynamic 3D Zoom Popup via Framer Motion) */}
+          <motion.div 
+            style={
+              !isTouchDevice
+                ? {
+                    transformStyle: 'preserve-3d',
+                  }
+                : {}
+            }
+            animate={
+              isHovered
+                ? {
+                    scale: 1.25,
+                    y: -24,
+                    z: isTouchDevice ? 0 : 60,
+                  }
+                : {
+                    scale: 1.0,
+                    y: 0,
+                    z: 0,
+                  }
+            }
+            transition={{
+              type: 'spring',
+              stiffness: 150,
+              damping: 25,
+            }}
+            className="absolute inset-0 w-full h-full z-0 flex items-center justify-center pointer-events-none"
           >
             <Image
               src={product.thumbnail}
@@ -120,64 +234,112 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
               fill
               className="object-cover"
             />
-            {product.discountPercentage > 0 && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute top-3 right-3 bg-[#c17a5f] text-white px-2.5 py-1 rounded-sm text-xs font-semibold shadow-md"
-              >
-                -{product.discountPercentage}%
-              </motion.div>
-            )}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: isHovered ? 1 : 0, y: isHovered ? 0 : 10 }}
-              transition={{ duration: 0.2 }}
-              className="absolute bottom-3 right-3"
-            >
-              <Button
-                onClick={handleAddToCart}
-                size="sm"
-                variant="classic"
-                className="shadow-md"
-              >
-                <ShoppingCart className="w-4 h-4" />
-              </Button>
-            </motion.div>
           </motion.div>
-          <div className="p-4 sm:p-5 flex-1 flex flex-col">
-            <h3 className="font-serif text-base sm:text-lg font-semibold text-[#2c2c2c] mb-2 line-clamp-1 group-hover:text-[#8b6f47] transition-colors">
-              {product.title}
-            </h3>
-            <p className="text-sm text-[#6b6b6b] line-clamp-2 mb-3 flex-1">
-              {product.description}
-            </p>
-            <div className="flex items-center gap-1 mb-3">
-              <Star className="w-4 h-4 fill-[#d4a574] text-[#d4a574]" />
-              <span className="text-sm text-[#6b6b6b]">
-                {product.rating}
+
+          {/* Bottom Gradient Overlay for Text Readability (Fades, blurs and slides on hover) */}
+          <motion.div 
+            animate={
+              isHovered
+                ? { opacity: 0, y: 12, filter: 'blur(8px)' }
+                : { opacity: 1, y: 0, filter: 'blur(0px)' }
+            }
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-zinc-100 via-zinc-100/95 to-transparent dark:from-zinc-950 dark:via-zinc-950/95 z-10 pointer-events-none"
+          />
+
+          {/* Details Content Overlay (Slides down, blurs & Fades out on hover) */}
+          <motion.div 
+            style={
+              !isTouchDevice
+                ? {
+                    transformStyle: 'preserve-3d',
+                  }
+                : {}
+            }
+            animate={
+              isHovered
+                ? {
+                    opacity: 0,
+                    y: 12,
+                    z: isTouchDevice ? 0 : 30,
+                    filter: 'blur(8px)',
+                  }
+                : {
+                    opacity: 1,
+                    y: 0,
+                    z: isTouchDevice ? 0 : 30,
+                    filter: 'blur(0px)',
+                  }
+            }
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="absolute bottom-0 inset-x-0 p-5 z-20 flex flex-col justify-end pointer-events-none [&_button]:pointer-events-auto text-gray-800 dark:text-white"
+          >
+            <div>
+              {/* Brand Name */}
+              <span className="block text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">
+                {product.brand || 'SwiftBrand'}
               </span>
-              <span className="text-sm text-[#9c9c9c] ml-2">
-                ({product.stock} left)
-              </span>
-            </div>
-            <div className="flex items-center justify-between mt-auto pt-2 border-t border-[#e8e0d6]">
-              <div className="flex flex-col">
-                <motion.span
-                  className="font-serif text-lg sm:text-xl font-bold text-[#8b6f47]"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  ${discountedPrice.toFixed(2)}
-                </motion.span>
-                {product.discountPercentage > 0 && (
-                  <span className="text-xs text-[#9c9c9c] line-through">
-                    ${product.price.toFixed(2)}
-                  </span>
-                )}
+
+              {/* Product Title */}
+              <h3 className="font-serif text-sm sm:text-base font-semibold text-gray-850 dark:text-gray-150 line-clamp-1 mb-1 leading-tight">
+                {product.title}
+              </h3>
+
+              {/* Short Description */}
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-1.5 font-normal leading-relaxed">
+                {product.description || 'Premium design with high quality materials.'}
+              </p>
+
+              {/* Rating Section */}
+              <div className="flex items-center gap-1.5 mb-3">
+                <div className="flex items-center text-yellow-500 gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className={`w-3 h-3 ${i < Math.floor(product.rating) ? 'fill-yellow-500 text-yellow-500' : 'text-gray-300 dark:text-gray-700'}`} 
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] text-gray-400 dark:text-gray-505 font-medium">({product.rating.toFixed(1)})</span>
               </div>
             </div>
-          </div>
-        </Card>
+
+            {/* Bottom Section (Price, Discount, and Buttons) */}
+            <div>
+              {/* Price and Discount Row */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm sm:text-base font-black text-gray-950 dark:text-[#f5f1eb]">
+                  ${discountedPrice.toFixed(0)}
+                </span>
+                {product.discountPercentage > 0 && (
+                  <>
+                    <span className="text-xs text-gray-400 line-through">
+                      ${product.price.toFixed(0)}
+                    </span>
+                    <span className="bg-red-650 text-white font-bold px-1.5 py-0.5 rounded-lg text-[9px] shadow-sm">
+                      -{product.discountPercentage}%
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddToCart}
+                  className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold py-2 px-3 rounded-full text-[11px] flex-1 transition-colors text-center shadow-sm"
+                >
+                  Add to Cart
+                </button>
+                <button
+                  className="border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-2 px-3 rounded-full text-[11px] flex-1 transition-colors text-center hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                >
+                  Quick View
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
       </Link>
     </motion.div>
   );
