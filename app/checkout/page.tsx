@@ -111,7 +111,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Checkout</h1>
+      <h1 className="font-serif text-3xl font-bold text-gray-900 dark:text-white mb-8">Checkout</h1>
 
       {/* Progress Steps */}
       <div className="mb-8">
@@ -120,7 +120,7 @@ export default function CheckoutPage() {
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
                 step === 'address' || step === 'payment' || step === 'confirmation'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#8b6f47] text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -134,7 +134,7 @@ export default function CheckoutPage() {
             <div
               className={`h-full transition-all ${
                 step === 'payment' || step === 'confirmation'
-                  ? 'bg-blue-600 w-full'
+                  ? 'bg-[#8b6f47] w-full'
                   : 'bg-gray-200 dark:bg-gray-700 w-0'
               }`}
             />
@@ -143,7 +143,7 @@ export default function CheckoutPage() {
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
                 step === 'payment' || step === 'confirmation'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#8b6f47] text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -156,7 +156,7 @@ export default function CheckoutPage() {
           <div className="w-24 h-1 mx-4 bg-gray-200 dark:bg-gray-700">
             <div
               className={`h-full transition-all ${
-                step === 'confirmation' ? 'bg-blue-600 w-full' : 'bg-gray-200 dark:bg-gray-700 w-0'
+                step === 'confirmation' ? 'bg-[#8b6f47] w-full' : 'bg-gray-200 dark:bg-gray-700 w-0'
               }`}
             />
           </div>
@@ -164,7 +164,7 @@ export default function CheckoutPage() {
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
                 step === 'confirmation'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#8b6f47] text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
@@ -177,175 +177,184 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Form */}
-        <div className="lg:col-span-2">
-          {step === 'address' && (
-            <form onSubmit={handleAddressSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <div className="flex items-center mb-6">
-                <MapPin className="w-6 h-6 text-blue-600 dark:text-blue-400 mr-2" />
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Address</h2>
-              </div>
-              <div className="space-y-4">
-                <Input
-                  label="Street Address"
-                  value={address.street}
-                  onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                  error={errors.street}
-                  required
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="City"
-                    value={address.city}
-                    onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                    error={errors.city}
-                    required
-                  />
-                  <Input
-                    label="State"
-                    value={address.state}
-                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                    error={errors.state}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Zip Code"
-                    value={address.zipCode}
-                    onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
-                    error={errors.zipCode}
-                    required
-                  />
-                  <Input
-                    label="Country"
-                    value={address.country}
-                    onChange={(e) => setAddress({ ...address, country: e.target.value })}
-                    error={errors.country}
-                    required
-                  />
-                </div>
-                <div className="flex gap-4">
-                  <Button type="submit" size="lg" className="flex-1">
-                    Continue to Payment
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.push('/cart')}
-                    size="lg"
-                  >
-                    Back to Cart
-                  </Button>
-                </div>
-              </div>
-            </form>
-          )}
-
-          {step === 'payment' && (
-            <form onSubmit={handlePaymentSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              {errors.form && <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded mb-4">{errors.form}</div>}
-              <div className="flex items-center mb-6">
-                <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400 mr-2" />
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Method</h2>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Payment Method
-                  </label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="card">Credit/Debit Card</option>
-                    <option value="paypal">PayPal</option>
-                    <option value="cod">Cash on Delivery</option>
-                  </select>
-                </div>
-
-                {paymentMethod === 'card' && (
-                  <>
-                    <Input
-                      label="Cardholder Name"
-                      value={cardDetails.cardName}
-                      onChange={(e) => setCardDetails({ ...cardDetails, cardName: e.target.value })}
-                      error={errors.cardName}
-                      required
-                    />
-                    <Input
-                      label="Card Number"
-                      value={cardDetails.cardNumber}
-                      onChange={(e) => setCardDetails({ ...cardDetails, cardNumber: e.target.value })}
-                      error={errors.cardNumber}
-                      placeholder="1234 5678 9012 3456"
-                      required
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input
-                        label="Expiry Date"
-                        value={cardDetails.expiryDate}
-                        onChange={(e) => setCardDetails({ ...cardDetails, expiryDate: e.target.value })}
-                        error={errors.expiryDate}
-                        placeholder="MM/YY"
-                        required
-                      />
-                      <Input
-                        label="CVV"
-                        value={cardDetails.cvv}
-                        onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
-                        error={errors.cvv}
-                        placeholder="123"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="flex gap-4">
-                  <Button type="submit" size="lg" className="flex-1">
-                    Place Order
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep('address')}
-                    size="lg"
-                  >
-                    Back
-                  </Button>
-                </div>
-              </div>
-            </form>
-          )}
-
-          {step === 'confirmation' && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                Order Confirmed!
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Thank you for your purchase. Your order has been placed successfully.
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Button onClick={() => router.push('/products')} size="lg">
-                  Continue Shopping
-                </Button>
-                <Button onClick={() => router.push('/orders')} variant="outline" size="lg">
-                  View Orders
-                </Button>
-              </div>
-            </div>
-          )}
+      {step === 'confirmation' ? (
+        <div className="max-w-xl mx-auto mt-12 bg-white dark:bg-gray-800 rounded-[32px] shadow-lg border border-gray-100 dark:border-gray-900 p-10 text-center">
+          <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6 animate-bounce" />
+          <h2 className="font-serif text-3xl font-bold text-gray-900 dark:text-white mb-3">
+            Order Confirmed!
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
+            Thank you for your purchase. Your order has been placed successfully and is currently being processed.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Button 
+              onClick={() => router.push('/products')} 
+              size="lg"
+              className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-6 border-0 shadow-md"
+            >
+              Continue Shopping
+            </Button>
+            <Button 
+              onClick={() => router.push('/orders')} 
+              variant="outline" 
+              size="lg"
+              className="border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 rounded-full font-bold px-6"
+            >
+              View Orders
+            </Button>
+          </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Form */}
+          <div className="lg:col-span-2">
+            {step === 'address' && (
+              <form onSubmit={handleAddressSubmit} className="bg-white dark:bg-gray-850 rounded-[24px] border border-gray-100 dark:border-gray-900 shadow-md p-6">
+                <div className="flex items-center mb-6">
+                  <MapPin className="w-6 h-6 text-[#8b6f47] dark:text-[#c9a96b] mr-2" />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Address</h2>
+                </div>
+                <div className="space-y-4">
+                  <Input
+                    label="Street Address"
+                    value={address.street}
+                    onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                    error={errors.street}
+                    required
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="City"
+                      value={address.city}
+                      onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                      error={errors.city}
+                      required
+                    />
+                    <Input
+                      label="State"
+                      value={address.state}
+                      onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                      error={errors.state}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Zip Code"
+                      value={address.zipCode}
+                      onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
+                      error={errors.zipCode}
+                      required
+                    />
+                    <Input
+                      label="Country"
+                      value={address.country}
+                      onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                      error={errors.country}
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-4 pt-2">
+                    <Button type="submit" size="lg" className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full">
+                      Continue to Payment
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => router.push('/cart')}
+                      size="lg"
+                      className="rounded-full"
+                    >
+                      Back to Cart
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
 
-        {/* Order Summary */}
-        {step !== 'confirmation' && (
+            {step === 'payment' && (
+              <form onSubmit={handlePaymentSubmit} className="bg-white dark:bg-gray-855 rounded-[24px] border border-gray-100 dark:border-gray-900 shadow-md p-6">
+                {errors.form && <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded mb-4">{errors.form}</div>}
+                <div className="flex items-center mb-6">
+                  <CreditCard className="w-6 h-6 text-[#8b6f47] dark:text-[#c9a96b] mr-2" />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Method</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Payment Method
+                    </label>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="card">Credit/Debit Card</option>
+                      <option value="paypal">PayPal</option>
+                      <option value="cod">Cash on Delivery</option>
+                    </select>
+                  </div>
+
+                  {paymentMethod === 'card' && (
+                    <>
+                      <Input
+                        label="Cardholder Name"
+                        value={cardDetails.cardName}
+                        onChange={(e) => setCardDetails({ ...cardDetails, cardName: e.target.value })}
+                        error={errors.cardName}
+                        required
+                      />
+                      <Input
+                        label="Card Number"
+                        value={cardDetails.cardNumber}
+                        onChange={(e) => setCardDetails({ ...cardDetails, cardNumber: e.target.value })}
+                        error={errors.cardNumber}
+                        placeholder="1234 5678 9012 3456"
+                        required
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input
+                          label="Expiry Date"
+                          value={cardDetails.expiryDate}
+                          onChange={(e) => setCardDetails({ ...cardDetails, expiryDate: e.target.value })}
+                          error={errors.expiryDate}
+                          placeholder="MM/YY"
+                          required
+                        />
+                        <Input
+                          label="CVV"
+                          value={cardDetails.cvv}
+                          onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
+                          error={errors.cvv}
+                          placeholder="123"
+                          required
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex gap-4 pt-2">
+                    <Button type="submit" size="lg" className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full">
+                      Place Order
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep('address')}
+                      size="lg"
+                      className="rounded-full"
+                    >
+                      Back
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 sticky top-24">
+            <div className="bg-white dark:bg-gray-850 rounded-[24px] border border-gray-100 dark:border-gray-900 shadow-md p-6 sticky top-24">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Order Summary</h2>
               <div className="space-y-2 mb-4">
                 {items.map((item) => (
@@ -379,8 +388,8 @@ export default function CheckoutPage() {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

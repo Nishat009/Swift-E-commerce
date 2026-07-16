@@ -24,7 +24,10 @@ import {
   ChevronRight,
   TrendingUp,
   AlertTriangle,
-  X
+  X,
+  Star,
+  Gift,
+  Trophy
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -52,7 +55,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
 
   // Navigation states
-  const [adminTab, setAdminTab] = useState<'overview' | 'products' | 'orders' | 'users' | 'newsletter'>('overview');
+  const [adminTab, setAdminTab] = useState<'overview' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns'>('overview');
   const [loadingData, setLoadingData] = useState(true);
 
   // Data states
@@ -61,11 +64,34 @@ export default function AdminDashboardPage() {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [allNewsletters, setAllNewsletters] = useState<NewsletterSub[]>([]);
+  const [allReviews, setAllReviews] = useState<any[]>([]);
+  const [allCampaigns, setAllCampaigns] = useState<any[]>([]);
 
   // Search/Filters states
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [userSearch, setUserSearch] = useState('');
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [campaignSearch, setCampaignSearch] = useState('');
+
+  // Lucky Draw Modals states
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [campaignForm, setCampaignForm] = useState({
+    title: '',
+    productTitle: '',
+    productPrice: 15,
+    productDescription: '',
+    productImage: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=300&q=80',
+    prizeName: '',
+    prizeDescription: '',
+    prizeImage: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=300&q=80',
+    ticketLimit: 50
+  });
+
+  // Lottery Draw states
+  const [drawingCampaign, setDrawingCampaign] = useState<any | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawnWinner, setDrawnWinner] = useState<any | null>(null);
 
   // Modals states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -130,6 +156,16 @@ export default function AdminDashboardPage() {
         const res = await apiClient.get('/newsletter/subscriptions');
         if (res.data?.success) {
           setAllNewsletters(res.data.data);
+        }
+      } else if (adminTab === 'reviews') {
+        const res = await apiClient.get('/reviews');
+        if (res.data?.success) {
+          setAllReviews(res.data.data || []);
+        }
+      } else if (adminTab === 'campaigns') {
+        const res = await apiClient.get('/campaigns');
+        if (res.data?.success) {
+          setAllCampaigns(res.data.data || []);
         }
       }
     } catch (err) {
@@ -258,6 +294,51 @@ export default function AdminDashboardPage() {
       setIsProductModalOpen(false);
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to save product details.');
+    }
+  };
+
+  const handleCampaignFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await apiClient.post('/campaigns/admin/create', campaignForm);
+      if (res.data?.success) {
+        setAllCampaigns([res.data.data, ...allCampaigns]);
+        alert('Lucky Draw campaign published successfully!');
+        setIsCampaignModalOpen(false);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to publish campaign.');
+    }
+  };
+
+  const handleConductDraw = async (camp: any) => {
+    setDrawingCampaign(camp);
+    setIsDrawing(true);
+    setDrawnWinner(null);
+
+    try {
+      // Simulate frontend wheel spin animation for 3 seconds
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      const res = await apiClient.post(`/campaigns/admin/${camp.id}/draw`);
+      if (res.data?.success) {
+        const winner = res.data.data.campaign.winnerUser;
+        const ticketNum = res.data.data.winningTicket.ticketNumber;
+        setDrawnWinner({ name: winner.name, email: winner.email, ticketNumber: ticketNum });
+        
+        // Refresh campaigns
+        setAllCampaigns(
+          allCampaigns.map((c) => (c.id === camp.id ? res.data.data.campaign : c))
+        );
+      } else {
+        alert(res.data?.message || 'Lottery draw failed.');
+        setIsDrawing(false);
+        setDrawingCampaign(null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to conduct lottery draw.');
+      setIsDrawing(false);
+      setDrawingCampaign(null);
     }
   };
 
@@ -406,6 +487,34 @@ export default function AdminDashboardPage() {
           >
             <span className="flex items-center gap-2">
               <Mail className="w-4 h-4" /> Newsletter Subs
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+          </button>
+
+          <button
+            onClick={() => setAdminTab('reviews')}
+            className={`w-full text-left py-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-between border transition-all ${
+              adminTab === 'reviews'
+                ? 'bg-white dark:bg-gray-900 text-[#8b6f47] dark:text-[#c9a96b] border-gray-200 dark:border-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-850 hover:bg-gray-55 border-transparent'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Star className="w-4 h-4" /> Manage Reviews
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+          </button>
+
+          <button
+            onClick={() => setAdminTab('campaigns')}
+            className={`w-full text-left py-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-between border transition-all ${
+              adminTab === 'campaigns'
+                ? 'bg-white dark:bg-gray-900 text-[#8b6f47] dark:text-[#c9a96b] border-gray-200 dark:border-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-850 hover:bg-gray-55 border-transparent'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Gift className="w-4 h-4" /> Manage Campaigns
             </span>
             <ChevronRight className="w-3.5 h-3.5 opacity-60" />
           </button>
@@ -732,6 +841,174 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
+              {/* 6. MANAGE REVIEWS VIEW */}
+              {adminTab === 'reviews' && (
+                <div className="space-y-4">
+                  <div className="border-b pb-3.5 mb-4">
+                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Product Reviews</h2>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Search reviews by customer name, comment, or product title..."
+                      value={reviewSearch}
+                      onChange={(e) => setReviewSearch(e.target.value)}
+                      className="w-full text-xs pl-8"
+                    />
+                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+
+                  {/* Reviews Table */}
+                  <div className="overflow-x-auto border rounded-2xl max-h-[500px] overflow-y-auto scrollbar-thin">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px] sticky top-0 z-10">
+                        <tr>
+                          <th className="p-3">Product</th>
+                          <th className="p-3">Customer</th>
+                          <th className="p-3">Rating</th>
+                          <th className="p-3">Comment</th>
+                          <th className="p-3">Date</th>
+                          <th className="p-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {allReviews
+                          .filter((r) =>
+                            (r.userName || '').toLowerCase().includes(reviewSearch.toLowerCase()) ||
+                            (r.review || r.comment || '').toLowerCase().includes(reviewSearch.toLowerCase()) ||
+                            (r.product?.title || '').toLowerCase().includes(reviewSearch.toLowerCase())
+                          )
+                          .map((r) => (
+                            <tr key={r.id} className="hover:bg-gray-50/50">
+                              <td className="p-3 font-bold text-gray-800 dark:text-gray-200">
+                                <span className="block max-w-[150px] truncate">{r.product?.title || 'Unknown Product'}</span>
+                              </td>
+                              <td className="p-3">
+                                <span className="block font-semibold text-gray-800 dark:text-gray-200">{r.userName || (r.user as any)?.name}</span>
+                                <span className="block text-[10px] text-gray-400">{(r.user as any)?.email}</span>
+                              </td>
+                              <td className="p-3">
+                                <span className="flex items-center text-yellow-500 font-bold gap-0.5">
+                                  <Star className="w-3.5 h-3.5 fill-yellow-500" />
+                                  {r.rating}/5
+                                </span>
+                              </td>
+                              <td className="p-3 max-w-[200px] truncate text-gray-650 dark:text-gray-300" title={r.review || r.comment}>
+                                {r.review || r.comment}
+                              </td>
+                              <td className="p-3 text-gray-550">
+                                {new Date(r.createdAt || r.date).toLocaleDateString()}
+                              </td>
+                              <td className="p-3 text-right">
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm('Are you sure you want to delete this review?')) return;
+                                    try {
+                                      const res = await apiClient.delete(`/reviews/${r.id}`);
+                                      if (res.data?.success) {
+                                        setAllReviews(allReviews.filter((review) => review.id !== r.id));
+                                        alert('Review deleted successfully.');
+                                      }
+                                    } catch (err: any) {
+                                      alert(err.response?.data?.message || 'Failed to delete review.');
+                                    }
+                                  }}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                                  title="Delete Review"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 7. MANAGE CAMPAIGNS VIEW */}
+              {adminTab === 'campaigns' && (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
+                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Lucky Draw Campaigns</h2>
+                    <Button onClick={() => setIsCampaignModalOpen(true)} className="text-xs py-2 px-3 font-bold rounded-xl bg-[#8b6f47] hover:bg-[#725a38] text-white flex items-center gap-1.5 border-0">
+                      <Plus className="w-4 h-4" /> Publish Campaign
+                    </Button>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Search campaigns by title or prize name..."
+                      value={campaignSearch}
+                      onChange={(e) => setCampaignSearch(e.target.value)}
+                      className="w-full text-xs pl-8"
+                    />
+                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+
+                  {/* Campaigns Table */}
+                  <div className="overflow-x-auto border rounded-2xl max-h-[500px] overflow-y-auto scrollbar-thin">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px] sticky top-0 z-10">
+                        <tr>
+                          <th className="p-3">Campaign Prize</th>
+                          <th className="p-3">Product Cost</th>
+                          <th className="p-3">Sold / Limit</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {allCampaigns
+                          .filter((c) =>
+                            c.title.toLowerCase().includes(campaignSearch.toLowerCase()) ||
+                            c.prizeName.toLowerCase().includes(campaignSearch.toLowerCase())
+                          )
+                          .map((c) => (
+                            <tr key={c.id} className="hover:bg-gray-55/40 dark:hover:bg-gray-900/40">
+                              <td className="p-3">
+                                <span className="block font-bold text-gray-800 dark:text-gray-200">{c.prizeName}</span>
+                                <span className="block text-[10px] text-gray-400">Title: {c.title}</span>
+                              </td>
+                              <td className="p-3 font-extrabold text-[#8b6f47] dark:text-[#c9a96b]">${c.productPrice.toFixed(2)}</td>
+                              <td className="p-3 font-mono">{c.ticketsSold} / {c.ticketLimit}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                  c.status === 'completed' ? 'bg-yellow-105 text-yellow-750 border border-yellow-300/20' :
+                                  c.status === 'sold-out' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {c.status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                {c.status !== 'completed' && (
+                                  <Button
+                                    onClick={() => handleConductDraw(c)}
+                                    size="sm"
+                                    className="text-[9px] py-1 px-2.5 font-bold rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black border-0 shadow-sm"
+                                  >
+                                    Conduct Draw 🎲
+                                  </Button>
+                                )}
+                                {c.status === 'completed' && (
+                                  <span className="text-[10px] text-yellow-600 font-bold">
+                                    Winner: {c.winnerUser?.name || 'Customer'}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
             </>
           )}
 
@@ -852,6 +1129,196 @@ export default function AdminDashboardPage() {
                 {editingProduct ? 'Update Specifications' : 'Publish Product'}
               </Button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE CAMPAIGN DIALOG MODAL */}
+      {isCampaignModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-lg overflow-y-auto max-h-[90vh] shadow-2xl p-6 relative">
+            
+            <button onClick={() => setIsCampaignModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-55 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 flex items-center gap-2">
+              <Gift className="w-5 h-5 text-[#8b6f47]" /> Create Lucky Draw Campaign
+            </h3>
+
+            <form onSubmit={handleCampaignFormSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Campaign Title</label>
+                <Input
+                  type="text"
+                  placeholder="e.g., iPhone 16 Pro Campaign"
+                  value={campaignForm.title}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, title: e.target.value })}
+                  required
+                  className="w-full text-xs"
+                />
+              </div>
+
+              {/* Product Specifications Section */}
+              <div className="border p-4 rounded-2xl bg-gray-55/30 space-y-3">
+                <span className="block text-[9px] font-black uppercase text-gray-400 tracking-wider">Target Product to Sell</span>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-450 uppercase mb-1">Product Title</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Swift Brass Gold Pen"
+                    value={campaignForm.productTitle}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, productTitle: e.target.value })}
+                    required
+                    className="w-full text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-450 uppercase mb-1">Product Price ($)</label>
+                    <Input
+                      type="number"
+                      value={campaignForm.productPrice}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, productPrice: Number(e.target.value) })}
+                      required
+                      className="w-full text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-450 uppercase mb-1">Ticket Count Limit</label>
+                    <Input
+                      type="number"
+                      value={campaignForm.ticketLimit}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, ticketLimit: Number(e.target.value) })}
+                      required
+                      className="w-full text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-450 uppercase mb-1">Product Image URL</label>
+                  <Input
+                    type="text"
+                    value={campaignForm.productImage}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, productImage: e.target.value })}
+                    required
+                    className="w-full text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-450 uppercase mb-1">Product Description</label>
+                  <textarea
+                    value={campaignForm.productDescription}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, productDescription: e.target.value })}
+                    required
+                    rows={2}
+                    className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Prize Specifications Section */}
+              <div className="border p-4 rounded-2xl bg-yellow-50/5 space-y-3">
+                <span className="block text-[9px] font-black uppercase text-yellow-600 tracking-wider">Grand Reward Details</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-[9px] font-bold text-yellow-750 uppercase mb-1">Prize Name</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Suzuki GSX sports bike"
+                      value={campaignForm.prizeName}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, prizeName: e.target.value })}
+                      required
+                      className="w-full text-xs"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[9px] font-bold text-yellow-750 uppercase mb-1">Prize Image URL</label>
+                    <Input
+                      type="text"
+                      value={campaignForm.prizeImage}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, prizeImage: e.target.value })}
+                      required
+                      className="w-full text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-yellow-750 uppercase mb-1">Prize Description</label>
+                  <textarea
+                    value={campaignForm.prizeDescription}
+                    onChange={(e) => setCampaignForm({ ...campaignForm, prizeDescription: e.target.value })}
+                    required
+                    rows={2}
+                    className="w-full text-xs border border-gray-200 rounded-xl p-2.5 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full text-xs py-2.5 font-bold rounded-xl mt-4 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 shadow-sm">
+                Publish Lucky Draw Campaign
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LOTTERY DRAW WHEEL SPINNER ANIMATION OVERLAY */}
+      {drawingCampaign && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-250 dark:border-gray-800 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl p-8 text-center space-y-6 relative">
+            
+            {isDrawing && (
+              <div className="space-y-6 py-8">
+                {/* Spinner */}
+                <div className="relative w-24 h-24 mx-auto rounded-full border-4 border-dashed border-yellow-500 animate-spin flex items-center justify-center">
+                  <Trophy className="w-10 h-10 text-yellow-550 animate-bounce" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="font-serif text-2xl font-extrabold text-gray-900 dark:text-white">Lottery In Progress...</h3>
+                  <p className="text-xs text-gray-450">Selecting random ticket from campaign database entries.</p>
+                </div>
+
+                {/* Spinning Ticket Code Indicator */}
+                <div className="bg-gray-105 dark:bg-gray-950 p-3 rounded-2xl border font-mono font-bold text-sm tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                  SWIFT-TKT-{Math.floor(100000 + Math.random() * 900000)}
+                </div>
+              </div>
+            )}
+
+            {drawnWinner && (
+              <div className="space-y-6">
+                <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-950/40 rounded-full flex items-center justify-center mx-auto text-yellow-600">
+                  <Trophy className="w-12 h-12" />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[10px] text-yellow-600 font-black uppercase tracking-widest block">Winner Chosen!</span>
+                  <h3 className="font-serif text-3xl font-extrabold text-gray-900 dark:text-white">{drawnWinner.name}</h3>
+                  <p className="text-xs text-gray-450">Customer account: {drawnWinner.email}</p>
+                </div>
+
+                <div className="p-4 bg-yellow-500/5 rounded-2xl border border-yellow-300/30 text-center">
+                  <span className="block text-[8px] text-gray-450 uppercase font-black tracking-wider mb-1">Winning Ticket Code</span>
+                  <span className="font-mono text-lg font-bold text-[#8b6f47] dark:text-[#c9a96b] tracking-wider">
+                    {drawnWinner.ticketNumber}
+                  </span>
+                </div>
+
+                <Button
+                  onClick={() => {
+                    setDrawingCampaign(null);
+                    setDrawnWinner(null);
+                    setIsDrawing(false);
+                  }}
+                  className="w-full text-xs font-bold py-2.5 rounded-full bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 shadow-sm"
+                >
+                  Close & Refresh Dashboard
+                </Button>
+              </div>
+            )}
+
           </div>
         </div>
       )}

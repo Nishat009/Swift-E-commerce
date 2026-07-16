@@ -20,8 +20,10 @@ const couponRoutes = require('./routes/couponRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const newsletterRoutes = require('./routes/newsletterRoutes');
+const campaignRoutes = require('./routes/campaignRoutes');
 
 const app = express();
+
 
 // 1. Security HTTP Headers
 app.use(helmet({
@@ -84,6 +86,7 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // 8. Swagger documentation endpoint
 setupSwagger(app);

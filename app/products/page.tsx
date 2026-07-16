@@ -28,6 +28,8 @@ function ProductsPageContent() {
   );
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'rating' | 'default'>('default');
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
 
   const productsPerPage = 12;
 
@@ -38,7 +40,7 @@ function ProductsPageContent() {
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, selectedCategory, searchQuery, priceRange, sortBy]);
+  }, [currentPage, selectedCategory, searchQuery, priceRange, sortBy, selectedColors, selectedSizes]);
 
   const loadCategories = async () => {
     try {
@@ -62,6 +64,8 @@ function ProductsPageContent() {
         sortBy?: string;
         priceMin?: number;
         priceMax?: number;
+        color?: string;
+        size?: string;
       } = {
         limit: productsPerPage,
         skip,
@@ -82,6 +86,14 @@ function ProductsPageContent() {
       // Filter by price on backend
       params.priceMin = priceRange[0];
       params.priceMax = priceRange[1];
+
+      if (selectedColors.length > 0) {
+        params.color = selectedColors.join(',');
+      }
+
+      if (selectedSizes.length > 0) {
+        params.size = selectedSizes.join(',');
+      }
 
       const data = await fetchProducts(params);
       
@@ -193,6 +205,69 @@ function ProductsPageContent() {
                   <span>${priceRange[0]}</span>
                   <span>${priceRange[1]}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Color Filter */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Color
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {['Beige', 'Blue', 'Grey', 'Pink', 'Black', 'Brown', 'White', 'Green'].map((color) => {
+                  const isChecked = selectedColors.includes(color);
+                  return (
+                    <label key={color} className="flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setSelectedColors(selectedColors.filter((c) => c !== color));
+                          } else {
+                            setSelectedColors([...selectedColors, color]);
+                          }
+                          setCurrentPage(1);
+                        }}
+                        className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-gray-600 dark:text-gray-400 capitalize">{color}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Size Filter */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Size
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {['S', 'M', 'L', 'XL'].map((size) => {
+                  const isChecked = selectedSizes.includes(size);
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => {
+                        if (isChecked) {
+                          setSelectedSizes(selectedSizes.filter((s) => s !== size));
+                        } else {
+                          setSelectedSizes([...selectedSizes, size]);
+                        }
+                        setCurrentPage(1);
+                      }}
+                      className={`h-8 w-8 text-xs font-bold rounded-lg border transition-all ${
+                        isChecked
+                          ? 'bg-[#8b6f47] text-white border-transparent'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

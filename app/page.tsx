@@ -154,39 +154,85 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-16 pb-6">
             {[
-              { name: 'Sofa & Chair', icon: '🪑', bgColor: 'bg-[#f5e6d3]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
-              { name: 'Kitchen', icon: '🍽️', bgColor: 'bg-[#f0e5d8]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
-              { name: 'Bathroom', icon: '🚿', bgColor: 'bg-[#ebe1d3]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
-              { name: 'Home Decor', icon: '🎨', bgColor: 'bg-[#e6dccf]', darkBg: 'dark:bg-[#5a4a38]', borderColor: 'border-[#d4c4b0]' },
+              {
+                name: 'Fashion & Apparel',
+                description: 'Explore curated organic cotton flat-lays and premium wardrobe essentials.',
+                subtitle: 'Starting at $35',
+                image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
+                link: '/products?category=top',
+                isHighlighted: false,
+                buttonText: 'View Apparel'
+              },
+              {
+                name: 'Modern Furniture',
+                description: 'Elevate your living space with designer solid oak chairs and velvet sofas.',
+                subtitle: 'Starting at $249',
+                image: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&h=600&fit=crop',
+                link: '/products?category=sofa',
+                isHighlighted: true,
+                buttonText: 'Explore Furniture'
+              },
+              {
+                name: 'Lighting & Decor',
+                description: 'Polish your interior with modern pendant lighting and handcrafted vases.',
+                subtitle: 'Starting at $45',
+                image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop',
+                link: '/products?category=lighting',
+                isHighlighted: false,
+                buttonText: 'Browse Decor'
+              }
             ].map((category, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                className={`relative flex flex-col justify-end pt-32 pb-4 group ${category.isHighlighted ? 'z-10' : 'z-0'}`}
               >
-                <Link href={`/products?category=${category.name.toLowerCase().replace(' ', '-')}`}>
-                  <div className={`${category.bgColor} ${category.darkBg} border border-[#d4c4b0] ${category.borderColor} rounded-lg p-8 cursor-pointer group overflow-hidden relative h-64 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-lg hover:border-[#8b6f47]`}>
-                    {/* Background Pattern - Subtle */}
-                    <div className="absolute inset-0 opacity-5">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-[#8b6f47] rounded-full -mr-16 -mt-16"></div>
-                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-[#8b6f47] rounded-full -ml-12 -mb-12"></div>
-                    </div>
+                {/* 3D Overlapping Image */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-44 h-48 sm:w-48 sm:h-52 z-20 pointer-events-none transition-transform duration-500 ease-out group-hover:-translate-y-5 group-hover:scale-105 drop-shadow-xl">
+                  <Image
+                    src={category.image}
+                    alt={category.name}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
 
-                    {/* Content */}
-                    <div className="relative z-10 text-center">
-                      <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                        {category.icon}
+                <Link href={category.link} className="block h-full">
+                  <div 
+                    className={`rounded-[32px] p-6 text-center border transition-all duration-300 flex flex-col justify-end min-h-[260px] h-full ${
+                      category.isHighlighted
+                        ? 'bg-gradient-to-br from-[#d4a574] to-[#8b6f47] dark:from-[#c9a96b] dark:to-[#8b6f47] border-transparent text-white shadow-xl hover:shadow-2xl scale-105'
+                        : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-900 dark:text-white shadow-md hover:shadow-xl hover:border-[#8b6f47]'
+                    }`}
+                  >
+                    <div className="mt-16 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold font-serif mb-2">
+                          {category.name}
+                        </h3>
+                        <p className={`text-xs mb-4 line-clamp-2 leading-relaxed ${category.isHighlighted ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {category.description}
+                        </p>
                       </div>
-                      <h3 className="text-xl sm:text-2xl font-semibold text-[#2c2c2c] dark:text-[#f5e6d3]">
-                        {category.name}
-                      </h3>
-                      <div className="flex items-center justify-center mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <ArrowRight className="w-5 h-5 text-[#8b6f47] dark:text-[#c9a96b]" />
+
+                      <div>
+                        <div className={`text-sm font-semibold mb-4 font-serif ${category.isHighlighted ? 'text-white' : 'text-[#8b6f47] dark:text-[#c9a96b]'}`}>
+                          {category.subtitle}
+                        </div>
+                        <span 
+                          className={`inline-block w-full py-2.5 rounded-full font-bold text-xs transition-colors shadow-sm ${
+                            category.isHighlighted
+                              ? 'bg-gray-950 text-white hover:bg-gray-900'
+                              : 'border border-[#8b6f47] text-[#8b6f47] hover:bg-[#8b6f47] hover:text-white dark:border-[#c9a96b] dark:text-[#c9a96b] dark:hover:bg-[#c9a96b] dark:hover:text-gray-950'
+                          }`}
+                        >
+                          {category.buttonText}
+                        </span>
                       </div>
                     </div>
                   </div>

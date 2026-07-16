@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingCart, Search, User, Moon, Sun, Menu, X } from 'lucide-react';
+import { ShoppingCart, Search, User, Moon, Sun, Menu, X, Bell } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useState, useEffect } from 'react';
@@ -46,10 +46,12 @@ export default function Navbar() {
   };
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/products', label: 'Products' },
+    { href: '/campaigns', label: 'Lucky Draw' },
     { href: '/dressing-room', label: 'Dressing Room' },
   ];
 
@@ -172,6 +174,81 @@ export default function Navbar() {
                   )}
                 </AnimatePresence>
               </motion.button>
+
+              {/* Notification Bell Dropdown */}
+              <div className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className="relative p-2 rounded-sm text-text-muted hover:bg-background/50 transition-colors border-0"
+                  aria-label="Open notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute top-0 right-0 bg-yellow-500 text-black text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-900 shadow-sm animate-pulse">
+                    2
+                  </span>
+                </motion.button>
+
+                <AnimatePresence>
+                  {isNotifOpen && (
+                    <>
+                      {/* Click Outside to close */}
+                      <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+                      
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800 rounded-2xl shadow-xl z-50 p-4 overflow-hidden"
+                      >
+                        <div className="flex items-center justify-between border-b pb-2 mb-3">
+                          <span className="font-serif font-bold text-sm text-gray-800 dark:text-gray-250">Alert Center</span>
+                          <span className="text-[9px] text-[#8b6f47] dark:text-[#c9a96b] font-bold">2 New Messages</span>
+                        </div>
+
+                        <div className="space-y-3.5 max-h-64 overflow-y-auto scrollbar-thin text-left">
+                          {/* Alert 1 */}
+                          <div className="flex gap-2.5 p-2 bg-yellow-500/5 dark:bg-yellow-950/20 rounded-xl border border-yellow-300/10">
+                            <span className="text-sm">🎟️</span>
+                            <div className="text-left flex-1 min-w-0">
+                              <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">Draw Winner Chosen!</span>
+                              <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words">Suzuki GSX sports bike lucky draw has been conducted. Click to view!</span>
+                              <span className="block text-[8px] text-[#8b6f47] dark:text-[#c9a96b] font-bold mt-1">10 min ago</span>
+                            </div>
+                          </div>
+
+                          {/* Alert 2 */}
+                          <div className="flex gap-2.5 p-2 bg-gray-50 dark:bg-gray-950/40 rounded-xl">
+                            <span className="text-sm">🔥</span>
+                            <div className="text-left flex-1 min-w-0">
+                              <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">Campaign 98% Sold Out!</span>
+                              <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words">iPhone 16 Pro Max drawing is almost full. Purchase standard items to enter!</span>
+                              <span className="block text-[8px] text-gray-500 mt-1">2 hours ago</span>
+                            </div>
+                          </div>
+
+                          {/* Alert 3 */}
+                          <div className="flex gap-2.5 p-2 bg-gray-50 dark:bg-gray-950/40 rounded-xl">
+                            <span className="text-sm">✨</span>
+                            <div className="text-left flex-1 min-w-0">
+                              <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">Welcome to SwiftCart</span>
+                              <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words">Explore our dynamic avatar fitting room, catalogs, and prize campaigns!</span>
+                              <span className="block text-[8px] text-gray-500 mt-1">1 day ago</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-center border-t pt-2 mt-3.5">
+                          <Link href="/campaigns" onClick={() => setIsNotifOpen(false)} className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline">
+                            Browse All Active Draws
+                          </Link>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
 
               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                 <Link

@@ -14,7 +14,7 @@ import Loading from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ui/ProductCard';
 import { useCartStore } from '@/stores/cartStore';
-import { ShoppingCart, Star, Minus, Plus, Heart, ZoomIn, CheckCircle, X } from 'lucide-react';
+import { ShoppingCart, Star, Minus, Plus, Heart, ZoomIn, CheckCircle, X, Gift, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Review {
@@ -40,6 +40,7 @@ export default function ProductDetailPage() {
   const [modalZoomPosition, setModalZoomPosition] = useState({ x: 50, y: 50 });
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
 
   // Review states
   const [newReviewRating, setNewReviewRating] = useState(5);
@@ -68,6 +69,19 @@ export default function ProductDetailPage() {
       // Load related products from backend
       const related = await fetchProducts({ category: prod.category, limit: 5 });
       setRelatedProducts(related.products.filter((p) => String(p.id) !== String(prod.id)).slice(0, 3));
+
+      // Check if product is part of a lucky draw campaign
+      try {
+        const campaignsRes = await apiClient.get('/campaigns');
+        if (campaignsRes.data?.success) {
+          const matchingCampaign = campaignsRes.data.data.find(
+            (c: any) => c.status === 'active' && c.productTitle.toLowerCase() === prod.title.toLowerCase()
+          );
+          setActiveCampaign(matchingCampaign || null);
+        }
+      } catch (cErr) {
+        console.error('Error fetching campaign bindings on product page:', cErr);
+      }
 
       // Load reviews from backend
       const reviewsResponse = await apiClient.get(`/reviews/product/${productId}`);
@@ -250,6 +264,24 @@ export default function ProductDetailPage() {
           <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
             {product.description}
           </p>
+
+          {/* Active Lucky Draw Campaign banner */}
+          {activeCampaign && (
+            <div className="mb-6 p-4 rounded-2xl bg-yellow-500/5 dark:bg-yellow-950/20 border border-yellow-300/30 flex items-center gap-3">
+              <Gift className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 animate-bounce" />
+              <div className="text-left flex-1 min-w-0">
+                <span className="block text-[10px] text-yellow-600 dark:text-yellow-400 font-black uppercase tracking-widest">Lucky Draw Active 🎲</span>
+                <span className="block text-xs text-gray-800 dark:text-gray-250 font-bold mt-0.5">
+                  Purchase this product to get a free entry to win: <span className="font-serif text-[#8b6f47] dark:text-[#c9a96b]">{activeCampaign.prizeName}</span>!
+                </span>
+              </div>
+              <Link href={`/campaigns/${activeCampaign.id}`}>
+                <Button size="sm" className="text-[10px] py-1.5 px-3 font-bold bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 shadow-sm whitespace-nowrap rounded-lg flex items-center gap-1">
+                  View Campaign <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              </Link>
+            </div>
+          )}
 
           {/* Quantity Selector */}
           <div className="mb-6">

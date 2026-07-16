@@ -21,8 +21,8 @@ const categoriesData = [
   { name: 'Sofa', slug: 'sofa', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', featured: true },
   { name: 'Chair', slug: 'chair', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=400&h=400&fit=crop', featured: true },
   { name: 'Table', slug: 'table', image: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=400&h=400&fit=crop', featured: true },
-  { name: 'Lighting', slug: 'lighting', image: 'https://images.unsplash.com/photo-1565182999555-0c6684f5b6fa?w=400&h=400&fit=crop', featured: false },
-  { name: 'Decor', slug: 'decor', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&h=400&fit=crop', featured: true },
+  { name: 'Lighting', slug: 'lighting', image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=400&fit=crop', featured: false },
+  { name: 'Decor', slug: 'decor', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop', featured: true },
   { name: 'Kitchen', slug: 'kitchen', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop', featured: false },
   { name: 'Bathroom', slug: 'bathroom', image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=400&fit=crop', featured: false },
   { name: 'Outdoor', slug: 'outdoor', image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=400&h=400&fit=crop', featured: true }
@@ -37,7 +37,7 @@ const curatedProducts = [
     shortDescription: 'Premium cropped tank in ribbed organic cotton.',
     category: 'top', brand: 'ZaraStyle', price: 39, salePrice: 35,
     stock: 45, rating: 4.7, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1571513722275-4b41940f54b8?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=800&fit=crop',
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&h=800&fit=crop'
@@ -63,7 +63,7 @@ const curatedProducts = [
     shortDescription: 'Oversized warm wool blend cable-knit sweater.',
     category: 'top', brand: 'H&MClassic', price: 89, salePrice: 80,
     stock: 25, rating: 4.8, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&h=800&fit=crop',
       'https://images.unsplash.com/photo-1614975058789-41316d0e2e9c?w=800&h=800&fit=crop'
@@ -89,7 +89,7 @@ const curatedProducts = [
     shortDescription: 'Classic straight-leg vintage denim jeans.',
     category: 'pants', brand: 'ZaraStyle', price: 79, salePrice: 69,
     stock: 35, rating: 4.6, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=800&fit=crop',
       'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop'
@@ -115,7 +115,7 @@ const curatedProducts = [
     shortDescription: 'High-rise wide-leg pure linen trousers.',
     category: 'pants', brand: 'ZaraStyle', price: 95,
     stock: 18, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=800&h=800&fit=crop'
     ],
@@ -190,7 +190,7 @@ const curatedProducts = [
     shortDescription: 'Full-grain Italian leather shoulder bag.',
     category: 'bag', brand: 'ZaraStyle', price: 150,
     stock: 20, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=800&fit=crop'
     ],
@@ -215,7 +215,7 @@ const curatedProducts = [
     shortDescription: '14k gold-plated brass hoops and choker set.',
     category: 'jewelry', brand: 'ZaraStyle', price: 45, salePrice: 40,
     stock: 50, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=800&fit=crop'
     ],
@@ -390,7 +390,7 @@ const curatedProducts = [
     shortDescription: 'Retro running platform sneakers with cushioned soles.',
     category: 'shoes', brand: 'NikeSports', price: 120,
     stock: 50, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&h=600&fit=crop',
     images: [
       'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop'
     ],
@@ -740,9 +740,9 @@ const curatedProducts = [
     shortDescription: 'Brushed brass pendant with frosted glass shade.',
     category: 'lighting', brand: 'LightDesign', price: 199, salePrice: 169,
     stock: 40, rating: 4.6, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1565182999555-0c6684f5b6fa?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1565182999555-0c6684f5b6fa?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&h=800&fit=crop',
     ],
     tags: ['lighting', 'pendant', 'brass', 'modern'],
   },
@@ -752,9 +752,9 @@ const curatedProducts = [
     shortDescription: 'Tiered hand-cut crystal chandelier for grand spaces.',
     category: 'lighting', brand: 'LightDesign', price: 899, salePrice: 719,
     stock: 6, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1543198126-565f40db7507?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1543198126-565f40db7507?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&h=800&fit=crop',
     ],
     tags: ['lighting', 'chandelier', 'crystal', 'elegant'],
   },
@@ -764,9 +764,9 @@ const curatedProducts = [
     shortDescription: 'Arc floor lamp with marble base and linen shade.',
     category: 'lighting', brand: 'LightDesign', price: 349,
     stock: 22, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1507473885765-e6ed057ab6fe?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1507473885765-e6ed057ab6fe?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&h=800&fit=crop',
     ],
     tags: ['lighting', 'floor-lamp', 'arc', 'marble'],
   },
@@ -826,9 +826,9 @@ const curatedProducts = [
     shortDescription: 'Premium abstract canvas print in navy, gold, and white.',
     category: 'decor', brand: 'ArtisanCraft', price: 249, salePrice: 237,
     stock: 35, rating: 4.7, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1561214115-6d2f1b0609fa?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1561214115-6d2f1b0609fa?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&h=800&fit=crop',
     ],
     tags: ['decor', 'wall-art', 'canvas', 'abstract'],
   },
@@ -838,9 +838,9 @@ const curatedProducts = [
     shortDescription: 'Hand-tufted geometric wool rug, 8×10 ft.',
     category: 'decor', brand: 'RugDesign', price: 349, salePrice: 279,
     stock: 30, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1552320554-5fefe8c9ef14?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1552320554-5fefe8c9ef14?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&h=800&fit=crop',
     ],
     tags: ['decor', 'rug', 'wool', 'geometric'],
   },
@@ -850,9 +850,9 @@ const curatedProducts = [
     shortDescription: 'Full-length antique gold frame floor mirror.',
     category: 'decor', brand: 'ArtisanCraft', price: 399,
     stock: 12, rating: 4.8, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&h=800&fit=crop',
     ],
     tags: ['decor', 'mirror', 'gold', 'full-length'],
   },
@@ -862,9 +862,9 @@ const curatedProducts = [
     shortDescription: 'Handmade cotton macramé tapestry in natural ivory.',
     category: 'decor', brand: 'ArtisanCraft', price: 89,
     stock: 45, rating: 4.5, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad576?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1625246333195-78d9c38ad576?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&h=800&fit=crop',
     ],
     tags: ['decor', 'macrame', 'wall-hanging', 'boho'],
   },
@@ -874,9 +874,9 @@ const curatedProducts = [
     shortDescription: 'Five-tier pine and metal open bookshelf, 30" wide.',
     category: 'decor', brand: 'WoodCraft', price: 399, salePrice: 351,
     stock: 18, rating: 4.6, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1507842217343-583f7270bfba?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=400&h=400&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1507842217343-583f7270bfba?w=800&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=800&h=800&fit=crop',
     ],
     tags: ['decor', 'bookshelf', 'storage', 'minimalist'],
   },

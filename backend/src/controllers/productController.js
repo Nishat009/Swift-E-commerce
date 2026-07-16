@@ -21,7 +21,9 @@ const getProducts = async (req, res, next) => {
       newest,
       sort,
       order,
-      sortBy
+      sortBy,
+      color,
+      size
     } = req.query;
 
     const query = { active: true };
@@ -58,6 +60,19 @@ const getProducts = async (req, res, next) => {
     // 5. Rating Filter
     if (rating) {
       query.rating = { $gte: Number(rating) };
+    }
+
+    // 5a. Color Filter
+    if (color) {
+      const colors = color.split(',').map(c => c.trim());
+      query['specifications.ColorName'] = { $in: colors };
+    }
+
+    // 5b. Size Filter
+    if (size) {
+      const sizes = size.split(',').map(s => s.trim());
+      const regexes = sizes.map(s => new RegExp(`\\b${s}\\b`, 'i'));
+      query['specifications.Sizes'] = { $in: regexes };
     }
 
     // 6. Availability Filter
