@@ -1,0 +1,112 @@
+# SwiftCart - Software Requirements Specification (SRS)
+
+## 1. System Scope & Context
+SwiftCart is a multi-tier web application combining an e-commerce catalog with a real-time draw campaign lottery module. This document describes the specifications, system structures, database schemas, and API configurations required to support the platform.
+
+---
+
+## 2. Functional Requirements Breakdown
+
+### 2.1 E-Commerce Core Module
+*   **FR-1.1**: The system shall retrieve catalog products dynamically from the MongoDB database, showing descriptions, brand details, stock numbers, prices, and discounts.
+*   **FR-1.2**: Normal Customers shall be able to filter search listings by string queries and categories.
+*   **FR-1.3**: The system shall support a state-retained shopping cart using client-side Zustand store sync.
+*   **FR-1.4**: Normal Customers shall be able to simulate order checkout with billing addresses and payment gateways.
+*   **FR-1.5**: Administrators shall have CRUD capabilities on products, and toggle order delivery status values (`Pending` -> `Confirmed` -> `Packed` -> `Shipped` -> `Delivered`).
+
+### 2.2 Lucky Draw Campaign Module
+*   **FR-2.1**: Active campaigns shall display live progress based on `(ticketsSold / ticketLimit) * 100`.
+*   **FR-2.2**: The system shall run live countdowns targeting campaign `drawDate`.
+*   **FR-2.3**: Upon purchase of campaign-linked products, the system shall generate unique tickets prefixed with `SWIFT-TKT-[ID]`.
+*   **FR-2.4**: Customers shall be able to review their tickets and view a detailed digital invoice modal with standard printing features.
+*   **FR-2.5**: The system shall enforce `maxTicketsPerUser` limits during tickets purchase or automated checkout assignment.
+*   **FR-2.6**: The Administrator shall trigger campaign drawings. The backend shall select a random winning ticket cryptographically from purchased entries, marking others as lost, declaring the winner, and issuing system notifications.
+
+### 2.3 Real-Time Notification System
+*   **FR-3.1**: The system shall generate in-app notifications on ticket purchases, draw completion outcomes, and congratulations notifications.
+*   **FR-3.2**: Users shall review notifications through a navigation bar dropdown and mark alerts as read.
+
+---
+
+## 3. Technology Stack & Architectural Diagram
+
+The system follows a classic **Client-Server MVC architecture** with decoupled Next.js frontend and Express/Node API backend.
+
+```
++--------------------------------------------------------+
+|                      Next.js App                       |
+|  (React 19, Zustand State, Framer Motion, Tailwind V4) |
++---------------------------+----------------------------+
+                            |
+                     REST HTTP / JSON
+                            |
+                            v
++---------------------------+----------------------------+
+|                    Express API Server                  |
+|             (Node.js, Mongoose Middleware)             |
++---------------------------+----------------------------+
+                            |
+                      NoSQL Queries
+                            |
+                            v
++---------------------------+----------------------------+
+|                       MongoDB Atlas                    |
+|   (Collections: Products, Campaigns, Tickets, Orders)  |
++--------------------------------------------------------+
+```
+
+---
+
+## 4. System Data Schemas (Mongoose Models)
+
+### 4.1 Campaign Schema (`Campaign.js`)
+*   `title` (String, required): Campaign title.
+*   `description` (String): Rich text details.
+*   `terms` (String): Draw terms and conditions.
+*   `productTitle`, `productPrice`, `productDescription`, `productImage` (Embedded): Campaign item details.
+*   `linkedProducts` (Array of ObjectId ref Product): Eligible products for auto-ticket.
+*   `prizeName`, `prizeDescription`, `prizeImage` (Embedded): Grand prize details.
+*   `drawDate` (Date): Targeted draw execution time.
+*   `ticketLimit` (Number): Maximum ticket pool.
+*   `ticketsSold` (Number): Sold count.
+*   `maxTicketsPerUser` (Number): Limits user holdings.
+*   `status` (Enum: `draft`, `active`, `paused`, `sold-out`, `completed`, `archived`).
+*   `winnerUser` (ObjectId ref User): Selected winner user.
+*   `winnerTicket` (String): Winning ticket code.
+
+### 4.2 Ticket Schema (`Ticket.js`)
+*   `ticketNumber` (String, unique): Ticket code identifier.
+*   `user` (ObjectId ref User): Associated buyer.
+*   `campaign` (ObjectId ref Campaign): Reference to campaign.
+*   `purchaseAmount` (Number): Charged cost.
+*   `paymentMethod` (String): Method identifier.
+*   `status` (Enum: `active`, `won`, `lost`).
+
+### 4.3 Notification Schema (`Notification.js`)
+*   `user` (ObjectId ref User): Destination client.
+*   `title`, `message` (String): Alert text content.
+*   `type` (Enum: `campaign_purchase`, `draw_result`, `campaign_update`, `winner_announcement`, `system`).
+*   `isRead` (Boolean): Read state marker.
+
+---
+
+## 5. REST API Endpoints Catalog
+
+### 5.1 Campaigns Endpoints
+*   `GET /api/campaigns` - Retrieve all campaigns (status-filtered).
+*   `GET /api/campaigns/:id` - Fetch campaign specifications by id.
+*   `POST /api/campaigns/:id/buy` - Join lucky draw and purchase product.
+*   `GET /api/campaigns/my-tickets` - Get active user's tickets ledger.
+
+### 5.2 Admin Control Endpoints
+*   `GET /api/campaigns/admin/analytics` - Fetch global store draw metrics.
+*   `POST /api/campaigns/admin/create` - Instantiate new campaign catalog.
+*   `PUT /api/campaigns/admin/:id` - Update campaign variables.
+*   `PUT /api/campaigns/admin/:id/status` - Transition campaign status workflow.
+*   `POST /api/campaigns/admin/:id/draw` - Execute random lottery winner draw.
+
+### 5.3 Notifications Endpoints
+*   `GET /api/notifications` - Retrieve customer's notifications.
+*   `GET /api/notifications/unread-count` - Get counts of unread alerts.
+*   `PUT /api/notifications/:id/read` - Mark specific notification as read.
+*   `PUT /api/notifications/read-all` - Mark all notifications as read.

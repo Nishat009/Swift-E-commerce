@@ -16,6 +16,7 @@ import ProductCard from '@/components/ui/ProductCard';
 import { useCartStore } from '@/stores/cartStore';
 import { ShoppingCart, Star, Minus, Plus, Heart, ZoomIn, CheckCircle, X, Gift, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useToast } from '@/context/ToastContext';
 
 interface Review {
   id: string;
@@ -30,6 +31,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
+  const toast = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,18 +115,18 @@ export default function ProductDetailPage() {
 
   const handleAddToWishlist = async () => {
     if (!user) {
-      alert('Please log in to add products to your wishlist.');
+      toast.info('Please log in to add products to your wishlist.');
       router.push('/auth/login');
       return;
     }
     try {
       const response = await apiClient.post('/wishlist', { productId: product?.id });
       if (response.data?.success) {
-        alert(`${product?.title} has been added to your wishlist successfully!`);
+        toast.success(`${product?.title} has been added to your wishlist successfully!`);
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Failed to add item to wishlist.';
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -144,11 +146,11 @@ export default function ProductDetailPage() {
         setReviews([createdReview, ...reviews]);
         setNewReviewComment('');
         setNewReviewRating(5);
-        alert('Thank you! Your product review has been submitted successfully.');
+        toast.success('Thank you! Your product review has been submitted successfully.');
       }
     } catch (err: any) {
       console.error('Review submission error:', err);
-      alert(err.response?.data?.message || 'Failed to submit review. Please try again.');
+      toast.error(err.response?.data?.message || 'Failed to submit review. Please try again.');
     } finally {
       setSubmittingReview(false);
     }
@@ -581,10 +583,10 @@ export default function ProductDetailPage() {
                     </div>
                   </div>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(review.date).toLocaleDateString()}
+                    {new Date(review.date || (review as any).createdAt || new Date()).toLocaleDateString()}
                   </span>
                 </div>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{review.comment}</p>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{review.comment || (review as any).review}</p>
               </motion.div>
             ))}
           </div>

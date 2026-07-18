@@ -2,14 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingCart, Search, User, Moon, Sun, Menu, X, Bell } from 'lucide-react';
+import { ShoppingCart, Search, User, Moon, Sun, Menu, X, Bell, Gift, Trophy, Megaphone, Check } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import CartDrawer from '@/components/ui/CartDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import apiClient from '@/lib/apiClient';
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'campaign_purchase' | 'draw_result' | 'campaign_update' | 'winner_announcement' | 'system';
+  relatedCampaign?: { id: string; title: string; prizeName: string; status: string };
+  isRead: boolean;
+  createdAt: string;
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -20,6 +31,62 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
+
+  // Notification state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [notifRes, countRes] = await Promise.all([
+        apiClient.get('/notifications?limit=10'),
+        apiClient.get('/notifications/unread-count'),
+      ]);
+      if (notifRes.data?.success) setNotifications(notifRes.data.data);
+      if (countRes.data?.success) setUnreadCount(countRes.data.data.count);
+    } catch {
+      // Silently fail — notifications are non-critical
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchNotifications();
+    // Poll every 30 seconds for new notifications
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await apiClient.put('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const getNotifIcon = (type: string) => {
+    switch (type) {
+      case 'campaign_purchase': return '🎟️';
+      case 'draw_result': return '🎲';
+      case 'winner_announcement': return '🏆';
+      case 'campaign_update': return '🔥';
+      default: return '✨';
+    }
+  };
+
+  const getTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  };
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -180,66 +247,82 @@ export default function Navbar() {
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  onClick={() => { setIsNotifOpen(!isNotifOpen); if (!isNotifOpen) fetchNotifications(); }}
                   className="relative p-2 rounded-sm text-text-muted hover:bg-background/50 transition-colors border-0"
                   aria-label="Open notifications"
                 >
                   <Bell className="w-5 h-5" />
-                  <span className="absolute top-0 right-0 bg-yellow-500 text-black text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-900 shadow-sm animate-pulse">
-                    2
-                  </span>
+                  <AnimatePresence>
+                    {unreadCount > 0 && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        className="absolute top-0 right-0 bg-yellow-500 text-black text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white dark:border-gray-900 shadow-sm"
+                      >
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </motion.button>
 
                 <AnimatePresence>
                   {isNotifOpen && (
                     <>
-                      {/* Click Outside to close */}
                       <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
-                      
+
                       <motion.div
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800 rounded-2xl shadow-xl z-50 p-4 overflow-hidden"
                       >
-                        <div className="flex items-center justify-between border-b pb-2 mb-3">
-                          <span className="font-serif font-bold text-sm text-gray-800 dark:text-gray-250">Alert Center</span>
-                          <span className="text-[9px] text-[#8b6f47] dark:text-[#c9a96b] font-bold">2 New Messages</span>
+                        <div className="flex items-center justify-between border-b pb-2 mb-3 dark:border-gray-800">
+                          <span className="font-serif font-bold text-sm text-gray-800 dark:text-gray-250">Notifications</span>
+                          {unreadCount > 0 && (
+                            <button onClick={handleMarkAllRead} className="text-[9px] text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Mark all read
+                            </button>
+                          )}
+                          {unreadCount === 0 && notifications.length > 0 && (
+                            <span className="text-[9px] text-gray-400 font-bold">All caught up</span>
+                          )}
                         </div>
 
-                        <div className="space-y-3.5 max-h-64 overflow-y-auto scrollbar-thin text-left">
-                          {/* Alert 1 */}
-                          <div className="flex gap-2.5 p-2 bg-yellow-500/5 dark:bg-yellow-950/20 rounded-xl border border-yellow-300/10">
-                            <span className="text-sm">🎟️</span>
-                            <div className="text-left flex-1 min-w-0">
-                              <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">Draw Winner Chosen!</span>
-                              <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words">Suzuki GSX sports bike lucky draw has been conducted. Click to view!</span>
-                              <span className="block text-[8px] text-[#8b6f47] dark:text-[#c9a96b] font-bold mt-1">10 min ago</span>
+                        <div className="space-y-2.5 max-h-64 overflow-y-auto scrollbar-thin text-left">
+                          {notifications.length === 0 ? (
+                            <div className="py-8 text-center">
+                              <Bell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                              <p className="text-[10px] text-gray-400 font-bold">No notifications yet</p>
+                              <p className="text-[9px] text-gray-400 mt-0.5">Purchase campaign items to start earning tickets!</p>
                             </div>
-                          </div>
-
-                          {/* Alert 2 */}
-                          <div className="flex gap-2.5 p-2 bg-gray-50 dark:bg-gray-950/40 rounded-xl">
-                            <span className="text-sm">🔥</span>
-                            <div className="text-left flex-1 min-w-0">
-                              <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">Campaign 98% Sold Out!</span>
-                              <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words">iPhone 16 Pro Max drawing is almost full. Purchase standard items to enter!</span>
-                              <span className="block text-[8px] text-gray-500 mt-1">2 hours ago</span>
-                            </div>
-                          </div>
-
-                          {/* Alert 3 */}
-                          <div className="flex gap-2.5 p-2 bg-gray-50 dark:bg-gray-950/40 rounded-xl">
-                            <span className="text-sm">✨</span>
-                            <div className="text-left flex-1 min-w-0">
-                              <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">Welcome to SwiftCart</span>
-                              <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words">Explore our dynamic avatar fitting room, catalogs, and prize campaigns!</span>
-                              <span className="block text-[8px] text-gray-500 mt-1">1 day ago</span>
-                            </div>
-                          </div>
+                          ) : (
+                            notifications.map((n) => (
+                              <Link
+                                key={n.id}
+                                href={n.relatedCampaign ? `/campaigns/${n.relatedCampaign.id}` : '/campaigns'}
+                                onClick={() => setIsNotifOpen(false)}
+                                className={`flex gap-2.5 p-2.5 rounded-xl border transition-colors block ${
+                                  !n.isRead
+                                    ? 'bg-yellow-500/5 dark:bg-yellow-950/20 border-yellow-300/10'
+                                    : 'bg-gray-50/50 dark:bg-gray-950/40 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
+                                }`}
+                              >
+                                <span className="text-sm flex-shrink-0">{getNotifIcon(n.type)}</span>
+                                <div className="text-left flex-1 min-w-0">
+                                  <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-250 leading-tight">{n.title}</span>
+                                  <span className="block text-[9px] text-gray-400 mt-0.5 whitespace-normal break-words line-clamp-2">{n.message}</span>
+                                  <span className={`block text-[8px] font-bold mt-1 ${!n.isRead ? 'text-[#8b6f47] dark:text-[#c9a96b]' : 'text-gray-400'}`}>
+                                    {getTimeAgo(n.createdAt)}
+                                    {!n.isRead && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-yellow-500" />}
+                                  </span>
+                                </div>
+                              </Link>
+                            ))
+                          )}
                         </div>
 
-                        <div className="text-center border-t pt-2 mt-3.5">
+                        <div className="text-center border-t pt-2 mt-3.5 dark:border-gray-800">
                           <Link href="/campaigns" onClick={() => setIsNotifOpen(false)} className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline">
                             Browse All Active Draws
                           </Link>

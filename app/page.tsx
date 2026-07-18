@@ -9,17 +9,19 @@ import { useEffect, useState } from 'react';
 import { fetchProducts } from '@/lib/api';
 import { Product } from '@/types';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import apiClient from '@/lib/apiClient';
 
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [bestsellers, setBestsellers] = useState<Product[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<any[]>([]);
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, 50]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadData = async () => {
       try {
         const featured = await fetchProducts({ limit: 8 });
         setFeaturedProducts(featured.products);
@@ -32,12 +34,18 @@ export default function Home() {
           .filter(p => p.rating >= 4.5)
           .slice(0, 8);
         setBestsellers(best);
+
+        // Fetch dynamic categories
+        const catsRes = await apiClient.get('/categories');
+        if (catsRes.data?.success) {
+          setDynamicCategories(catsRes.data.data || []);
+        }
       } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('Error loading products or categories:', error);
       }
     };
 
-    loadProducts();
+    loadData();
   }, []);
 
   const containerVariants = {
@@ -155,35 +163,51 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-16 pb-6">
-            {[
-              {
-                name: 'Fashion & Apparel',
-                description: 'Explore curated organic cotton flat-lays and premium wardrobe essentials.',
-                subtitle: 'Starting at $35',
-                image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
-                link: '/products?category=top',
-                isHighlighted: false,
-                buttonText: 'View Apparel'
-              },
-              {
-                name: 'Modern Furniture',
-                description: 'Elevate your living space with designer solid oak chairs and velvet sofas.',
-                subtitle: 'Starting at $249',
-                image: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&h=600&fit=crop',
-                link: '/products?category=sofa',
-                isHighlighted: true,
-                buttonText: 'Explore Furniture'
-              },
-              {
-                name: 'Lighting & Decor',
-                description: 'Polish your interior with modern pendant lighting and handcrafted vases.',
-                subtitle: 'Starting at $45',
-                image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop',
-                link: '/products?category=lighting',
-                isHighlighted: false,
-                buttonText: 'Browse Decor'
-              }
-            ].map((category, index) => (
+            {(() => {
+              const defaultCategories = [
+                {
+                  name: 'Fashion & Apparel',
+                  description: 'Explore curated organic cotton flat-lays and premium wardrobe essentials.',
+                  subtitle: 'Starting at $35',
+                  image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
+                  link: '/products?category=top',
+                  isHighlighted: false,
+                  buttonText: 'View Apparel'
+                },
+                {
+                  name: 'Modern Furniture',
+                  description: 'Elevate your living space with designer solid oak chairs and velvet sofas.',
+                  subtitle: 'Starting at $249',
+                  image: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&h=600&fit=crop',
+                  link: '/products?category=sofa',
+                  isHighlighted: true,
+                  buttonText: 'Explore Furniture'
+                },
+                {
+                  name: 'Lighting & Decor',
+                  description: 'Polish your interior with modern pendant lighting and handcrafted vases.',
+                  subtitle: 'Starting at $45',
+                  image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop',
+                  link: '/products?category=lighting',
+                  isHighlighted: false,
+                  buttonText: 'Browse Decor'
+                }
+              ];
+
+              const categoriesToRender = dynamicCategories.length > 0
+                ? dynamicCategories.map((c, idx) => ({
+                    name: c.name,
+                    description: c.description || `Explore our high-quality collection of ${c.name}.`,
+                    subtitle: 'Shop Now',
+                    image: c.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
+                    link: `/products?category=${c.slug || c.name.toLowerCase()}`,
+                    isHighlighted: idx === 1,
+                    buttonText: 'Shop Category'
+                  })).slice(0, 3)
+                : defaultCategories;
+
+              return categoriesToRender;
+            })().map((category, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 40 }}
