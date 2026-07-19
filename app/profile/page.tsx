@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { User, Package, MapPin, Heart, LogOut, Edit2, ShoppingBag, Award, Clock, TrendingUp } from 'lucide-react';
+import { User, Package, MapPin, Heart, LogOut, Edit2, ShoppingBag, Award, Clock, TrendingUp, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCartStore } from '@/stores/cartStore';
 import apiClient from '@/lib/apiClient';
@@ -17,8 +17,78 @@ export default function DashboardPage() {
   const { user, logout, updateProfile, loading: authLoading } = useAuth();
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
-  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'orders' | 'addresses' | 'wishlist'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'security' | 'orders' | 'addresses' | 'wishlist'>('overview');
   const [isEditing, setIsEditing] = useState(false);
+
+  // 2FA Security setup states
+  const [isSettingUp2FA, setIsSettingUp2FA] = useState(false);
+  const [setupSecret, setSetupSecret] = useState('');
+  const [setupQrUrl, setSetupQrUrl] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [loading2FA, setLoading2FA] = useState(false);
+
+  const handleStart2FASetup = async () => {
+    setLoading2FA(true);
+    setVerificationError('');
+    try {
+      const res = await apiClient.post('/auth/2fa/setup');
+      if (res.data?.success) {
+        setSetupSecret(res.data.data.secret);
+        setSetupQrUrl(res.data.data.otpauthUrl);
+        setIsSettingUp2FA(true);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to start 2FA setup');
+    } finally {
+      setLoading2FA(false);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    if (!verificationCode.trim()) {
+      setVerificationError('Verification code is required');
+      return;
+    }
+    setLoading2FA(true);
+    setVerificationError('');
+    try {
+      const res = await apiClient.post('/auth/2fa/enable', { code: verificationCode });
+      if (res.data?.success) {
+        setRecoveryCodes(res.data.data.recoveryCodes || []);
+        if (user) {
+          user.twoFactorEnabled = true;
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setVerificationError(err.response?.data?.message || 'Invalid verification code');
+    } finally {
+      setLoading2FA(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!confirm('Are you sure you want to disable Two-Factor Authentication?')) return;
+    setLoading2FA(true);
+    try {
+      const res = await apiClient.post('/auth/2fa/disable');
+      if (res.data?.success) {
+        if (user) {
+          user.twoFactorEnabled = false;
+        }
+        setIsSettingUp2FA(false);
+        router.refresh();
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to disable 2FA');
+    } finally {
+      setLoading2FA(false);
+    }
+  };
 
   const [wishlistItems, setWishlistItems] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -174,13 +244,13 @@ export default function DashboardPage() {
                 green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
               };
               return (
-                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl border border-zinc-100 dark:border-zinc-800/80 shadow-sm p-6 hover:-translate-y-1 hover:shadow-md transition-all duration-300">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">{stat.label}</p>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">{stat.label}</p>
                       <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stat.value}</p>
                     </div>
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
                       <Icon className="w-6 h-6" />
                     </div>
                   </div>
@@ -196,17 +266,17 @@ export default function DashboardPage() {
           <div className="lg:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sticky top-4">
               <div className="space-y-2">
-                {['overview', 'profile', 'orders', 'addresses', 'wishlist'].map((tab) => (
+                {['overview', 'profile', 'security', 'orders', 'addresses', 'wishlist'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
-                    className={`w-full text-left px-4 py-3 rounded-lg font-medium transition capitalize ${
+                    className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 capitalize flex items-center gap-2 ${
                       activeTab === tab
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] text-white shadow-md shadow-[#8b6f47]/20 scale-[1.02]'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/60 hover:text-[#8b6f47] dark:hover:text-[#c9a96b] hover:translate-x-1.5'
                     }`}
                   >
-                    {tab}
+                    {tab === 'security' ? 'Security & 2FA' : tab}
                   </button>
                 ))}
               </div>
@@ -300,6 +370,162 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </form>
+              </div>
+            )}
+
+            {/* Security Tab */}
+            {activeTab === 'security' && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="flex items-center mb-6">
+                  <Award className="w-6 h-6 text-[#8b6f47] dark:text-[#c9a96b] mr-2" />
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Security & 2FA</h2>
+                </div>
+
+                {!user?.twoFactorEnabled ? (
+                  /* 2FA Disabled State */
+                  <div className="space-y-6">
+                    {!isSettingUp2FA ? (
+                      <div className="space-y-4">
+                        <p className="text-sm text-zinc-650 dark:text-zinc-400 leading-relaxed">
+                          Protect your account with Two-Factor Authentication (2FA). By enabling 2FA, you will be required to enter a 6-digit verification code from your authenticator app (like Google Authenticator or Microsoft Authenticator) or a recovery code whenever you sign in.
+                        </p>
+                        <Button 
+                          onClick={handleStart2FASetup} 
+                          loading={loading2FA}
+                          className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-6 border-0 shadow-md"
+                        >
+                          Enable 2FA
+                        </Button>
+                      </div>
+                    ) : (
+                      /* 2FA Setup Flow */
+                      <div className="space-y-6 border border-zinc-150 dark:border-zinc-700 rounded-2xl p-5 bg-zinc-50/50 dark:bg-zinc-900/30">
+                        <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-white">
+                          Set Up Two-Factor Authentication
+                        </h3>
+                        
+                        {recoveryCodes.length > 0 ? (
+                          /* Step 2: Show recovery codes */
+                          <div className="space-y-4">
+                            <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold leading-normal">
+                              ✓ Two-Factor Authentication has been successfully enabled!
+                            </div>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                              IMPORTANT: Save these recovery codes in a secure place. If you lose access to your authenticator app, you can use these codes to log back into your account. Each code can only be used once.
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-zinc-100 dark:bg-zinc-950 p-4 rounded-xl font-mono text-center text-sm font-bold text-zinc-750 dark:text-zinc-300">
+                              {recoveryCodes.map((code, idx) => (
+                                <div key={idx} className="tracking-wider">{code}</div>
+                              ))}
+                            </div>
+                            <Button 
+                              onClick={() => {
+                                setIsSettingUp2FA(false);
+                                setRecoveryCodes([]);
+                                router.refresh();
+                              }}
+                              className="bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 rounded-full px-6 font-bold"
+                            >
+                              Done & Close
+                            </Button>
+                          </div>
+                        ) : (
+                          /* Step 1: Scan QR and Verify */
+                          <div className="space-y-6">
+                            <div className="flex flex-col md:flex-row gap-6 items-center">
+                              {/* QR Code Container */}
+                              {setupQrUrl && (
+                                <div className="p-3 bg-white border rounded-2xl shadow-sm flex-shrink-0">
+                                  <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setupQrUrl)}`} 
+                                    alt="2FA QR Code" 
+                                    className="w-[180px] h-[180px]"
+                                  />
+                                </div>
+                              )}
+                              
+                              <div className="space-y-3 text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed">
+                                <p className="font-bold text-sm text-zinc-800 dark:text-zinc-200 font-serif">Instructions:</p>
+                                <p>1. Open your authenticator app (Google Authenticator, Microsoft Authenticator, Authy, etc.).</p>
+                                <p>2. Choose "Scan QR Code" or add a new account.</p>
+                                <p>3. Scan the QR code, or enter this secret key manually:</p>
+                                <div className="p-2.5 bg-zinc-100 dark:bg-zinc-950 rounded-lg font-mono text-[11px] font-bold text-center text-zinc-800 dark:text-zinc-300 break-all select-all border border-zinc-200/60 dark:border-zinc-800">
+                                  {setupSecret}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Verify Input */}
+                            <div className="space-y-2.5 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+                              <label className="block text-xs font-bold text-zinc-750 dark:text-zinc-300 uppercase tracking-wide">
+                                Enter 6-digit Verification Code
+                              </label>
+                              <div className="flex gap-4 items-end max-w-sm">
+                                <input
+                                  type="text"
+                                  placeholder="000000"
+                                  maxLength={6}
+                                  value={verificationCode}
+                                  onChange={(e) => setVerificationCode(e.target.value)}
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-center tracking-widest text-sm font-bold rounded-xl"
+                                />
+                                <Button 
+                                  onClick={handleEnable2FA}
+                                  loading={loading2FA}
+                                  className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-900 rounded-full font-bold px-5"
+                                >
+                                  Verify
+                                </Button>
+                              </div>
+                              {verificationError && (
+                                <p className="text-[10px] text-red-500 font-bold">{verificationError}</p>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsSettingUp2FA(false);
+                                setVerificationCode('');
+                                setVerificationError('');
+                              }}
+                              className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:underline"
+                            >
+                              Cancel Setup
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* 2FA Enabled State */
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 p-4 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-2xl">
+                      <ShieldCheck className="w-6 h-6 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-sm">Two-Factor Authentication is Active</p>
+                        <p className="text-[11px] opacity-90 mt-0.5">Your account has an extra layer of security validation active.</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <h3 className="font-serif text-base font-bold text-gray-800 dark:text-gray-200">
+                        Deactivate Two-Factor Authentication
+                      </h3>
+                      <p className="text-xs text-zinc-650 dark:text-zinc-400 leading-relaxed">
+                        If you disable 2FA, you will no longer be prompted for a verification code when signing in, reducing your account security level.
+                      </p>
+                      <Button
+                        onClick={handleDisable2FA}
+                        loading={loading2FA}
+                        className="bg-red-650 hover:bg-red-700 text-white rounded-full px-6 border-0 shadow-sm font-bold text-xs"
+                      >
+                        Disable 2FA
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

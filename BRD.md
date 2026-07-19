@@ -58,9 +58,23 @@ The system serves two main user profiles:
 *   **Admin View**:
     *   Categorize compatible products as try-on assets.
 
+### Feature 5: Advanced Account Security & Multi-Factor Auth (2FA / OTP)
+*   **Normal Customer View**:
+    *   Enable/disable Two-Factor Authentication (2FA) from their profile settings, generating a secure secret and QR Code for Authenticator apps (Google Authenticator, Authy, etc.).
+    *   Access 10 secure, single-use Recovery Codes for logging in when authenticator devices are lost.
+    *   Log in passwordless using a dynamic Email One-Time Password (OTP) code.
+*   **Admin View**:
+    *   Ensure secure authorization workflows are maintained, verifying user roles before allowing access to administrative assets. All user passwords remain cryptographically hidden from administrators.
+
+### Feature 6: Enterprise User Session Inspection
+*   **Admin View**:
+    *   Inspect any user's current session state, showing live shopping cart items (with quantities and subtotal), active wishlist selections, and full historical order records.
+    *   Review comprehensive system-wide Enterprise Audit Trails mapping who executed changes, timestamps, and detailed before-and-after state differences.
+
 ---
 
 ## 5. Technology Stack Summary
 *   **Frontend**: React 19, Next.js 16 (App Router), Zustand (State Management), Framer Motion (Animations), Tailwind CSS 4.
 *   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose.
-*   **Database**: MongoDB (NoSQL) for campaigns, tickets, orders, reviews, and catalog items.
+*   **Authentication & Security**: Custom zero-dependency TOTP validation (Node's `crypto` module), JWT token verification, dynamic email-based OTP dispatch.
+*   **Database**: MongoDB (NoSQL) for campaigns, tickets, orders, reviews, audit trails, and catalog items.

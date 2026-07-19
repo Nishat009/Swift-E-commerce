@@ -214,45 +214,45 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.15 }}
-                className={`relative flex flex-col justify-end pt-32 pb-4 group ${category.isHighlighted ? 'z-10' : 'z-0'}`}
+                className={`relative flex flex-col justify-end pt-20 pb-4 group ${category.isHighlighted ? 'z-10' : 'z-0'}`}
               >
-                {/* 3D Overlapping Image */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-44 h-48 sm:w-48 sm:h-52 z-20 pointer-events-none transition-transform duration-500 ease-out group-hover:-translate-y-5 group-hover:scale-105 drop-shadow-xl">
+                {/* 3D Overlapping Image - styled as a floating mini-card */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-32 sm:w-32 sm:h-36 z-20 pointer-events-none transition-all duration-500 ease-out group-hover:-translate-y-4 group-hover:scale-105 group-hover:rotate-1 rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-zinc-800">
                   <Image
                     src={category.image}
                     alt={category.name}
                     fill
-                    className="object-contain"
+                    className="object-cover"
                   />
                 </div>
 
                 <Link href={category.link} className="block h-full">
                   <div 
-                    className={`rounded-[32px] p-6 text-center border transition-all duration-300 flex flex-col justify-end min-h-[260px] h-full ${
+                    className={`rounded-[24px] p-5 text-center border transition-all duration-500 flex flex-col justify-end min-h-[210px] h-full ${
                       category.isHighlighted
-                        ? 'bg-gradient-to-br from-[#d4a574] to-[#8b6f47] dark:from-[#c9a96b] dark:to-[#8b6f47] border-transparent text-white shadow-xl hover:shadow-2xl scale-105'
-                        : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-900 dark:text-white shadow-md hover:shadow-xl hover:border-[#8b6f47]'
+                        ? 'bg-gradient-to-br from-[#d4a574] to-[#8b6f47] dark:from-[#c9a96b] dark:to-[#8b6f47] border-transparent text-white shadow-lg hover:shadow-2xl scale-[1.02] hover:scale-[1.04]'
+                        : 'bg-white dark:bg-[#181715] border-zinc-150 dark:border-zinc-800/80 text-zinc-900 dark:text-zinc-100 shadow-sm hover:shadow-xl hover:border-[#8b6f47]/50 hover:-translate-y-1'
                     }`}
                   >
-                    <div className="mt-16 flex-1 flex flex-col justify-between">
+                    <div className="mt-10 flex-1 flex flex-col justify-between">
                       <div>
-                        <h3 className="text-xl font-bold font-serif mb-2">
+                        <h3 className={`text-base sm:text-lg font-bold font-serif mb-1 transition-colors ${category.isHighlighted ? 'text-white' : 'text-zinc-900 dark:text-zinc-100 group-hover:text-[#8b6f47] dark:group-hover:text-[#c9a96b]'}`}>
                           {category.name}
                         </h3>
-                        <p className={`text-xs mb-4 line-clamp-2 leading-relaxed ${category.isHighlighted ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <p className={`text-[11px] mb-3 line-clamp-2 leading-relaxed ${category.isHighlighted ? 'text-white/90' : 'text-zinc-500 dark:text-zinc-400'}`}>
                           {category.description}
                         </p>
                       </div>
 
                       <div>
-                        <div className={`text-sm font-semibold mb-4 font-serif ${category.isHighlighted ? 'text-white' : 'text-[#8b6f47] dark:text-[#c9a96b]'}`}>
+                        <div className={`text-[11px] font-semibold mb-3 font-serif ${category.isHighlighted ? 'text-white' : 'text-[#8b6f47] dark:text-[#c9a96b]'}`}>
                           {category.subtitle}
                         </div>
                         <span 
-                          className={`inline-block w-full py-2.5 rounded-full font-bold text-xs transition-colors shadow-sm ${
+                          className={`inline-block w-full py-2 rounded-full font-bold text-[10px] transition-all duration-300 shadow-sm ${
                             category.isHighlighted
-                              ? 'bg-gray-950 text-white hover:bg-gray-900'
-                              : 'border border-[#8b6f47] text-[#8b6f47] hover:bg-[#8b6f47] hover:text-white dark:border-[#c9a96b] dark:text-[#c9a96b] dark:hover:bg-[#c9a96b] dark:hover:text-gray-950'
+                              ? 'bg-zinc-950 text-white hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'
+                              : 'border border-[#8b6f47] text-[#8b6f47] hover:bg-[#8b6f47] hover:text-white dark:border-[#c9a96b] dark:text-[#c9a96b] dark:hover:bg-[#c9a96b] dark:hover:text-zinc-950'
                           }`}
                         >
                           {category.buttonText}

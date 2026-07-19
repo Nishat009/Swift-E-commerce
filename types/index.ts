@@ -30,6 +30,7 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   addresses?: Address[];
+  twoFactorEnabled?: boolean;
 }
 
 export interface Address {

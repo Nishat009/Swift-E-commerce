@@ -1,6 +1,8 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Cart = require('../models/Cart');
+const Wishlist = require('../models/Wishlist');
 const { sendSuccess } = require('../utils/response');
 
 // @desc    Get Admin Dashboard Statistics
@@ -149,9 +151,29 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+const getUserCart = async (req, res, next) => {
+  try {
+    const cart = await Cart.findOne({ user: req.params.id }).populate('products.product');
+    return sendSuccess(res, 'User cart loaded successfully', cart || { products: [], subtotal: 0 });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getUserWishlist = async (req, res, next) => {
+  try {
+    const wishlist = await Wishlist.findOne({ user: req.params.id }).populate('products');
+    return sendSuccess(res, 'User wishlist loaded successfully', wishlist || { products: [] });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
   updateUserRole,
   deleteUser,
+  getUserCart,
+  getUserWishlist,
 };

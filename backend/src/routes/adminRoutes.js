@@ -4,7 +4,9 @@ const {
   getDashboardStats,
   getAllUsers,
   updateUserRole,
-  deleteUser
+  deleteUser,
+  getUserCart,
+  getUserWishlist
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -17,5 +19,7 @@ router.get('/dashboard', getDashboardStats);
 router.get('/users', getAllUsers);
 router.put('/users/:id/role', updateUserRole);
 router.delete('/users/:id', deleteUser);
+router.get('/users/:id/cart', getUserCart);
+router.get('/users/:id/wishlist', getUserWishlist);
 
 module.exports = router;

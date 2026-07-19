@@ -61,7 +61,10 @@ graph TD
 ### 3.1 User Management & Authentication
 - **Registration & Login**: Secure account creation with encrypted credentials, phone numbers, and addresses.
 - **Auth Guard**: Role-based access control separating regular customers from administrative paths (`/admin`).
-- **Profile Page**: Update shipping addresses, account info, and track order histories.
+- **Profile Page**: Update shipping addresses, account info, security setups, and track order histories.
+- **Two-Factor Authentication (MFA)**: Setup TOTP-compliant secrets, generate secure QR Codes, and verify tokens before authorization.
+- **Recovery Keys**: Generate 10 dynamic, single-use recovery code alphanumeric strings for emergencies.
+- **Passwordless Email OTP**: Secure credentials-free login via time-limited code delivery to customer email.
 
 ### 3.2 Product Catalog & Interactive Grid
 - **3D Tilt Product Card**:
@@ -85,9 +88,11 @@ graph TD
 - **Checkout Process**: Address validation forms leading to final order generation.
 
 ### 3.5 Administrative Portal
-- **Dashboard**: Track system statistics (total sales, users, order quantities).
+- **Dashboard**: Track system statistics (total sales, users, order quantities) with complete adaptive Dark Mode theme support.
 - **Product Management**: Create, edit, and delete products, uploading pictures directly via Cloudinary.
 - **Category Control**: Create featured category headers with custom Unsplash portrait cutouts.
+- **User Session Inspection**: Query any customer's live cart contents, active wishlist selections, and complete purchase histories.
+- **Enterprise Audit Trails**: Track action histories showing timestamps, admins responsible, and complete before-and-after values object diff.
 
 ---
 
@@ -100,6 +105,11 @@ graph TD
 - `role`: String ('customer', 'admin'), default 'customer'.
 - `phone`: String.
 - `addresses`: Array of address subdocuments (street, city, state, zipCode, country, isDefault).
+- `twoFactorSecret`: String, base32 secret key for authenticator TOTP check.
+- `twoFactorEnabled`: Boolean, active state flag for user MFA.
+- `twoFactorRecoveryCodes`: Array of Strings, single-use security recovery keys.
+- `otpCode`: String, dynamic time-limited passwordless code sent to email.
+- `otpExpiry`: Date, verification expiry time for the dynamic OTP.
 
 ### 4.2 Product Schema (`Product.js`)
 - `title`: String, required, trimmed.

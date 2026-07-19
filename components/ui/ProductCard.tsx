@@ -247,7 +247,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
             className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-zinc-100 via-zinc-100/95 to-transparent dark:from-zinc-950 dark:via-zinc-950/95 z-10 pointer-events-none"
           />
 
-          {/* Details Content Overlay (Slides down, blurs & Fades out on hover) */}
+          {/* Details Content Overlay (Always active parent, with child animations) */}
           <motion.div 
             style={
               !isTouchDevice
@@ -256,56 +256,59 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                   }
                 : {}
             }
-            animate={
-              isHovered
-                ? {
-                    opacity: 0,
-                    y: 12,
-                    z: isTouchDevice ? 0 : 30,
-                    filter: 'blur(8px)',
-                  }
-                : {
-                    opacity: 1,
-                    y: 0,
-                    z: isTouchDevice ? 0 : 30,
-                    filter: 'blur(0px)',
-                  }
-            }
-            transition={{ duration: 0.4, ease: 'easeOut' }}
+            animate={{
+              y: 0,
+              z: isTouchDevice ? 0 : 30,
+            }}
             className="absolute bottom-0 inset-x-0 p-5 z-20 flex flex-col justify-end pointer-events-none [&_button]:pointer-events-auto text-gray-800 dark:text-white"
           >
-            <div>
-              {/* Brand Name */}
-              <span className="block text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">
-                {product.brand || 'SwiftBrand'}
-              </span>
+            {/* Text details and price container (Fades/blurs out on hover) */}
+            <motion.div
+              animate={
+                isHovered
+                  ? {
+                      opacity: 0,
+                      y: 10,
+                      filter: 'blur(6px)',
+                    }
+                  : {
+                      opacity: 1,
+                      y: 0,
+                      filter: 'blur(0px)',
+                    }
+              }
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <div>
+                {/* Brand Name */}
+                <span className="block text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">
+                  {product.brand || 'SwiftBrand'}
+                </span>
 
-              {/* Product Title */}
-              <h3 className="font-serif text-sm sm:text-base font-semibold text-gray-850 dark:text-gray-150 line-clamp-1 mb-1 leading-tight">
-                {product.title}
-              </h3>
+                {/* Product Title */}
+                <h3 className="font-serif text-sm sm:text-base font-semibold text-gray-850 dark:text-gray-150 line-clamp-1 mb-1 leading-tight">
+                  {product.title}
+                </h3>
 
-              {/* Short Description */}
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-1.5 font-normal leading-relaxed">
-                {product.description || 'Premium design with high quality materials.'}
-              </p>
+                {/* Short Description */}
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-1.5 font-normal leading-relaxed">
+                  {product.description || 'Premium design with high quality materials.'}
+                </p>
 
-              {/* Rating Section */}
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="flex items-center text-yellow-500 gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`w-3 h-3 ${i < Math.floor(product.rating) ? 'fill-yellow-500 text-yellow-500' : 'text-gray-300 dark:text-gray-700'}`} 
-                    />
-                  ))}
+                {/* Rating Section */}
+                <div className="flex items-center gap-1.5 mb-3">
+                  <div className="flex items-center text-yellow-500 gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star 
+                        key={i} 
+                        className={`w-3 h-3 ${i < Math.floor(product.rating) ? 'fill-yellow-500 text-yellow-500' : 'text-gray-300 dark:text-gray-700'}`} 
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-505 font-medium">({product.rating.toFixed(1)})</span>
                 </div>
-                <span className="text-[10px] text-gray-400 dark:text-gray-505 font-medium">({product.rating.toFixed(1)})</span>
               </div>
-            </div>
 
-            {/* Bottom Section (Price, Discount, and Buttons) */}
-            <div>
               {/* Price and Discount Row */}
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-sm sm:text-base font-black text-gray-950 dark:text-[#f5f1eb]">
@@ -322,22 +325,31 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                   </>
                 )}
               </div>
+            </motion.div>
 
-              {/* Action Buttons Row */}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddToCart}
-                  className="bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold py-2 px-3 rounded-full text-[11px] flex-1 transition-colors text-center shadow-sm"
-                >
-                  Add to Cart
-                </button>
-                <button
-                  className="border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-2 px-3 rounded-full text-[11px] flex-1 transition-colors text-center hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                >
-                  Quick View
-                </button>
-              </div>
-            </div>
+            {/* Action Buttons Row (Stays visible and clickable on hover, slides up slightly) */}
+            <motion.div
+              animate={
+                isHovered
+                  ? {
+                      y: -12,
+                      scale: 1.02,
+                    }
+                  : {
+                      y: 0,
+                      scale: 1.0,
+                    }
+              }
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="w-full pointer-events-auto"
+            >
+              <button
+                onClick={handleAddToCart}
+                className="w-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold py-2.5 px-4 rounded-full text-[11px] transition-all duration-200 text-center shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
+              >
+                Add to Cart
+              </button>
+            </motion.div>
           </motion.div>
         </motion.div>
       </Link>

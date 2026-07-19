@@ -10,11 +10,14 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (name: string, email: string, phone: string, password?: string) => Promise<void>;
   clearError: () => void;
+  verify2FA: (userId: string, code: string) => Promise<void>;
+  requestOTP: (email: string) => Promise<{ testOtp?: string } | void>;
+  verifyOTP: (email: string, otp: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,6 +55,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiClient.post('/auth/login', { email, password });
       if (response.data?.success) {
+        if (response.data.data?.require2FA) {
+          return {
+            require2FA: true,
+            userId: response.data.data.userId
+          };
+        }
+
         const { user: loggedInUser, accessToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
@@ -133,6 +143,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const verify2FA = async (userId: string, code: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/auth/verify-2fa', { userId, code });
+      if (response.data?.success) {
+        const { user: loggedInUser, accessToken } = response.data.data;
+        setAccessToken(accessToken);
+        setUser(loggedInUser);
+        useCartStore.getState().loadCart();
+        router.push('/dashboard');
+      } else {
+        throw new Error(response.data?.message || 'Verification failed');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Verification failed.';
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestOTP = async (email: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/auth/request-otp', { email });
+      if (response.data?.success) {
+        return {
+          testOtp: response.data.data?.testOtp
+        };
+      } else {
+        throw new Error(response.data?.message || 'Failed to request OTP');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to request OTP.';
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/auth/verify-otp', { email, otp });
+      if (response.data?.success) {
+        if (response.data.data?.require2FA) {
+          return {
+            require2FA: true,
+            userId: response.data.data.userId
+          };
+        }
+
+        const { user: loggedInUser, accessToken } = response.data.data;
+        setAccessToken(accessToken);
+        setUser(loggedInUser);
+        useCartStore.getState().loadCart();
+        router.push('/dashboard');
+      } else {
+        throw new Error(response.data?.message || 'OTP verification failed');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'OTP verification failed.';
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const clearError = () => setError(null);
 
   return (
@@ -146,6 +230,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         updateProfile,
         clearError,
+        verify2FA,
+        requestOTP,
+        verifyOTP,
       }}
     >
       {children}

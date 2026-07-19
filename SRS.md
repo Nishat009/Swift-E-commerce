@@ -26,6 +26,18 @@ SwiftCart is a multi-tier web application combining an e-commerce catalog with a
 *   **FR-3.1**: The system shall generate in-app notifications on ticket purchases, draw completion outcomes, and congratulations notifications.
 *   **FR-3.2**: Users shall review notifications through a navigation bar dropdown and mark alerts as read.
 
+### 2.4 User Authentication & MFA Security Module
+*   **FR-4.1**: Customers shall be able to setup Two-Factor Authentication (2FA) by scanning a generated QR code with any standard authenticator app.
+*   **FR-4.2**: The system shall validate time-based one-time passwords (TOTP) during login step-up verification.
+*   **FR-4.3**: The system shall generate 10 single-use Recovery Codes for alternative account access.
+*   **FR-4.4**: Normal Customers shall be able to request dynamic, temporary login OTP codes sent to their email.
+*   **FR-4.5**: The system shall prevent admins from viewing raw or decrypted customer password strings.
+
+### 2.5 Enterprise Administration & Inspection Module
+*   **FR-5.1**: Administrators shall be able to inspect any customer's active shopping cart items, quantities, and subtotal.
+*   **FR-5.2**: Administrators shall be able to inspect any customer's wishlist choices.
+*   **FR-5.3**: The system shall log all administrative actions in a persistent Audit Trail, capturing previous vs updated states.
+
 ---
 
 ## 3. Technology Stack & Architectural Diagram
@@ -58,6 +70,17 @@ The system follows a classic **Client-Server MVC architecture** with decoupled N
 ---
 
 ## 4. System Data Schemas (Mongoose Models)
+
+### 4.0 User Schema (`User.js`)
+*   `name` (String, required): Display name.
+*   `email` (String, required, unique): Unique login email address.
+*   `password` (String, required): Bcrypt hashed password.
+*   `role` (String, enum: `customer`, `admin`): Account authority.
+*   `twoFactorSecret` (String): Secure base32 secret key for TOTP authenticator validation.
+*   `twoFactorEnabled` (Boolean): Active state flag for MFA.
+*   `twoFactorRecoveryCodes` (Array of Strings): Single-use recovery codes.
+*   `otpCode` (String): Dynamically generated temporary email verification code.
+*   `otpExpiry` (Date): Expiry timestamp for the dynamic OTP.
 
 ### 4.1 Campaign Schema (`Campaign.js`)
 *   `title` (String, required): Campaign title.
@@ -99,6 +122,12 @@ The system follows a classic **Client-Server MVC architecture** with decoupled N
 *   `GET /api/campaigns/my-tickets` - Get active user's tickets ledger.
 
 ### 5.2 Admin Control Endpoints
+*   `GET /api/admin/dashboard` - Fetch store metrics, top products, low stock, and recent orders.
+*   `GET /api/admin/users` - Retrieve all registered users.
+*   `PUT /api/admin/users/:id/role` - Update target user role (e.g. customer vs admin).
+*   `DELETE /api/admin/users/:id` - Delete user account.
+*   `GET /api/admin/users/:id/cart` - Inspect target user's active cart.
+*   `GET /api/admin/users/:id/wishlist` - Inspect target user's active wishlist.
 *   `GET /api/campaigns/admin/analytics` - Fetch global store draw metrics.
 *   `POST /api/campaigns/admin/create` - Instantiate new campaign catalog.
 *   `PUT /api/campaigns/admin/:id` - Update campaign variables.
@@ -110,3 +139,13 @@ The system follows a classic **Client-Server MVC architecture** with decoupled N
 *   `GET /api/notifications/unread-count` - Get counts of unread alerts.
 *   `PUT /api/notifications/:id/read` - Mark specific notification as read.
 *   `PUT /api/notifications/read-all` - Mark all notifications as read.
+
+### 5.4 Authentication & MFA Endpoints
+*   `POST /api/auth/register` - Create customer account.
+*   `POST /api/auth/login` - Verify standard credentials; prompts for dynamic 2FA if active.
+*   `POST /api/auth/request-otp` - Request dynamic OTP code sent to user email.
+*   `POST /api/auth/verify-otp` - Verify email OTP to log in passwordless.
+*   `POST /api/auth/2fa/setup` - Generate 2FA secret and QR code URL for scan.
+*   `POST /api/auth/2fa/enable` - Confirm verification token and active MFA.
+*   `POST /api/auth/2fa/disable` - Deactivate MFA for authenticated session.
+*   `POST /api/auth/verify-2fa` - Verify time-based TOTP or recovery code input.
