@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingCart, Search, User, Moon, Sun, Menu, X, Bell, Gift, Trophy, Megaphone, Check } from 'lucide-react';
+import { ShoppingCart, Search, User, Moon, Sun, Menu, X, Bell, Gift, Trophy, Megaphone, Check, Eye } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useState, useEffect, useCallback } from 'react';
@@ -11,6 +11,8 @@ import CartDrawer from '@/components/ui/CartDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import apiClient from '@/lib/apiClient';
+import { Product } from '@/types';
+import { debounce } from '@/utils/debounce';
 
 interface Notification {
   id: string;
@@ -104,12 +106,55 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('recent-searches');
+    if (stored) {
+      setRecentSearches(JSON.parse(stored));
     }
+  }, []);
+
+  const fetchSuggestions = useCallback(
+    debounce(async (query: string) => {
+      if (!query.trim()) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const res = await apiClient.get(`/products?search=${encodeURIComponent(query)}&limit=5`);
+        if (res.data?.success) {
+          setSuggestions(res.data.data.products || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300),
+    []
+  );
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    fetchSuggestions(val);
+  };
+
+  const executeSearch = (query: string) => {
+    if (!query.trim()) return;
+    const updated = [query.trim(), ...recentSearches.filter((q) => q !== query.trim())].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('recent-searches', JSON.stringify(updated));
+    router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+    setIsFocused(false);
+    setSearchQuery('');
+    setSuggestions([]);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(searchQuery);
   };
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -159,22 +204,100 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Search */}
-            <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg mx-8">
-              <motion.div
-                className="relative w-full"
-                whileFocus={{ scale: 1.02 }}
-                transition={{ duration: 0.2 }}
-              >
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search products..."
-                  className="w-full px-4 py-2 pl-10 border border-border-theme rounded-sm bg-background text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </motion.div>
-            </form>
+            <div className="hidden md:block flex-1 max-w-lg mx-8 relative">
+              <form onSubmit={handleSearchSubmit} className="w-full">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+                    placeholder="Search products..."
+                    className="w-full px-4 py-2 pl-10 border border-border-theme rounded-xl bg-background text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200 text-xs font-medium"
+                  />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+              </form>
+
+              {/* Suggestions Panel */}
+              <AnimatePresence>
+                {isFocused && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800 rounded-2xl shadow-xl z-50 p-4 text-left space-y-4"
+                  >
+                    {/* Recent Searches */}
+                    {searchQuery.trim() === '' && recentSearches.length > 0 && (
+                      <div>
+                        <span className="block text-[8px] font-black uppercase tracking-wider text-text-muted mb-2">Recent Searches</span>
+                        <div className="flex flex-wrap gap-2">
+                          {recentSearches.map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => executeSearch(q)}
+                              className="px-3 py-1 bg-gray-50 dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-[10px] font-bold text-gray-700 dark:text-gray-300 transition border border-gray-100 dark:border-gray-800 cursor-pointer"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Popular Searches */}
+                    {searchQuery.trim() === '' && (
+                      <div>
+                        <span className="block text-[8px] font-black uppercase tracking-wider text-text-muted mb-2">Popular Searches</span>
+                        <div className="flex flex-wrap gap-2">
+                          {['Hoodie', 'Jacket', 'Shoes', 'Watch', 'Premium Bag'].map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => executeSearch(q)}
+                              className="px-3 py-1 bg-gray-50 dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-[10px] font-bold text-gray-700 dark:text-gray-300 transition border border-gray-100 dark:border-gray-800 cursor-pointer"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Matching Products Suggestions */}
+                    {searchQuery.trim() !== '' && suggestions.length > 0 && (
+                      <div className="space-y-2">
+                        <span className="block text-[8px] font-black uppercase tracking-wider text-text-muted">Product Suggestions</span>
+                        <div className="divide-y divide-gray-50 dark:divide-gray-850">
+                          {suggestions.map((p) => (
+                            <Link
+                              key={p.id}
+                              href={`/product/${p.id}`}
+                              onClick={() => { setIsFocused(false); setSearchQuery(''); }}
+                              className="flex items-center gap-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-850 rounded-xl px-2 transition"
+                            >
+                              <div className="relative w-8 h-8 rounded-lg overflow-hidden border bg-gray-100">
+                                <img src={p.thumbnail} alt={p.title} className="object-cover w-full h-full" />
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className="text-xs font-bold text-gray-900 dark:text-white truncate">{p.title}</h5>
+                                <p className="text-[10px] text-text-muted mt-0.5">${p.price}</p>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No Suggestions found */}
+                    {searchQuery.trim() !== '' && suggestions.length === 0 && (
+                      <p className="text-[10px] text-text-muted py-2 text-center">No suggestions for "{searchQuery}"</p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
@@ -390,7 +513,7 @@ export default function Navbar() {
                     initial={{ x: -20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    onSubmit={handleSearch}
+                    onSubmit={handleSearchSubmit}
                     className="mb-4"
                   >
                     <div className="relative">

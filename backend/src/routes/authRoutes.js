@@ -14,7 +14,10 @@ const {
   disable2FA,
   verify2FA,
   requestOTP,
-  verifyOTP
+  verifyOTP,
+  addAddress,
+  updateAddress,
+  deleteAddress
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
@@ -38,5 +41,10 @@ router.put('/profile', protect, profileRules, validate, updateProfile);
 router.post('/2fa/setup', protect, setup2FA);
 router.post('/2fa/enable', protect, verifyAndEnable2FA);
 router.post('/2fa/disable', protect, disable2FA);
+
+// Addresses CRUD routes
+router.post('/addresses', protect, addAddress);
+router.put('/addresses/:addressId', protect, updateAddress);
+router.delete('/addresses/:addressId', protect, deleteAddress);
 
 module.exports = router;

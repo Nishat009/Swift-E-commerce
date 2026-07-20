@@ -27,13 +27,15 @@ The system serves two main user profiles:
 
 ### Feature 1: Product Catalog & E-Commerce Core
 *   **Normal Customer View**:
-    *   Browse fashion products across categories.
-    *   Add items to the shopping cart, apply promo codes, and complete simulated checkout.
-    *   Save desired items to a personal wishlist.
+    *   Browse fashion products using debounced autocomplete suggestions, price range sliders, color/size check filters, and responsive mobile drawers.
+    *   Manage active filter tags dynamically with single-click clear options and total active counts.
+    *   Inspect product details quickly using a popup Quick View modal showing specifications, ratings, low stock warnings, return policies, and delivery estimates.
+    *   Add items to the shopping cart, apply coupon code discounts (e.g., `SAVE20`, `FREESHIP`), estimate shipping fees, and save items in a "Save For Later" storage deck.
+    *   Save desired items to a personal wishlist synchronized directly with the database.
 *   **Admin View**:
     *   Create, edit, and delete catalog products.
     *   Configure pricing, inventory counts, discount percentages, and media assets.
-    *   Update order statuses (e.g., Pending, Confirmed, Packed, Shipped, Delivered).
+    *   Update order statuses (e.g., Pending, Confirmed, Processing, Shipped, Delivered, Cancelled).
 
 ### Feature 2: Prize Campaigns (Lucky Draws)
 *   **Normal Customer View**:
@@ -60,7 +62,14 @@ The system serves two main user profiles:
 
 ### Feature 5: Advanced Account Security & Multi-Factor Auth (2FA / OTP)
 *   **Normal Customer View**:
-    *   Enable/disable Two-Factor Authentication (2FA) from their profile settings, generating a secure secret and QR Code for Authenticator apps (Google Authenticator, Authy, etc.).
+    *   Access a unified account manager `/dashboard` leveraging a shared shell navigation frame (`AccountLayout`) split into single-responsibility views:
+        *   **Dashboard Overview** (`/dashboard`): Stats summaries (total orders, saved wishlist items, cart items) and recent orders feed.
+        *   **Profile Editor** (`/profile`): Contact details, name, phone, email, and default address.
+        *   **Orders History** (`/orders`): Track shipments, download invoice documents, and cancel pending orders.
+        *   **Wishlist Grid** (`/wishlist`): View and manage saved items, or move them directly to the shopping cart.
+        *   **Addresses Manager** (`/addresses`): CRUD operations on multiple shipping addresses with customizable labels and a default address toggle.
+        *   **Security Settings** (`/settings`): Deactivate/activate Two-Factor Authentication (2FA), obtain single-use TOTP Recovery Codes, or update account password.
+    *   Enable/disable Two-Factor Authentication (2FA) generating a secure secret and QR Code for Authenticator apps (Google Authenticator, Authy, etc.).
     *   Access 10 secure, single-use Recovery Codes for logging in when authenticator devices are lost.
     *   Log in passwordless using a dynamic Email One-Time Password (OTP) code.
 *   **Admin View**:

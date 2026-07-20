@@ -397,6 +397,18 @@ export default function ProductDetailPage() {
                 );
               })}
             </dl>
+
+            {/* Delivery Estimate & Return Policy */}
+            <div className="mt-6 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-gray-150/40 dark:border-gray-800 space-y-3.5 text-xs text-text-muted">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-900 dark:text-white font-bold">🚚 Delivery Estimate:</span>
+                <span>Get it by Tuesday, Jul 28 (Standard Shipping - Free over $100)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-900 dark:text-white font-bold">🔄 Return Policy:</span>
+                <span>Easy 30-day returns. Free return shipping labels included in your package.</span>
+              </div>
+            </div>
           </div>
 
           {/* Premium Size Guide Modal */}
@@ -606,6 +618,38 @@ export default function ProductDetailPage() {
           </div>
         </section>
       )}
+
+      {/* Recently Viewed Products */}
+      {(() => {
+        const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+
+        useEffect(() => {
+          if (product) {
+            const stored = localStorage.getItem('recently-viewed');
+            let list: Product[] = stored ? JSON.parse(stored) : [];
+            list = list.filter((p) => String(p.id) !== String(product.id));
+            list.unshift(product);
+            list = list.slice(0, 4);
+            localStorage.setItem('recently-viewed', JSON.stringify(list));
+            setRecentlyViewed(list.filter((p) => String(p.id) !== String(product.id)));
+          }
+        }, [product]);
+
+        if (recentlyViewed.length === 0) return null;
+
+        return (
+          <section className="mt-12 pt-12 border-t border-gray-200 dark:border-gray-700">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Recently Viewed Products
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recentlyViewed.map((item) => (
+                <ProductCard key={item.id} product={item} />
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Full Screen Zoom Modal with Blurred Background */}
       {showZoomModal && (

@@ -156,6 +156,38 @@ const updateProfile = async (req, res, next) => {
       user.password = req.body.password;
     }
 
+    // Address updates
+    if (
+      req.body.address !== undefined ||
+      req.body.city !== undefined ||
+      req.body.state !== undefined ||
+      req.body.zipCode !== undefined
+    ) {
+      let defaultAddress = user.addresses.find(addr => addr.isDefault);
+      if (!defaultAddress && user.addresses.length > 0) {
+        defaultAddress = user.addresses[0];
+      }
+
+      if (defaultAddress) {
+        defaultAddress.street = req.body.address !== undefined ? req.body.address : defaultAddress.street;
+        defaultAddress.city = req.body.city !== undefined ? req.body.city : defaultAddress.city;
+        defaultAddress.state = req.body.state !== undefined ? req.body.state : defaultAddress.state;
+        defaultAddress.zipCode = req.body.zipCode !== undefined ? req.body.zipCode : defaultAddress.zipCode;
+        if (req.body.country !== undefined) {
+          defaultAddress.country = req.body.country;
+        }
+      } else {
+        user.addresses.push({
+          street: req.body.address || '',
+          city: req.body.city || '',
+          state: req.body.state || '',
+          zipCode: req.body.zipCode || '',
+          country: req.body.country || 'United States',
+          isDefault: true
+        });
+      }
+    }
+
     const updatedUser = await user.save();
 
     return sendSuccess(res, 'User profile updated successfully', {
@@ -166,6 +198,8 @@ const updateProfile = async (req, res, next) => {
         phone: updatedUser.phone,
         avatar: updatedUser.avatar,
         role: updatedUser.role,
+        addresses: updatedUser.addresses,
+        twoFactorEnabled: updatedUser.twoFactorEnabled
       }
     });
   } catch (error) {
@@ -458,6 +492,92 @@ const verifyOTP = async (req, res, next) => {
   }
 };
 
+// @desc    Add a new user address
+// @route   POST /api/auth/addresses
+// @access  Private
+const addAddress = async (req, res, next) => {
+  const { street, city, state, zipCode, country, isDefault } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return sendError(res, 'User not found', 404);
+
+    if (isDefault) {
+      user.addresses.forEach(addr => addr.isDefault = false);
+    }
+
+    user.addresses.push({
+      street,
+      city,
+      state,
+      zipCode,
+      country: country || 'United States',
+      isDefault: user.addresses.length === 0 ? true : !!isDefault
+    });
+
+    const updatedUser = await user.save();
+    return sendSuccess(res, 'Address added successfully', { addresses: updatedUser.addresses });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update a specific user address
+// @route   PUT /api/auth/addresses/:addressId
+// @access  Private
+const updateAddress = async (req, res, next) => {
+  const { addressId } = req.params;
+  const { street, city, state, zipCode, country, isDefault } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return sendError(res, 'User not found', 404);
+
+    const address = user.addresses.id(addressId);
+    if (!address) return sendError(res, 'Address not found', 404);
+
+    if (isDefault && !address.isDefault) {
+      user.addresses.forEach(addr => addr.isDefault = false);
+    }
+
+    address.street = street !== undefined ? street : address.street;
+    address.city = city !== undefined ? city : address.city;
+    address.state = state !== undefined ? state : address.state;
+    address.zipCode = zipCode !== undefined ? zipCode : address.zipCode;
+    address.country = country !== undefined ? country : address.country;
+    address.isDefault = isDefault !== undefined ? !!isDefault : address.isDefault;
+
+    const updatedUser = await user.save();
+    return sendSuccess(res, 'Address updated successfully', { addresses: updatedUser.addresses });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete a specific user address
+// @route   DELETE /api/auth/addresses/:addressId
+// @access  Private
+const deleteAddress = async (req, res, next) => {
+  const { addressId } = req.params;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return sendError(res, 'User not found', 404);
+
+    const address = user.addresses.id(addressId);
+    if (!address) return sendError(res, 'Address not found', 404);
+
+    const wasDefault = address.isDefault;
+    user.addresses.pull({ _id: addressId });
+
+    if (wasDefault && user.addresses.length > 0) {
+      user.addresses[0].isDefault = true;
+    }
+
+    const updatedUser = await user.save();
+    return sendSuccess(res, 'Address deleted successfully', { addresses: updatedUser.addresses });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -473,4 +593,7 @@ module.exports = {
   verify2FA,
   requestOTP,
   verifyOTP,
+  addAddress,
+  updateAddress,
+  deleteAddress,
 };

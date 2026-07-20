@@ -31,6 +31,7 @@ export interface User {
   updatedAt?: string;
   addresses?: Address[];
   twoFactorEnabled?: boolean;
+  wishlist?: any[];
 }
 
 export interface Address {

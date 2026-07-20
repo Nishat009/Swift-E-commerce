@@ -13,11 +13,22 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (name: string, email: string, phone: string, password?: string) => Promise<void>;
+  updateProfile: (
+    name: string,
+    email: string,
+    phone: string,
+    password?: string,
+    address?: string,
+    city?: string,
+    state?: string,
+    zipCode?: string,
+    country?: string
+  ) => Promise<void>;
   clearError: () => void;
   verify2FA: (userId: string, code: string) => Promise<void>;
   requestOTP: (email: string) => Promise<{ testOtp?: string } | void>;
   verifyOTP: (email: string, otp: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -120,11 +131,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateProfile = async (name: string, email: string, phone: string, password?: string) => {
+  const updateProfile = async (
+    name: string,
+    email: string,
+    phone: string,
+    password?: string,
+    address?: string,
+    city?: string,
+    state?: string,
+    zipCode?: string,
+    country?: string
+  ) => {
     setLoading(true);
     setError(null);
     try {
-      const payload: any = { name, email, phone };
+      const payload: any = { name, email, phone, address, city, state, zipCode, country };
       if (password) {
         payload.password = password;
       }
@@ -233,6 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verify2FA,
         requestOTP,
         verifyOTP,
+        refreshUser: checkSession,
       }}
     >
       {children}

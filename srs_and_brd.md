@@ -58,10 +58,16 @@ graph TD
 
 ## 3. Functional Requirements
 
-### 3.1 User Management & Authentication
+### 3.1 User Management, Authentication & Shell Navigation
 - **Registration & Login**: Secure account creation with encrypted credentials, phone numbers, and addresses.
 - **Auth Guard**: Role-based access control separating regular customers from administrative paths (`/admin`).
-- **Profile Page**: Update shipping addresses, account info, security setups, and track order histories.
+- **Unified Profile Shell (`AccountLayout.tsx`)**: Organize account management into distinct routes sharing a sidebar/drawer layout:
+  - **Overview** (`/dashboard`): Stats cards (orders, wishlist, cart) and recent order feed.
+  - **Profile** (`/profile`): Contact details, name, phone, email, and default address.
+  - **Orders** (`/orders`): Track shipments, print invoice documents, and cancel pending orders.
+  - **Wishlist** (`/wishlist`): View and manage saved items, or move them directly to the shopping cart.
+  - **Addresses** (`/addresses`): Full CRUD operations for managing multiple shipping addresses, including default selections.
+  - **Settings** (`/settings`): Deactivate/activate TOTP Two-Factor Authentication (2FA), obtain recovery codes, or update account password.
 - **Two-Factor Authentication (MFA)**: Setup TOTP-compliant secrets, generate secure QR Codes, and verify tokens before authorization.
 - **Recovery Keys**: Generate 10 dynamic, single-use recovery code alphanumeric strings for emergencies.
 - **Passwordless Email OTP**: Secure credentials-free login via time-limited code delivery to customer email.
@@ -70,12 +76,15 @@ graph TD
 - **3D Tilt Product Card**:
   - The card rotates dynamically based on mouse coordinate hover tracking (tilt angle limits: $\pm10^\circ$).
   - An absolute-positioned light-flare radial gradient follows the user's cursor.
-  - Image scales (`scale-110`) and moves forward in 3D (`translateZ(40px)`) on hover, while details (text, prices, stars, CTA buttons) translate down (`translate-y-10`) and fade out (`opacity-0`) to reveal a clean product portrait.
+  - Image scales (`scale-108`) and cross-fades with a secondary product image on hover, while action buttons (Quick View, Add to Cart) slide up.
   - Device compatibility: Disables cursor-tracking on touchscreens (fallback to standard scaling).
 - **Advanced Filtering & Search**:
-  - Text search with a `500ms` debounce filter.
+  - Search bar with debounced autocomplete suggestions listing recent searches, popular keywords, and matching products.
+  - Active filter tags displayed as chip items with single-click remove buttons and total active count indicators.
   - Dynamic price range sliders (from $0 to $2000).
-  - Category radio selection matching catalog categories.
+  - Category radio selection, color/size checkboxes, and list/grid layout toggle views.
+- **Quick View Modal**:
+  - Popup displaying product specs, average rating, reviews count, low stock warnings, delivery estimate, and return policy.
 
 ### 3.3 Virtual Dressing Room (Closet Builder)
 - **Virtual Avatar**: Interactive canvas/svg layout displaying an avatar base.
@@ -84,8 +93,10 @@ graph TD
 
 ### 3.4 Cart, Coupons & Checkout
 - **Zustand Cart Store**: Persists items in local storage, handles quantity updates, and automatically tallies coupon discounts.
-- **Coupon System**: Code validation checks against active coupon schemas (e.g. discount codes with expiration dates).
-- **Checkout Process**: Address validation forms leading to final order generation.
+- **Save For Later**: Move items from the cart to a saved storage deck and vice versa.
+- **Coupon System**: Code validation checks against active coupon schemas (e.g., `SAVE20` for 20% off, `FREESHIP` for free shipping).
+- **Shipping Estimator**: Enter a zip code to calculate delivery fees dynamically.
+- **Checkout Process**: Address validation forms leading to final order generation with status options (Pending, Confirmed, Processing, Shipped, Delivered, Cancelled).
 
 ### 3.5 Administrative Portal
 - **Dashboard**: Track system statistics (total sales, users, order quantities) with complete adaptive Dark Mode theme support.
@@ -110,6 +121,7 @@ graph TD
 - `twoFactorRecoveryCodes`: Array of Strings, single-use security recovery keys.
 - `otpCode`: String, dynamic time-limited passwordless code sent to email.
 - `otpExpiry`: Date, verification expiry time for the dynamic OTP.
+- `wishlist`: Array of ObjectIds ref Product, saved items for later review.
 
 ### 4.2 Product Schema (`Product.js`)
 - `title`: String, required, trimmed.
