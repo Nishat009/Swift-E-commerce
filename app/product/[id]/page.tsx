@@ -68,26 +68,27 @@ export default function ProductDetailPage() {
       setProduct(prod);
       setSelectedImage(0);
 
-      // Load related products from backend
-      const related = await fetchProducts({ category: prod.category, limit: 5 });
-      setRelatedProducts(related.products.filter((p) => String(p.id) !== String(prod.id)).slice(0, 3));
+      // Load related products, campaigns, and reviews in parallel
+      const [related, campaignsRes, reviewsResponse] = await Promise.all([
+        fetchProducts({ category: prod.category, limit: 5 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 5 })),
+        apiClient.get('/campaigns').catch(() => ({ data: { success: false, data: [] } })),
+        apiClient.get(`/reviews/product/${productId}`).catch(() => ({ data: { data: [] } }))
+      ]);
 
-      // Check if product is part of a lucky draw campaign
-      try {
-        const campaignsRes = await apiClient.get('/campaigns');
-        if (campaignsRes.data?.success) {
-          const matchingCampaign = campaignsRes.data.data.find(
-            (c: any) => c.status === 'active' && c.productTitle.toLowerCase() === prod.title.toLowerCase()
-          );
-          setActiveCampaign(matchingCampaign || null);
-        }
-      } catch (cErr) {
-        console.error('Error fetching campaign bindings on product page:', cErr);
+      if (related?.products) {
+        setRelatedProducts(related.products.filter((p) => String(p.id) !== String(prod.id)).slice(0, 3));
       }
 
-      // Load reviews from backend
-      const reviewsResponse = await apiClient.get(`/reviews/product/${productId}`);
-      setReviews(reviewsResponse.data.data || []);
+      if (campaignsRes.data?.success) {
+        const matchingCampaign = campaignsRes.data.data.find(
+          (c: any) => c.status === 'active' && c.productTitle.toLowerCase() === prod.title.toLowerCase()
+        );
+        setActiveCampaign(matchingCampaign || null);
+      } else {
+        setActiveCampaign(null);
+      }
+
+      setReviews(reviewsResponse.data?.data || []);
     } catch (err) {
       setError('Failed to load product. Please try again later.');
       console.error('Error loading product:', err);

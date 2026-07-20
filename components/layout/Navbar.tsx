@@ -33,6 +33,11 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Notification state
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -126,7 +131,7 @@ export default function Navbar() {
       try {
         const res = await apiClient.get(`/products?search=${encodeURIComponent(query)}&limit=5`);
         if (res.data?.success) {
-          setSuggestions(res.data.data.products || []);
+          setSuggestions(res.data.products || []);
         }
       } catch (err) {
         console.error(err);
@@ -336,10 +341,10 @@ export default function Navbar() {
                 aria-label="Toggle theme"
               >
                 <motion.div
-                  animate={{ rotate: theme === 'dark' ? 0 : 180 }}
+                  animate={{ rotate: mounted && theme === 'dark' ? 0 : 180 }}
                   transition={{ duration: 0.5 }}
                 >
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {mounted && theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </motion.div>
               </motion.button>
 
@@ -352,7 +357,7 @@ export default function Navbar() {
               >
                 <ShoppingCart className="w-5 h-5" />
                 <AnimatePresence>
-                  {totalItems > 0 && (
+                  {mounted && totalItems > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -376,7 +381,7 @@ export default function Navbar() {
                 >
                   <Bell className="w-5 h-5" />
                   <AnimatePresence>
-                    {unreadCount > 0 && (
+                    {mounted && unreadCount > 0 && (
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -558,7 +563,7 @@ export default function Navbar() {
                         onClick={toggleTheme}
                         className="px-3 py-2 rounded-sm text-foreground hover:bg-background flex items-center space-x-2 transition-colors"
                       >
-                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        {mounted && theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         <span>Toggle Theme</span>
                       </button>
                       <button
@@ -569,7 +574,7 @@ export default function Navbar() {
                         className="relative px-3 py-2 rounded-sm text-foreground hover:bg-background flex items-center space-x-2 transition-colors"
                       >
                         <ShoppingCart className="w-5 h-5" />
-                        {totalItems > 0 && (
+                        {mounted && totalItems > 0 && (
                           <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                             {totalItems > 9 ? '9+' : totalItems}
                           </span>

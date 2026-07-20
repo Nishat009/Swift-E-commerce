@@ -34,7 +34,7 @@ const addToWishlist = async (req, res, next) => {
       wishlist = await Wishlist.create({ user: req.user.id, products: [] });
     }
 
-    if (wishlist.products.includes(productId)) {
+    if (wishlist.products.some(id => id.toString() === productId.toString())) {
       return sendError(res, 'Product already in wishlist', 400);
     }
 

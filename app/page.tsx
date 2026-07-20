@@ -23,20 +23,25 @@ export default function Home() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const featured = await fetchProducts({ limit: 8 });
-        setFeaturedProducts(featured.products);
+        const [featured, arrivals, allProducts, catsRes] = await Promise.all([
+          fetchProducts({ limit: 8 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 8 })),
+          fetchProducts({ limit: 8, skip: 0 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 8 })),
+          fetchProducts({ limit: 50 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 50 })),
+          apiClient.get('/categories').catch(() => ({ data: { success: false, data: [] } }))
+        ]);
 
-        const arrivals = await fetchProducts({ limit: 8, skip: 0 });
-        setNewArrivals(arrivals.products);
-
-        const allProducts = await fetchProducts({ limit: 50 });
-        const best = allProducts.products
-          .filter(p => p.rating >= 4.5)
-          .slice(0, 8);
-        setBestsellers(best);
-
-        // Fetch dynamic categories
-        const catsRes = await apiClient.get('/categories');
+        if (featured?.products) {
+          setFeaturedProducts(featured.products);
+        }
+        if (arrivals?.products) {
+          setNewArrivals(arrivals.products);
+        }
+        if (allProducts?.products) {
+          const best = allProducts.products
+            .filter(p => p.rating >= 4.5)
+            .slice(0, 8);
+          setBestsellers(best);
+        }
         if (catsRes.data?.success) {
           setDynamicCategories(catsRes.data.data || []);
         }
