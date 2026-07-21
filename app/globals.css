@@ -46,6 +46,11 @@
   --color-accent: var(--accent);
   --color-cream: var(--cream);
   --color-beige: var(--beige);
+  --color-gray-55: #f2ede4;
+  --color-gray-150: #e8e0d6;
+  --color-gray-505: #a6a6a6;
+  --color-gray-850: #1c1a17;
+  --color-gray-855: #181715;
   --font-sans: var(--font-inter);
   --font-serif: var(--font-cormorant);
 }

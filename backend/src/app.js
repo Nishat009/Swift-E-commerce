@@ -21,6 +21,8 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const newsletterRoutes = require('./routes/newsletterRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const enterpriseRoutes = require('./routes/enterpriseRoutes');
 
 const app = express();
 
@@ -87,6 +89,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/enterprise', enterpriseRoutes);
 
 // 8. Swagger documentation endpoint
 setupSwagger(app);

@@ -4,6 +4,8 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import StickyCompareBar from "@/components/comparison/StickyCompareBar";
+import CompareModal from "@/components/comparison/CompareModal";
 
 type Props = {
   children: React.ReactNode;
@@ -31,6 +33,8 @@ export default function LayoutWrapper({ children }: Props) {
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />
+      <StickyCompareBar />
+      <CompareModal />
     </>
   );
 }

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/stores/cartStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Address, Order } from '@/types';
 import { CreditCard, MapPin, CheckCircle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import Loading from '@/components/ui/Loading';
 
 import apiClient from '@/lib/apiClient';
 
@@ -14,9 +16,16 @@ type Step = 'address' | 'payment' | 'confirmation';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const items = useCartStore((state) => state.items);
   const getTotalPrice = useCartStore((state) => state.getTotalPrice);
   const clearCart = useCartStore((state) => state.clearCart);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth/login?redirect=/checkout');
+    }
+  }, [user, loading, router]);
 
   const [step, setStep] = useState<Step>('address');
   const [address, setAddress] = useState<Address>({
@@ -95,6 +104,10 @@ export default function CheckoutPage() {
       }
     }
   };
+
+  if (loading || !user) {
+    return <Loading />;
+  }
 
   if (items.length === 0 && step !== 'confirmation') {
     return (

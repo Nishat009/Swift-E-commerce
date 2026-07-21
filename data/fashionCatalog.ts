@@ -28,7 +28,60 @@ export const fashionProducts: Product[] = [
       'StyleTags': 'minimalist, summer, casual',
       'SvgStyle': 'tank',
       'SvgColor': '#f5f0e6'
-    }
+    },
+    tags: ['Bestseller', 'New'],
+    variants: [
+      {
+        id: 'var-size',
+        name: 'Size',
+        options: [
+          { id: 'opt-xs', name: 'Size', value: 'XS', stock: 10 },
+          { id: 'opt-s', name: 'Size', value: 'S', stock: 15 },
+          { id: 'opt-m', name: 'Size', value: 'M', stock: 12 },
+          { id: 'opt-l', name: 'Size', value: 'L', stock: 8 },
+        ],
+      },
+      {
+        id: 'var-color',
+        name: 'Color',
+        options: [
+          { id: 'opt-cream', name: 'Color', value: 'Cream', colorHex: '#e3dac9', stock: 25 },
+          { id: 'opt-black', name: 'Color', value: 'Noir Black', colorHex: '#1a1a1a', stock: 20 },
+        ],
+      },
+    ],
+    reviewCount: 28,
+    ratingDistribution: { 5: 20, 4: 5, 3: 2, 2: 1, 1: 0 },
+    shippingInfo: {
+      estimate: 'Fast 2-3 Business Days Delivery',
+      freeShipping: true,
+      returnPolicy: '30-day effortless return window',
+      cost: 0,
+    },
+    reviews: [
+      {
+        id: 'rev-101-1',
+        userId: 'usr-1',
+        userName: 'Emma Watson',
+        userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
+        rating: 5,
+        comment: 'Softest organic cotton knit I have ever worn! True to size.',
+        date: '2026-06-10',
+        verified: true,
+        helpfulCount: 18,
+      },
+      {
+        id: 'rev-101-2',
+        userId: 'usr-2',
+        userName: 'Jessica Alba',
+        userAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&h=100&fit=crop',
+        rating: 4,
+        comment: 'Beautiful cream shade, pairs amazingly with high-waisted denim.',
+        date: '2026-05-28',
+        verified: true,
+        helpfulCount: 7,
+      },
+    ]
   },
   {
     id: 102,

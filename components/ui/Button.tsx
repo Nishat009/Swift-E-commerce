@@ -8,6 +8,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'classic';
   size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
+  loading?: boolean;
 }
 
 export default function Button({
@@ -15,6 +16,7 @@ export default function Button({
   size = 'md',
   className,
   children,
+  loading,
   ...props
 }: ButtonProps) {
   const baseStyles = 'font-medium rounded-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden uppercase tracking-wide text-xs sm:text-sm';
@@ -48,6 +50,7 @@ export default function Button({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.2 }}
+      disabled={props.disabled || loading}
       className={cn(baseStyles, variants[variant], sizes[size], className)}
       {...motionProps}
     >
@@ -57,7 +60,13 @@ export default function Button({
         whileHover={{ x: '100%' }}
         transition={{ duration: 0.5 }}
       />
-      <span className="relative z-10 flex items-center justify-center">
+      <span className="relative z-10 flex items-center justify-center gap-2">
+        {loading && (
+          <svg className="animate-spin h-4 w-4 text-current" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        )}
         {children}
       </span>
     </motion.button>

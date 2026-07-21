@@ -5,6 +5,9 @@ const TicketSchema = new mongoose.Schema(
     ticketNumber: { type: String, required: true, unique: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', required: true },
+    orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
+    purchaseAmount: { type: Number, default: 0 },
+    paymentMethod: { type: String, default: 'simulated_wallet' },
     status: {
       type: String,
       enum: ['active', 'won', 'lost'],

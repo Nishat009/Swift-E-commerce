@@ -20,6 +20,11 @@ const UserSchema = new mongoose.Schema(
     role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     addresses: [AddressSchema],
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String, default: '' },
+    twoFactorRecoveryCodes: { type: [String], default: [] },
+    otpCode: { type: String, default: '' },
+    otpExpires: { type: Date },
   },
   { timestamps: true }
 );
