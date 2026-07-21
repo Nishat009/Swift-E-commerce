@@ -1,3 +1,49 @@
+export type ProductTag = 'New' | 'Bestseller' | 'Low Stock' | 'Sale' | 'Featured' | string;
+
+export interface ProductVariantOption {
+  id: string;
+  name: string;
+  value: string;
+  colorHex?: string;
+  priceDelta?: number;
+  stock: number;
+  sku?: string;
+  image?: string;
+}
+
+export interface ProductVariantGroup {
+  id: string;
+  name: 'Size' | 'Color' | 'Style' | string;
+  options: ProductVariantOption[];
+}
+
+export interface RatingDistribution {
+  5: number;
+  4: number;
+  3: number;
+  2: number;
+  1: number;
+}
+
+export interface ShippingInfo {
+  estimate: string;
+  freeShipping: boolean;
+  returnPolicy: string;
+  cost?: number;
+}
+
+export interface ProductReview {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  comment: string;
+  date: string;
+  verified: boolean;
+  helpfulCount?: number;
+}
+
 export interface Product {
   id: string | number;
   title: string;
@@ -8,11 +54,18 @@ export interface Product {
   discountPercentage: number;
   rating: number;
   stock: number;
+  totalStock?: number;
   brand: string;
   category: string;
   thumbnail: string;
   images: string[];
   specifications?: Record<string, string>;
+  variants?: ProductVariantGroup[];
+  reviewCount?: number;
+  ratingDistribution?: RatingDistribution;
+  tags?: ProductTag[];
+  shippingInfo?: ShippingInfo;
+  reviews?: ProductReview[];
 }
 
 export interface CartItem {

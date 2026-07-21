@@ -15,6 +15,7 @@ export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [bestsellers, setBestsellers] = useState<Product[]>([]);
+  const [bestDeals, setBestDeals] = useState<Product[]>([]);
   const [dynamicCategories, setDynamicCategories] = useState<any[]>([]);
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, 50]);
@@ -36,14 +37,36 @@ export default function Home() {
         if (arrivals?.products) {
           setNewArrivals(arrivals.products);
         }
-        if (allProducts?.products) {
+        if (allProducts?.products && allProducts.products.length > 0) {
           const best = allProducts.products
             .filter(p => p.rating >= 4.5)
             .slice(0, 8);
           setBestsellers(best);
-        }
-        if (catsRes.data?.success) {
-          setDynamicCategories(catsRes.data.data || []);
+
+          const deals = allProducts.products
+            .filter(p => p.discountPercentage > 0)
+            .sort((a, b) => b.discountPercentage - a.discountPercentage)
+            .slice(0, 3);
+          setBestDeals(deals.length > 0 ? deals : allProducts.products.slice(0, 3));
+
+          // Derive all system categories from catalog products
+          const categoryMap = new Map();
+          allProducts.products.forEach((p) => {
+            if (p.category && !categoryMap.has(p.category.toLowerCase())) {
+              categoryMap.set(p.category.toLowerCase(), {
+                name: p.category.charAt(0).toUpperCase() + p.category.slice(1),
+                description: `Explore our curated collection of ${p.category}.`,
+                image: p.thumbnail || p.images?.[0] || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
+                slug: p.category,
+              });
+            }
+          });
+          const derivedCats = Array.from(categoryMap.values());
+          if (catsRes.data?.success && catsRes.data.data?.length > 0) {
+            setDynamicCategories(catsRes.data.data);
+          } else {
+            setDynamicCategories(derivedCats);
+          }
         }
       } catch (error) {
         console.error('Error loading products or categories:', error);
@@ -208,7 +231,7 @@ export default function Home() {
                     link: `/products?category=${c.slug || c.name.toLowerCase()}`,
                     isHighlighted: idx === 1,
                     buttonText: 'Shop Category'
-                  })).slice(0, 3)
+                  }))
                 : defaultCategories;
 
               return categoriesToRender;
@@ -334,7 +357,7 @@ export default function Home() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, margin: '-100px' }}
           transition={{ duration: 0.8 }}
-          className="py-16 sm:py-20 md:py-24 bg-[#f5f1eb] dark:bg-gray-950"
+          className="py-16 sm:py-20 md:py-24 bg-[#f5f1eb] dark:bg-gray-950 border-t border-gray-150/40 dark:border-gray-800"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
@@ -342,21 +365,30 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="text-center mb-12 sm:mb-16"
+              className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-12 sm:mb-16"
             >
-              <div className="inline-flex items-center gap-2 mb-4">
-                <Sparkles className="w-6 h-6 text-[#8b6f47] dark:text-[#c9a96b]" />
-                <span className="text-sm font-medium tracking-wider uppercase text-[#8b6f47] dark:text-[#c9a96b]">
-                  Just Arrived
-                </span>
+              <div>
+                <div className="inline-flex items-center gap-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <span className="text-xs font-bold tracking-widest uppercase text-primary">
+                    Fresh Season Drops
+                  </span>
+                </div>
+                <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
+                  New Arrivals
+                </h2>
+                <p className="text-xs sm:text-sm text-text-muted mt-1">
+                  Discover our newest handcrafted arrivals and seasonal releases
+                </p>
               </div>
-              <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-4">
-                New Arrivals
-              </h2>
-              <p className="font-elegant text-xl sm:text-2xl text-[#6b6b6b] dark:text-gray-400 max-w-2xl mx-auto">
-                Fresh additions to our curated collection
-              </p>
+
+              <Link href="/products?tag=New">
+                <Button variant="outline" className="rounded-full text-xs font-bold px-6 py-2.5 flex items-center gap-2 border-primary text-primary">
+                  Explore New Arrivals <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
             </motion.div>
+
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -365,6 +397,61 @@ export default function Home() {
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
             >
               {newArrivals.slice(0, 3).map((product, index) => (
+                <motion.div key={product.id} variants={itemVariants}>
+                  <ProductCard product={product} index={index} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+      )}
+
+      {/* Best Deals & Exclusive Discounts Section */}
+      {bestDeals.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.8 }}
+          className="py-16 sm:py-20 md:py-24 bg-white dark:bg-gray-900 border-t border-gray-150/40 dark:border-gray-800"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="bg-gradient-to-r from-[#8b6f47]/10 via-[#c9a96b]/10 to-transparent border border-primary/20 rounded-[32px] p-8 sm:p-12 mb-12 relative overflow-hidden"
+            >
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="space-y-2 text-center md:text-left">
+                  <span className="inline-block px-3 py-1 bg-red-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest">
+                    Hot Sale & Best Deals
+                  </span>
+                  <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
+                    Best Deals & Savings
+                  </h2>
+                  <p className="text-xs sm:text-sm text-text-muted max-w-xl">
+                    Save up to 40% off retail prices on our top-rated featured products for a limited time.
+                  </p>
+                </div>
+
+                <Link href="/products">
+                  <Button className="bg-primary hover:bg-[#6b5435] text-white rounded-full font-bold px-8 py-3 text-xs shadow-md border-0">
+                    Shop All Deals
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-50px' }}
+              variants={containerVariants}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
+            >
+              {bestDeals.slice(0, 3).map((product, index) => (
                 <motion.div key={product.id} variants={itemVariants}>
                   <ProductCard product={product} index={index} />
                 </motion.div>

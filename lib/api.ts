@@ -11,6 +11,8 @@ export const fetchProducts = async (params?: {
   priceMax?: number;
   color?: string;
   size?: string;
+  tag?: string;
+  brand?: string;
 }): Promise<{ products: Product[]; total: number; skip: number; limit: number }> => {
   const response = await apiClient.get('/products', { params });
   return {

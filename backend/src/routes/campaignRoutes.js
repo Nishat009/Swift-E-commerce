@@ -22,8 +22,6 @@ router.get('/winners', getWinners);
 
 // Protected user routes
 router.get('/my-tickets', protect, getMyTickets);
-router.get('/:id', getCampaignById);
-router.post('/:id/buy', protect, purchaseTicket);
 
 // Admin routes
 router.get('/admin/analytics', protect, authorize('admin'), getCampaignAnalytics);
@@ -32,5 +30,9 @@ router.put('/admin/:id', protect, authorize('admin'), updateCampaign);
 router.put('/admin/:id/status', protect, authorize('admin'), updateCampaignStatus);
 router.get('/admin/:id/tickets', protect, authorize('admin'), getCampaignTickets);
 router.post('/admin/:id/draw', protect, authorize('admin'), drawCampaignWinner);
+
+// Parameterized routes (must come after static / sub-path routes)
+router.get('/:id', getCampaignById);
+router.post('/:id/buy', protect, purchaseTicket);
 
 module.exports = router;

@@ -1,57 +1,60 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAvatarStore } from '@/stores/avatarStore';
 import { useAuth } from '@/context/AuthContext';
-import Modal from '@/components/ui/Modal';
 import { fetchProductById, fetchProducts } from '@/lib/api';
 import apiClient from '@/lib/apiClient';
-import { Product } from '@/types';
+import { Product, ProductVariantOption, ProductReview } from '@/types';
+import { normalizeProduct, calculateTotalStock } from '@/utils/productUtils';
 import Loading from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ui/ProductCard';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
+import Badge from '@/components/ui/Badge';
+import Accordion from '@/components/ui/Accordion';
+import RatingStars from '@/components/ui/RatingStars';
+import QuantityStepper from '@/components/ui/QuantityStepper';
+import Modal from '@/components/ui/Modal';
+import ImageGallery from '@/components/product/ImageGallery';
+import VariantSelector from '@/components/product/VariantSelector';
+import ReviewSection from '@/components/product/ReviewSection';
+import MobileStickyCart from '@/components/product/MobileStickyCart';
 import { useCartStore } from '@/stores/cartStore';
-import { ShoppingCart, Star, Minus, Plus, Heart, ZoomIn, CheckCircle, X, Gift, ArrowRight } from 'lucide-react';
+import { ShoppingCart, Heart, ShieldCheck, Truck, RefreshCw, Gift, ArrowRight, Sparkles, FileText, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/context/ToastContext';
-
-interface Review {
-  id: string;
-  userName: string;
-  rating: number;
-  comment: string;
-  date: string;
-  verified: boolean;
-}
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
   const toast = useToast();
-  const [product, setProduct] = useState<Product | null>(null);
+
+  const [rawProduct, setRawProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [showZoomModal, setShowZoomModal] = useState(false);
-  const [modalZoomPosition, setModalZoomPosition] = useState({ x: 50, y: 50 });
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
 
-  // Review states
-  const [newReviewRating, setNewReviewRating] = useState(5);
-  const [newReviewComment, setNewReviewComment] = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
+  // Selected Variant Options State map: { 'Size': option, 'Color': option }
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, ProductVariantOption>>({});
 
   const { user } = useAuth();
   const addItem = useCartStore((state) => state.addItem);
   const tryOnItem = useAvatarStore((state) => state.tryOnItem);
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+
+  // Normalize product payload cleanly
+  const product = useMemo(() => {
+    return rawProduct ? normalizeProduct(rawProduct) : null;
+  }, [rawProduct]);
 
   useEffect(() => {
     if (productId) {
@@ -60,46 +63,125 @@ export default function ProductDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
+  useEffect(() => {
+    if (product) {
+      try {
+        const stored = localStorage.getItem('recently-viewed');
+        let list: Product[] = stored ? JSON.parse(stored) : [];
+        list = list.filter((p) => String(p.id) !== String(product.id));
+        list.unshift(product);
+        list = list.slice(0, 4);
+        localStorage.setItem('recently-viewed', JSON.stringify(list));
+        setRecentlyViewed(list.filter((p) => String(p.id) !== String(product.id)));
+      } catch (e) {
+        console.error('Error handling recently viewed:', e);
+      }
+    }
+  }, [product]);
+
+  // Set default initial variant options when product loads
+  useEffect(() => {
+    if (product && product.variants && product.variants.length > 0) {
+      const defaults: Record<string, ProductVariantOption> = {};
+      product.variants.forEach((group) => {
+        if (group.options && group.options.length > 0) {
+          defaults[group.name] = group.options[0];
+        }
+      });
+      setSelectedVariants(defaults);
+    }
+  }, [product]);
+
   const loadProduct = async () => {
     setLoading(true);
     setError(null);
     try {
       const prod = await fetchProductById(productId);
-      setProduct(prod);
-      setSelectedImage(0);
+      const normalized = normalizeProduct(prod);
+      setRawProduct(normalized);
 
       // Load related products, campaigns, and reviews in parallel
       const [related, campaignsRes, reviewsResponse] = await Promise.all([
-        fetchProducts({ category: prod.category, limit: 5 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 5 })),
+        fetchProducts({ category: normalized.category, limit: 5 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 5 })),
         apiClient.get('/campaigns').catch(() => ({ data: { success: false, data: [] } })),
         apiClient.get(`/reviews/product/${productId}`).catch(() => ({ data: { data: [] } }))
       ]);
 
       if (related?.products) {
-        setRelatedProducts(related.products.filter((p) => String(p.id) !== String(prod.id)).slice(0, 3));
+        setRelatedProducts(
+          related.products.map(normalizeProduct).filter((p) => String(p.id) !== String(normalized.id)).slice(0, 3)
+        );
       }
 
       if (campaignsRes.data?.success) {
         const matchingCampaign = campaignsRes.data.data.find(
-          (c: any) => c.status === 'active' && c.productTitle.toLowerCase() === prod.title.toLowerCase()
+          (c: any) => c.status === 'active' && c.productTitle.toLowerCase() === normalized.title.toLowerCase()
         );
         setActiveCampaign(matchingCampaign || null);
       } else {
         setActiveCampaign(null);
       }
 
-      setReviews(reviewsResponse.data?.data || []);
+      const fetchedReviews = reviewsResponse.data?.data || [];
+      setReviews(fetchedReviews.length > 0 ? fetchedReviews : normalized.reviews || []);
     } catch (err) {
-      setError('Failed to load product. Please try again later.');
+      setError('Failed to load product details. Please try again later.');
       console.error('Error loading product:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Calculate current price (incorporating variant price delta if any)
+  const calculatedPrice = useMemo(() => {
+    if (!product) return 0;
+    let base = product.price;
+    Object.values(selectedVariants).forEach((opt) => {
+      if (opt.priceDelta) base += opt.priceDelta;
+    });
+    return base;
+  }, [product, selectedVariants]);
+
+  // Calculate available stock for current selection
+  const currentStock = useMemo(() => {
+    if (!product) return 0;
+    const selectedOptionsList = Object.values(selectedVariants);
+    if (selectedOptionsList.length > 0) {
+      return selectedOptionsList[0].stock;
+    }
+    return product.totalStock || product.stock;
+  }, [product, selectedVariants]);
+
+  // Determine active variant image override if any
+  const activeVariantImage = useMemo(() => {
+    for (const opt of Object.values(selectedVariants)) {
+      if (opt.image) return opt.image;
+    }
+    return null;
+  }, [selectedVariants]);
+
+  const activeVariantSummary = useMemo(() => {
+    return Object.values(selectedVariants)
+      .map((opt) => opt.value)
+      .join(' / ');
+  }, [selectedVariants]);
+
+  const handleVariantSelect = (groupName: string, option: ProductVariantOption) => {
+    setSelectedVariants((prev) => ({
+      ...prev,
+      [groupName]: option,
+    }));
+  };
+
   const handleAddToCart = () => {
     if (product) {
-      addItem(product, quantity);
+      const customProductPayload = {
+        ...product,
+        price: calculatedPrice,
+        stock: currentStock,
+      };
+      addItem(customProductPayload, quantity);
+      toast.success(`Added ${quantity} x "${product.title}" (${activeVariantSummary || 'Standard'}) to cart!`);
     }
   };
 
@@ -131,40 +213,25 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleReviewSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newReviewComment.trim() || !product) return;
-    setSubmittingReview(true);
+  const handleReviewSubmit = async (newRating: number, comment: string) => {
+    if (!product) return;
     try {
       const response = await apiClient.post('/reviews', {
         product: product.id,
-        rating: newReviewRating,
-        review: newReviewComment
+        rating: newRating,
+        review: comment,
       });
 
       if (response.data?.success) {
         const createdReview = response.data.data;
         setReviews([createdReview, ...reviews]);
-        setNewReviewComment('');
-        setNewReviewRating(5);
         toast.success('Thank you! Your product review has been submitted successfully.');
       }
     } catch (err: any) {
       console.error('Review submission error:', err);
       toast.error(err.response?.data?.message || 'Failed to submit review. Please try again.');
-    } finally {
-      setSubmittingReview(false);
     }
   };
-
-  const handleModalMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setModalZoomPosition({ x, y });
-  };
-
-  const discountedPrice = product ? product.price * (1 - product.discountPercentage / 100) : 0;
 
   if (loading) {
     return <Loading />;
@@ -172,445 +239,275 @@ export default function ProductDetailPage() {
 
   if (error || !product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 text-lg">{error || 'Product not found'}</p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-4">
+        <p className="text-red-600 dark:text-red-400 font-bold text-sm">{error || 'Product not found'}</p>
+        <Button onClick={() => router.push('/products')} className="bg-[#8b6f47] text-white rounded-full text-xs font-bold px-6 py-2">
+          Back to Shop Catalog
+        </Button>
       </div>
     );
   }
 
+  const discountedPrice = calculatedPrice * (1 - (product.discountPercentage || 0) / 100);
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {/* Image Gallery */}
-        <div>
-          <div
-            className="relative w-full h-[450px] mb-4 bg-gray-50 dark:bg-gray-800 rounded-2xl overflow-hidden cursor-zoom-in group border border-gray-100 dark:border-gray-900 shadow-sm"
-            onMouseEnter={() => setShowZoomModal(true)}
-          >
-            <Image
-              src={product.images[selectedImage] || product.thumbnail}
-              alt={product.title}
-              fill
-              className="object-cover"
-              priority
-            />
-            <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="bg-black/60 text-white text-xs py-1.5 px-3 rounded-full font-bold">Hover to inspect fabric details</span>
-            </div>
-            <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-              <ZoomIn className="w-5 h-5 animate-pulse" />
-            </div>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {product.images.slice(0, 4).map((img, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedImage(index)}
-                className={`relative h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                  selectedImage === index
-                    ? 'border-blue-600 dark:border-blue-400'
-                    : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <Image src={img} alt={`${product.title} ${index + 1}`} fill className="object-cover" />
-              </button>
-            ))}
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      {/* Breadcrumbs Navigation */}
+      <Breadcrumbs
+        items={[
+          { label: 'Products', href: '/products' },
+          { label: product.category, href: `/products?category=${product.category}` },
+          { label: product.title },
+        ]}
+      />
+
+      {/* Main Product Details Layout Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+        
+        {/* Left Column: Image Gallery & Zoom */}
+        <div className="lg:col-span-7">
+          <ImageGallery
+            images={product.images}
+            title={product.title}
+            activeVariantImage={activeVariantImage}
+          />
         </div>
 
-        {/* Product Info */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            {product.title}
-          </h1>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center">
-              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-              <span className="ml-1 text-lg font-semibold text-gray-700 dark:text-gray-300">
-                {product.rating}
-              </span>
-            </div>
-            <span className="text-gray-600 dark:text-gray-400">
-              Brand: <span className="font-semibold">{product.brand}</span>
-            </span>
-          </div>
-
-          <div className="mb-6">
-            <div className="flex items-center gap-4 mb-2">
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                ${discountedPrice.toFixed(2)}
-              </span>
-              {product.discountPercentage > 0 && (
-                <>
-                  <span className="text-xl text-gray-500 line-through">
-                    ${product.price.toFixed(2)}
-                  </span>
-                  <span className="bg-red-500 text-white px-2 py-1 rounded-md text-sm font-semibold">
-                    -{product.discountPercentage}% OFF
-                  </span>
-                </>
-              )}
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {product.stock > 0 ? (
-                <span className="text-green-600 dark:text-green-400 font-medium">
-                  In Stock ({product.stock} available)
-                </span>
-              ) : (
-                <span className="text-red-600 dark:text-red-400 font-medium">Out of Stock</span>
-              )}
-            </p>
-          </div>
-
-          <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-            {product.description}
-          </p>
-
+        {/* Right Column: Product Meta & Purchase Panel */}
+        <div className="lg:col-span-5 space-y-6">
+          
           {/* Active Lucky Draw Campaign banner */}
           {activeCampaign && (
-            <div className="mb-6 p-4 rounded-2xl bg-yellow-500/5 dark:bg-yellow-950/20 border border-yellow-300/30 flex items-center gap-3">
-              <Gift className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 animate-bounce" />
-              <div className="text-left flex-1 min-w-0">
-                <span className="block text-[10px] text-yellow-600 dark:text-yellow-400 font-black uppercase tracking-widest">Lucky Draw Active 🎲</span>
-                <span className="block text-xs text-gray-800 dark:text-gray-250 font-bold mt-0.5">
-                  Purchase this product to get a free entry to win: <span className="font-serif text-[#8b6f47] dark:text-[#c9a96b]">{activeCampaign.prizeName}</span>!
-                </span>
-              </div>
-              <Link href={`/campaigns/${activeCampaign.id}`}>
-                <Button size="sm" className="text-[10px] py-1.5 px-3 font-bold bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 shadow-sm whitespace-nowrap rounded-lg flex items-center gap-1">
-                  View Campaign <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              </Link>
-            </div>
-          )}
-
-          {/* Quantity Selector */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Quantity
-            </label>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  disabled={quantity <= 1}
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="px-4 py-2 text-gray-900 dark:text-white font-medium">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  disabled={quantity >= product.stock}
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button
-              onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              size="lg"
-              className="flex-1"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 relative overflow-hidden"
             >
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Add to Cart
-            </Button>
-            
-            {isTryOnable && (
-              <Button
-                onClick={handleTryOn}
-                variant="outline"
-                size="lg"
-                className="border-2 border-[#8b6f47] text-[#8b6f47] hover:bg-[#8b6f47] hover:text-white"
-              >
-                <Star className="w-5 h-5 mr-2 fill-current text-[#8b6f47] hover:text-white" />
-                Try On (2D)
-              </Button>
-            )}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+                    <Gift className="w-4 h-4 animate-bounce" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">
+                      Active Prize Campaign
+                    </span>
+                    <p className="text-xs text-gray-800 dark:text-gray-200 mt-0.5 font-medium">
+                      Purchase this product to get a free entry to win:{' '}
+                      <span className="font-serif font-bold text-[#8b6f47] dark:text-[#c9a96b]">
+                        {activeCampaign.prizeName}
+                      </span>!
+                    </p>
+                  </div>
+                </div>
 
-            <Button variant="outline" size="lg" onClick={handleAddToWishlist}>
-              <Heart className="w-5 h-5 mr-2" />
-              Wishlist
-            </Button>
+                <Link href={`/campaigns/${activeCampaign.id}`}>
+                  <Button variant="outline" className="text-[10px] py-1 px-3 rounded-full flex items-center gap-1 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                    View Campaign <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Header Title & Badges */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                {product.brand}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {product.tags &&
+                  product.tags.map((tag) => (
+                    <Badge key={tag} variant={tag === 'Bestseller' ? 'gold' : tag === 'Low Stock' ? 'danger' : 'primary'} size="sm">
+                      {tag}
+                    </Badge>
+                  ))}
+              </div>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-gray-900 dark:text-white leading-tight">
+              {product.title}
+            </h1>
+
+            {/* Ratings & Reviews */}
+            <div className="flex items-center gap-3 pt-1">
+              <RatingStars rating={product.rating} showScore reviewCount={reviews.length} size="md" />
+              {isTryOnable && (
+                <button
+                  type="button"
+                  onClick={handleTryOn}
+                  className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline flex items-center gap-1 ml-auto cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>3D Fitting Room Try-On</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Size Guide Trigger if Try Onable */}
-          {isTryOnable && (
-            <div className="mt-4">
-              <button
-                onClick={() => setIsSizeGuideOpen(true)}
-                className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
-              >
-                📏 View Premium Size Guide
-              </button>
+          {/* Price & Stock Container */}
+          <div className="bg-gray-50 dark:bg-gray-950 p-4 rounded-2xl border border-gray-150/50 dark:border-gray-800 flex items-center justify-between">
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-[#8b6f47] dark:text-[#c9a96b] font-mono">
+                  ${discountedPrice.toFixed(2)}
+                </span>
+                {product.discountPercentage > 0 && (
+                  <span className="text-sm text-gray-400 line-through font-mono">
+                    ${calculatedPrice.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              {product.discountPercentage > 0 && (
+                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">
+                  Save {product.discountPercentage}% Off Retail
+                </span>
+              )}
+            </div>
+
+            {/* Availability Status */}
+            <div>
+              {currentStock > 0 ? (
+                <Badge variant={currentStock <= 5 ? 'warning' : 'success'} size="md">
+                  {currentStock <= 5 ? `Only ${currentStock} Left` : 'In Stock'}
+                </Badge>
+              ) : (
+                <Badge variant="danger" size="md">
+                  Out of Stock
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Dynamic Variant Selector (Size/Color/Style) */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="pt-2">
+              <VariantSelector
+                variants={product.variants}
+                selectedOptions={selectedVariants}
+                onOptionSelect={handleVariantSelect}
+              />
             </div>
           )}
 
-          {/* Product Details */}
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Product Specifications
-            </h3>
-            <dl className="space-y-2">
-              <div className="flex">
-                <dt className="text-sm font-medium text-gray-600 dark:text-gray-400 w-32">
-                  Category:
-                </dt>
-                <dd className="text-sm text-gray-900 dark:text-white capitalize">
-                  {product.category}
-                </dd>
-              </div>
-              <div className="flex">
-                <dt className="text-sm font-medium text-gray-600 dark:text-gray-400 w-32">
-                  Brand:
-                </dt>
-                <dd className="text-sm text-gray-900 dark:text-white">{product.brand}</dd>
-              </div>
-              <div className="flex">
-                <dt className="text-sm font-medium text-gray-600 dark:text-gray-400 w-32">
-                  Stock:
-                </dt>
-                <dd className="text-sm text-gray-900 dark:text-white">{product.stock} units</dd>
-              </div>
-              
-              {/* Dynamic specs loop */}
-              {product.specifications && Object.entries(product.specifications).map(([key, val]) => {
-                if (['SvgStyle', 'SvgColor', 'Assembly Required'].includes(key)) return null;
-                return (
-                  <div className="flex" key={key}>
-                    <dt className="text-sm font-medium text-gray-600 dark:text-gray-400 w-32 capitalize">
-                      {key}:
-                    </dt>
-                    <dd className="text-sm text-gray-900 dark:text-white">
-                      {String(val)}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-
-            {/* Delivery Estimate & Return Policy */}
-            <div className="mt-6 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-gray-150/40 dark:border-gray-800 space-y-3.5 text-xs text-text-muted">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-900 dark:text-white font-bold">🚚 Delivery Estimate:</span>
-                <span>Get it by Tuesday, Jul 28 (Standard Shipping - Free over $100)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-900 dark:text-white font-bold">🔄 Return Policy:</span>
-                <span>Easy 30-day returns. Free return shipping labels included in your package.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Premium Size Guide Modal */}
-          <Modal
-            isOpen={isSizeGuideOpen}
-            onClose={() => setIsSizeGuideOpen(false)}
-            title="Style Studio Size Guide"
-            size="md"
-          >
-            <div className="p-2">
-              <p className="text-xs text-gray-500 mb-4">
-                Measurements represent size ranges in inches. All garments are designed for tailored, standard fits.
-              </p>
-              <table className="w-full text-xs text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                    <th className="py-2.5 px-3 font-bold">Size</th>
-                    <th className="py-2.5 px-3 font-bold">Chest (in)</th>
-                    <th className="py-2.5 px-3 font-bold">Waist (in)</th>
-                    <th className="py-2.5 px-3 font-bold">Hips (in)</th>
-                    <th className="py-2.5 px-3 font-bold">Sleeve (in)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  <tr>
-                    <td className="py-2.5 px-3 font-extrabold">S (Small)</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">34 - 36</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">28 - 30</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">35 - 37</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">32.5</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-extrabold">M (Medium)</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">38 - 40</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">32 - 34</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">39 - 41</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">33.5</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-extrabold">L (Large)</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">42 - 44</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">36 - 38</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">43 - 45</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">34.5</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-extrabold">XL (Extra Large)</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">46 - 48</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">40 - 42</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">47 - 49</td>
-                    <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">35.5</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => setIsSizeGuideOpen(false)} size="sm" className="bg-[#8b6f47] border-0 text-white px-4">
-                  Close Size Guide
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        </div>
-      </div>
-
-      {/* Reviews Section */}
-      <section className="mt-12 pt-12 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          Customer Reviews
-        </h2>
-
-        {/* Add a Review Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-900 mb-8 max-w-xl">
-          <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">
-            Write a Customer Review
-          </h3>
-          {user ? (
-            <form onSubmit={handleReviewSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                  Rating Selection
-                </label>
-                <div className="flex items-center gap-1.5">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewReviewRating(star)}
-                      className="p-1 hover:scale-110 transition-transform"
-                    >
-                      <Star
-                        className={`w-6 h-6 ${
-                          star <= newReviewRating
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-gray-300 dark:text-gray-650'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
-                  Your Review Comment
-                </label>
-                <textarea
-                  placeholder="Share your experience wearing or sizing this product..."
-                  value={newReviewComment}
-                  onChange={(e) => setNewReviewComment(e.target.value)}
-                  required
-                  rows={3}
-                  className="w-full text-xs border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 rounded-xl p-3 text-gray-800 dark:text-gray-250 focus:outline-none"
+          {/* Quantity Stepper & Add to Cart Action */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center gap-4">
+              <div className="space-y-1">
+                <span className="block text-[10px] font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  Quantity
+                </span>
+                <QuantityStepper
+                  value={quantity}
+                  onChange={setQuantity}
+                  min={1}
+                  max={Math.max(1, currentStock)}
+                  disabled={currentStock === 0}
                 />
               </div>
 
-              <Button
-                type="submit"
-                disabled={submittingReview}
-                className="text-xs py-2 px-4 rounded-xl font-bold bg-[#8b6f47] text-white hover:bg-[#725a38] border-0"
-              >
-                {submittingReview ? 'Submitting...' : 'Post Review'}
-              </Button>
-            </form>
-          ) : (
-            <div className="text-center py-4 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-950">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                You must be logged in to submit a product review.
-              </p>
-              <Link
-                href="/auth/login"
-                className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline mt-2 inline-block"
-              >
-                Log In to Your Account →
-              </Link>
-            </div>
-          )}
-        </div>
+              <div className="flex-1 space-y-1">
+                <span className="block text-[10px] font-black uppercase tracking-wider text-transparent select-none">
+                  Action
+                </span>
+                <Button
+                  disabled={currentStock === 0}
+                  onClick={handleAddToCart}
+                  className="w-full bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 py-3 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>{currentStock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
+                </Button>
+              </div>
 
-        {reviews.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400">No reviews yet. Be the first to review!</p>
+              {/* Wishlist Button */}
+              <div className="space-y-1">
+                <span className="block text-[10px] font-black uppercase tracking-wider text-transparent select-none">
+                  Wish
+                </span>
+                <button
+                  onClick={handleAddToWishlist}
+                  className="p-3 rounded-full border border-gray-250 dark:border-gray-700 hover:border-red-500 hover:text-red-500 text-gray-600 dark:text-gray-300 transition flex items-center justify-center cursor-pointer bg-white dark:bg-gray-950"
+                  title="Add to Wishlist"
+                >
+                  <Heart className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Guaranteed Trust Perks */}
+            <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100 dark:border-gray-800 text-center">
+              <div className="p-2 space-y-1">
+                <Truck className="w-4 h-4 text-[#8b6f47] mx-auto" />
+                <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-200">
+                  {product.shippingInfo?.freeShipping ? 'Free Shipping' : 'Fast Shipping'}
+                </span>
+              </div>
+              <div className="p-2 space-y-1">
+                <ShieldCheck className="w-4 h-4 text-[#8b6f47] mx-auto" />
+                <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-200">
+                  Authentic Guaranteed
+                </span>
+              </div>
+              <div className="p-2 space-y-1">
+                <RefreshCw className="w-4 h-4 text-[#8b6f47] mx-auto" />
+                <span className="block text-[10px] font-bold text-gray-800 dark:text-gray-200">
+                  30-Day Easy Returns
+                </span>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {reviews.map((review) => (
-              <motion.div
-                key={review.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-semibold">
-                      {review.userName.charAt(0)}
+
+          {/* Accordion Sections: Description, Specs, Shipping & Returns */}
+          <div className="space-y-3 pt-4">
+            <Accordion title="Description & Craftsmanship" defaultOpen icon={<FileText className="w-4 h-4" />}>
+              <p className="leading-relaxed">{product.description}</p>
+            </Accordion>
+
+            {product.specifications && Object.keys(product.specifications).length > 0 && (
+              <Accordion title="Technical Specifications" icon={<Package className="w-4 h-4" />}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono">
+                  {Object.entries(product.specifications).map(([key, val]) => (
+                    <div key={key} className="flex justify-between p-2 bg-gray-50 dark:bg-gray-950 rounded-xl border border-gray-100 dark:border-gray-850">
+                      <span className="font-bold text-gray-500">{key}:</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{val}</span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">
-                          {review.userName}
-                        </h4>
-                        {review.verified && (
-                          <span className="flex items-center text-xs text-blue-600 dark:text-blue-400">
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Verified Purchase
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < review.rating
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-300 dark:text-gray-600'
-                            }`}
-                          />
-                        ))}
-                        <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                          {review.rating}/5
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(review.date || (review as any).createdAt || new Date()).toLocaleDateString()}
-                  </span>
+                  ))}
                 </div>
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{review.comment || (review as any).review}</p>
-              </motion.div>
-            ))}
+              </Accordion>
+            )}
+
+            <Accordion title="Shipping & Return Policy" icon={<Truck className="w-4 h-4" />}>
+              <div className="space-y-2">
+                <p><strong>Delivery Estimate:</strong> {product.shippingInfo?.estimate || 'Standard 2-4 Business Days'}</p>
+                <p><strong>Return Guarantee:</strong> {product.shippingInfo?.returnPolicy || '30-Day Hassle-Free Money Back Return Policy'}</p>
+              </div>
+            </Accordion>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Customer Reviews Section */}
+      <section className="pt-8 border-t border-gray-100 dark:border-gray-800">
+        <h2 className="text-xl sm:text-2xl font-serif font-bold text-gray-900 dark:text-white mb-6">
+          Verified Reviews & Ratings
+        </h2>
+        <ReviewSection
+          productId={product.id}
+          rating={product.rating}
+          reviewCount={reviews.length}
+          ratingDistribution={product.ratingDistribution}
+          reviews={reviews}
+          onSubmitReview={handleReviewSubmit}
+        />
       </section>
 
-      {/* Related Products */}
+      {/* Related Products Section */}
       {relatedProducts.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Related Products
+        <section className="pt-8 border-t border-gray-100 dark:border-gray-800 space-y-6">
+          <h2 className="text-xl sm:text-2xl font-serif font-bold text-gray-900 dark:text-white">
+            You Might Also Like
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {relatedProducts.map((relatedProduct) => (
@@ -621,83 +518,28 @@ export default function ProductDetailPage() {
       )}
 
       {/* Recently Viewed Products */}
-      {(() => {
-        const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
-
-        useEffect(() => {
-          if (product) {
-            const stored = localStorage.getItem('recently-viewed');
-            let list: Product[] = stored ? JSON.parse(stored) : [];
-            list = list.filter((p) => String(p.id) !== String(product.id));
-            list.unshift(product);
-            list = list.slice(0, 4);
-            localStorage.setItem('recently-viewed', JSON.stringify(list));
-            setRecentlyViewed(list.filter((p) => String(p.id) !== String(product.id)));
-          }
-        }, [product]);
-
-        if (recentlyViewed.length === 0) return null;
-
-        return (
-          <section className="mt-12 pt-12 border-t border-gray-200 dark:border-gray-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-              Recently Viewed Products
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recentlyViewed.map((item) => (
-                <ProductCard key={item.id} product={item} />
-              ))}
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* Full Screen Zoom Modal with Blurred Background */}
-      {showZoomModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          {/* Overlay close trigger */}
-          <div className="absolute inset-0" onClick={() => setShowZoomModal(false)} />
-          
-          {/* Zoom Panel */}
-          <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-850 rounded-3xl p-6 shadow-2xl z-10 w-full max-w-3xl overflow-hidden">
-            {/* Exit Button */}
-            <button
-              onClick={() => setShowZoomModal(false)}
-              className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full border border-gray-100 dark:border-gray-900 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 z-20 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="text-center mb-3">
-               <span className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] uppercase tracking-widest">High-Definition Fabric Inspection</span>
-              <h4 className="text-xs font-bold text-gray-500 mt-0.5">{product.title}</h4>
-            </div>
-
-            {/* Dynamic Canvas Zoom */}
-            <div
-              className="relative w-full h-[520px] rounded-2xl overflow-hidden cursor-zoom-out shadow-inner bg-gray-50 dark:bg-gray-950"
-              onMouseMove={handleModalMouseMove}
-              onMouseLeave={() => setShowZoomModal(false)}
-            >
-              <Image
-                src={product.images[selectedImage] || product.thumbnail}
-                alt={product.title}
-                fill
-                className="object-cover transition-transform duration-150 ease-out"
-                style={{
-                  transform: 'scale(2.8)',
-                  transformOrigin: `${modalZoomPosition.x}% ${modalZoomPosition.y}%`
-                }}
-              />
-              
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm text-[10px] py-1 px-3 rounded-full text-white font-bold pointer-events-none">
-                Move mouse to scroll zoomed fabric | Move cursor away to exit
-              </div>
-            </div>
+      {recentlyViewed.length > 0 && (
+        <section className="pt-8 border-t border-gray-100 dark:border-gray-800 space-y-6">
+          <h2 className="text-xl sm:text-2xl font-serif font-bold text-gray-900 dark:text-white">
+            Recently Viewed
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recentlyViewed.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
           </div>
-        </div>
+        </section>
       )}
+
+      {/* Floating Mobile Sticky Cart Bar */}
+      <MobileStickyCart
+        title={product.title}
+        price={calculatedPrice}
+        salePrice={product.discountPercentage ? discountedPrice : undefined}
+        activeVariantSummary={activeVariantSummary}
+        isOutOfStock={currentStock === 0}
+        onAddToCart={handleAddToCart}
+      />
     </div>
   );
 }
-

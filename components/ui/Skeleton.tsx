@@ -99,3 +99,13 @@ export function ProfileFormSkeleton() {
     </div>
   );
 }
+
+export function TableSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="space-y-3 w-full animate-pulse">
+      {[...Array(rows)].map((_, i) => (
+        <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded-xl w-full" />
+      ))}
+    </div>
+  );
+}

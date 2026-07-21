@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Wishlist = require('../models/Wishlist');
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/response');
@@ -11,7 +12,9 @@ const getWishlist = async (req, res, next) => {
     if (!wishlist) {
       wishlist = await Wishlist.create({ user: req.user.id, products: [] });
     }
-    return sendSuccess(res, 'Wishlist retrieved successfully', wishlist.products);
+    // Filter out null values in case products were removed
+    const validProducts = (wishlist.products || []).filter(Boolean);
+    return sendSuccess(res, 'Wishlist retrieved successfully', validProducts);
   } catch (error) {
     next(error);
   }
@@ -23,10 +26,25 @@ const getWishlist = async (req, res, next) => {
 const addToWishlist = async (req, res, next) => {
   const { productId } = req.body;
 
+  if (!productId) {
+    return sendError(res, 'Product ID is required', 400);
+  }
+
   try {
-    const product = await Product.findById(productId);
+    let product = null;
+    if (mongoose.Types.ObjectId.isValid(productId)) {
+      product = await Product.findById(productId);
+    }
+    
     if (!product) {
-      return sendError(res, 'Product not found', 404);
+      // Fallback search by title or string match if catalog was seeded with mock items
+      product = await Product.findOne({
+        $or: [{ title: new RegExp(String(productId), 'i') }]
+      });
+    }
+
+    if (!product) {
+      return sendError(res, 'Product not found in store database', 404);
     }
 
     let wishlist = await Wishlist.findOne({ user: req.user.id });
@@ -34,11 +52,13 @@ const addToWishlist = async (req, res, next) => {
       wishlist = await Wishlist.create({ user: req.user.id, products: [] });
     }
 
-    if (wishlist.products.some(id => id.toString() === productId.toString())) {
+    const realId = product._id;
+
+    if (wishlist.products.some(id => id.toString() === realId.toString())) {
       return sendError(res, 'Product already in wishlist', 400);
     }
 
-    wishlist.products.push(productId);
+    wishlist.products.push(realId);
     await wishlist.save();
     await wishlist.populate('products');
 
@@ -60,7 +80,7 @@ const removeFromWishlist = async (req, res, next) => {
       return sendError(res, 'Wishlist not found', 404);
     }
 
-    wishlist.products = wishlist.products.filter((id) => id.toString() !== productId);
+    wishlist.products = wishlist.products.filter((id) => id.toString() !== String(productId));
     await wishlist.save();
     await wishlist.populate('products');
 

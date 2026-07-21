@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { Product } from '@/types';
 import Card from './Card';
 import { useCartStore } from '@/stores/cartStore';
+import { useCompareStore } from '@/stores/compareStore';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
 import Modal from './Modal';
 import Button from './Button';
-import { ShoppingCart, Heart, Star, Eye, Info, X } from 'lucide-react';
+import HighlightText from './HighlightText';
+import { ShoppingCart, Heart, Star, Eye, Info, X, Scale } from 'lucide-react';
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 
@@ -18,9 +20,10 @@ interface ProductCardProps {
   product: Product;
   viewMode?: 'grid' | 'list';
   index?: number;
+  searchQuery?: string;
 }
 
-export default function ProductCard({ product, viewMode = 'grid', index = 0 }: ProductCardProps) {
+export default function ProductCard({ product, viewMode = 'grid', index = 0, searchQuery }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const { user, refreshUser } = useAuth();
   const toast = useToast();
@@ -36,6 +39,23 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
   // Wishlist State
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // Compare Store State
+  const { toggleCompare, isInCompare } = useCompareStore();
+  const isCompared = isInCompare(product.id);
+
+  const handleCompareToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const success = toggleCompare(product);
+    if (!success) {
+      toast.error('Maximum 3 products can be compared at a time.');
+    } else {
+      if (!isCompared) {
+        toast.info(`Added ${product.title} to comparison`);
+      }
+    }
+  };
 
   useEffect(() => {
     // Detect touchscreen devices to fall back safely
@@ -194,26 +214,36 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
               <div>
                 <div className="flex justify-between items-start">
                   <span className="block text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-0.5">
-                    {product.brand}
+                    <HighlightText text={product.brand} query={searchQuery} />
                   </span>
                   
-                  {/* List Mode Wishlist toggle */}
-                  <button
-                    onClick={handleWishlistToggle}
-                    disabled={wishlistLoading}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                  >
-                    <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-                  </button>
+                  {/* List Mode Actions */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleCompareToggle}
+                      className={`p-1.5 rounded-full transition ${isCompared ? 'bg-[#8b6f47] text-white' : 'text-gray-400 hover:text-[#8b6f47]'}`}
+                      title={isCompared ? 'Remove from Compare' : 'Add to Compare'}
+                    >
+                      <Scale className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleWishlistToggle}
+                      disabled={wishlistLoading}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
+                      title="Wishlist"
+                    >
+                      <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+                    </button>
+                  </div>
                 </div>
                 
                 <Link href={`/product/${product.id}`}>
-                  <h3 className="text-base font-serif font-semibold text-gray-900 dark:text-white mb-1 leading-tight hover:text-[#8b6f47]">
-                    {product.title}
+                  <h3 className="text-base font-sans font-bold text-gray-900 dark:text-white mb-1 leading-tight tracking-tight hover:text-[#8b6f47] transition-colors">
+                    <HighlightText text={product.title} query={searchQuery} />
                   </h3>
                 </Link>
                 <p className="text-xs text-text-muted line-clamp-2">
-                  {product.description}
+                  <HighlightText text={product.description} query={searchQuery} />
                 </p>
                 
                 <div className="flex items-center gap-2 mt-2">
@@ -224,11 +254,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
               
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 dark:border-gray-800">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-sm sm:text-base font-black text-gray-950 dark:text-white font-serif">
+                  <span className="text-sm sm:text-base font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b]">
                     ${discountedPrice.toFixed(0)}
                   </span>
                   {product.discountPercentage > 0 && (
-                    <span className="text-xs text-gray-400 line-through">
+                    <span className="text-xs text-gray-400 line-through font-mono">
                       ${product.price.toFixed(0)}
                     </span>
                   )}
@@ -308,20 +338,35 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
               )}
             </div>
 
-            {/* Wishlist Heart Button (Top-Right) */}
-            <motion.button
-              onClick={handleWishlistToggle}
-              disabled={wishlistLoading}
-              whileTap={{ scale: 0.8 }}
-              className="absolute top-4 right-4 z-20 bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-white p-2.5 rounded-full shadow-md transition-colors border border-gray-200/50 dark:border-gray-800 flex items-center justify-center"
-              title="Wishlist"
-            >
-              <Heart 
-                className={`w-3.5 h-3.5 transition-colors ${
-                  isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-700 dark:text-white'
-                }`} 
-              />
-            </motion.button>
+            {/* Action Buttons (Top-Right) */}
+            <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+              <motion.button
+                onClick={handleCompareToggle}
+                whileTap={{ scale: 0.8 }}
+                className={`backdrop-blur-md p-2.5 rounded-full shadow-md transition-colors border flex items-center justify-center ${
+                  isCompared
+                    ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
+                    : 'bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 text-gray-700 dark:text-white border-gray-200/50 dark:border-gray-800'
+                }`}
+                title={isCompared ? 'Remove from Compare' : 'Add to Compare'}
+              >
+                <Scale className="w-3.5 h-3.5" />
+              </motion.button>
+
+              <motion.button
+                onClick={handleWishlistToggle}
+                disabled={wishlistLoading}
+                whileTap={{ scale: 0.8 }}
+                className="bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-white p-2.5 rounded-full shadow-md transition-colors border border-gray-200/50 dark:border-gray-800 flex items-center justify-center"
+                title="Wishlist"
+              >
+                <Heart 
+                  className={`w-3.5 h-3.5 transition-colors ${
+                    isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-700 dark:text-white'
+                  }`} 
+                />
+              </motion.button>
+            </div>
 
             {/* Product Image Section (Cross-fade Hover Image Transition) */}
             <Link href={`/product/${product.id}`} className="absolute inset-0 w-full h-full z-0">
@@ -356,18 +401,18 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                 transition={{ duration: 0.25, ease: 'easeOut' }}
               >
                 <div>
-                  <span className="block text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">
-                    {product.brand || 'SwiftBrand'}
+                  <span className="block text-[8px] font-black text-primary uppercase tracking-widest mb-1">
+                    <HighlightText text={product.brand || 'SwiftBrand'} query={searchQuery} />
                   </span>
 
                   <Link href={`/product/${product.id}`} className="hover:underline">
-                    <h3 className="font-serif text-sm sm:text-base font-bold text-gray-900 dark:text-white line-clamp-1 mb-1 leading-tight">
-                      {product.title}
+                    <h3 className="font-sans text-sm sm:text-base font-bold text-foreground line-clamp-1 mb-1 leading-tight tracking-tight hover:text-primary transition-colors">
+                      <HighlightText text={product.title} query={searchQuery} />
                     </h3>
                   </Link>
 
                   <p className="text-[10px] text-text-muted line-clamp-1 mb-2 font-normal leading-relaxed">
-                    {product.description || 'Premium design with high quality materials.'}
+                    <HighlightText text={product.description || 'Premium design with high quality materials.'} query={searchQuery} />
                   </p>
 
                   {/* Rating & reviews row */}
@@ -389,11 +434,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                 {/* Price and Stock Status */}
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-base font-black text-gray-950 dark:text-[#f5f1eb] font-serif">
+                    <span className="text-sm sm:text-base font-mono font-extrabold text-primary">
                       ${discountedPrice.toFixed(0)}
                     </span>
                     {product.discountPercentage > 0 && (
-                      <span className="text-xs text-gray-400 line-through">
+                      <span className="text-xs text-text-muted line-through font-mono">
                         ${product.price.toFixed(0)}
                       </span>
                     )}
@@ -460,7 +505,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                 <span className="text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">
                   {product.brand}
                 </span>
-                <h3 className="font-serif text-xl font-bold text-gray-950 dark:text-white mt-1 leading-tight">
+                <h3 className="font-sans text-xl font-extrabold text-gray-950 dark:text-white mt-1 leading-tight tracking-tight">
                   {product.title}
                 </h3>
                 <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
@@ -483,11 +528,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0 }: P
                 </div>
 
                 <div className="mt-4 flex items-center gap-3">
-                  <span className="text-xl font-black text-gray-950 dark:text-white font-serif">
+                  <span className="text-xl font-mono font-extrabold text-gray-950 dark:text-white">
                     ${discountedPrice.toFixed(0)}
                   </span>
                   {product.discountPercentage > 0 && (
-                    <span className="text-xs text-gray-400 line-through">
+                    <span className="text-xs text-gray-400 line-through font-mono">
                       ${product.price.toFixed(0)}
                     </span>
                   )}

@@ -29,6 +29,46 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=800&h=800&fit=crop',
       'https://images.unsplash.com/photo-1493857671505-72967e2e2760?w=800&h=800&fit=crop',
     ],
+    tags: ['Bestseller', 'Featured'],
+    variants: [
+      {
+        id: 'var-sofa-color',
+        name: 'Color',
+        options: [
+          { id: 'opt-cognac', name: 'Color', value: 'Cognac Brown', colorHex: '#8b4513', stock: 8 },
+          { id: 'opt-charcoal', name: 'Color', value: 'Charcoal Black', colorHex: '#2b2b2b', stock: 7 },
+        ],
+      },
+      {
+        id: 'var-sofa-size',
+        name: 'Style',
+        options: [
+          { id: 'opt-3seater', name: 'Style', value: '3-Seater Standard', stock: 10 },
+          { id: 'opt-sectional', name: 'Style', value: 'L-Shape Sectional', priceDelta: 350, stock: 5 },
+        ],
+      },
+    ],
+    reviewCount: 42,
+    ratingDistribution: { 5: 35, 4: 5, 3: 1, 2: 1, 1: 0 },
+    shippingInfo: {
+      estimate: 'White Glove Freight Delivery (5 - 7 Days)',
+      freeShipping: true,
+      returnPolicy: '45-day in-home trial & money-back guarantee',
+      cost: 0,
+    },
+    reviews: [
+      {
+        id: 'rev-sofa-1',
+        userId: 'usr-301',
+        userName: 'Alexander Wright',
+        userAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
+        rating: 5,
+        comment: 'The cognac leather is stunning in real life! Very comfortable cushion support.',
+        date: '2026-06-20',
+        verified: true,
+        helpfulCount: 24,
+      },
+    ],
   },
   {
     id: 2,
