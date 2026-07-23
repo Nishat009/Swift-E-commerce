@@ -12,6 +12,7 @@ import {
   MapPin,
   User,
   Settings,
+  ShieldCheck,
   LogOut,
   ChevronRight,
   Menu,
@@ -49,6 +50,10 @@ export default function AccountLayout({ children, activeTabName }: AccountLayout
     { name: 'Profile', path: '/profile', icon: User },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
+
+  if (user?.role === 'admin') {
+    menuItems.unshift({ name: 'Admin Console', path: '/admin', icon: ShieldCheck });
+  }
 
   const handleLogoutConfirm = async () => {
     setIsLogoutModalOpen(false);
