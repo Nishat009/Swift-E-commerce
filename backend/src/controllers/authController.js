@@ -55,7 +55,7 @@ const register = async (req, res, next) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, rememberMe } = req.body;
 
   try {
     const user = await User.findOne({ email });
@@ -75,12 +75,16 @@ const login = async (req, res, next) => {
     const refreshToken = generateRefreshToken(user);
 
     // Store refresh token in HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
+    // Only set maxAge when "Remember Me" is checked; otherwise use a session cookie
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+    if (rememberMe) {
+      cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    }
+    res.cookie('refreshToken', refreshToken, cookieOptions);
 
     return sendSuccess(res, 'User logged in successfully', {
       user: {
@@ -348,7 +352,7 @@ const disable2FA = async (req, res, next) => {
 // @route   POST /api/auth/verify-2fa
 // @access  Public
 const verify2FA = async (req, res, next) => {
-  const { userId, code } = req.body;
+  const { userId, code, rememberMe } = req.body;
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -380,12 +384,15 @@ const verify2FA = async (req, res, next) => {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    res.cookie('refreshToken', refreshToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+    if (rememberMe) {
+      cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
+    }
+    res.cookie('refreshToken', refreshToken, cookieOptions);
 
     return sendSuccess(res, 'Logged in successfully', {
       user: {
@@ -439,7 +446,7 @@ const requestOTP = async (req, res, next) => {
 // @route   POST /api/auth/verify-otp
 // @access  Public
 const verifyOTP = async (req, res, next) => {
-  const { email, otp } = req.body;
+  const { email, otp, rememberMe } = req.body;
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -468,12 +475,15 @@ const verifyOTP = async (req, res, next) => {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    res.cookie('refreshToken', refreshToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+    if (rememberMe) {
+      cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
+    }
+    res.cookie('refreshToken', refreshToken, cookieOptions);
 
     return sendSuccess(res, 'Logged in successfully', {
       user: {
