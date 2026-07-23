@@ -63,6 +63,12 @@ const login = async (req, res, next) => {
       return sendError(res, 'Invalid email or password', 401);
     }
 
+    // Auto-promote admin@email.com to admin role (useful for live environments where seed script wasn't run)
+    if (user.email === 'admin@email.com' && user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save();
+    }
+
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
       return sendSuccess(res, '2FA code required to login', {
@@ -359,6 +365,12 @@ const verify2FA = async (req, res, next) => {
       return sendError(res, 'User not found', 404);
     }
 
+    // Auto-promote admin@email.com to admin role
+    if (user.email === 'admin@email.com' && user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save();
+    }
+
     let isVerified = false;
     let isRecoveryUsed = false;
 
@@ -451,6 +463,12 @@ const verifyOTP = async (req, res, next) => {
     const user = await User.findOne({ email });
     if (!user) {
       return sendError(res, 'User not found', 404);
+    }
+
+    // Auto-promote admin@email.com to admin role
+    if (user.email === 'admin@email.com' && user.role !== 'admin') {
+      user.role = 'admin';
+      await user.save();
     }
 
     if (!user.otpCode || user.otpCode !== otp.trim()) {
