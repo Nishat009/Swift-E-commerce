@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ require2FA?: boolean; userId?: string } | void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (
@@ -25,9 +25,9 @@ interface AuthContextType {
     country?: string
   ) => Promise<void>;
   clearError: () => void;
-  verify2FA: (userId: string, code: string) => Promise<void>;
+  verify2FA: (userId: string, code: string, rememberMe?: boolean) => Promise<void>;
   requestOTP: (email: string) => Promise<{ testOtp?: string } | void>;
-  verifyOTP: (email: string, otp: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  verifyOTP: (email: string, otp: string, rememberMe?: boolean) => Promise<{ require2FA?: boolean; userId?: string } | void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -60,11 +60,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe?: boolean) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.post('/auth/login', { email, password });
+      const response = await apiClient.post('/auth/login', { email, password, rememberMe: !!rememberMe });
       if (response.data?.success) {
         if (response.data.data?.require2FA) {
           return {
@@ -78,7 +78,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(loggedInUser);
         // Automatically load cart on success
         useCartStore.getState().loadCart();
-        router.push('/dashboard');
+        // Redirect admin users to admin panel, customers to dashboard
+        if (loggedInUser.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         throw new Error(response.data?.message || 'Login failed');
       }
@@ -164,17 +169,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verify2FA = async (userId: string, code: string) => {
+  const verify2FA = async (userId: string, code: string, rememberMe?: boolean) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.post('/auth/verify-2fa', { userId, code });
+      const response = await apiClient.post('/auth/verify-2fa', { userId, code, rememberMe: !!rememberMe });
       if (response.data?.success) {
         const { user: loggedInUser, accessToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
         useCartStore.getState().loadCart();
-        router.push('/dashboard');
+        if (loggedInUser.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         throw new Error(response.data?.message || 'Verification failed');
       }
@@ -208,11 +217,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verifyOTP = async (email: string, otp: string) => {
+  const verifyOTP = async (email: string, otp: string, rememberMe?: boolean) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.post('/auth/verify-otp', { email, otp });
+      const response = await apiClient.post('/auth/verify-otp', { email, otp, rememberMe: !!rememberMe });
       if (response.data?.success) {
         if (response.data.data?.require2FA) {
           return {
@@ -225,7 +234,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAccessToken(accessToken);
         setUser(loggedInUser);
         useCartStore.getState().loadCart();
-        router.push('/dashboard');
+        if (loggedInUser.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         throw new Error(response.data?.message || 'OTP verification failed');
       }

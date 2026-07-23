@@ -96,7 +96,7 @@ export default function LoginPage() {
     }
 
     try {
-      const res = await login(formData.email, formData.password);
+      const res = await login(formData.email, formData.password, formData.rememberMe);
       if (res && res.require2FA) {
         setTwoFactorUserId(res.userId || '');
         setVerificationStep('2fa');
@@ -144,7 +144,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await verify2FA(twoFactorUserId, twoFactorCode);
+      await verify2FA(twoFactorUserId, twoFactorCode, formData.rememberMe);
       toast.success('Authenticated successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Invalid code');
@@ -183,7 +183,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await verifyOTP(formData.email, otpCode);
+      const res = await verifyOTP(formData.email, otpCode, formData.rememberMe);
       if (res && res.require2FA) {
         setTwoFactorUserId(res.userId || '');
         setVerificationStep('2fa');
