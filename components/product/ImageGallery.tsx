@@ -27,8 +27,17 @@ export default function ImageGallery({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // If activeVariantImage is provided and user hasn't explicitly selected another thumbnail, show variant image
-  const currentImageUrl = activeVariantImage || displayImages[selectedIndex] || displayImages[0];
+  // Synchronize activeVariantImage changes to selectedIndex state
+  React.useEffect(() => {
+    if (activeVariantImage) {
+      const idx = displayImages.indexOf(activeVariantImage);
+      if (idx !== -1) {
+        setSelectedIndex(idx);
+      }
+    }
+  }, [activeVariantImage, displayImages]);
+
+  const currentImageUrl = displayImages[selectedIndex] || displayImages[0];
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;

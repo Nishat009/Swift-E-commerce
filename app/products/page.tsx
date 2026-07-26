@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import ProductCard from '@/components/ui/ProductCard';
+import Image from 'next/image';
 import { fetchProducts } from '@/lib/api';
 import { Product } from '@/types';
 import { mockProducts } from '@/data/mockData';
@@ -48,6 +49,67 @@ function ProductsPageContent() {
   const [currentPage, setCurrentPage] = useState<number>(Number(searchParams.get('page')) || 1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  // Search Suggestions and a11y Focus Trap States
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const searchSuggestions = useMemo(() => {
+    if (!searchInput.trim()) return { categories: [], brands: [], products: [] };
+    const q = searchInput.toLowerCase();
+    
+    const matchedCats: string[] = [];
+    const matchedBrands: string[] = [];
+    const matchedProds: Product[] = [];
+    
+    allCatalogProducts.forEach((p) => {
+      if (p.category && p.category.toLowerCase().includes(q) && !matchedCats.includes(p.category)) {
+        matchedCats.push(p.category);
+      }
+      if (p.brand && p.brand.toLowerCase().includes(q) && !matchedBrands.includes(p.brand)) {
+        matchedBrands.push(p.brand);
+      }
+      if (p.title && p.title.toLowerCase().includes(q)) {
+        matchedProds.push(p);
+      }
+    });
+    
+    return {
+      categories: matchedCats.slice(0, 3),
+      brands: matchedBrands.slice(0, 3),
+      products: matchedProds.slice(0, 5),
+    };
+  }, [searchInput, allCatalogProducts, allCatalogProducts]);
+
+  // A11y Focus Trap inside Mobile Filters Drawer
+  useEffect(() => {
+    if (!isMobileFiltersOpen) return;
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const drawerElement = document.querySelector('.fixed.left-0.w-80') as HTMLDivElement;
+    if (!drawerElement) return;
+
+    const focusableElements = drawerElement.querySelectorAll(focusableSelector);
+    const firstFocusable = focusableElements[0] as HTMLElement;
+    const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) { // Shift + Tab
+        if (document.activeElement === firstFocusable) {
+          lastFocusable.focus();
+          e.preventDefault();
+        }
+      } else { // Tab
+        if (document.activeElement === lastFocusable) {
+          firstFocusable.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    firstFocusable?.focus();
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileFiltersOpen]);
 
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
@@ -360,18 +422,52 @@ function ProductsPageContent() {
           Price Range ($)
         </h3>
         <div className="space-y-3">
-          <input
-            type="range"
-            min="0"
-            max="2000"
-            step="25"
-            value={priceRange[1]}
-            onChange={(e) => {
-              setPriceRange([priceRange[0], parseInt(e.target.value, 10)]);
-              setCurrentPage(1);
-            }}
-            className="w-full cursor-pointer accent-[#8b6f47]"
-          />
+          <div className="relative w-full h-1 bg-gray-200 dark:bg-gray-800 rounded-full my-4">
+            {/* Active colored track between min and max handles */}
+            <div
+              className="absolute h-full bg-[#8b6f47] dark:bg-[#c9a96b] rounded-full"
+              style={{
+                left: `${(priceRange[0] / 2000) * 100}%`,
+                right: `${100 - (priceRange[1] / 2000) * 100}%`,
+              }}
+            />
+            {/* Min Price Slider Handle */}
+            <input
+              type="range"
+              min="0"
+              max="2000"
+              step="25"
+              value={priceRange[0]}
+              aria-label="Minimum Price Filter"
+              onChange={(e) => {
+                const val = Math.min(parseInt(e.target.value, 10), priceRange[1] - 25);
+                setPriceRange([val, priceRange[1]]);
+                setCurrentPage(1);
+              }}
+              className="absolute w-full h-1 appearance-none bg-transparent pointer-events-none focus:outline-none accent-[#8b6f47] dark:accent-[#c9a96b] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#8b6f47] [&::-webkit-slider-thumb]:dark:bg-[#c9a96b] [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#8b6f47] [&::-moz-range-thumb]:dark:bg-[#c9a96b] [&::-moz-range-thumb]:border-0"
+              style={{
+                zIndex: priceRange[0] > 1800 ? 5 : 3,
+              }}
+            />
+            {/* Max Price Slider Handle */}
+            <input
+              type="range"
+              min="0"
+              max="2000"
+              step="25"
+              value={priceRange[1]}
+              aria-label="Maximum Price Filter"
+              onChange={(e) => {
+                const val = Math.max(parseInt(e.target.value, 10), priceRange[0] + 25);
+                setPriceRange([priceRange[0], val]);
+                setCurrentPage(1);
+              }}
+              className="absolute w-full h-1 appearance-none bg-transparent pointer-events-none focus:outline-none accent-[#8b6f47] dark:accent-[#c9a96b] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#8b6f47] [&::-webkit-slider-thumb]:dark:bg-[#c9a96b] [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#8b6f47] [&::-moz-range-thumb]:dark:bg-[#c9a96b] [&::-moz-range-thumb]:border-0"
+              style={{
+                zIndex: 4,
+              }}
+            />
+          </div>
           <div className="flex items-center justify-between gap-2 text-[11px]">
             <div className="flex items-center gap-1 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-lg bg-white dark:bg-gray-950">
               <span className="text-gray-400">$</span>
@@ -584,8 +680,15 @@ function ProductsPageContent() {
                 <span>Filters ({activeFiltersCount})</span>
               </button>
 
-              {/* Debounced Search Input */}
-              <div className="relative flex-1 sm:w-64">
+              {/* Debounced Search Input with Suggestions Dropdown */}
+              <div 
+                className="relative flex-1 sm:w-64 z-40" 
+                onFocus={() => setIsSearchFocused(true)} 
+                onBlur={() => {
+                  // Delay to allow option selections to click before panel unmounts
+                  setTimeout(() => setIsSearchFocused(false), 200);
+                }}
+              >
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -602,6 +705,90 @@ function ProductsPageContent() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
+
+                {/* Search suggestions dropdown panel */}
+                <AnimatePresence>
+                  {isSearchFocused && (searchSuggestions.categories.length > 0 || searchSuggestions.brands.length > 0 || searchSuggestions.products.length > 0) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-950 border border-gray-150/50 dark:border-gray-800 rounded-3xl shadow-xl z-50 p-4 space-y-4 max-h-[380px] overflow-y-auto"
+                    >
+                      {searchSuggestions.categories.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Categories</p>
+                          <div className="space-y-1">
+                            {searchSuggestions.categories.map((cat) => (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCategory(cat.toLowerCase());
+                                  setSearchInput('');
+                                  setSearchQuery('');
+                                  setCurrentPage(1);
+                                }}
+                                className="w-full text-left py-1.5 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg text-xs font-medium capitalize"
+                              >
+                                🔍 {cat}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {searchSuggestions.brands.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Brands</p>
+                          <div className="space-y-1">
+                            {searchSuggestions.brands.map((brand) => (
+                              <button
+                                key={brand}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedBrands([brand]);
+                                  setSearchInput('');
+                                  setSearchQuery('');
+                                  setCurrentPage(1);
+                                }}
+                                className="w-full text-left py-1.5 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg text-xs font-medium"
+                              >
+                                🏷️ {brand}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {searchSuggestions.products.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Products</p>
+                          <div className="space-y-1 flex flex-col">
+                            {searchSuggestions.products.map((prod) => (
+                              <button
+                                key={prod.id}
+                                type="button"
+                                onClick={() => {
+                                  router.push(`/product/${prod.id}`);
+                                }}
+                                className="w-full text-left py-1.5 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg text-xs font-medium flex items-center gap-2"
+                              >
+                                <div className="relative w-8 h-8 rounded overflow-hidden border bg-gray-50 flex-shrink-0">
+                                  <Image src={prod.thumbnail} alt={prod.title} fill className="object-cover" />
+                                </div>
+                                <div className="truncate">
+                                  <p className="font-bold truncate text-gray-900 dark:text-white">{prod.title}</p>
+                                  <p className="text-[9px] text-text-muted truncate font-mono">${prod.price}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Sort By Select */}

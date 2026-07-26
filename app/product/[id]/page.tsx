@@ -51,6 +51,56 @@ export default function ProductDetailPage() {
   const tryOnItem = useAvatarStore((state) => state.tryOnItem);
   const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
 
+  // Time remaining and delivery date estimator states
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [deliveryDates, setDeliveryDates] = useState({ standard: '', express: '' });
+
+  useEffect(() => {
+    const calculateTimeAndDates = () => {
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setHours(17, 0, 0, 0); // 5:00 PM cutoff
+
+      let targetDate = cutoff;
+      if (now.getTime() > cutoff.getTime()) {
+        targetDate = new Date(cutoff.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      const diffMs = targetDate.getTime() - now.getTime();
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+      setTimeLeft({ hours, minutes, seconds });
+
+      // Calculate Delivery Dates (skipping Sunday)
+      const addBusinessDays = (startDate: Date, days: number) => {
+        let result = new Date(startDate);
+        let added = 0;
+        while (added < days) {
+          result.setDate(result.getDate() + 1);
+          if (result.getDay() !== 0) { // Skip Sunday
+            added++;
+          }
+        }
+        return result;
+      };
+
+      const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
+      const standardDate = addBusinessDays(now, now.getTime() > cutoff.getTime() ? 4 : 3);
+      const expressDate = addBusinessDays(now, now.getTime() > cutoff.getTime() ? 2 : 1);
+
+      setDeliveryDates({
+        standard: standardDate.toLocaleDateString('en-US', options),
+        express: expressDate.toLocaleDateString('en-US', options),
+      });
+    };
+
+    calculateTimeAndDates();
+    const interval = setInterval(calculateTimeAndDates, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Normalize product payload cleanly
   const product = useMemo(() => {
     return rawProduct ? normalizeProduct(rawProduct) : null;
@@ -250,8 +300,41 @@ export default function ProductDetailPage() {
 
   const discountedPrice = calculatedPrice * (1 - (product.discountPercentage || 0) / 100);
 
+  // Dynamic SEO JSON-LD Product Schema
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title,
+    image: product.images,
+    description: product.description,
+    sku: `SKU-${product.id}`,
+    mpn: `MPN-${product.id}`,
+    brand: {
+      '@type': 'Brand',
+      name: product.brand || 'SwiftCart',
+    },
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'USD',
+      price: discountedPrice.toFixed(2),
+      priceValidUntil: new Date(new Date().getFullYear() + 1, 0, 1).toISOString().split('T')[0],
+      itemCondition: 'https://schema.org/NewCondition',
+      availability: currentStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      url: typeof window !== 'undefined' ? window.location.href : '',
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: product.rating,
+      reviewCount: reviews.length || 1,
+    },
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Breadcrumbs Navigation */}
       <Breadcrumbs
         items={[
@@ -377,6 +460,32 @@ export default function ProductDetailPage() {
                   Out of Stock
                 </Badge>
               )}
+            </div>
+          </div>
+
+          {/* Real-time localized Shipping Countdown & Delivery Estimator */}
+          <div className="bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-900/30 dark:to-zinc-900/10 border border-zinc-200/50 dark:border-zinc-800/80 rounded-3xl p-5 space-y-3.5 shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-serif font-black text-gray-900 dark:text-white">
+              <Truck className="w-4 h-4 text-[#8b6f47] dark:text-[#c9a96b] animate-pulse" />
+              <span>Premium Shipping Calculator</span>
+            </div>
+            
+            <div className="space-y-2 text-xs text-text-muted leading-relaxed">
+              <p className="flex items-center justify-between">
+                <span>🚚 Standard Shipping (Free)</span>
+                <strong className="text-gray-900 dark:text-white">{deliveryDates.standard}</strong>
+              </p>
+              <p className="flex items-center justify-between">
+                <span>🚀 Express Delivery ($9.99)</span>
+                <strong className="text-[#8b6f47] dark:text-[#c9a96b]">{deliveryDates.express}</strong>
+              </p>
+              
+              <div className="pt-2.5 border-t border-zinc-200/50 dark:border-zinc-800/50 flex items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                <span>
+                  Order in the next <strong className="font-mono font-black">{timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</strong> for same-day dispatch!
+                </span>
+              </div>
             </div>
           </div>
 

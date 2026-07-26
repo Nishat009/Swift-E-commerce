@@ -293,7 +293,7 @@ const setup2FA = async (req, res, next) => {
     user.twoFactorSecret = secret;
     await user.save();
 
-    const otpauthUrl = `otpauth://totp/SwiftCart:${user.email}?secret=${secret}&issuer=SwiftCart`;
+    const otpauthUrl = `otpauth://totp/SwiftCart:${encodeURIComponent(user.email)}?secret=${secret}&issuer=SwiftCart&algorithm=SHA1&digits=6&period=30`;
 
     return sendSuccess(res, '2FA setup initiated', {
       secret,

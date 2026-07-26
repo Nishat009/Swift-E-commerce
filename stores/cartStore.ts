@@ -36,11 +36,24 @@ export const useCartStore = create<CartStore>()(
       },
 
       addItem: async (product, quantity = 1) => {
-        const items = get().items;
+        const previousItems = get().items;
         const productId = product.id;
-        const existingItem = items.find((item) => String(item.product.id) === String(productId));
+        const existingItem = previousItems.find((item) => String(item.product.id) === String(productId));
 
-        // 1. Sync with backend if logged in
+        // 1. Optimistic Update (Immediate UI response)
+        let optimisticItems: CartItem[] = [];
+        if (existingItem) {
+          optimisticItems = previousItems.map((item) =>
+            String(item.product.id) === String(productId)
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        } else {
+          optimisticItems = [...previousItems, { product, quantity }];
+        }
+        set({ items: optimisticItems });
+
+        // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
             const response = await apiClient.post('/cart', { productId, quantity });
@@ -50,29 +63,26 @@ export const useCartStore = create<CartStore>()(
                 quantity: item.quantity,
               }));
               set({ items: backendItems });
-              return;
+            } else {
+              throw new Error('Backend update unsuccessful');
             }
           } catch (error) {
-            console.error('Failed to add item to backend cart:', error);
+            console.error('Failed to add item to backend cart, rolling back:', error);
+            // Roll back state to previous items cache
+            set({ items: previousItems });
+            throw error; // Re-throw to trigger toast warning in UI
           }
-        }
-
-        // 2. Local fallback
-        if (existingItem) {
-          set({
-            items: items.map((item) =>
-              String(item.product.id) === String(productId)
-                ? { ...item, quantity: item.quantity + quantity }
-                : item
-            ),
-          });
-        } else {
-          set({ items: [...items, { product, quantity }] });
         }
       },
 
       removeItem: async (productId) => {
-        // 1. Sync with backend if logged in
+        const previousItems = get().items;
+        
+        // 1. Optimistic Update
+        const optimisticItems = previousItems.filter((item) => String(item.product.id) !== String(productId));
+        set({ items: optimisticItems });
+
+        // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
             const response = await apiClient.delete(`/cart/${productId}`);
@@ -82,24 +92,32 @@ export const useCartStore = create<CartStore>()(
                 quantity: item.quantity,
               }));
               set({ items: backendItems });
-              return;
+            } else {
+              throw new Error('Backend update unsuccessful');
             }
           } catch (error) {
-            console.error('Failed to remove item from backend cart:', error);
+            console.error('Failed to remove item from backend cart, rolling back:', error);
+            set({ items: previousItems });
+            throw error;
           }
         }
-
-        // 2. Local fallback
-        set({ items: get().items.filter((item) => String(item.product.id) !== String(productId)) });
       },
 
       updateQuantity: async (productId, quantity) => {
         if (quantity <= 0) {
-          get().removeItem(productId);
+          await get().removeItem(productId);
           return;
         }
 
-        // 1. Sync with backend if logged in
+        const previousItems = get().items;
+
+        // 1. Optimistic Update
+        const optimisticItems = previousItems.map((item) =>
+          String(item.product.id) === String(productId) ? { ...item, quantity } : item
+        );
+        set({ items: optimisticItems });
+
+        // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
             const response = await apiClient.put('/cart', { productId, quantity });
@@ -109,33 +127,33 @@ export const useCartStore = create<CartStore>()(
                 quantity: item.quantity,
               }));
               set({ items: backendItems });
-              return;
+            } else {
+              throw new Error('Backend update unsuccessful');
             }
           } catch (error) {
-            console.error('Failed to update quantity in backend cart:', error);
+            console.error('Failed to update quantity in backend cart, rolling back:', error);
+            set({ items: previousItems });
+            throw error;
           }
         }
-
-        // 2. Local fallback
-        set({
-          items: get().items.map((item) =>
-            String(item.product.id) === String(productId) ? { ...item, quantity } : item
-          ),
-        });
       },
 
       clearCart: async () => {
-        // 1. Sync with backend if logged in
+        const previousItems = get().items;
+
+        // 1. Optimistic Update
+        set({ items: [] });
+
+        // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
             await apiClient.post('/cart/clear');
           } catch (error) {
-            console.error('Failed to clear backend cart:', error);
+            console.error('Failed to clear backend cart, rolling back:', error);
+            set({ items: previousItems });
+            throw error;
           }
         }
-
-        // 2. Local fallback
-        set({ items: [] });
       },
 
       getTotalPrice: () => {
