@@ -4,6 +4,7 @@ import React from 'react';
 import { ProductVariantGroup, ProductVariantOption } from '@/types';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export interface VariantSelectorProps {
   variants?: ProductVariantGroup[];
@@ -47,14 +48,16 @@ export default function VariantSelector({
                 // Color Swatch rendering
                 if (group.name.toLowerCase() === 'color' && opt.colorHex) {
                   return (
-                    <button
+                    <motion.button
                       key={opt.id || opt.value}
                       type="button"
                       disabled={isOutOfStock}
                       onClick={() => onOptionSelect(group.name, opt)}
+                      whileHover={!isOutOfStock ? { scale: 1.15 } : undefined}
+                      whileTap={!isOutOfStock ? { scale: 0.9 } : undefined}
                       className={cn(
                         'relative w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all cursor-pointer shadow-2xs',
-                        isSelected ? 'border-[#8b6f47] dark:border-[#c9a96b] scale-110 shadow-md ring-2 ring-[#8b6f47]/30' : 'border-gray-200 dark:border-gray-700 hover:scale-105',
+                        isSelected ? 'border-[#8b6f47] dark:border-[#c9a96b] shadow-md ring-2 ring-[#8b6f47]/30' : 'border-gray-200 dark:border-gray-700',
                         isOutOfStock && 'opacity-40 cursor-not-allowed border-gray-300'
                       )}
                       style={{ backgroundColor: opt.colorHex }}
@@ -68,17 +71,19 @@ export default function VariantSelector({
                           <div className="w-full h-0.5 bg-red-500 rotate-45" />
                         </div>
                       )}
-                    </button>
+                    </motion.button>
                   );
                 }
 
                 // Standard Text Pill rendering (Size, Style, etc.)
                 return (
-                  <button
+                  <motion.button
                     key={opt.id || opt.value}
                     type="button"
                     disabled={isOutOfStock}
                     onClick={() => onOptionSelect(group.name, opt)}
+                    whileHover={!isOutOfStock ? { scale: 1.05 } : undefined}
+                    whileTap={!isOutOfStock ? { scale: 0.95 } : undefined}
                     className={cn(
                       'px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer',
                       isSelected
@@ -93,7 +98,7 @@ export default function VariantSelector({
                         (+${opt.priceDelta})
                       </span>
                     ) : null}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

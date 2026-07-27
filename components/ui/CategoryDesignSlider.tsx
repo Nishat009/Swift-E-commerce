@@ -122,10 +122,10 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
     };
   };
 
-  // 360 Degree spin variants rotating around the central bottom point (CX, CY)
+  // 180 Degree spin variants rotating around the central bottom point (CX, CY)
   const spinVariants = {
     initial: (dir: 'next' | 'prev') => ({
-      rotate: dir === 'next' ? -360 : 360,
+      rotate: dir === 'next' ? -180 : 180,
       opacity: 0,
       scale: 0.85,
     }),
@@ -135,7 +135,7 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
       scale: 1,
     },
     exit: (dir: 'next' | 'prev') => ({
-      rotate: dir === 'next' ? 360 : -360,
+      rotate: dir === 'next' ? 180 : -180,
       opacity: 0,
       scale: 0.85,
     }),
@@ -254,7 +254,7 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
                               y={center.y - 110}
                               width="220"
                               height="220"
-                              preserveAspectRatio="xMidYMid slice"
+                              preserveAspectRatio="xMidYMid meet"
                             />
                             {/* Dark Overlay for contrast when not hovered */}
                             <path

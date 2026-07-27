@@ -1,7 +1,7 @@
 # SwiftCart - Software Requirements Specification (SRS)
 
 ## 1. System Scope & Context
-SwiftCart is a multi-tier web application combining an e-commerce catalog with a real-time draw campaign lottery module. This document describes the specifications, system structures, database schemas, and API configurations required to support the platform.
+SwiftCart is a multi-tier web application combining an e-commerce catalog with advanced interactive visual elements, fuzzy search algorithms, and persistent authentication models. This document describes the specifications, structures, database schemas, and API configurations required to support the platform.
 
 ---
 
@@ -14,43 +14,41 @@ SwiftCart is a multi-tier web application combining an e-commerce catalog with a
 *   **FR-1.4**: Normal Customers shall be able to simulate order checkout with billing/shipping addresses, payment gateways, and receive toast notifications.
 *   **FR-1.5**: The system shall support a detailed Quick View modal for products, showing specifications, ratings count, low stock warnings, return policies, and delivery estimates.
 *   **FR-1.6**: Administrators shall have CRUD capabilities on products, and toggle order delivery status values (`Pending`, `Confirmed`, `Processing`, `Shipped`, `Delivered`, `Cancelled`).
+*   **FR-1.7**: The system shall support price localization, allowing customers to switch active currencies (USD, EUR, GBP) and format prices automatically.
+*   **FR-1.8**: The PDP shall display Frequently Bought Together bundles, applying a 10% discount and supporting single-click batch cart addition.
+*   **FR-1.9**: The PDP shall house an AI Sizing Advisor quiz calculating optimal size matches (XS to XXL) from height, weight, and fit inputs, with automated variant selection.
+*   **FR-1.10**: The PDP shall support a Back-in-Stock email subscription capture form for out-of-stock items.
+*   **FR-1.11**: The product details gallery shall support a 360° interactive view cycling product image frames via horizontal drag gestures.
+*   **FR-1.12**: Product reviews shall support photo URL attachments, display a shared outfit gallery, render automated AI Pros/Cons sentiment tags, and limit helpful upvoting to once per user.
+*   **FR-1.13**: Search fields shall utilize Levenshtein distance matching to suggest fuzzy search corrections when initial queries return empty. Focus states shall trigger dropdown panels displaying recent search histories and trending tags.
+*   **FR-1.14**: The checkout system shall execute auto-applied promotions: subtracting $30 on orders of $300+, and setting shipping free for orders of $100+.
+*   **FR-1.15**: The comparison modal shall display an interactive SVG radar chart mapping price value, ratings, specifications count, stock levels, and tags popularity.
+*   **FR-1.16**: The client cart store shall automatically sync local guest cart items to the database cart upon successful user login.
 
-### 2.2 Lucky Draw Campaign Module
-*   **FR-2.1**: Active campaigns shall display live progress based on `(ticketsSold / ticketLimit) * 100`.
-*   **FR-2.2**: The system shall run live countdowns targeting campaign `drawDate`.
-*   **FR-2.3**: Upon purchase of campaign-linked products, the system shall generate unique tickets prefixed with `SWIFT-TKT-[ID]`.
-*   **FR-2.4**: Customers shall be able to review their tickets and view a detailed digital invoice modal with standard printing features.
-*   **FR-2.5**: The system shall enforce `maxTicketsPerUser` limits during tickets purchase or automated checkout assignment.
-*   **FR-2.6**: The Administrator shall trigger campaign drawings. The backend shall select a random winning ticket cryptographically from purchased entries, marking others as lost, declaring the winner, and issuing system notifications.
+### 2.2 User Authentication & MFA Security Module
+*   **FR-2.1**: Customers shall be able to setup Two-Factor Authentication (2FA) by scanning a generated QR code with any standard authenticator app.
+*   **FR-2.2**: The system shall validate time-based one-time passwords (TOTP) during login step-up verification.
+*   **FR-2.3**: The system shall generate 10 single-use Recovery Codes for alternative account access.
+*   **FR-2.4**: Normal Customers shall be able to request dynamic, temporary login OTP codes sent to their email.
+*   **FR-2.5**: The customer settings area shall leverage a shared sidebar shell layout (`AccountLayout`), organizing account management into distinct routes: `/dashboard`, `/profile`, `/orders`, `/wishlist`, `/addresses`, and `/settings`.
+*   **FR-2.6**: The addresses page shall support full CRUD operations on user shipping destinations, allowing default selections.
+*   **FR-2.7**: The system shall prevent admins from viewing raw or decrypted customer password strings.
 
-### 2.3 Real-Time Notification System
-*   **FR-3.1**: The system shall generate in-app notifications on ticket purchases, draw completion outcomes, and congratulations notifications.
-*   **FR-3.2**: Users shall review notifications through a navigation bar dropdown and mark alerts as read.
-
-### 2.4 User Authentication & MFA Security Module
-*   **FR-4.1**: Customers shall be able to setup Two-Factor Authentication (2FA) by scanning a generated QR code with any standard authenticator app.
-*   **FR-4.2**: The system shall validate time-based one-time passwords (TOTP) during login step-up verification.
-*   **FR-4.3**: The system shall generate 10 single-use Recovery Codes for alternative account access.
-*   **FR-4.4**: Normal Customers shall be able to request dynamic, temporary login OTP codes sent to their email.
-*   **FR-4.5**: The customer settings area shall leverage a shared sidebar shell layout (`AccountLayout`), organizing account management into distinct routes: `/dashboard`, `/profile`, `/orders`, `/wishlist`, `/addresses`, and `/settings`.
-*   **FR-4.6**: The addresses page shall support full CRUD operations on user shipping destinations, allowing default selections.
-*   **FR-4.7**: The system shall prevent admins from viewing raw or decrypted customer password strings.
-
-### 2.5 Enterprise Administration & Inspection Module
-*   **FR-5.1**: Administrators shall be able to inspect any customer's active shopping cart items, quantities, and subtotal.
-*   **FR-5.2**: Administrators shall be able to inspect any customer's wishlist choices.
-*   **FR-5.3**: The system shall log all administrative actions in a persistent Audit Trail, capturing previous vs updated states.
+### 2.3 Enterprise Administration & Inspection Module
+*   **FR-3.1**: Administrators shall be able to inspect any customer's active shopping cart items, quantities, and subtotal.
+*   **FR-3.2**: Administrators shall be able to inspect any customer's wishlist choices.
+*   **FR-3.3**: The system shall log all administrative actions in a persistent Audit Trail, capturing previous vs updated states.
 
 ---
 
 ## 3. Technology Stack & Architectural Diagram
 
-The system follows a classic **Client-Server MVC architecture** with decoupled Next.js frontend and Express/Node API backend.
+The system follows a classic **Client-Server MVC architecture** with Next.js frontend and Express/Node API backend.
 
 ```
 +--------------------------------------------------------+
 |                      Next.js App                       |
-|  (React 19, Zustand State, Framer Motion, Tailwind V4) |
+| (React 19, Zustand State, Framer Motion, Tailwind V4)  |
 +---------------------------+----------------------------+
                             |
                      REST HTTP / JSON
@@ -66,7 +64,7 @@ The system follows a classic **Client-Server MVC architecture** with decoupled N
                             v
 +---------------------------+----------------------------+
 |                       MongoDB Atlas                    |
-|   (Collections: Products, Campaigns, Tickets, Orders)  |
+|       (Collections: Products, Users, Orders, Reviews)  |
 +--------------------------------------------------------+
 ```
 
@@ -86,73 +84,55 @@ The system follows a classic **Client-Server MVC architecture** with decoupled N
 *   `otpExpiry` (Date): Expiry timestamp for the dynamic OTP.
 *   `wishlist` (Array of ObjectIds ref Product): Saved items.
 
-### 4.1 Campaign Schema (`Campaign.js`)
-*   `title` (String, required): Campaign title.
-*   `description` (String): Rich text details.
-*   `terms` (String): Draw terms and conditions.
-*   `productTitle`, `productPrice`, `productDescription`, `productImage` (Embedded): Campaign item details.
-*   `linkedProducts` (Array of ObjectId ref Product): Eligible products for auto-ticket.
-*   `prizeName`, `prizeDescription`, `prizeImage` (Embedded): Grand prize details.
-*   `drawDate` (Date): Targeted draw execution time.
-*   `ticketLimit` (Number): Maximum ticket pool.
-*   `ticketsSold` (Number): Sold count.
-*   `maxTicketsPerUser` (Number): Limits user holdings.
-*   `status` (Enum: `draft`, `active`, `paused`, `sold-out`, `completed`, `archived`).
-*   `winnerUser` (ObjectId ref User): Selected winner user.
-*   `winnerTicket` (String): Winning ticket code.
+### 4.1 Product Schema (`Product.js`)
+*   `title` (String, required): Product title.
+*   `description` (String, required): Full description.
+*   `category` (String, required): Category string.
+*   `brand` (String, required): Manufacturer brand.
+*   `price` (Number, required): Default pricing.
+*   `stock` (Number, required): Inventory counts.
+*   `thumbnail` (String, required): Main image asset.
+*   `images` (Array of Strings): Alternative image assets for galleries and 360 degree rotation.
 
-### 4.2 Ticket Schema (`Ticket.js`)
-*   `ticketNumber` (String, unique): Ticket code identifier.
-*   `user` (ObjectId ref User): Associated buyer.
-*   `campaign` (ObjectId ref Campaign): Reference to campaign.
-*   `purchaseAmount` (Number): Charged cost.
-*   `paymentMethod` (String): Method identifier.
-*   `status` (Enum: `active`, `won`, `lost`).
-
-### 4.3 Notification Schema (`Notification.js`)
-*   `user` (ObjectId ref User): Destination client.
-*   `title`, `message` (String): Alert text content.
-*   `type` (Enum: `campaign_purchase`, `draw_result`, `campaign_update`, `winner_announcement`, `system`).
-*   `isRead` (Boolean): Read state marker.
+### 4.2 Review Schema (`Review.js`)
+*   `product` (ObjectId ref Product, required): Associated product.
+*   `user` (ObjectId ref User, required): Author.
+*   `rating` (Number, required): Rating value from 1 to 5.
+*   `comment` (String, required): Review text.
+*   `images` (Array of Strings): Customer uploaded photo URLs.
 
 ---
 
 ## 5. REST API Endpoints Catalog
 
-### 5.1 Campaigns Endpoints
-*   `GET /api/campaigns` - Retrieve all campaigns (status-filtered).
-*   `GET /api/campaigns/:id` - Fetch campaign specifications by id.
-*   `POST /api/campaigns/:id/buy` - Join lucky draw and purchase product.
-*   `GET /api/campaigns/my-tickets` - Get active user's tickets ledger.
+### 5.1 E-Commerce Catalog Endpoints
+*   `GET /api/products` - Retrieve list of products with filters.
+*   `GET /api/products/:id` - Fetch product specifications.
+*   `POST /api/reviews` - Submit product reviews (with optional photos list).
+*   `GET /api/reviews/product/:id` - Get reviews list for a product.
 
-### 5.2 Admin Control Endpoints
-*   `GET /api/admin/dashboard` - Fetch store metrics, top products, low stock, and recent orders.
-*   `GET /api/admin/users` - Retrieve all registered users.
-*   `PUT /api/admin/users/:id/role` - Update target user role (e.g. customer vs admin).
-*   `DELETE /api/admin/users/:id` - Delete user account.
-*   `GET /api/admin/users/:id/cart` - Inspect target user's active cart.
-*   `GET /api/admin/users/:id/wishlist` - Inspect target user's active wishlist.
-*   `GET /api/campaigns/admin/analytics` - Fetch global store draw metrics.
-*   `POST /api/campaigns/admin/create` - Instantiate new campaign catalog.
-*   `PUT /api/campaigns/admin/:id` - Update campaign variables.
-*   `PUT /api/campaigns/admin/:id/status` - Transition campaign status workflow.
-*   `POST /api/campaigns/admin/:id/draw` - Execute random lottery winner draw.
+### 5.2 Cart Endpoints
+*   `GET /api/cart` - Fetch user's persistent cart database array.
+*   `POST /api/cart` - Add/merge items in database cart.
+*   `PUT /api/cart` - Update quantities.
+*   `DELETE /api/cart/:productId` - Remove item from cart.
+*   `POST /api/cart/clear` - Clear user's cart in database.
 
-### 5.3 Notifications Endpoints
-*   `GET /api/notifications` - Retrieve customer's notifications.
-*   `GET /api/notifications/unread-count` - Get counts of unread alerts.
-*   `PUT /api/notifications/:id/read` - Mark specific notification as read.
-*   `PUT /api/notifications/read-all` - Mark all notifications as read.
-
-### 5.4 Authentication, MFA & Addresses Endpoints
+### 5.3 Authentication, MFA & Addresses Endpoints
 *   `POST /api/auth/register` - Create customer account.
 *   `POST /api/auth/login` - Verify standard credentials; prompts for dynamic 2FA if active.
 *   `POST /api/auth/request-otp` - Request dynamic OTP code sent to user email.
 *   `POST /api/auth/verify-otp` - Verify email OTP to log in passwordless.
-*   `POST /api/auth/2fa/setup` - Generate 2FA secret and QR code URL for scan.
+*   `POST /api/auth/2fa/setup` - Generate 2FA secret and QR code URL for scan (16-char Base32 aligned).
 *   `POST /api/auth/2fa/enable` - Confirm verification token and active MFA.
 *   `POST /api/auth/2fa/disable` - Deactivate MFA for authenticated session.
 *   `POST /api/auth/verify-2fa` - Verify time-based TOTP or recovery code input.
 *   `POST /api/auth/addresses` - Add new shipping address to user profile.
 *   `PUT /api/auth/addresses/:addressId` - Update a specific shipping address.
 *   `DELETE /api/auth/addresses/:addressId` - Remove a specific shipping address.
+
+### 5.4 Admin Control Endpoints
+*   `GET /api/admin/dashboard` - Fetch store metrics, top products, low stock, and recent orders.
+*   `GET /api/admin/users` - Retrieve all registered users.
+*   `GET /api/admin/users/:id/cart` - Inspect target user's active cart.
+*   `GET /api/admin/users/:id/wishlist` - Inspect target user's active wishlist.

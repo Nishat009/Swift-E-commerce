@@ -1,25 +1,26 @@
 # SwiftCart - Business Requirements Document (BRD)
 
 ## 1. Executive Summary & Project Purpose
-SwiftCart is a state-of-the-art e-commerce platform designed to offer high-end luxury fashion shopping integrated with an interactive **Prize Campaign (Lucky Draw)** marketing module. The system aims to maximize user engagement, drive product sales, and provide a gamified shopping experience. Customers buy regular fashion products and automatically receive free, cryptographic lucky draw entries to win luxury rewards (e.g., cars, watches, high-end electronics).
+SwiftCart is a state-of-the-art e-commerce platform designed to offer high-end luxury fashion shopping integrated with interactive virtual try-on modules and premium catalog experiences. The system aims to maximize user engagement, drive product sales, and provide a seamless localized buying experience. 
 
 This document outlines the business objectives, core user profiles, and detailed descriptions of all features from both customer and administrator perspectives.
 
 ---
 
 ## 2. Business Objectives
-*   **Increase Conversion Rates**: Gamify the buying experience by tying products to high-value prizes.
-*   **Boost Order Value**: Encourage customers to buy more items to collect multiple entries and increase their winning odds.
-*   **Customer Retention**: Keep users returning to view drawing results, check live countdowns, and claim rewards.
-*   **Administrative Transparency**: Provide clean management of campaigns, automated random draws, and transparent winners history.
+*   **Increase Conversion Rates**: Enhance the buying experience with 360° rotation galleries, outfit bundles, and a virtual try-on room.
+*   **Boost Order Value**: Encourage customer additions via Frequently Bought Together bundles offering a 10% discount.
+*   **Customer Retention**: Keep users returning with personalized fit quiz tools and auto-applied promotions.
+*   **Dynamic Localization**: Support cross-border transactions through dynamic multi-currency localizations (USD, EUR, GBP).
+*   **Administrative Transparency**: Provide clean management of catalogs, user session tracking, audit logs, and analytics.
 
 ---
 
 ## 3. User Profiles & Perspectives
 
 The system serves two main user profiles:
-1.  **Normal Customer (End User)**: Interested in purchasing items, tracking order deliveries, managing their draw entries, checking campaign countdowns, and viewing notification updates.
-2.  **Store Administrator (Admin)**: Responsible for overall business operations, catalog updates, order state flow control, managing drawing parameters, conducting automated drawings, and checking sales analytics.
+1.  **Normal Customer (End User)**: Interested in purchasing items, utilizing local currency selectors, taking size fit quizzes, checking out with auto-applied promos, and reading verified review cards.
+2.  **Store Administrator (Admin)**: Responsible for overall business operations, catalog updates, order state flow control, user session inspections, and auditing system modifications.
 
 ---
 
@@ -32,53 +33,75 @@ The system serves two main user profiles:
     *   Inspect product details quickly using a popup Quick View modal showing specifications, ratings, low stock warnings, return policies, and delivery estimates.
     *   Add items to the shopping cart, apply coupon code discounts (e.g., `SAVE20`, `FREESHIP`), estimate shipping fees, and save items in a "Save For Later" storage deck.
     *   Save desired items to a personal wishlist synchronized directly with the database.
+    *   Select active local currencies (USD `$`, EUR `€`, GBP `£`) in the Navbar, converting all prices across the platform instantly.
 *   **Admin View**:
     *   Create, edit, and delete catalog products.
     *   Configure pricing, inventory counts, discount percentages, and media assets.
     *   Update order statuses (e.g., Pending, Confirmed, Processing, Shipped, Delivered, Cancelled).
 
-### Feature 2: Prize Campaigns (Lucky Draws)
+### Feature 2: Frequently Bought Together Bundle Builder
 *   **Normal Customer View**:
-    *   View active campaigns, current ticket sales progress bars, and countdown timers to the drawing.
-    *   Purchase an eligible campaign product and automatically get lucky draw tickets.
-    *   View a clean ticket vault with serial codes and print digital invoices.
-    *   Explore a transparent Winners Gallery highlighting previous drawings and proof of winner verification.
-*   **Admin View**:
-    *   Launch new campaign programs with prize names, rules, ticket limits, and target draw dates.
-    *   Conduct the lottery draw with a secure, server-side random selection.
-    *   Automatically distribute status flags to winning and losing tickets.
+    *   View cross-sell bundles on the product details page linking the active item with two related look recommendations.
+    *   Select/deselect individual recommendations with checkboxes.
+    *   Receive an automated **10% discount** when purchasing the bundle.
+    *   Add all checked bundle items to the cart in a single click.
 
-### Feature 3: Smart Notification Center
+### Feature 3: AI Size & Fit Advisor
 *   **Normal Customer View**:
-    *   Real-time notifications dropdown in the navigation menu for coupon alerts, checkout confirmations, drawing completions, and winner declarations.
-*   **Admin View**:
-    *   Trigger automated broadcasts to all participants of a draw campaign when a winner is chosen.
+    *   Access a Fit Quiz sizing modal next to variants on the PDP.
+    *   Input height, weight, and fit preference (tight, regular, loose) to receive a size recommendation (XS to XXL) matching customer proportions.
+    *   Apply the recommendation instantly, updating the selected variant in one click.
 
-### Feature 4: Interactive Avatar Fitting Room
+### Feature 4: Back-in-Stock Capture Alerts
 *   **Normal Customer View**:
-    *   Select active products (clothing, items) and try them on a 3D avatar canvas in real-time.
-*   **Admin View**:
-    *   Categorize compatible products as try-on assets.
+    *   View a restock subscription box on out-of-stock product detail layouts.
+    *   Submit email addresses to be notified automatically when stock is refilled.
 
-### Feature 5: Advanced Account Security & Multi-Factor Auth (2FA / OTP)
+### Feature 5: 360° Interactive Drag Rotation Gallery
 *   **Normal Customer View**:
-    *   Access a unified account manager `/dashboard` leveraging a shared shell navigation frame (`AccountLayout`) split into single-responsibility views:
-        *   **Dashboard Overview** (`/dashboard`): Stats summaries (total orders, saved wishlist items, cart items) and recent orders feed.
-        *   **Profile Editor** (`/profile`): Contact details, name, phone, email, and default address.
-        *   **Orders History** (`/orders`): Track shipments, download invoice documents, and cancel pending orders.
-        *   **Wishlist Grid** (`/wishlist`): View and manage saved items, or move them directly to the shopping cart.
-        *   **Addresses Manager** (`/addresses`): CRUD operations on multiple shipping addresses with customizable labels and a default address toggle.
-        *   **Security Settings** (`/settings`): Deactivate/activate Two-Factor Authentication (2FA), obtain single-use TOTP Recovery Codes, or update account password.
-    *   Enable/disable Two-Factor Authentication (2FA) generating a secure secret and QR Code for Authenticator apps (Google Authenticator, Authy, etc.).
-    *   Access 10 secure, single-use Recovery Codes for logging in when authenticator devices are lost.
-    *   Log in passwordless using a dynamic Email One-Time Password (OTP) code.
-*   **Admin View**:
-    *   Ensure secure authorization workflows are maintained, verifying user roles before allowing access to administrative assets. All user passwords remain cryptographically hidden from administrators.
+    *   Toggle between standard image preview and a 360° interactive drag gallery.
+    *   Drag horizontally across the active image container to sequence through the alternative image frames of the product.
 
-### Feature 6: Enterprise User Session Inspection
+### Feature 6: Verified Customer Image Reviews & Sentiment Analyzer
+*   **Normal Customer View**:
+    *   Read reviews with buyer-uploaded outfit photos and an automated AI Pros & Cons highlights box summarizing overall feedback sentiment.
+    *   Submit reviews attaching photo URLs (comma-separated).
+    *   Upvote reviews as helpful, locked to a single vote per user per review.
+
+### Feature 7: Typo-Tolerant Search & Recent Suggestions History
+*   **Normal Customer View**:
+    *   Utilize debounced search input fields suggesting category, brand, and item matches.
+    *   Experience fuzzy Levenshtein search corrections (e.g. searching "shos" returns suggestions for "shoes") and a "Search anyway" override button.
+    *   View list of recent search history and trending tag triggers when focusing the empty search bar.
+
+### Feature 8: Auto-Applied Promotion Rules Engine
+*   **Normal Customer View**:
+    *   Receive auto-applied discounts on checkout without entering coupon codes:
+        *   **Spend & Save Promo**: Automatically deducts $30 for cart subtotals of $300 or more.
+        *   **Free Shipping Promo**: Automatically gets free shipping for cart subtotals of $100 or more.
+
+### Feature 9: Interactive SVG Comparison Radar Chart
+*   **Normal Customer View**:
+    *   Compare products side-by-side inside the comparison modal.
+    *   Inspect a custom SVG radar chart mapping price value, rating, specifications count, stock levels, and tags popularity.
+
+### Feature 10: Persistent Guest Cart Syncing
+*   **Normal Customer View**:
+    *   Add items to the shopping cart as a guest. Upon successful login, guest cart items are automatically merged into the customer's persistent database cart.
+
+### Feature 11: Unified Account Manager `/dashboard`
+*   **Normal Customer View**:
+    *   Manage personal settings via a unified layout:
+        *   **Dashboard Overview**: View stats cards (orders, wishlist, cart) and recent order feed.
+        *   **Profile Editor**: Edit contact info and primary address.
+        *   **Orders History**: Track shipments, print invoice documents, and cancel pending orders.
+        *   **Addresses Manager**: CRUD operations on multiple addresses.
+        *   **Security Settings**: Toggle Two-Factor Authentication (2FA) scan secrets and manage recovery codes.
+
+### Feature 12: Enterprise User Session Inspection
 *   **Admin View**:
-    *   Inspect any user's current session state, showing live shopping cart items (with quantities and subtotal), active wishlist selections, and full historical order records.
-    *   Review comprehensive system-wide Enterprise Audit Trails mapping who executed changes, timestamps, and detailed before-and-after state differences.
+    *   Inspect active user shopping carts, wishlist selections, and orders history.
+    *   Review system audit trails tracking historical changes, responsibilities, and before/after values object diff.
 
 ---
 

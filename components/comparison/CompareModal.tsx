@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,11 +9,182 @@ import { useCompareStore } from '@/stores/compareStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useToast } from '@/context/ToastContext';
 import Button from '@/components/ui/Button';
+import { useCurrencyStore } from '@/stores/currencyStore';
+
+// Concentric radar chart for side-by-side spec comparison
+const RadarChart = ({ items }: { items: any[] }) => {
+  const width = 280;
+  const height = 280;
+  const cx = width / 2;
+  const cy = height / 2;
+  const maxRadius = 80;
+  const numAxes = 5;
+
+  const axes = [
+    { label: 'Pricing Value', key: 'price' },
+    { label: 'User Rating', key: 'rating' },
+    { label: 'Specs Count', key: 'specs' },
+    { label: 'Availability', key: 'stock' },
+    { label: 'Popularity', key: 'tags' }
+  ];
+
+  // Score mapping (0 - 100)
+  const getProductScores = (product: any) => {
+    // Pricing Value: lower price = higher value rating
+    const priceScore = Math.max(10, Math.min(100, 100 - (product.price / 1000) * 80));
+    const ratingScore = Math.max(10, Math.min(100, product.rating * 20));
+    const specsCount = product.specifications ? Object.keys(product.specifications).length : 0;
+    const specsScore = Math.max(10, Math.min(100, specsCount * 20));
+    const stockScore = Math.max(10, Math.min(100, product.stock * 1.5));
+    const tagsCount = product.tags ? product.tags.length : 0;
+    const tagsScore = Math.max(10, Math.min(100, tagsCount * 25));
+
+    return {
+      price: priceScore,
+      rating: ratingScore,
+      specs: specsScore,
+      stock: stockScore,
+      tags: tagsScore
+    };
+  };
+
+  const getPoints = (scores: Record<string, number>) => {
+    return axes.map((axis, i) => {
+      const score = scores[axis.key as keyof typeof scores] || 50;
+      const angle = (i * 2 * Math.PI) / numAxes - Math.PI / 2;
+      const radius = (score / 100) * maxRadius;
+      const x = cx + radius * Math.cos(angle);
+      const y = cy + radius * Math.sin(angle);
+      return { x, y };
+    });
+  };
+
+  const colors = [
+    { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)' },
+    { stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.12)' },
+    { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)' }
+  ];
+
+  return (
+    <div className="flex flex-col items-center p-5 bg-zinc-50/50 dark:bg-zinc-950/30 rounded-3xl border border-zinc-200/50 dark:border-zinc-800/80 mb-6">
+      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b] mb-4">
+        📊 Multi-Dimension Vector Value Radar
+      </h3>
+
+      <div className="flex flex-col sm:flex-row items-center gap-6 w-full max-w-xl justify-center">
+        {/* SVG Graphic */}
+        <svg width={width} height={height} className="overflow-visible select-none">
+          {/* Concentric grid lines */}
+          {[20, 40, 60, 80, 100].map((percent) => {
+            const radius = (percent / 100) * maxRadius;
+            const points = Array.from({ length: numAxes }).map((_, i) => {
+              const angle = (i * 2 * Math.PI) / numAxes - Math.PI / 2;
+              const x = cx + radius * Math.cos(angle);
+              const y = cy + radius * Math.sin(angle);
+              return `${x},${y}`;
+            }).join(' ');
+            return (
+              <polygon
+                key={percent}
+                points={points}
+                fill="none"
+                stroke="rgba(156, 163, 175, 0.15)"
+                strokeWidth="1"
+              />
+            );
+          })}
+
+          {/* Spokes */}
+          {axes.map((axis, i) => {
+            const angle = (i * 2 * Math.PI) / numAxes - Math.PI / 2;
+            const endX = cx + maxRadius * Math.cos(angle);
+            const endY = cy + maxRadius * Math.sin(angle);
+            
+            const labelDist = maxRadius + 18;
+            const labelX = cx + labelDist * Math.cos(angle);
+            const labelY = cy + labelDist * Math.sin(angle);
+
+            return (
+              <g key={i}>
+                <line
+                  x1={cx}
+                  y1={cy}
+                  x2={endX}
+                  y2={endY}
+                  stroke="rgba(156, 163, 175, 0.2)"
+                  strokeWidth="1"
+                />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  alignmentBaseline="middle"
+                  className="text-[9px] font-sans font-bold fill-gray-400 dark:fill-gray-500"
+                >
+                  {axis.label}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Polygons */}
+          {items.map((product, idx) => {
+            const scores = getProductScores(product);
+            const pts = getPoints(scores);
+            const pointsString = pts.map(p => `${p.x},${p.y}`).join(' ');
+            const color = colors[idx % colors.length];
+
+            return (
+              <g key={product.id}>
+                <polygon
+                  points={pointsString}
+                  fill={color.fill}
+                  stroke={color.stroke}
+                  strokeWidth="2"
+                  className="transition-all duration-300"
+                />
+                {pts.map((pt, i) => (
+                  <circle
+                    key={i}
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="3.5"
+                    fill={color.stroke}
+                  />
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Legend */}
+        <div className="flex flex-col gap-2 text-xs text-left w-full sm:w-56">
+          {items.map((product, idx) => {
+            const color = colors[idx % colors.length];
+            return (
+              <div key={product.id} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-900 border rounded-xl shadow-xs">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: color.stroke }}
+                />
+                <div className="truncate">
+                  <p className="font-bold text-gray-900 dark:text-white truncate leading-none">{product.title}</p>
+                  <p className="text-[9px] text-text-muted mt-1 truncate uppercase tracking-wider">{product.brand}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function CompareModal() {
   const { items, isOpen, closeCompareModal, removeFromCompare, clearCompare } = useCompareStore();
   const addItem = useCartStore((state) => state.addItem);
   const toast = useToast();
+  const { format: formatPrice } = useCurrencyStore();
 
   if (!isOpen || items.length === 0) return null;
 
@@ -84,6 +255,7 @@ export default function CompareModal() {
 
           {/* Body Matrix Content */}
           <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
+            <RadarChart items={items} />
             <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
                 <tr>
@@ -126,13 +298,13 @@ export default function CompareModal() {
                         </Link>
 
                         <div className="text-sm font-bold text-[#8b6f47] dark:text-[#c9a96b] mb-3">
-                          ${product.price}
-                          {product.salePrice && (
-                            <span className="text-xs text-gray-400 line-through ml-1.5 font-normal">
-                              ${product.salePrice}
-                            </span>
-                          )}
-                        </div>
+                           {formatPrice(product.price)}
+                           {product.salePrice && (
+                             <span className="text-xs text-gray-400 line-through ml-1.5 font-normal">
+                               {formatPrice(product.salePrice)}
+                             </span>
+                           )}
+                         </div>
 
                         <Button
                           onClick={() => handleAddToCart(product)}

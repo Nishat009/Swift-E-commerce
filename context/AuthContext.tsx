@@ -42,6 +42,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initSession = async () => {
       if (typeof window !== 'undefined') {
+        const storedToken = localStorage.getItem('accessToken');
+        if (storedToken) {
+          setAccessToken(storedToken);
+        }
+
         const isRemembered = localStorage.getItem('rememberMe') === 'true';
         const isSessionActive = sessionStorage.getItem('session_active') === 'true';
 
@@ -54,6 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } finally {
             setAccessToken(null);
             setUser(null);
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
             useCartStore.setState({ items: [] });
             setLoading(false);
           }
@@ -101,9 +108,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        const { user: loggedInUser, accessToken } = response.data.data;
+        const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
 
         if (typeof window !== 'undefined') {
           if (rememberMe) {
@@ -115,7 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // Automatically load cart on success
-        useCartStore.getState().loadCart();
+        await useCartStore.getState().syncGuestCart();
+        await useCartStore.getState().loadCart();
         // Redirect admin users to admin panel, customers to dashboard
         if (loggedInUser.role === 'admin') {
           router.push('/admin');
@@ -140,9 +155,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiClient.post('/auth/register', { name, email, password });
       if (response.data?.success) {
-        const { user: registeredUser, accessToken } = response.data.data;
+        const { user: registeredUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(registeredUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
 
         if (typeof window !== 'undefined') {
           localStorage.setItem('rememberMe', 'true');
@@ -176,6 +198,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (typeof window !== 'undefined') {
         localStorage.removeItem('rememberMe');
         sessionStorage.removeItem('session_active');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
       }
       // Clear local cart storage
       useCartStore.setState({ items: [] });
@@ -223,9 +247,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiClient.post('/auth/verify-2fa', { userId, code, rememberMe: !!rememberMe });
       if (response.data?.success) {
-        const { user: loggedInUser, accessToken } = response.data.data;
+        const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
 
         if (typeof window !== 'undefined') {
           if (rememberMe) {
@@ -288,9 +319,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        const { user: loggedInUser, accessToken } = response.data.data;
+        const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
 
         if (typeof window !== 'undefined') {
           if (rememberMe) {

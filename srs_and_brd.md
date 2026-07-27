@@ -6,31 +6,32 @@
 # PART 1: Business Requirements Document (BRD)
 
 ## 1. Executive Summary & Objectives
-SwiftCart is a premium, high-end e-commerce platform designed to merge classic luxury aesthetics with modern interactive web experiences. Unlike standard e-commerce storefronts that rely on flat grids, SwiftCart aims to capture user attention and improve conversion rates through immersive, hardware-accelerated 3D interactions and a virtual closet dressing room.
+SwiftCart is a premium, high-end e-commerce platform designed to merge classic luxury aesthetics with modern interactive web experiences. Unlike standard e-commerce storefronts that rely on flat grids, SwiftCart aims to capture user attention and improve conversion rates through immersive, hardware-accelerated 3D interactions, a virtual closet dressing room, and localized experience upgrades.
 
 The primary business objectives are:
-- **Maximize Engagement**: Hook users with tactile 3D Tilt product cards and dynamic parallax categories.
-- **Support Interactive Try-On**: Drive clothing category conversion rates by allowing users to try on outfits on a virtual avatar (Closet Builder).
+- **Maximize Engagement**: Hook users with tactile 3D Tilt product cards, interactive 360° rotation galleries, and dynamic category slider components.
+- **Support Interactive Try-On**: Drive clothing category conversion rates by allowing users to try on outfits on a virtual avatar (Closet Builder) and calculate correct fits via the AI Fit Quiz Advisor.
+- **Leverage Multi-Currency Support**: Expand business outreach internationally through dynamic conversion rate localizations (USD, EUR, GBP).
 - **Deliver Premium Quality**: Offer a curated earth-tone aesthetic (Beige, Gold, Cream) targeted at design-conscious demographics.
 
 ## 2. Target Audience & Stakeholders
 - **Consumers (End Users)**: Style-centric shoppers purchasing premium apparel, lighting, decor, and furniture.
-- **E-commerce Merchants (Admins)**: Product managers, copywriters, and administrators managing catalogs, order pipelines, coupons, and reviews.
+- **E-commerce Merchants (Admins)**: Product managers, copywriters, and administrators managing catalogs, reviewing sessions, and auditing changes.
 - **Development Team**: Frontend and backend engineers building, updating, and scaling the codebase.
 
 ## 3. High-Level Product Scope
-- **Interactive Product Catalog**: High-performance grid list featuring dynamic sorting, price slider filters, and category divisions.
-- **Immersive Customer Experience**: Interactive 3D tilt product showcases, cursor shine gloss glare, and sliding overlays.
-- **Interactive Closet Builder (Dressing Room)**: A React-based closet manager mapping apparel coordinates to avatars.
-- **Cart & Checkout Engine**: Coupon codes, discount percentages, addresses, order generation, and state persistence.
-- **Admin Command Suite**: Secure portal for updating inventory, managing review averages, checking statistics, and editing coupons.
+- **Interactive Product Catalog**: High-performance grid list featuring dynamic sorting, price range selectors, currency conversion dropdowns, and fuzzy search did-you-mean suggestions.
+- **Immersive Customer Experience**: Interactive 3D tilt product showcases, 360° rotation galleries, outfit bundle blocks, and reviews containing customer photos.
+- **Interactive Closet Dressing Room**: A React-based closet manager mapping apparel coordinates to avatars alongside a Fit Quiz rules engine.
+- **Cart & Checkout Engine**: Coupon codes, auto-applied Spend & Save promotion rules, shipping estimators, default addresses, and persistent cart syncing.
+- **Admin Command Suite**: Secure portal for updating inventory, managing review averages, checking statistics, inspecting user session carts, and tracking audit logs.
 
 ---
 
 # PART 2: Software Requirements Specification (SRS)
 
 ## 1. Introduction
-This section details the functional, non-functional, database, and API requirements for the SwiftCart system. 
+This section details the functional, non-functional, database, and API requirements for the SwiftCart system.
 
 ## 2. System Architecture & Tech Stack
 
@@ -48,7 +49,7 @@ graph TD
 - **Frontend Framework**: Next.js 16 (React 19, Turbopack compiler, App Router).
 - **Frontend Animation**: Framer Motion 12 (interactive spring physics, motion values).
 - **Styling**: Tailwind CSS v4 (inline theme parameters, native CSS variables).
-- **State Management**: Zustand 5 (persistent cart drawer storage, auth caching).
+- **State Management**: Zustand 5 (persistent cart drawer storage, auth caching, currency configs).
 - **Backend API**: Node.js, Express.js (v4.19).
 - **Database**: MongoDB (Mongoose ODM 8.3).
 - **Image hosting**: Cloudinary API.
@@ -67,10 +68,10 @@ graph TD
   - **Orders** (`/orders`): Track shipments, print invoice documents, and cancel pending orders.
   - **Wishlist** (`/wishlist`): View and manage saved items, or move them directly to the shopping cart.
   - **Addresses** (`/addresses`): Full CRUD operations for managing multiple shipping addresses, including default selections.
-  - **Settings** (`/settings`): Deactivate/activate TOTP Two-Factor Authentication (2FA), obtain recovery codes, or update account password.
-- **Two-Factor Authentication (MFA)**: Setup TOTP-compliant secrets, generate secure QR Codes, and verify tokens before authorization.
-- **Recovery Keys**: Generate 10 dynamic, single-use recovery code alphanumeric strings for emergencies.
+  - **Settings** (`/settings`): Deactivate/activate TOTP Two-Factor Authentication (2FA) via 16-character Base32 aligned QR codes, obtain recovery codes, or update account password.
 - **Passwordless Email OTP**: Secure credentials-free login via time-limited code delivery to customer email.
+- **Multi-Currency Localizer**: Navbar selector converts default USD catalog values into EUR (€, rate: 0.92) or GBP (£, rate: 0.78) and formats pricing across cards, detail views, sticky bars, cart summaries, and compare panels.
+- **Persistent Guest Cart Sync**: Instantly upload guest cart items to the database cart upon successful login.
 
 ### 3.2 Product Catalog & Interactive Grid
 - **3D Tilt Product Card**:
@@ -79,26 +80,39 @@ graph TD
   - Image scales (`scale-108`) and cross-fades with a secondary product image on hover, while action buttons (Quick View, Add to Cart) slide up.
   - Device compatibility: Disables cursor-tracking on touchscreens (fallback to standard scaling).
 - **Advanced Filtering & Search**:
-  - Search bar with debounced autocomplete suggestions listing recent searches, popular keywords, and matching products.
+  - Search bar with debounced autocomplete suggestions listing category/brand matches, recent search terms, and trending tags.
+  - Typo-Tolerant Search: Runs Levenshtein distance check on empty search outputs to display fuzzy recommendations (e.g., searching "shos" returns suggestions for "shoes") and a "search anyway" button.
+  - Price Range Slider: A custom dual-handle track for filtering prices from $0 to $2000.
   - Active filter tags displayed as chip items with single-click remove buttons and total active count indicators.
-  - Dynamic price range sliders (from $0 to $2000).
   - Category radio selection, color/size checkboxes, and list/grid layout toggle views.
 - **Quick View Modal**:
   - Popup displaying product specs, average rating, reviews count, low stock warnings, delivery estimate, and return policy.
 
-### 3.3 Virtual Dressing Room (Closet Builder)
+### 3.3 Virtual Dressing Room (Closet Builder) & Advisor Quiz
 - **Virtual Avatar**: Interactive canvas/svg layout displaying an avatar base.
 - **Layer Mapping**: Categorized trying on of shirts, pants, dresses, and jackets.
 - **Closet Inventory**: Fetches compatible products with coordinate styling tags (e.g. `SvgStyle` and `SvgColor` attributes in product specs).
+- **AI Fit Quiz Advisor**: A modal sizing advisor evaluating height, weight, and fit inputs, recommending optimal size matches (XS to XXL) and applying them automatically to variant configurations.
 
-### 3.4 Cart, Coupons & Checkout
+### 3.4 Cart, Coupons & Promotions Engine
 - **Zustand Cart Store**: Persists items in local storage, handles quantity updates, and automatically tallies coupon discounts.
 - **Save For Later**: Move items from the cart to a saved storage deck and vice versa.
 - **Coupon System**: Code validation checks against active coupon schemas (e.g., `SAVE20` for 20% off, `FREESHIP` for free shipping).
 - **Shipping Estimator**: Enter a zip code to calculate delivery fees dynamically.
-- **Checkout Process**: Address validation forms leading to final order generation with status options (Pending, Confirmed, Processing, Shipped, Delivered, Cancelled).
+- **Auto-Applied promotions rules engine**: Calculates auto-applied discounts:
+  - Spend & Save: Subtracts $30 if cart subtotal is $300 or more.
+  - Free Shipping: Zeroes shipping cost if cart subtotal is $100 or more.
+- **Frequently Bought Together Bundle Builder**: Cross-sell block linking the active item with related options, displaying raw vs discounted totals, applying a 10% discount, and adding items to the cart in a batch.
 
-### 3.5 Administrative Portal
+### 3.5 Interactive Assets & Verified Customer Reviews
+- **360° Interactive Rotation Gallery**: Gallery sequencer on the PDP that maps alternate image frames to horizontal drag gesture offsets.
+- **Restock Alert capture**: Form on out-of-stock items for alert subscriptions.
+- **Customer review image uploads**: Form fields allowing buyers to attach review photo URLs, rendered inside customer review rows and aggregated in a shared outfit photo gallery.
+- **AI Review Sentiment Box**: Evaluates text comments and prints pros/cons highlights cards.
+- **Upvote locks**: Restricts helpful upvoting to one vote per user per review.
+- **SVG Comparison Radar Chart**: Pentagon charts drawing relative scores on price value, ratings, specifications count, stock, and tags.
+
+### 3.6 Administrative Portal
 - **Dashboard**: Track system statistics (total sales, users, order quantities) with complete adaptive Dark Mode theme support.
 - **Product Management**: Create, edit, and delete products, uploading pictures directly via Cloudinary.
 - **Category Control**: Create featured category headers with custom Unsplash portrait cutouts.
@@ -119,40 +133,28 @@ graph TD
 - `twoFactorSecret`: String, base32 secret key for authenticator TOTP check.
 - `twoFactorEnabled`: Boolean, active state flag for user MFA.
 - `twoFactorRecoveryCodes`: Array of Strings, single-use security recovery keys.
-- `otpCode`: String, dynamic time-limited passwordless code sent to email.
+- `otpCode`: String, dynamic OTP code.
 - `otpExpiry`: Date, verification expiry time for the dynamic OTP.
-- `wishlist`: Array of ObjectIds ref Product, saved items for later review.
+- `wishlist`: Array of ObjectIds ref Product.
 
 ### 4.2 Product Schema (`Product.js`)
 - `title`: String, required, trimmed.
 - `description`: String, required.
-- `shortDescription`: String.
 - `category`: String, key reference to Category.
 - `brand`: String, required.
 - `price`: Number, required, minimum 0.
-- `salePrice`: Number.
-- `discountPercentage`: Number, default 0.
 - `stock`: Number, required, minimum 0.
-- `rating`: Number, default 0.
-- `numReviews`: Number, default 0.
 - `thumbnail`: String, required (URL).
 - `images`: Array of Strings (URLs).
 - `tags`: Array of Strings.
-- `specifications`: Map of Strings (e.g., color, material, SVG specs for try-on).
-- `featured`: Boolean, default false.
+- `specifications`: Map of Strings (e.g. SvgStyle, SvgColor, color, material).
 
-### 4.3 Order Schema (`Order.js`)
-- `user`: ObjectId (ref User), required.
-- `orderItems`: Array of items (product reference, quantity, price).
-- `shippingAddress`: Address subdocument.
-- `paymentMethod`: String, default 'Stripe'.
-- `taxPrice`: Number, required.
-- `shippingPrice`: Number, required.
-- `totalPrice`: Number, required.
-- `isPaid`: Boolean, default false.
-- `paidAt`: Date.
-- `isDelivered`: Boolean, default false.
-- `deliveredAt`: Date.
+### 4.3 Review Schema (`Review.js`)
+- `product`: ObjectId ref Product, required.
+- `user`: ObjectId ref User, required.
+- `rating`: Number, required, min 1, max 5.
+- `comment`: String, required.
+- `images`: Array of Strings (URLs).
 
 ---
 
@@ -161,7 +163,7 @@ graph TD
 ### 5.1 Performance & Rendering
 - **GPU Acceleration**: Interactive card rendering must use native CSS 3D transforms (`transformStyle: preserve-3d`) to offload rendering logic from the main thread.
 - **Optimized Images**: Image loading must leverage Next.js `<Image>` component, performing domain whitelisting and auto-compression.
-- **Debounced Search Inputs**: Prevent API hammering by delaying searches by `500ms`.
+- **Debounced Search Inputs**: Prevent API hammering by delaying searches by `300ms` / `500ms`.
 
 ### 5.2 Security & Integrity
 - **Password Protection**: Encryption using `bcryptjs` (salt rounds: 10).

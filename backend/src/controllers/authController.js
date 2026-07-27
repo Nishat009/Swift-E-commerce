@@ -44,7 +44,8 @@ const register = async (req, res, next) => {
         role: user.role,
         twoFactorEnabled: false
       },
-      accessToken
+      accessToken,
+      refreshToken
     }, 201);
   } catch (error) {
     next(error);
@@ -102,7 +103,8 @@ const login = async (req, res, next) => {
         role: user.role,
         twoFactorEnabled: user.twoFactorEnabled
       },
-      accessToken
+      accessToken,
+      refreshToken
     });
   } catch (error) {
     next(error);
@@ -221,7 +223,7 @@ const updateProfile = async (req, res, next) => {
 // @route   POST /api/auth/refresh
 // @access  Public
 const refreshToken = async (req, res, next) => {
-  const token = req.cookies.refreshToken;
+  const token = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!token) {
     return sendError(res, 'No refresh token provided', 401);
@@ -236,7 +238,18 @@ const refreshToken = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    return sendSuccess(res, 'Access token refreshed successfully', { accessToken });
+    const newRefreshToken = generateRefreshToken(user);
+
+    // Update cookie with the refreshed token too
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    };
+    res.cookie('refreshToken', newRefreshToken, cookieOptions);
+
+    return sendSuccess(res, 'Access token refreshed successfully', { accessToken, refreshToken: newRefreshToken });
   } catch (error) {
     return sendError(res, 'Invalid or expired refresh token', 401);
   }
@@ -417,6 +430,7 @@ const verify2FA = async (req, res, next) => {
         twoFactorEnabled: user.twoFactorEnabled
       },
       accessToken,
+      refreshToken,
       recoveryUsed: isRecoveryUsed
     });
   } catch (error) {
@@ -513,7 +527,8 @@ const verifyOTP = async (req, res, next) => {
         role: user.role,
         twoFactorEnabled: user.twoFactorEnabled
       },
-      accessToken
+      accessToken,
+      refreshToken
     });
   } catch (error) {
     next(error);

@@ -32,8 +32,12 @@ const apiClient = axios.create({
 // Request Interceptor: Attach bearer token if present
 apiClient.interceptors.request.use(
   (config) => {
-    if (accessToken && config.headers) {
-      config.headers['Authorization'] = `Bearer ${accessToken}`;
+    let token = accessToken;
+    if (!token && typeof window !== 'undefined') {
+      token = localStorage.getItem('accessToken');
+    }
+    if (token && config.headers) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -59,6 +63,16 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // Check if we have any cached credentials (if not, it's a guest user -> do not refresh)
+      let hasCredentials = false;
+      if (typeof window !== 'undefined') {
+        hasCredentials = !!(localStorage.getItem('accessToken') || localStorage.getItem('refreshToken'));
+      }
+      
+      if (!hasCredentials) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve) => {
           addRefreshSubscriber((token) => {
@@ -72,15 +86,28 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call refresh endpoint to get new access token
+        let rToken = null;
+        if (typeof window !== 'undefined') {
+          rToken = localStorage.getItem('refreshToken');
+        }
+
+        // Call refresh endpoint to get new access token (pass refreshToken in body as fallback)
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
-          {},
+          { refreshToken: rToken },
           { withCredentials: true }
         );
 
         const newAccessToken = response.data.data.accessToken;
+        const newRefreshToken = response.data.data.refreshToken;
+        
         setAccessToken(newAccessToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+        }
         
         isRefreshing = false;
         onRefreshed(newAccessToken);
@@ -91,9 +118,9 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         isRefreshing = false;
         setAccessToken(null);
-        // Clear cookies and session if refresh fails
         if (typeof window !== 'undefined') {
-          // You could trigger logout or redirect here
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
           console.warn('Session expired. Please log in again.');
         }
         return Promise.reject(refreshError);
