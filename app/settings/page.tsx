@@ -231,15 +231,18 @@ export default function SettingsPage() {
                           {setupQrUrl && (
                             <div className="p-3 bg-white border rounded-2xl shadow-xs flex-shrink-0">
                               <img
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(setupQrUrl)}`}
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(setupQrUrl)}`}
                                 alt="2FA QR Code"
-                                className="w-[150px] h-[150px]"
+                                className="w-[250px] h-[250px]"
                               />
                             </div>
                           )}
                           <div className="space-y-2 text-[10px] text-text-muted leading-relaxed">
                             <p className="font-bold font-serif text-gray-900 dark:text-white text-xs">Steps:</p>
-                            <p>1. Scan the QR code using Google/Microsoft Authenticator.</p>
+                            <p>1. Scan the QR code using the **Google Authenticator** app.</p>
+                            <p className="text-[9px] bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-400 p-2 rounded-xl">
+                              <strong>Note for iPhone:</strong> Do not use the default iOS Camera app to scan, as it will redirect to the built-in iOS passwords keychain. Open the <strong>Google Authenticator</strong> app, tap the <strong>+</strong> button, and choose <strong>Scan a QR code</strong>.
+                            </p>
                             <p>2. If you cannot scan, manually enter the setup key:</p>
                             <code className="block bg-gray-100 dark:bg-gray-950 p-2 rounded text-gray-900 dark:text-gray-100 font-mono tracking-wider text-[9px] font-bold select-all break-all">
                               {setupSecret}

@@ -28,7 +28,7 @@ function base32Decode(base32) {
  * @param {number} length - Length of secret bytes.
  * @returns {string} - Base32 encoded random secret key.
  */
-function generateSecret(length = 20) {
+function generateSecret(length = 16) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const randomBytes = crypto.randomBytes(length);
   let secret = '';

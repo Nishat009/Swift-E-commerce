@@ -8,6 +8,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useCompareStore } from '@/stores/compareStore';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { useCurrencyStore } from '@/stores/currencyStore';
 import apiClient from '@/lib/apiClient';
 import Modal from './Modal';
 import Button from './Button';
@@ -27,6 +28,13 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
   const addItem = useCartStore((state) => state.addItem);
   const { user, refreshUser } = useAuth();
   const toast = useToast();
+  const { symbol: currencySymbol, rate: currencyRate } = useCurrencyStore();
+  
+  const formatPrice = (amount: number) => {
+    const converted = amount * currencyRate;
+    return `${currencySymbol}${converted.toFixed(2)}`;
+  };
+
   const discountedPrice = product.price * (1 - product.discountPercentage / 100);
   
   const [isHovered, setIsHovered] = useState(false);
@@ -200,7 +208,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                   src={mainImage}
                   alt={product.title}
                   fill
-                  className="object-cover"
+                  className="object-contain"
                 />
                 {product.discountPercentage > 0 && (
                   <div className="absolute bottom-2 left-2 bg-red-650 text-white px-2 py-0.5 rounded text-[8px] font-bold">
@@ -255,11 +263,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 dark:border-gray-800">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm sm:text-base font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b]">
-                    ${discountedPrice.toFixed(0)}
+                    {formatPrice(discountedPrice)}
                   </span>
                   {product.discountPercentage > 0 && (
                     <span className="text-xs text-gray-400 line-through font-mono">
-                      ${product.price.toFixed(0)}
+                      {formatPrice(product.price)}
                     </span>
                   )}
                 </div>
@@ -343,7 +351,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
               <motion.button
                 onClick={handleCompareToggle}
                 whileTap={{ scale: 0.8 }}
-                className={`backdrop-blur-md p-2.5 rounded-full shadow-md transition-colors border flex items-center justify-center ${
+                className={`backdrop-blur-md p-2.5 rounded-full shadow-md transition-colors border flex items-center justify-center cursor-pointer ${
                   isCompared
                     ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
                     : 'bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 text-gray-700 dark:text-white border-gray-200/50 dark:border-gray-800'
@@ -357,7 +365,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 onClick={handleWishlistToggle}
                 disabled={wishlistLoading}
                 whileTap={{ scale: 0.8 }}
-                className="bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-white p-2.5 rounded-full shadow-md transition-colors border border-gray-200/50 dark:border-gray-800 flex items-center justify-center"
+                className="bg-white/70 dark:bg-gray-900/70 hover:bg-white/90 dark:hover:bg-gray-900/90 backdrop-blur-md text-gray-700 dark:text-white p-2.5 rounded-full shadow-md transition-colors border border-gray-200/50 dark:border-gray-800 flex items-center justify-center cursor-pointer"
                 title="Wishlist"
               >
                 <Heart 
@@ -387,13 +395,13 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
             </Link>
 
             {/* Bottom Gradient Overlay for Text Readability */}
-            <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-zinc-100 via-zinc-100/95 to-transparent dark:from-zinc-950 dark:via-zinc-950/95 z-10 pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-white via-white/85 to-transparent dark:from-zinc-950 dark:via-zinc-950/85 z-10 pointer-events-none" />
 
             {/* Details Content Overlay */}
             <motion.div 
               style={!isTouchDevice ? { transformStyle: 'preserve-3d' } : {}}
               animate={{ y: 0, z: isTouchDevice ? 0 : 30 }}
-              className="absolute bottom-0 inset-x-0 p-5 z-20 flex flex-col justify-end pointer-events-none [&_button]:pointer-events-auto [&_a]:pointer-events-auto text-gray-850 dark:text-white"
+              className="absolute bottom-0 inset-x-0 p-5 z-20 flex flex-col justify-end pointer-events-none [&_button]:pointer-events-auto [&_a]:pointer-events-auto text-zinc-900 dark:text-white"
             >
               {/* Text details and price container (Fades/blurs out on hover) */}
               <motion.div
@@ -401,17 +409,17 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 transition={{ duration: 0.25, ease: 'easeOut' }}
               >
                 <div>
-                  <span className="block text-[8px] font-black text-primary uppercase tracking-widest mb-1">
+                  <span className="block text-[9px] font-black text-[#8b6f47] dark:text-[#c9a96b] uppercase tracking-widest mb-1 shadow-xs">
                     <HighlightText text={product.brand || 'SwiftBrand'} query={searchQuery} />
                   </span>
 
                   <Link href={`/product/${product.id}`} className="hover:underline">
-                    <h3 className="font-sans text-sm sm:text-base font-bold text-foreground line-clamp-1 mb-1 leading-tight tracking-tight hover:text-primary transition-colors">
+                    <h3 className="font-sans text-base sm:text-lg lg:text-xl font-black text-zinc-900 dark:text-white line-clamp-1 mb-1 leading-tight tracking-tight hover:text-[#8b6f47] transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
                       <HighlightText text={product.title} query={searchQuery} />
                     </h3>
                   </Link>
 
-                  <p className="text-[10px] text-text-muted line-clamp-1 mb-2 font-normal leading-relaxed">
+                  <p className="text-[10px] text-zinc-650 dark:text-zinc-400 line-clamp-1 mb-2 font-normal leading-relaxed">
                     <HighlightText text={product.description || 'Premium design with high quality materials.'} query={searchQuery} />
                   </p>
 
@@ -425,7 +433,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                         />
                       ))}
                     </div>
-                    <span className="text-[9px] text-text-muted font-bold font-sans">
+                    <span className="text-[9.5px] text-zinc-555 dark:text-zinc-400 font-bold font-sans">
                       ({product.rating.toFixed(1)}) • {mockReviewCount} reviews
                     </span>
                   </div>
@@ -434,12 +442,12 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 {/* Price and Stock Status */}
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-base font-mono font-extrabold text-primary">
-                      ${discountedPrice.toFixed(0)}
+                    <span className="text-base sm:text-lg font-mono font-black text-[#8b6f47] dark:text-[#c9a96b]">
+                      {formatPrice(discountedPrice)}
                     </span>
                     {product.discountPercentage > 0 && (
-                      <span className="text-xs text-text-muted line-through font-mono">
-                        ${product.price.toFixed(0)}
+                      <span className="text-xs text-zinc-500 line-through font-mono font-normal">
+                        {formatPrice(product.price)}
                       </span>
                     )}
                   </div>
@@ -456,7 +464,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
               >
                 <button
                   onClick={() => setIsQuickViewOpen(true)}
-                  className="p-2.5 rounded-full border border-gray-250 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 bg-white dark:bg-gray-950 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors shadow-sm flex items-center justify-center cursor-pointer"
+                  className="p-2.5 rounded-full border border-gray-250 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900 bg-white dark:bg-gray-950 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors shadow-xs flex items-center justify-center cursor-pointer"
                   title="Quick View"
                 >
                   <Eye className="w-4 h-4" />
@@ -464,7 +472,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 <button
                   onClick={handleAddToCart}
                   disabled={product.stock === 0}
-                  className="flex-1 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 font-bold py-2.5 px-4 rounded-full text-[11px] transition-all duration-200 text-center shadow-sm hover:scale-[1.02] cursor-pointer"
+                  className="flex-grow bg-[#8b6f47] hover:bg-[#725a38] text-white font-black py-2.5 px-4 rounded-full text-[11px] uppercase tracking-wider transition-all duration-200 text-center shadow-xs cursor-pointer border-0"
                 >
                   Add to Cart
                 </button>
@@ -529,11 +537,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
 
                 <div className="mt-4 flex items-center gap-3">
                   <span className="text-xl font-mono font-extrabold text-gray-950 dark:text-white">
-                    ${discountedPrice.toFixed(0)}
+                    {formatPrice(discountedPrice)}
                   </span>
                   {product.discountPercentage > 0 && (
                     <span className="text-xs text-gray-400 line-through font-mono">
-                      ${product.price.toFixed(0)}
+                      {formatPrice(product.price)}
                     </span>
                   )}
                   {getStockBadge()}

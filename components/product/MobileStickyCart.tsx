@@ -4,6 +4,8 @@ import React from 'react';
 import { ShoppingCart } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
+import { useCurrencyStore } from '@/stores/currencyStore';
+
 export interface MobileStickyCartProps {
   title: string;
   price: number;
@@ -22,6 +24,8 @@ export default function MobileStickyCart({
   onAddToCart,
 }: MobileStickyCartProps) {
   const displayPrice = salePrice || price;
+  const { symbol, rate } = useCurrencyStore();
+  const converted = displayPrice * rate;
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 p-3 lg:hidden shadow-2xl flex items-center justify-between gap-3">
@@ -31,7 +35,7 @@ export default function MobileStickyCart({
         </h4>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className="text-sm font-bold text-[#8b6f47] dark:text-[#c9a96b]">
-            ${displayPrice}
+            {symbol}{converted.toFixed(2)}
           </span>
           {activeVariantSummary && (
             <span className="text-[10px] text-text-muted font-bold truncate">

@@ -23,6 +23,8 @@ const newsletterRoutes = require('./routes/newsletterRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const enterpriseRoutes = require('./routes/enterpriseRoutes');
+const currencyRoutes = require('./routes/currencyRoutes');
+const languageRoutes = require('./routes/languageRoutes');
 
 const app = express();
 
@@ -91,6 +93,8 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
+app.use('/api/currencies', currencyRoutes);
+app.use('/api/languages', languageRoutes);
 
 // 8. Swagger documentation endpoint
 setupSwagger(app);

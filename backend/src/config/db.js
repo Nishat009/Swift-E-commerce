@@ -29,6 +29,33 @@ const connectDB = async () => {
       });
       console.log('Fixed administrator account created successfully.');
     }
+
+    // Seed initial currencies if none exist
+    const Currency = require('../models/Currency');
+    const currencyCount = await Currency.countDocuments();
+    if (currencyCount === 0) {
+      console.log('Seeding initial currencies (USD, EUR, GBP, BDT)...');
+      await Currency.insertMany([
+        { code: 'USD', symbol: '$', rate: 1.0, isDefault: true },
+        { code: 'EUR', symbol: '€', rate: 0.92, isDefault: false },
+        { code: 'GBP', symbol: '£', rate: 0.78, isDefault: false },
+        { code: 'BDT', symbol: '৳', rate: 118.0, isDefault: false },
+      ]);
+      console.log('Currencies seeded successfully.');
+    }
+
+    // Seed initial languages if none exist
+    const Language = require('../models/Language');
+    const languageCount = await Language.countDocuments();
+    if (languageCount === 0) {
+      console.log('Seeding initial languages (en, bn, es)...');
+      await Language.insertMany([
+        { code: 'en', name: 'English', flag: '🇬🇧', isDefault: true, isActive: true },
+        { code: 'bn', name: 'Bangla', flag: '🇧🇩', isDefault: false, isActive: true },
+        { code: 'es', name: 'Spanish', flag: '🇪🇸', isDefault: false, isActive: true },
+      ]);
+      console.log('Languages seeded successfully.');
+    }
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
     process.exit(1);

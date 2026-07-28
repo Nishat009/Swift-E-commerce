@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import ProductCard from '@/components/ui/ProductCard';
+import Image from 'next/image';
 import { fetchProducts } from '@/lib/api';
 import { Product } from '@/types';
 import { mockProducts } from '@/data/mockData';
@@ -14,6 +15,27 @@ import { debounce } from '@/utils/debounce';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
+
+const getLevenshteinDistance = (a: string, b: string): number => {
+  const tmp: number[][] = [];
+  let i, j;
+  for (i = 0; i <= a.length; i++) {
+    tmp.push([i]);
+  }
+  for (j = 1; j <= b.length; j++) {
+    tmp[0].push(j);
+  }
+  for (i = 1; i <= a.length; i++) {
+    for (j = 1; j <= b.length; j++) {
+      tmp[i][j] = Math.min(
+        tmp[i - 1][j] + 1,
+        tmp[i][j - 1] + 1,
+        tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return tmp[a.length][b.length];
+};
 
 function ProductsPageContent() {
   const router = useRouter();
@@ -48,6 +70,79 @@ function ProductsPageContent() {
   const [currentPage, setCurrentPage] = useState<number>(Number(searchParams.get('page')) || 1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  // Search Suggestions and a11y Focus Trap States
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [typoSuggestion, setTypoSuggestion] = useState<string | null>(null);
+  const [originalSearchQuery, setOriginalSearchQuery] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('swiftcart_recent_searches');
+      if (stored) {
+        setRecentSearches(JSON.parse(stored));
+      }
+    }
+  }, []);
+
+  const searchSuggestions = useMemo(() => {
+    if (!searchInput.trim()) return { categories: [], brands: [], products: [] };
+    const q = searchInput.toLowerCase();
+    
+    const matchedCats: string[] = [];
+    const matchedBrands: string[] = [];
+    const matchedProds: Product[] = [];
+    
+    allCatalogProducts.forEach((p) => {
+      if (p.category && p.category.toLowerCase().includes(q) && !matchedCats.includes(p.category)) {
+        matchedCats.push(p.category);
+      }
+      if (p.brand && p.brand.toLowerCase().includes(q) && !matchedBrands.includes(p.brand)) {
+        matchedBrands.push(p.brand);
+      }
+      if (p.title && p.title.toLowerCase().includes(q)) {
+        matchedProds.push(p);
+      }
+    });
+    
+    return {
+      categories: matchedCats.slice(0, 3),
+      brands: matchedBrands.slice(0, 3),
+      products: matchedProds.slice(0, 5),
+    };
+  }, [searchInput, allCatalogProducts, allCatalogProducts]);
+
+  // A11y Focus Trap inside Mobile Filters Drawer
+  useEffect(() => {
+    if (!isMobileFiltersOpen) return;
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const drawerElement = document.querySelector('.fixed.left-0.w-80') as HTMLDivElement;
+    if (!drawerElement) return;
+
+    const focusableElements = drawerElement.querySelectorAll(focusableSelector);
+    const firstFocusable = focusableElements[0] as HTMLElement;
+    const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) { // Shift + Tab
+        if (document.activeElement === firstFocusable) {
+          lastFocusable.focus();
+          e.preventDefault();
+        }
+      } else { // Tab
+        if (document.activeElement === lastFocusable) {
+          firstFocusable.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    firstFocusable?.focus();
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileFiltersOpen]);
 
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
@@ -100,6 +195,19 @@ function ProductsPageContent() {
     debounce((query: string) => {
       setSearchQuery(query);
       setCurrentPage(1);
+      if (query.trim()) {
+        const clean = query.trim();
+        const stored = localStorage.getItem('swiftcart_recent_searches') || '[]';
+        let recent: string[] = [];
+        try {
+          recent = JSON.parse(stored);
+        } catch {
+          recent = [];
+        }
+        const nextList = [clean, ...recent.filter((q) => q !== clean)].slice(0, 5);
+        setRecentSearches(nextList);
+        localStorage.setItem('swiftcart_recent_searches', JSON.stringify(nextList));
+      }
     }, 300),
     []
   );
@@ -115,6 +223,55 @@ function ProductsPageContent() {
     setLoading(true);
     setError(null);
     try {
+      let activeQuery = searchQuery;
+      let matchedSuggestion: string | null = null;
+      let originalQueryToKeep: string | null = null;
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
+        // Check if query yields any matches in titles, categories, or brands
+        const directMatches = allCatalogProducts.some((p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.brand.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          p.tags?.some((t) => t.toLowerCase().includes(q))
+        );
+
+        if (!directMatches) {
+          // Collect candidates
+          const candidates = new Set<string>();
+          allCatalogProducts.forEach((p) => {
+            candidates.add(p.category.toLowerCase());
+            candidates.add(p.brand.toLowerCase());
+            p.title.split(' ').forEach((w) => {
+              const clean = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (clean.length > 2) candidates.add(clean);
+            });
+            p.tags?.forEach((t) => candidates.add(t.toLowerCase()));
+          });
+
+          let minDistance = 999;
+          let closestWord = '';
+
+          candidates.forEach((word) => {
+            const dist = getLevenshteinDistance(q, word);
+            if (dist < minDistance && dist <= 2) {
+              minDistance = dist;
+              closestWord = word;
+            }
+          });
+
+          if (closestWord) {
+            matchedSuggestion = closestWord;
+            originalQueryToKeep = searchQuery;
+            activeQuery = closestWord; // search matching products for suggestions instead!
+          }
+        }
+      }
+
+      setTypoSuggestion(matchedSuggestion);
+      setOriginalSearchQuery(originalQueryToKeep);
+
       const skip = (currentPage - 1) * productsPerPage;
       const apiParams: any = {
         limit: productsPerPage,
@@ -124,7 +281,7 @@ function ProductsPageContent() {
       };
 
       if (selectedCategory !== 'all') apiParams.category = selectedCategory;
-      if (searchQuery) apiParams.search = searchQuery;
+      if (activeQuery) apiParams.search = activeQuery;
       if (sortBy !== 'default') apiParams.sortBy = sortBy;
       if (selectedColors.length > 0) apiParams.color = selectedColors.join(',');
       if (selectedSizes.length > 0) apiParams.size = selectedSizes.join(',');
@@ -152,11 +309,59 @@ function ProductsPageContent() {
       // Client-side fallback filter logic on mock catalog
       let filtered = [...allCatalogProducts];
 
+      let activeQuery = searchQuery;
+      let matchedSuggestion: string | null = null;
+      let originalQueryToKeep: string | null = null;
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
+        // Check matches
+        const directMatches = filtered.some((p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.brand.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          p.tags?.some((t) => t.toLowerCase().includes(q))
+        );
+
+        if (!directMatches) {
+          const candidates = new Set<string>();
+          filtered.forEach((p) => {
+            candidates.add(p.category.toLowerCase());
+            candidates.add(p.brand.toLowerCase());
+            p.title.split(' ').forEach((w) => {
+              const clean = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (clean.length > 2) candidates.add(clean);
+            });
+            p.tags?.forEach((t) => candidates.add(t.toLowerCase()));
+          });
+
+          let minDistance = 999;
+          let closestWord = '';
+
+          candidates.forEach((word) => {
+            const dist = getLevenshteinDistance(q, word);
+            if (dist < minDistance && dist <= 2) {
+              minDistance = dist;
+              closestWord = word;
+            }
+          });
+
+          if (closestWord) {
+            matchedSuggestion = closestWord;
+            originalQueryToKeep = searchQuery;
+            activeQuery = closestWord;
+          }
+        }
+      }
+
+      setTypoSuggestion(matchedSuggestion);
+      setOriginalSearchQuery(originalQueryToKeep);
+
       if (selectedCategory !== 'all') {
         filtered = filtered.filter((p) => p.category.toLowerCase() === selectedCategory.toLowerCase());
       }
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
+      if (activeQuery) {
+        const q = activeQuery.toLowerCase();
         filtered = filtered.filter(
           (p) =>
             p.title.toLowerCase().includes(q) ||
@@ -360,18 +565,52 @@ function ProductsPageContent() {
           Price Range ($)
         </h3>
         <div className="space-y-3">
-          <input
-            type="range"
-            min="0"
-            max="2000"
-            step="25"
-            value={priceRange[1]}
-            onChange={(e) => {
-              setPriceRange([priceRange[0], parseInt(e.target.value, 10)]);
-              setCurrentPage(1);
-            }}
-            className="w-full cursor-pointer accent-[#8b6f47]"
-          />
+          <div className="relative w-full h-1 bg-gray-200 dark:bg-gray-800 rounded-full my-4">
+            {/* Active colored track between min and max handles */}
+            <div
+              className="absolute h-full bg-[#8b6f47] dark:bg-[#c9a96b] rounded-full"
+              style={{
+                left: `${(priceRange[0] / 2000) * 100}%`,
+                right: `${100 - (priceRange[1] / 2000) * 100}%`,
+              }}
+            />
+            {/* Min Price Slider Handle */}
+            <input
+              type="range"
+              min="0"
+              max="2000"
+              step="25"
+              value={priceRange[0]}
+              aria-label="Minimum Price Filter"
+              onChange={(e) => {
+                const val = Math.min(parseInt(e.target.value, 10), priceRange[1] - 25);
+                setPriceRange([val, priceRange[1]]);
+                setCurrentPage(1);
+              }}
+              className="absolute w-full h-1 appearance-none bg-transparent pointer-events-none focus:outline-none accent-[#8b6f47] dark:accent-[#c9a96b] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#8b6f47] [&::-webkit-slider-thumb]:dark:bg-[#c9a96b] [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#8b6f47] [&::-moz-range-thumb]:dark:bg-[#c9a96b] [&::-moz-range-thumb]:border-0"
+              style={{
+                zIndex: priceRange[0] > 1800 ? 5 : 3,
+              }}
+            />
+            {/* Max Price Slider Handle */}
+            <input
+              type="range"
+              min="0"
+              max="2000"
+              step="25"
+              value={priceRange[1]}
+              aria-label="Maximum Price Filter"
+              onChange={(e) => {
+                const val = Math.max(parseInt(e.target.value, 10), priceRange[0] + 25);
+                setPriceRange([priceRange[0], val]);
+                setCurrentPage(1);
+              }}
+              className="absolute w-full h-1 appearance-none bg-transparent pointer-events-none focus:outline-none accent-[#8b6f47] dark:accent-[#c9a96b] [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#8b6f47] [&::-webkit-slider-thumb]:dark:bg-[#c9a96b] [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#8b6f47] [&::-moz-range-thumb]:dark:bg-[#c9a96b] [&::-moz-range-thumb]:border-0"
+              style={{
+                zIndex: 4,
+              }}
+            />
+          </div>
           <div className="flex items-center justify-between gap-2 text-[11px]">
             <div className="flex items-center gap-1 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded-lg bg-white dark:bg-gray-950">
               <span className="text-gray-400">$</span>
@@ -584,8 +823,15 @@ function ProductsPageContent() {
                 <span>Filters ({activeFiltersCount})</span>
               </button>
 
-              {/* Debounced Search Input */}
-              <div className="relative flex-1 sm:w-64">
+              {/* Debounced Search Input with Suggestions Dropdown */}
+              <div 
+                className="relative flex-1 sm:w-64 z-40" 
+                onFocus={() => setIsSearchFocused(true)} 
+                onBlur={() => {
+                  // Delay to allow option selections to click before panel unmounts
+                  setTimeout(() => setIsSearchFocused(false), 200);
+                }}
+              >
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -602,6 +848,146 @@ function ProductsPageContent() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
+
+                {/* Search suggestions dropdown panel */}
+                <AnimatePresence>
+                  {isSearchFocused && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-950 border border-gray-150/50 dark:border-gray-800 rounded-3xl shadow-xl z-50 p-4 space-y-4 max-h-[380px] overflow-y-auto"
+                    >
+                      {!searchInput.trim() ? (
+                        <div className="space-y-4 text-left">
+                          {recentSearches.length > 0 && (
+                            <div className="space-y-1.5">
+                              <span className="block text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                                Recent Searches
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {recentSearches.map((q, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => {
+                                      setSearchInput(q);
+                                      setSearchQuery(q);
+                                      setCurrentPage(1);
+                                    }}
+                                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-850 hover:bg-gray-200 rounded-full text-[10px] font-bold text-gray-700 dark:text-gray-300 transition-colors cursor-pointer border border-transparent dark:border-gray-800"
+                                  >
+                                    {q}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                              Trending Searches
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {['Sofa', 'Jacket', 'Chair', 'Denim', 'Sneakers'].map((q, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    setSearchInput(q);
+                                    setSearchQuery(q);
+                                    setCurrentPage(1);
+                                  }}
+                                  className="px-2.5 py-1 bg-gray-100 dark:bg-gray-850 hover:bg-gray-200 rounded-full text-[10px] font-bold text-gray-700 dark:text-gray-300 transition-colors cursor-pointer border border-transparent dark:border-gray-800"
+                                >
+                                  {q}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 text-left">
+                          {searchSuggestions.categories.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Categories</p>
+                              <div className="space-y-1">
+                                {searchSuggestions.categories.map((cat) => (
+                                  <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCategory(cat.toLowerCase());
+                                      setSearchInput('');
+                                      setSearchQuery('');
+                                      setCurrentPage(1);
+                                    }}
+                                    className="w-full text-left py-1.5 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg text-xs font-medium capitalize"
+                                  >
+                                    🔍 {cat}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {searchSuggestions.brands.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Brands</p>
+                              <div className="space-y-1">
+                                {searchSuggestions.brands.map((brand) => (
+                                  <button
+                                    key={brand}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedBrands([brand]);
+                                      setSearchInput('');
+                                      setSearchQuery('');
+                                      setCurrentPage(1);
+                                    }}
+                                    className="w-full text-left py-1.5 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg text-xs font-medium"
+                                  >
+                                    🏷️ {brand}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {searchSuggestions.products.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Products</p>
+                              <div className="space-y-1 flex flex-col">
+                                {searchSuggestions.products.map((prod) => (
+                                  <button
+                                    key={prod.id}
+                                    type="button"
+                                    onClick={() => {
+                                      router.push(`/product/${prod.id}`);
+                                    }}
+                                    className="w-full text-left py-1.5 px-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg text-xs font-medium flex items-center gap-2"
+                                  >
+                                    <div className="relative w-8 h-8 rounded overflow-hidden border bg-gray-50 flex-shrink-0">
+                                      <img src={prod.thumbnail} alt={prod.title} className="object-cover w-full h-full" />
+                                    </div>
+                                    <div className="truncate">
+                                      <p className="font-bold truncate text-gray-900 dark:text-white">{prod.title}</p>
+                                      <p className="text-[9px] text-text-muted truncate font-mono">${prod.price}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {searchSuggestions.categories.length === 0 && searchSuggestions.brands.length === 0 && searchSuggestions.products.length === 0 && (
+                            <p className="text-xs text-text-muted italic py-3 text-center">No quick suggestion matches found.</p>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Sort By Select */}
@@ -636,6 +1022,27 @@ function ProductsPageContent() {
               </div>
             </div>
           </div>
+
+          {/* Typo Correction Banner */}
+          {typoSuggestion && originalSearchQuery && (
+            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-400 p-3.5 rounded-2xl flex items-center justify-between text-xs font-medium my-2.5">
+              <span>
+                No exact matches for "<strong>{originalSearchQuery}</strong>". Showing results for "<strong>{typoSuggestion}</strong>" instead.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput(originalSearchQuery);
+                  setSearchQuery(originalSearchQuery);
+                  setTypoSuggestion(null);
+                  setOriginalSearchQuery(null);
+                }}
+                className="underline hover:text-amber-900 dark:hover:text-amber-200 font-bold ml-3 cursor-pointer"
+              >
+                Search for "{originalSearchQuery}" anyway
+              </button>
+            </div>
+          )}
 
           {/* Active Filter Badges & Chips */}
           {activeFiltersCount > 0 && (

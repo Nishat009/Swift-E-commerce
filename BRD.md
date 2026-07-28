@@ -1,89 +1,152 @@
 # SwiftCart - Business Requirements Document (BRD)
 
 ## 1. Executive Summary & Project Purpose
-SwiftCart is a state-of-the-art e-commerce platform designed to offer high-end luxury fashion shopping integrated with an interactive **Prize Campaign (Lucky Draw)** marketing module. The system aims to maximize user engagement, drive product sales, and provide a gamified shopping experience. Customers buy regular fashion products and automatically receive free, cryptographic lucky draw entries to win luxury rewards (e.g., cars, watches, high-end electronics).
+SwiftCart is a state-of-the-art e-commerce platform designed to offer high-end luxury fashion shopping integrated with interactive virtual try-on modules and enterprise production-level product experiences. The system aims to maximize user engagement, drive product sales, streamline seller catalog operations, and provide a seamless localized buying experience matching enterprise SaaS and e-commerce standards (Amazon, Shopify, Nike, Zara, Apple Store).
 
-This document outlines the business objectives, core user profiles, and detailed descriptions of all features from both customer and administrator perspectives.
+This document outlines the business objectives, core user profiles, and detailed descriptions of all features from both customer and administrator/seller perspectives.
 
 ---
 
 ## 2. Business Objectives
-*   **Increase Conversion Rates**: Gamify the buying experience by tying products to high-value prizes.
-*   **Boost Order Value**: Encourage customers to buy more items to collect multiple entries and increase their winning odds.
-*   **Customer Retention**: Keep users returning to view drawing results, check live countdowns, and claim rewards.
-*   **Administrative Transparency**: Provide clean management of campaigns, automated random draws, and transparent winners history.
+*   **Increase Conversion Rates**: Enhance the buying experience with interactive 360° rotation galleries, outfit bundle builders, sticky purchase cards, and a virtual try-on room.
+*   **Boost Order Value**: Encourage customer additions via Frequently Bought Together outfit bundles offering an automated 10% discount.
+*   **Customer Retention**: Keep users returning with personalized AI fit quiz tools, price drop alert subscriptions, and auto-applied promotions.
+*   **Enterprise Product Management**: Replace simplistic modals with a dedicated multi-step product creation system featuring auto-saved drafts, dynamic variant matrix generation, live profit calculations, and automated SEO previews.
+*   **Dynamic Localization**: Support cross-border transactions through dynamic multi-currency localizations (USD, EUR, GBP, BDT).
+*   **Administrative Transparency**: Provide high-performance product inventory tables supporting bulk publish/archive/delete, CSV export, JSON payload import, quick edit popovers, user session tracking, audit logs, and analytics.
 
 ---
 
 ## 3. User Profiles & Perspectives
 
 The system serves two main user profiles:
-1.  **Normal Customer (End User)**: Interested in purchasing items, tracking order deliveries, managing their draw entries, checking campaign countdowns, and viewing notification updates.
-2.  **Store Administrator (Admin)**: Responsible for overall business operations, catalog updates, order state flow control, managing drawing parameters, conducting automated drawings, and checking sales analytics.
+1.  **Normal Customer (End User)**: Interested in browsing items, utilizing local currency selectors, taking size fit quizzes, checking out with auto-applied promos, setting price drop alerts, comparing products side-by-side with difference toggles, and reading verified photo review cards.
+2.  **Store Administrator / Seller (Admin)**: Responsible for catalog operations, creating complex multi-variant products, managing warehouse stock levels, updating order state flows, performing bulk updates, inspecting user session carts, and auditing system modifications.
 
 ---
 
 ## 4. Core Features & Business Logic
 
-### Feature 1: Product Catalog & E-Commerce Core
-*   **Normal Customer View**:
-    *   Browse fashion products using debounced autocomplete suggestions, price range sliders, color/size check filters, and responsive mobile drawers.
-    *   Manage active filter tags dynamically with single-click clear options and total active counts.
-    *   Inspect product details quickly using a popup Quick View modal showing specifications, ratings, low stock warnings, return policies, and delivery estimates.
-    *   Add items to the shopping cart, apply coupon code discounts (e.g., `SAVE20`, `FREESHIP`), estimate shipping fees, and save items in a "Save For Later" storage deck.
-    *   Save desired items to a personal wishlist synchronized directly with the database.
-*   **Admin View**:
-    *   Create, edit, and delete catalog products.
-    *   Configure pricing, inventory counts, discount percentages, and media assets.
-    *   Update order statuses (e.g., Pending, Confirmed, Processing, Shipped, Delivered, Cancelled).
+### Feature 1: Enterprise Product Management & Multi-Step Creation Workflow
+*   **Admin / Seller View**:
+    *   **Dedicated Page Routes**: Product creation and editing navigate to dedicated full-page routes (`/dashboard/products/create` and `/dashboard/products/:id/edit`), replacing modals.
+    *   **10-Section Form Architecture (`ProductForm.tsx`)**:
+        1.  **Basic Info**: Product Name, auto-generated URL Slug (with manual override), auto-generated SKU button, Barcode (EAN/UPC), Brand, Category, Subcategory, Tags pills, Short & Long Rich Text Description, Product Status (`Draft`, `Published`, `Archived`), Visibility (`Public`, `Private`, `Hidden`), and Badge Toggles (`Featured`, `New Arrival`, `Trending`, `Best Seller`).
+        2.  **Media Gallery**: Drag & Drop multi-image uploader, Thumbnail cover selector, image reordering (Move Up/Down), image cropping preview, Alt Text per image, Video URL (YouTube/Vimeo/MP4), and Interactive 360° product spin preview toggle.
+        3.  **Pricing & Financials**: Selling Price, Original MSRP, Cost Price, Sales Tax %, Base Currency; live calculations for Discount Amount, Discount Percentage (% OFF), Profit ($), and Profit Margin (%).
+        4.  **Inventory & Warehousing**: Available Stock, Reserved Stock, Low Stock Alert Threshold, Warehouse Location, Stock Status (`In Stock`, `Out of Stock`, `On Backorder`), Max/Min Order Quantities, Allow Backorders toggle, and Inventory Tracking toggle.
+        5.  **Dynamic Product Variants Matrix**: Dynamic multi-attribute variant builder (Colour, Size, Material, Storage, Memory, Style, etc.); automated combination matrix generator creating variant rows with individual SKUs, Price adjustments, Stock, Barcodes, and Images.
+        6.  **Shipping & Logistics**: Weight (kg/lbs), Dimensions (L/W/H), Shipping Class, Free Shipping toggle, Express Shipping toggle, Delivery Estimate text, Packaging Type, Country of Origin, and Customs HS Code.
+        7.  **SEO & Open Graph**: Meta Title, Meta Description, Keywords, Canonical URL, Open Graph Image URL, and a live Google Search snippet preview card.
+        8.  **Related Products & Bundles**: Interactive multi-select picker for Frequently Bought Together, Similar Products, Accessories, Bundles, Cross-sells, and Upsells.
+        9.  **Specifications & Custom Attributes**: Standard specifications + dynamic key-value custom attributes builder.
+        10. **Publish Control**: Draft save, Scheduled publish datetime picker, Publish Now, and Archive actions.
+    *   **UX Enhancements**: Autosave draft to `localStorage` every 10 seconds with timestamp indicator, `beforeunload` unsaved changes warning, `Ctrl+S` / `Cmd+S` keyboard shortcut, and a visual form completion progress bar.
 
-### Feature 2: Prize Campaigns (Lucky Draws)
-*   **Normal Customer View**:
-    *   View active campaigns, current ticket sales progress bars, and countdown timers to the drawing.
-    *   Purchase an eligible campaign product and automatically get lucky draw tickets.
-    *   View a clean ticket vault with serial codes and print digital invoices.
-    *   Explore a transparent Winners Gallery highlighting previous drawings and proof of winner verification.
-*   **Admin View**:
-    *   Launch new campaign programs with prize names, rules, ticket limits, and target draw dates.
-    *   Conduct the lottery draw with a secure, server-side random selection.
-    *   Automatically distribute status flags to winning and losing tickets.
+---
 
-### Feature 3: Smart Notification Center
-*   **Normal Customer View**:
-    *   Real-time notifications dropdown in the navigation menu for coupon alerts, checkout confirmations, drawing completions, and winner declarations.
-*   **Admin View**:
-    *   Trigger automated broadcasts to all participants of a draw campaign when a winner is chosen.
+### Feature 2: High-Performance Product Management Table
+*   **Admin / Seller View**:
+    *   **Dedicated Table View**: Hosted at `/dashboard/products` and integrated into the Admin Console.
+    *   **Table Columns**: Image thumbnail, Name, SKU, Category, Brand, Price, Stock status badge, Rating, Status badge (`Published`, `Draft`, `Archived`), and Actions.
+    *   **Controls & Search**: Full-text search across Title, Brand, SKU, and Category; filter by category and status; multi-column sorting (Name, Price, Stock, Date).
+    *   **Bulk Operations**: Select multiple items for Bulk Delete, Bulk Publish, and Bulk Archive.
+    *   **Data Export & Import**: Download CSV inventory export and import JSON catalog payloads.
+    *   **Quick Actions**: Duplicate Product action (auto-generates draft copy) and Quick Edit popover/drawer for fast price and stock updates.
 
-### Feature 4: Interactive Avatar Fitting Room
-*   **Normal Customer View**:
-    *   Select active products (clothing, items) and try them on a 3D avatar canvas in real-time.
-*   **Admin View**:
-    *   Categorize compatible products as try-on assets.
+---
 
-### Feature 5: Advanced Account Security & Multi-Factor Auth (2FA / OTP)
+### Feature 3: Enterprise Product Detail Experience (PDP)
 *   **Normal Customer View**:
-    *   Access a unified account manager `/dashboard` leveraging a shared shell navigation frame (`AccountLayout`) split into single-responsibility views:
-        *   **Dashboard Overview** (`/dashboard`): Stats summaries (total orders, saved wishlist items, cart items) and recent orders feed.
-        *   **Profile Editor** (`/profile`): Contact details, name, phone, email, and default address.
-        *   **Orders History** (`/orders`): Track shipments, download invoice documents, and cancel pending orders.
-        *   **Wishlist Grid** (`/wishlist`): View and manage saved items, or move them directly to the shopping cart.
-        *   **Addresses Manager** (`/addresses`): CRUD operations on multiple shipping addresses with customizable labels and a default address toggle.
-        *   **Security Settings** (`/settings`): Deactivate/activate Two-Factor Authentication (2FA), obtain single-use TOTP Recovery Codes, or update account password.
-    *   Enable/disable Two-Factor Authentication (2FA) generating a secure secret and QR Code for Authenticator apps (Google Authenticator, Authy, etc.).
-    *   Access 10 secure, single-use Recovery Codes for logging in when authenticator devices are lost.
-    *   Log in passwordless using a dynamic Email One-Time Password (OTP) code.
-*   **Admin View**:
-    *   Ensure secure authorization workflows are maintained, verifying user roles before allowing access to administrative assets. All user passwords remain cryptographically hidden from administrators.
+    *   **Interactive Gallery**: Image slider, hover lens zoom, 360° spin rotation viewer mode, click fullscreen lightbox modal, video player, and thumbnail strip.
+    *   **Pricing & Financials**: Localized currency conversion, discount percentage badge, tax details, EMI monthly payment calculator placeholder, coupon voucher selector, and price history trend chart.
+    *   **Variant Selector**: Interactive color swatches (switching main display image on click), size grid pills, and Fit Quiz Advisor.
+    *   **Real-time Shipping Estimator**: Standard and Express delivery date calculator with a real-time same-day dispatch countdown timer.
+    *   **Sticky Purchase Card**: Fixed floating bottom bar containing Price, Active Variant summary, Quantity stepper, Wishlist toggle, Compare toggle, Add to Cart, and Buy Now.
+    *   **Structured Content**: Accordion sections for Description & Craftsmanship, Technical Specifications table, Shipping & Return Policy, and FAQ.
 
-### Feature 6: Enterprise User Session Inspection
+---
+
+### Feature 4: Frequently Bought Together Bundle Builder
+*   **Normal Customer View**:
+    *   View cross-sell outfit recommendations on the PDP linking the active item with two complementary items.
+    *   Select/deselect individual bundle recommendations with checkboxes.
+    *   Receive an automated **10% bundle discount** applied to the combined total.
+    *   Add the entire checked bundle to the shopping bag in a single click.
+
+---
+
+### Feature 5: AI Size & Fit Advisor Quiz
+*   **Normal Customer View**:
+    *   Access the Fit Quiz sizing modal next to variant options on the PDP.
+    *   Input height (cm), weight (kg), and fit preference (tight, regular, loose) to receive a size recommendation (XS to XXL) with match percentage score.
+    *   Apply the recommendation instantly to update the selected variant in one click.
+
+---
+
+### Feature 6: Verified Customer Reviews & AI Sentiment Analyzer
+*   **Normal Customer View**:
+    *   Overall rating score card with 5-star to 1-star distribution bar charts and percentage indicators.
+    *   Read reviews featuring buyer-uploaded outfit photos and an automated AI Sentiment Analysis box highlighting Pros & Cons.
+    *   Submit verified reviews attaching photo URLs.
+    *   Upvote reviews as helpful, locked to a single vote per user per review.
+
+---
+
+### Feature 7: Multi-Product Side-by-Side Comparison Matrix
+*   **Normal Customer View**:
+    *   Select up to 3 products to compare side-by-side via floating compare bar (`StickyCompareBar.tsx`).
+    *   Compare Price, Rating, Brand, Category, Stock level, Shipping class, Material/Fabric, and Warranty inside a dedicated comparison modal (`CompareModal.tsx`).
+    *   Toggle **"Display Differences Only"** switch to filter out identical attributes.
+
+---
+
+### Feature 8: Wishlist Collections & Price Drop Alerts
+*   **Normal Customer View**:
+    *   Organize saved items into Wishlist Collections / Folders (All Favorites, Summer Closet, Workplace Outfits).
+    *   Toggle Price Drop Alerts & Back-in-Stock Alerts per saved item.
+    *   Generate and copy a shareable Wishlist link.
+    *   Move items directly from Wishlist to Shopping Cart ("Move to Cart" and "Move All to Cart").
+
+---
+
+### Feature 9: Typo-Tolerant Search & Recent Suggestions History
+*   **Normal Customer View**:
+    *   Debounced search suggestions listing categories, brands, SKUs, and item matches.
+    *   Fuzzy Levenshtein search corrections (e.g. searching "shos" returns suggestions for "shoes") and a "Search anyway" override.
+    *   Recent search history and trending tag triggers.
+
+---
+
+### Feature 10: Auto-Applied Promotion Rules Engine
+*   **Normal Customer View**:
+    *   Auto-applied checkout discounts:
+        *   **Spend & Save Promo**: Automatically deducts $30 for cart subtotals of $300+.
+        *   **Free Shipping Promo**: Automatically zeroes shipping for cart subtotals of $100+.
+
+---
+
+### Feature 11: Persistent Guest Cart Syncing
+*   **Normal Customer View**:
+    *   Guest cart items automatically merge into persistent database cart upon login.
+
+---
+
+### Feature 12: Unified Account Manager `/dashboard`
+*   **Normal Customer View**:
+    *   Manage Overview stats, Profile details, Orders history, Wishlist collections, Address CRUD, and 2FA Security settings.
+
+---
+
+### Feature 13: Enterprise User Session Inspection & Audit Logs
 *   **Admin View**:
-    *   Inspect any user's current session state, showing live shopping cart items (with quantities and subtotal), active wishlist selections, and full historical order records.
-    *   Review comprehensive system-wide Enterprise Audit Trails mapping who executed changes, timestamps, and detailed before-and-after state differences.
+    *   Inspect active user shopping carts, wishlist selections, and order histories.
+    *   Review administrative audit trails capturing timestamped object diffs.
 
 ---
 
 ## 5. Technology Stack Summary
 *   **Frontend**: React 19, Next.js 16 (App Router), Zustand (State Management), Framer Motion (Animations), Tailwind CSS 4.
-*   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose.
-*   **Authentication & Security**: Custom zero-dependency TOTP validation (Node's `crypto` module), JWT token verification, dynamic email-based OTP dispatch.
-*   **Database**: MongoDB (NoSQL) for campaigns, tickets, orders, reviews, audit trails, and catalog items.
+*   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose ODM.
+*   **Authentication & Security**: Custom TOTP validation (crypto module), JWT tokens, email OTP dispatch.
+*   **Database**: MongoDB (Collections: Products, Users, Orders, Reviews, Campaigns, Audit Trails).

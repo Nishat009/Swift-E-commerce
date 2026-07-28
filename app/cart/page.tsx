@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCartStore } from '@/stores/cartStore';
+import { useCurrencyStore } from '@/stores/currencyStore';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -20,6 +21,11 @@ interface SavedItem {
 export default function CartPage() {
   const router = useRouter();
   const toast = useToast();
+  const { symbol: currencySymbol, rate: currencyRate } = useCurrencyStore();
+  const formatPrice = (amount: number) => {
+    const converted = amount * currencyRate;
+    return `${currencySymbol}${converted.toFixed(2)}`;
+  };
   
   const items = useCartStore((state) => state.items);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
@@ -117,17 +123,26 @@ export default function CartPage() {
     setIsClearCartConfirmOpen(false);
   };
 
-  // Calculations
+  // Calculations & Auto-Applied Promotions Rules Engine
   const subtotal = getTotalPrice();
-  const discountAmount = activeCoupon?.code === 'SAVE20' ? subtotal * activeCoupon.discount : 0;
-  const taxedSubtotal = subtotal - discountAmount;
+  
+  // Rule 1: Spend $300, get $30 off automatically
+  const autoPromoDiscount = subtotal >= 300 ? 30 : 0;
+  
+  const couponDiscount = activeCoupon?.code === 'SAVE20' ? subtotal * activeCoupon.discount : 0;
+  const discountAmount = couponDiscount + autoPromoDiscount;
+  
+  const taxedSubtotal = Math.max(0, subtotal - discountAmount);
   const tax = taxedSubtotal * 0.1; // 10% tax
   
-  let shippingFee = subtotal > 100 ? 0 : 10;
+  // Rule 2: Free shipping on orders over $150 or by default over $100
+  const isAutoFreeShipping = subtotal >= 100;
+  let shippingFee = isAutoFreeShipping ? 0 : 10;
+  
   if (activeCoupon?.code === 'FREESHIP') {
     shippingFee = 0;
   } else if (estimatedShipping !== null) {
-    shippingFee = estimatedShipping;
+    shippingFee = isAutoFreeShipping ? 0 : estimatedShipping;
   }
   
   const total = taxedSubtotal + tax + shippingFee;
@@ -243,17 +258,17 @@ export default function CartPage() {
                             </button>
                           </div>
 
-                          {/* Price Display */}
-                          <div className="flex items-center gap-4 text-right">
-                            <div className="text-left sm:text-right">
-                              <span className="block text-[8px] text-text-muted">Item Price</span>
-                              <span className="text-xs font-semibold text-gray-900 dark:text-white">${discountedPrice.toFixed(0)}</span>
-                            </div>
-                            <div className="text-left sm:text-right border-l pl-4 border-gray-100 dark:border-gray-800">
-                              <span className="block text-[8px] text-text-muted font-black uppercase">Subtotal</span>
-                              <span className="text-sm font-black text-[#8b6f47] dark:text-[#c9a96b]">${itemTotal.toFixed(0)}</span>
-                            </div>
-                          </div>
+                           {/* Price Display */}
+                           <div className="flex items-center gap-4 text-right">
+                             <div className="text-left sm:text-right">
+                               <span className="block text-[8px] text-text-muted">Item Price</span>
+                               <span className="text-xs font-semibold text-gray-900 dark:text-white">{formatPrice(discountedPrice)}</span>
+                             </div>
+                             <div className="text-left sm:text-right">
+                               <span className="block text-[8px] text-text-muted">Total</span>
+                               <span className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] font-mono">{formatPrice(itemTotal)}</span>
+                             </div>
+                           </div>
                         </div>
 
                         {/* Save for Later trigger */}
@@ -326,27 +341,36 @@ export default function CartPage() {
             <div className="space-y-3.5 text-xs text-text-muted">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">${subtotal.toFixed(2)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(subtotal)}</span>
               </div>
-              {activeCoupon && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                  <span>Discount ({activeCoupon.code}):</span>
-                  <span>-${discountAmount.toFixed(2)}</span>
+              
+              {autoPromoDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>Spend & Save Auto-Discount:</span>
+                  <span>-{formatPrice(autoPromoDiscount)}</span>
                 </div>
               )}
+
+              {activeCoupon && couponDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>Discount ({activeCoupon.code}):</span>
+                  <span>-{formatPrice(couponDiscount)}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between">
                 <span>Tax (10%):</span>
-                <span className="font-semibold text-gray-900 dark:text-white">${tax.toFixed(2)}</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(tax)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Estimated Shipping:</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {shippingFee === 0 ? 'Free' : `$${shippingFee.toFixed(2)}`}
+                  {shippingFee === 0 ? 'Free' : formatPrice(shippingFee)}
                 </span>
               </div>
               <div className="pt-3.5 border-t border-gray-100 dark:border-gray-800 flex justify-between font-serif font-bold text-gray-905 dark:text-white text-base">
                 <span>Grand Total:</span>
-                <span className="text-[#8b6f47] dark:text-[#c9a96b]">${total.toFixed(2)}</span>
+                <span className="text-[#8b6f47] dark:text-[#c9a96b]">{formatPrice(total)}</span>
               </div>
             </div>
 

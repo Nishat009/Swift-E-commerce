@@ -11,6 +11,7 @@ const getProducts = async (req, res, next) => {
       limit = 12,
       skip,
       category,
+      subcategory,
       search,
       priceMin,
       priceMax,
@@ -18,74 +19,109 @@ const getProducts = async (req, res, next) => {
       rating,
       availability,
       featured,
+      trending,
+      newArrival,
+      bestSeller,
+      status,
+      visibility,
+      stockStatus,
       newest,
       sort,
       order,
       sortBy,
       color,
-      size
+      size,
+      all
     } = req.query;
 
-    const query = { active: true };
+    const query = {};
+    if (all !== 'true') {
+      query.active = true;
+    }
 
-    // 1. Category Filter
+    // Status Filter (for admin table vs public view)
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Visibility Filter
+    if (visibility && visibility !== 'all') {
+      query.visibility = visibility;
+    }
+
+    // Category Filter
     if (category && category !== 'all') {
       query.category = category.toLowerCase();
     }
 
-    // 2. Full-Text Search or Regex Match (Title, Brand, Category, Tags, Description)
+    // Subcategory Filter
+    if (subcategory && subcategory !== 'all') {
+      query.subcategory = subcategory.toLowerCase();
+    }
+
+    // Stock Status Filter
+    if (stockStatus && stockStatus !== 'all') {
+      query.stockStatus = stockStatus;
+    }
+
+    // Full-Text Search (Title, Brand, Category, SKU, Barcode, Tags, Description)
     if (search) {
       const searchRegex = new RegExp(search, 'i');
       query.$or = [
         { title: searchRegex },
         { brand: searchRegex },
         { category: searchRegex },
+        { subcategory: searchRegex },
+        { sku: searchRegex },
+        { SKU: searchRegex },
+        { barcode: searchRegex },
         { description: searchRegex },
         { tags: searchRegex }
       ];
     }
 
-    // 3. Price Filtering
+    // Price Filtering
     if ((priceMin !== undefined && priceMin !== '') || (priceMax !== undefined && priceMax !== '')) {
       query.price = {};
       if (priceMin !== undefined && priceMin !== '') query.price.$gte = Number(priceMin);
       if (priceMax !== undefined && priceMax !== '') query.price.$lte = Number(priceMax);
     }
 
-    // 4. Brand Filter
+    // Brand Filter
     if (brand) {
       query.brand = brand;
     }
 
-    // 5. Rating Filter
+    // Rating Filter
     if (rating) {
       query.rating = { $gte: Number(rating) };
     }
 
-    // 5a. Color Filter
+    // Color Filter
     if (color) {
       const colors = color.split(',').map(c => c.trim());
       query['specifications.ColorName'] = { $in: colors };
     }
 
-    // 5b. Size Filter
+    // Size Filter
     if (size) {
       const sizes = size.split(',').map(s => s.trim());
       const regexes = sizes.map(s => new RegExp(`\\b${s}\\b`, 'i'));
       query['specifications.Sizes'] = { $in: regexes };
     }
 
-    // 6. Availability Filter
+    // Availability Filter
     if (availability === 'in-stock') {
       query.stock = { $gt: 0 };
     } else if (availability === 'out-of-stock') {
       query.stock = 0;
     }
 
-    // 7. Featured Filter
-    if (featured === 'true' || featured === true) {
-      query.featured = true;
-    }
+    // Flag Filters
+    if (featured === 'true' || featured === true) query.featured = true;
+    if (trending === 'true' || trending === true) query.trending = true;
+    if (newArrival === 'true' || newArrival === true) query.newArrival = true;
+    if (bestSeller === 'true' || bestSeller === true) query.bestSeller = true;
 
     // Sorting definition
     let sortOptions = {};
@@ -93,23 +129,20 @@ const getProducts = async (req, res, next) => {
     if (newest === 'true') {
       sortOptions = { createdAt: -1 };
     } else if (sortBy) {
-      // Handles frontend format like price-asc, price-desc, rating
       if (sortBy === 'price-asc') sortOptions = { price: 1 };
       else if (sortBy === 'price-desc') sortOptions = { price: -1 };
       else if (sortBy === 'rating') sortOptions = { rating: -1 };
+      else if (sortBy === 'sold') sortOptions = { soldCount: -1 };
       else sortOptions = { createdAt: -1 };
     } else if (sort) {
-      // Handles standard sort/order query params
       const sortOrder = order === 'desc' ? -1 : 1;
       sortOptions[sort] = sortOrder;
     } else {
       sortOptions = { createdAt: -1 };
     }
 
-    // Pagination calculations
     const pageNum = Number(page);
     const limitNum = Number(limit);
-    // Support either explicit skip or page/limit calculations
     const skipNum = skip !== undefined ? Number(skip) : (pageNum - 1) * limitNum;
 
     const total = await Product.countDocuments(query);
@@ -123,6 +156,7 @@ const getProducts = async (req, res, next) => {
       code: 200,
       status: 200,
       products,
+      data: products,
       total,
       skip: skipNum,
       limit: limitNum,
@@ -141,11 +175,10 @@ const getProductById = async (req, res, next) => {
   const { id } = req.params;
   try {
     let product;
-    // Check if ID is a valid MongoDB ObjectID, else query by slug
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      product = await Product.findById(id);
+      product = await Product.findById(id).populate('relatedProducts').populate('bundles');
     } else {
-      product = await Product.findOne({ slug: id });
+      product = await Product.findOne({ slug: id }).populate('relatedProducts').populate('bundles');
     }
 
     if (!product) {
@@ -163,7 +196,11 @@ const getProductById = async (req, res, next) => {
 // @access  Private/Admin
 const createProduct = async (req, res, next) => {
   try {
-    const product = await Product.create(req.body);
+    const productData = req.body;
+    if (!productData.sku) {
+      productData.sku = 'SKU-' + Math.floor(100000 + Math.random() * 900000);
+    }
+    const product = await Product.create(productData);
     return sendSuccess(res, 'Product created successfully', product, 201);
   } catch (error) {
     next(error);
@@ -192,7 +229,62 @@ const updateProduct = async (req, res, next) => {
   }
 };
 
-// @desc    Delete a product (soft delete by setting active to false)
+// @desc    Duplicate a product
+// @route   POST /api/products/:id/duplicate
+// @access  Private/Admin
+const duplicateProduct = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const sourceProduct = await Product.findById(id).lean();
+    if (!sourceProduct) {
+      return sendError(res, 'Source product not found', 404);
+    }
+
+    delete sourceProduct._id;
+    delete sourceProduct.id;
+    delete sourceProduct.createdAt;
+    delete sourceProduct.updatedAt;
+
+    sourceProduct.title = `${sourceProduct.title} (Copy)`;
+    sourceProduct.slug = `${sourceProduct.slug}-copy-${Date.now()}`;
+    sourceProduct.sku = `SKU-${Math.floor(100000 + Math.random() * 900000)}`;
+    sourceProduct.status = 'draft';
+
+    const duplicated = await Product.create(sourceProduct);
+    return sendSuccess(res, 'Product duplicated successfully', duplicated, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Bulk action on products (delete, publish, archive)
+// @route   POST /api/products/bulk
+// @access  Private/Admin
+const bulkActionProducts = async (req, res, next) => {
+  const { productIds, action } = req.body;
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return sendError(res, 'No product IDs provided', 400);
+  }
+
+  try {
+    if (action === 'delete') {
+      await Product.updateMany({ _id: { $in: productIds } }, { active: false, status: 'archived' });
+      return sendSuccess(res, `Bulk deleted ${productIds.length} products successfully`);
+    } else if (action === 'publish') {
+      await Product.updateMany({ _id: { $in: productIds } }, { status: 'published', active: true });
+      return sendSuccess(res, `Bulk published ${productIds.length} products successfully`);
+    } else if (action === 'archive') {
+      await Product.updateMany({ _id: { $in: productIds } }, { status: 'archived' });
+      return sendSuccess(res, `Bulk archived ${productIds.length} products successfully`);
+    } else {
+      return sendError(res, 'Invalid bulk action specified', 400);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete a product
 // @route   DELETE /api/products/:id
 // @access  Private/Admin
 const deleteProduct = async (req, res, next) => {
@@ -204,6 +296,7 @@ const deleteProduct = async (req, res, next) => {
     }
 
     product.active = false;
+    product.status = 'archived';
     await product.save();
 
     return sendSuccess(res, 'Product deleted (deactivated) successfully');
@@ -217,5 +310,7 @@ module.exports = {
   getProductById,
   createProduct,
   updateProduct,
+  duplicateProduct,
+  bulkActionProducts,
   deleteProduct,
 };

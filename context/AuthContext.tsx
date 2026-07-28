@@ -40,7 +40,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
 
   useEffect(() => {
-    checkSession();
+    const initSession = async () => {
+      if (typeof window !== 'undefined') {
+        const storedToken = localStorage.getItem('accessToken');
+        if (storedToken) {
+          setAccessToken(storedToken);
+        }
+
+        const isRemembered = localStorage.getItem('rememberMe') === 'true';
+        const isSessionActive = sessionStorage.getItem('session_active') === 'true';
+
+        if (!isRemembered && !isSessionActive) {
+          // No active tab session and rememberMe is false -> force logout to clear cookies
+          try {
+            await apiClient.post('/auth/logout');
+          } catch (err) {
+            console.error('Auto-logout error:', err);
+          } finally {
+            setAccessToken(null);
+            setUser(null);
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            useCartStore.setState({ items: [] });
+            setLoading(false);
+          }
+        } else {
+          // Session is active or user checked "Remember Me"
+          // Mark session active in this tab
+          sessionStorage.setItem('session_active', 'true');
+          await checkSession();
+        }
+      } else {
+        await checkSession();
+      }
+    };
+
+    initSession();
   }, []);
 
   const checkSession = async () => {
@@ -73,11 +108,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        const { user: loggedInUser, accessToken } = response.data.data;
+        const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+          } else {
+            localStorage.removeItem('rememberMe');
+          }
+          sessionStorage.setItem('session_active', 'true');
+        }
+
         // Automatically load cart on success
-        useCartStore.getState().loadCart();
+        await useCartStore.getState().syncGuestCart();
+        await useCartStore.getState().loadCart();
         // Redirect admin users to admin panel, customers to dashboard
         if (loggedInUser.role === 'admin') {
           router.push('/admin');
@@ -102,9 +155,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiClient.post('/auth/register', { name, email, password });
       if (response.data?.success) {
-        const { user: registeredUser, accessToken } = response.data.data;
+        const { user: registeredUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(registeredUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rememberMe', 'true');
+          sessionStorage.setItem('session_active', 'true');
+        }
+
         // Automatically load cart on success
         useCartStore.getState().loadCart();
         router.push('/dashboard');
@@ -129,6 +195,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setAccessToken(null);
       setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('rememberMe');
+        sessionStorage.removeItem('session_active');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
       // Clear local cart storage
       useCartStore.setState({ items: [] });
       setLoading(false);
@@ -175,9 +247,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await apiClient.post('/auth/verify-2fa', { userId, code, rememberMe: !!rememberMe });
       if (response.data?.success) {
-        const { user: loggedInUser, accessToken } = response.data.data;
+        const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+          } else {
+            localStorage.removeItem('rememberMe');
+          }
+          sessionStorage.setItem('session_active', 'true');
+        }
+
         useCartStore.getState().loadCart();
         if (loggedInUser.role === 'admin') {
           router.push('/admin');
@@ -230,9 +319,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        const { user: loggedInUser, accessToken } = response.data.data;
+        const { user: loggedInUser, accessToken, refreshToken } = response.data.data;
         setAccessToken(accessToken);
         setUser(loggedInUser);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          if (refreshToken) {
+            localStorage.setItem('refreshToken', refreshToken);
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+          } else {
+            localStorage.removeItem('rememberMe');
+          }
+          sessionStorage.setItem('session_active', 'true');
+        }
+
         useCartStore.getState().loadCart();
         if (loggedInUser.role === 'admin') {
           router.push('/admin');

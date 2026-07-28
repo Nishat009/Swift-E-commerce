@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ui/ProductCard';
+import CategoryDesignSlider from '@/components/ui/CategoryDesignSlider';
 import { ShoppingBag, Truck, Shield, Star, Sparkles, ArrowRight, Mail, Heart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fetchProducts } from '@/lib/api';
@@ -17,6 +18,7 @@ export default function Home() {
   const [bestsellers, setBestsellers] = useState<Product[]>([]);
   const [bestDeals, setBestDeals] = useState<Product[]>([]);
   const [dynamicCategories, setDynamicCategories] = useState<any[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, 50]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
@@ -38,6 +40,7 @@ export default function Home() {
           setNewArrivals(arrivals.products);
         }
         if (allProducts?.products && allProducts.products.length > 0) {
+          setCatalogProducts(allProducts.products);
           const best = allProducts.products
             .filter(p => p.rating >= 4.5)
             .slice(0, 8);
@@ -166,134 +169,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Categories Section */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: '-100px' }}
-        transition={{ duration: 0.8 }}
-        className="py-16 sm:py-20 md:py-24 bg-background"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12 sm:mb-16"
-          >
-            <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-2">
-              Featured Categories
-            </h2>
-            <p className="text-[#6b6b6b] dark:text-gray-400 text-lg">
-              Browse our curated categories for every style
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-16 pb-6">
-            {(() => {
-              const defaultCategories = [
-                {
-                  name: 'Fashion & Apparel',
-                  description: 'Explore curated organic cotton flat-lays and premium wardrobe essentials.',
-                  subtitle: 'Starting at $35',
-                  image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
-                  link: '/products?category=top',
-                  isHighlighted: false,
-                  buttonText: 'View Apparel'
-                },
-                {
-                  name: 'Modern Furniture',
-                  description: 'Elevate your living space with designer solid oak chairs and velvet sofas.',
-                  subtitle: 'Starting at $249',
-                  image: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&h=600&fit=crop',
-                  link: '/products?category=sofa',
-                  isHighlighted: true,
-                  buttonText: 'Explore Furniture'
-                },
-                {
-                  name: 'Lighting & Decor',
-                  description: 'Polish your interior with modern pendant lighting and handcrafted vases.',
-                  subtitle: 'Starting at $45',
-                  image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop',
-                  link: '/products?category=lighting',
-                  isHighlighted: false,
-                  buttonText: 'Browse Decor'
-                }
-              ];
-
-              const categoriesToRender = dynamicCategories.length > 0
-                ? dynamicCategories.map((c, idx) => ({
-                    name: c.name,
-                    description: c.description || `Explore our high-quality collection of ${c.name}.`,
-                    subtitle: 'Shop Now',
-                    image: c.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
-                    link: `/products?category=${c.slug || c.name.toLowerCase()}`,
-                    isHighlighted: idx === 1,
-                    buttonText: 'Shop Category'
-                  }))
-                : defaultCategories;
-
-              return categoriesToRender;
-            })().map((category, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.15 }}
-                className={`relative flex flex-col justify-end pt-20 pb-4 group ${category.isHighlighted ? 'z-10' : 'z-0'}`}
-              >
-                {/* 3D Overlapping Image - styled as a floating mini-card */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-32 sm:w-32 sm:h-36 z-20 pointer-events-none transition-all duration-500 ease-out group-hover:-translate-y-4 group-hover:scale-105 group-hover:rotate-1 rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-zinc-800">
-                  <Image
-                    src={category.image}
-                    alt={category.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-
-                <Link href={category.link} className="block h-full">
-                  <div 
-                    className={`rounded-[24px] p-5 text-center border transition-all duration-500 flex flex-col justify-end min-h-[210px] h-full ${
-                      category.isHighlighted
-                        ? 'bg-gradient-to-br from-[#d4a574] to-[#8b6f47] dark:from-[#c9a96b] dark:to-[#8b6f47] border-transparent text-white shadow-lg hover:shadow-2xl scale-[1.02] hover:scale-[1.04]'
-                        : 'bg-white dark:bg-[#181715] border-zinc-150 dark:border-zinc-800/80 text-zinc-900 dark:text-zinc-100 shadow-sm hover:shadow-xl hover:border-[#8b6f47]/50 hover:-translate-y-1'
-                    }`}
-                  >
-                    <div className="mt-10 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h3 className={`text-base sm:text-lg font-bold font-serif mb-1 transition-colors ${category.isHighlighted ? 'text-white' : 'text-zinc-900 dark:text-zinc-100 group-hover:text-[#8b6f47] dark:group-hover:text-[#c9a96b]'}`}>
-                          {category.name}
-                        </h3>
-                        <p className={`text-[11px] mb-3 line-clamp-2 leading-relaxed ${category.isHighlighted ? 'text-white/90' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                          {category.description}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className={`text-[11px] font-semibold mb-3 font-serif ${category.isHighlighted ? 'text-white' : 'text-[#8b6f47] dark:text-[#c9a96b]'}`}>
-                          {category.subtitle}
-                        </div>
-                        <span 
-                          className={`inline-block w-full py-2 rounded-full font-bold text-[10px] transition-all duration-300 shadow-sm ${
-                            category.isHighlighted
-                              ? 'bg-zinc-950 text-white hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'
-                              : 'border border-[#8b6f47] text-[#8b6f47] hover:bg-[#8b6f47] hover:text-white dark:border-[#c9a96b] dark:text-[#c9a96b] dark:hover:bg-[#c9a96b] dark:hover:text-zinc-950'
-                          }`}
-                        >
-                          {category.buttonText}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </motion.section>
+      {/* Dynamic Semi-Circular Category Design Slider */}
+      <section className="bg-background border-b border-zinc-150/30 dark:border-zinc-800/30">
+        <CategoryDesignSlider
+          categories={dynamicCategories}
+          allProducts={catalogProducts}
+        />
+      </section>
 
       {/* Featured Collection Section */}
       {featuredProducts.length > 0 && (
