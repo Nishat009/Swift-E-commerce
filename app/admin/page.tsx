@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
 import { Product, Order, User } from '@/types';
 import Loading from '@/components/ui/Loading';
+import ProductTable from '@/components/product/ProductTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useCurrencyStore } from '@/stores/currencyStore';
@@ -996,61 +997,7 @@ export default function AdminDashboardPage() {
 
               {/* 2. MANAGE PRODUCTS VIEW */}
               {adminTab === 'products' && (
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
-                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Product Inventory</h2>
-                    <Button onClick={handleOpenCreateProduct} className="text-sm py-2 px-3 font-bold rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5">
-                      <Plus className="w-4 h-4" /> Add Product
-                    </Button>
-                  </div>
-
-                  {/* Search Bar */}
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Search products by title, brand, category..."
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      className="w-full text-sm pl-8"
-                    />
-                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-
-                  {/* Products Table */}
-                  <div className="overflow-x-auto border rounded-2xl max-h-[500px] overflow-y-auto scrollbar-thin">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px] sticky top-0 z-10">
-                        <tr>
-                          <th className="p-3">Title</th>
-                          <th className="p-3">Brand</th>
-                          <th className="p-3">Category</th>
-                          <th className="p-3">Price</th>
-                          <th className="p-3">Stock</th>
-                          <th className="p-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {filteredProducts.map((p) => (
-                          <tr key={p.id} className="hover:bg-gray-50/50">
-                            <td className="p-3 font-bold text-gray-800 dark:text-gray-200 max-w-[150px] truncate">{p.title}</td>
-                            <td className="p-3 capitalize">{p.brand}</td>
-                            <td className="p-3 capitalize">{p.category}</td>
-                            <td className="p-3 font-extrabold text-[#8b6f47] dark:text-[#c9a96b]">${p.price}</td>
-                            <td className="p-3 font-mono">{p.stock} units</td>
-                            <td className="p-3 text-right flex justify-end gap-1.5">
-                              <button onClick={() => handleOpenEditProduct(p)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit Product">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => handleDeleteProduct(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete Product">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <ProductTable onProductChange={loadAdminData} />
               )}
 
               {/* 3. MANAGE ORDERS VIEW */}

@@ -13,8 +13,34 @@ export interface ProductVariantOption {
 
 export interface ProductVariantGroup {
   id: string;
-  name: 'Size' | 'Color' | 'Style' | string;
+  name: 'Size' | 'Color' | 'Material' | 'Storage' | 'Style' | string;
   options: ProductVariantOption[];
+}
+
+export interface VariantCombination {
+  id: string;
+  sku: string;
+  price: number;
+  stock: number;
+  weight?: number;
+  barcode?: string;
+  status?: 'active' | 'inactive';
+  images?: string[];
+  attributes: Record<string, string>;
+}
+
+export interface ProductAttribute {
+  name: string;
+  value: string;
+  group?: string;
+}
+
+export interface SEOInfo {
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
+  canonicalUrl?: string;
+  ogImage?: string;
 }
 
 export interface RatingDistribution {
@@ -28,8 +54,19 @@ export interface RatingDistribution {
 export interface ShippingInfo {
   estimate: string;
   freeShipping: boolean;
+  expressShipping?: boolean;
   returnPolicy: string;
   cost?: number;
+  weight?: number;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  shippingClass?: string;
+  packagingType?: string;
+  countryOfOrigin?: string;
+  hsCode?: string;
 }
 
 export interface ProductReview {
@@ -42,35 +79,73 @@ export interface ProductReview {
   date: string;
   verified: boolean;
   helpfulCount?: number;
+  photos?: string[];
+  videos?: string[];
 }
 
 export interface Product {
   id: string | number;
   title: string;
-  description: string;
-  shortDescription?: string;
-  price: number;
-  salePrice?: number;
-  discountPercentage: number;
-  rating: number;
-  stock: number;
-  totalStock?: number;
+  slug?: string;
+  sku?: string;
+  SKU?: string;
+  barcode?: string;
   brand: string;
   category: string;
-  thumbnail: string;
-  images: string[];
-  specifications?: Record<string, string>;
-  variants?: ProductVariantGroup[];
-  reviewCount?: number;
-  ratingDistribution?: RatingDistribution;
+  subcategory?: string;
   tags?: ProductTag[];
+  status?: 'draft' | 'published' | 'archived';
+  visibility?: 'public' | 'private' | 'hidden';
+  featured?: boolean;
+  trending?: boolean;
+  newArrival?: boolean;
+  bestSeller?: boolean;
+  price: number;
+  originalPrice?: number;
+  salePrice?: number;
+  discountPercentage: number;
+  tax?: number;
+  currency?: string;
+  costPrice?: number;
+  stock: number;
+  totalStock?: number;
+  reservedStock?: number;
+  lowStockThreshold?: number;
+  warehouse?: string;
+  stockStatus?: 'in_stock' | 'out_of_stock' | 'backorder';
+  maxOrderQuantity?: number;
+  minOrderQuantity?: number;
+  allowBackorders?: boolean;
+  trackInventory?: boolean;
+  variants?: ProductVariantGroup[];
+  variantCombinations?: VariantCombination[];
+  attributes?: ProductAttribute[];
+  images: string[];
+  videos?: string[];
+  thumbnail: string;
+  description: string;
+  shortDescription?: string;
+  specifications?: Record<string, string>;
   shippingInfo?: ShippingInfo;
+  shipping?: ShippingInfo;
+  seo?: SEOInfo;
+  relatedProducts?: (Product | string)[];
+  bundles?: (Product | string)[];
   reviews?: ProductReview[];
+  rating: number;
+  reviewCount?: number;
+  soldCount?: number;
+  wishlistCount?: number;
+  viewCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  ratingDistribution?: RatingDistribution;
 }
 
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedVariant?: VariantCombination;
 }
 
 export interface User {
@@ -113,4 +188,3 @@ export interface Order {
   orderStatus?: string;
   createdAt: string;
 }
-
