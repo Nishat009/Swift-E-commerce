@@ -29,6 +29,10 @@ import { ShoppingCart, Heart, ShieldCheck, Truck, RefreshCw, Gift, ArrowRight, S
 import { motion } from 'framer-motion';
 import { useToast } from '@/context/ToastContext';
 
+import TryOnModal from '@/features/ai/avatar/TryOnModal';
+import CompleteOutfitBuilder from '@/features/ai/product-ai/CompleteOutfitBuilder';
+import AIBadge from '@/components/ui/AIBadge';
+
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -42,6 +46,7 @@ export default function ProductDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [isTryOnModalOpen, setIsTryOnModalOpen] = useState(false);
   const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
 
@@ -603,14 +608,25 @@ export default function ProductDetailPage() {
                 <span className="block text-[10px] font-black uppercase tracking-wider text-transparent select-none">
                   Action
                 </span>
-                <Button
-                  disabled={currentStock === 0}
-                  onClick={handleAddToCart}
-                  className="w-full bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 py-3 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span>{currentStock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    disabled={currentStock === 0}
+                    onClick={handleAddToCart}
+                    className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 py-3 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>{currentStock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={() => setIsTryOnModalOpen(true)}
+                    className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border-0 py-3 px-5 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md cursor-pointer shrink-0"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Try On With AI</span>
+                  </Button>
+                </div>
               </div>
 
               {/* Wishlist Button */}
@@ -834,6 +850,11 @@ export default function ProductDetailPage() {
         </section>
       )}
 
+      {/* AI Complete Outfit Builder Section */}
+      <section className="pt-8">
+        <CompleteOutfitBuilder baseProduct={product} />
+      </section>
+
       {/* Customer Reviews Section */}
       <section className="pt-8 border-t border-gray-100 dark:border-gray-800">
         <h2 className="text-xl sm:text-2xl font-serif font-bold text-gray-900 dark:text-white mb-6">
@@ -995,6 +1016,15 @@ export default function ProductDetailPage() {
         isOutOfStock={currentStock === 0}
         onAddToCart={handleAddToCart}
       />
+
+      {/* AI Virtual Try-On Modal */}
+      {product && (
+        <TryOnModal
+          isOpen={isTryOnModalOpen}
+          onClose={() => setIsTryOnModalOpen(false)}
+          product={product}
+        />
+      )}
     </div>
   );
 }

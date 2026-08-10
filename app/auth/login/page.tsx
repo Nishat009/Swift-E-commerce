@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Eye, EyeOff, ShoppingBag, ShieldCheck, Smartphone, Camera, X } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ShoppingBag, ShieldCheck, Smartphone, Camera, X, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 
@@ -11,6 +11,30 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, verify2FA, requestOTP, verifyOTP } = useAuth();
   const toast = useToast();
+
+  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      email: quickEmail,
+      password: quickPass,
+    }));
+    setErrors({});
+    setLoading(true);
+    try {
+      const res = await login(quickEmail, quickPass, true);
+      if (res && res.require2FA) {
+        setTwoFactorUserId(res.userId || '');
+        setVerificationStep('2fa');
+        toast.info('Two-Factor Authentication code required.');
+      } else {
+        toast.success(`Logged in as ${quickEmail.includes('admin') ? 'Administrator' : 'Test User'}!`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Quick login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const [formData, setFormData] = useState({
     email: '',
@@ -519,6 +543,34 @@ export default function LoginPage() {
                     )}
                   </form>
                 )}
+
+                {/* One-Click Demo Logins for Admin & Test User */}
+                <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">
+                    Quick Demo One-Click Logins
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin('admin@email.com', '12345678')}
+                      disabled={loading || isLocked}
+                      className="py-2.5 px-3 bg-[#8b6f47]/10 hover:bg-[#8b6f47]/20 border border-[#8b6f47]/30 text-[#8b6f47] dark:text-[#c9a96b] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Admin Login</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin('user@email.com', '12345678')}
+                      disabled={loading || isLocked}
+                      className="py-2.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
+                    >
+                      <UserIcon className="w-4 h-4" />
+                      <span>Test User Login</span>
+                    </button>
+                  </div>
+                </div>
 
                 {/* Google Sign-in Simulation */}
                 <div className="space-y-4">

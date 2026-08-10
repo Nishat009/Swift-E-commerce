@@ -12,6 +12,9 @@ import { Product } from '@/types';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import apiClient from '@/lib/apiClient';
 
+import AISmartSearch from '@/features/ai/search/AISmartSearch';
+import AIPicksForYou from '@/features/ai/recommendation/AIPicksForYou';
+
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
@@ -84,88 +87,58 @@ export default function Home() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.15,
+        staggerChildren: 0.1,
       },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 40 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
-        ease: 'easeOut' as const,
+        duration: 0.5,
       },
     },
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Classic Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-background via-cream to-card-bg">
-        <motion.div
-          style={{ y: y1, opacity }}
-          className="absolute inset-0 z-0"
-        >
-          <Image
-            src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1920&h=1080&fit=crop&q=80"
-            alt="Classic Home Decor"
-            fill
-            className="object-cover opacity-20"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-cream/45 to-card-bg/55"></div>
-        </motion.div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 md:py-36">
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#FAF8F5] via-[#F5F1EB] to-[#FAF8F5] dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 space-y-8">
           <motion.div
             initial="hidden"
             animate="visible"
             variants={containerVariants}
-            className="text-center max-w-4xl mx-auto"
+            className="max-w-4xl mx-auto space-y-6"
           >
-            <motion.div variants={itemVariants} className="mb-6">
-              <span className="inline-block px-4 py-2 bg-[#8b6f47]/10 text-[#8b6f47] dark:text-[#c9a96b] rounded-full text-sm font-medium tracking-wider uppercase">
-                Handcrafted Excellence
+            <motion.div variants={itemVariants} className="inline-block">
+              <span className="text-xs sm:text-sm font-semibold tracking-widest text-[#8b6f47] dark:text-[#c9a96b] uppercase bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 px-4 py-2 rounded-full border border-[#8b6f47]/20">
+                AI-Powered Fashion Platform
               </span>
             </motion.div>
             <motion.h1
               variants={itemVariants}
-              className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold mb-6 sm:mb-8 text-[#2c2c2c] dark:text-[#f5f1eb] leading-[1.1]"
+              className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] leading-[1.1]"
             >
               Discover Timeless
               <br />
-              <span className="text-[#8b6f47] dark:text-[#c9a96b] italic">Elegance</span>
+              <span className="text-[#8b6f47] dark:text-[#c9a96b] italic">AI Elegance</span>
             </motion.h1>
             <motion.p
               variants={itemVariants}
-              className="font-elegant text-xl sm:text-2xl md:text-3xl text-[#6b6b6b] dark:text-gray-400 mb-10 sm:mb-12 max-w-2xl mx-auto leading-relaxed"
+              className="font-elegant text-xl sm:text-2xl md:text-3xl text-[#6b6b6b] dark:text-gray-400 max-w-2xl mx-auto leading-relaxed"
             >
-              Curated collection of premium products, crafted with care and attention to detail
+              Curated luxury fashion, virtual try-on dressing room, and personal AI styling assistant.
             </motion.p>
-            <motion.div
-              variants={itemVariants}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-            >
-              <Link href="/products">
-                <Button size="lg" className="bg-[#8b6f47] hover:bg-[#6b5435] text-white border-0 px-8 py-4 text-base font-medium tracking-wide shadow-lg hover:shadow-xl transition-all duration-300">
-                  <ShoppingBag className="w-5 h-5 mr-2 inline" />
-                  Explore Collection
-                </Button>
-              </Link>
-              <Link href="/products?category=electronics">
-                <Button variant="outline" size="lg" className="border-2 border-[#8b6f47] text-[#8b6f47] hover:bg-[#8b6f47] hover:text-white px-8 py-4 text-base font-medium tracking-wide transition-all duration-300">
-                  View Catalog
-                </Button>
-              </Link>
+
+            {/* AI Smart Search Bar */}
+            <motion.div variants={itemVariants} className="pt-2">
+              <AISmartSearch />
             </motion.div>
           </motion.div>
-        </div>
-        
-        {/* Decorative Divider */}
-        <div className="classic-divider">
-          <span className="text-[#8b6f47] dark:text-[#c9a96b]">✦</span>
         </div>
       </section>
 
@@ -176,6 +149,11 @@ export default function Home() {
           allProducts={catalogProducts}
         />
       </section>
+
+      {/* AI Recommendations Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AIPicksForYou />
+      </div>
 
       {/* Featured Collection Section */}
       {featuredProducts.length > 0 && (

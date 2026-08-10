@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import AccountLayout from '@/components/layout/AccountLayout';
 import ProductForm from '@/components/product/ProductForm';
-import apiClient from '@/lib/apiClient';
+import { productService } from '@/services/productService';
 import Loading from '@/components/ui/Loading';
 import { Product } from '@/types';
 import { useToast } from '@/context/ToastContext';
@@ -11,7 +12,7 @@ import { useToast } from '@/context/ToastContext';
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
-  const productId = params.id as string;
+  const productId = params?.id as string;
   const toast = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -26,31 +27,42 @@ export default function EditProductPage() {
   const loadProduct = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get(`/products/${productId}`);
-      if (res.data?.data) {
-        setProduct(res.data.data);
-      } else if (res.data?.product) {
-        setProduct(res.data.product);
+      const fetched = await productService.getProductById(productId);
+      if (fetched) {
+        setProduct(fetched);
+      } else {
+        toast.error('Product not found.');
+        router.push('/dashboard/products');
       }
     } catch (err: any) {
       toast.error('Failed to load product details.');
-      router.push('/admin');
+      router.push('/dashboard/products');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <Loading />;
+    return (
+      <AccountLayout activeTabName="/dashboard">
+        <Loading />
+      </AccountLayout>
+    );
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-gray-500">
-        Product not found.
-      </div>
+      <AccountLayout activeTabName="/dashboard">
+        <div className="p-8 text-center text-text-muted">
+          Product not found.
+        </div>
+      </AccountLayout>
     );
   }
 
-  return <ProductForm initialData={product} isEditMode={true} />;
+  return (
+    <AccountLayout activeTabName="/dashboard">
+      <ProductForm initialData={product} isEditMode={true} />
+    </AccountLayout>
+  );
 }

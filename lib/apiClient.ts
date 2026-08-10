@@ -51,14 +51,62 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // Handle Network / Connection Offline Errors gracefully with standard fallback responses
+    if (!error.response || error.code === 'ERR_NETWORK') {
+      const url = originalRequest.url || '';
+      if (url.includes('/currencies')) {
+        return {
+          data: {
+            success: true,
+            data: [
+              { code: 'USD', symbol: '$', rate: 1.0 },
+              { code: 'EUR', symbol: '€', rate: 0.92 },
+              { code: 'GBP', symbol: '£', rate: 0.78 },
+              { code: 'BDT', symbol: '৳', rate: 118.0 }
+            ]
+          }
+        };
+      }
+      if (url.includes('/languages')) {
+        return {
+          data: {
+            success: true,
+            data: [
+              { code: 'en', name: 'English', flag: '🇬🇧', isDefault: true, isActive: true },
+              { code: 'bn', name: 'Bengali', flag: '🇧🇩', isDefault: false, isActive: true }
+            ]
+          }
+        };
+      }
+      if (url.includes('/categories')) {
+        return {
+          data: {
+            success: true,
+            data: ['Fashion', 'Electronics', 'Footwear', 'Accessories', 'Luxury', 'Home']
+          }
+        };
+      }
+      if (url.includes('/notifications/unread-count')) {
+        return { data: { success: true, data: { count: 0 } } };
+      }
+      if (url.includes('/notifications')) {
+        return { data: { success: true, data: [] } };
+      }
+      return Promise.reject(error);
+    }
     
     // Check if error is 401 Unauthorized and not already retried
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Avoid refreshing on login/register failures or loops
+      // Avoid refreshing on login/register/logout failures or loops
       if (
         originalRequest.url?.includes('/auth/login') ||
         originalRequest.url?.includes('/auth/register') ||
-        originalRequest.url?.includes('/auth/refresh')
+        originalRequest.url?.includes('/auth/refresh') ||
+        originalRequest.url?.includes('/auth/logout')
       ) {
         return Promise.reject(error);
       }
