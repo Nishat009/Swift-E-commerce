@@ -60,7 +60,7 @@ export const useLanguageStore = create<LanguageState>()(
             }
           }
         } catch (err) {
-          console.error('Failed to load active languages:', err);
+          console.warn('Failed to load active languages, using fallback:', err);
         } finally {
           set({ isLoading: false });
         }

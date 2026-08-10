@@ -31,16 +31,17 @@ export default function Modal({ isOpen, onClose, children, title, size = 'md' }:
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
+    '2xl': 'max-w-5xl',
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
       onClick={onClose}
     >
       <div
         className={cn(
-          'bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto',
+          'bg-white dark:bg-gray-900 rounded-[28px] shadow-2xl w-full mx-auto max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800',
           sizes[size]
         )}
         onClick={(e) => e.stopPropagation()}

@@ -12,6 +12,10 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useCurrencyStore } from '@/stores/currencyStore';
 import { useLanguageStore } from '@/stores/languageStore';
+import AIProductDescriptionGen from '@/features/ai/product-ai/AIProductDescriptionGen';
+import AIImageEnhancer from '@/features/ai/product-ai/AIImageEnhancer';
+import AIReviewAnalyzer from '@/features/ai/product-ai/AIReviewAnalyzer';
+import AISalesAdvisor from '@/features/ai/product-ai/AISalesAdvisor';
 import {
   ShieldAlert,
   BarChart3,
@@ -64,7 +68,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
 
   // Navigation states
-  const [adminTab, setAdminTab] = useState<'overview' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages'>('overview');
+  const [adminTab, setAdminTab] = useState<'overview' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages'>('overview');
   const [loadingData, setLoadingData] = useState(true);
 
   // Currency Manager states
@@ -432,33 +436,11 @@ export default function AdminDashboardPage() {
 
   // --- PRODUCT MANAGEMENT ACTIONS ---
   const handleOpenCreateProduct = () => {
-    setEditingProduct(null);
-    setProductForm({
-      title: '',
-      brand: '',
-      category: 'top',
-      price: 0,
-      description: '',
-      stock: 10,
-      discountPercentage: 0,
-      thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=300&q=80'
-    });
-    setIsProductModalOpen(true);
+    router.push('/dashboard/products/create');
   };
 
   const handleOpenEditProduct = (prod: Product) => {
-    setEditingProduct(prod);
-    setProductForm({
-      title: prod.title,
-      brand: prod.brand,
-      category: prod.category,
-      price: prod.price,
-      description: prod.description,
-      stock: prod.stock,
-      discountPercentage: prod.discountPercentage || 0,
-      thumbnail: prod.thumbnail
-    });
-    setIsProductModalOpen(true);
+    router.push(`/dashboard/products/${prod.id}/edit`);
   };
 
   const handleDeleteProduct = async (prodId: string | number) => {
@@ -868,6 +850,7 @@ export default function AdminDashboardPage() {
         <div className="lg:w-1/4 flex flex-col gap-2">
           {[
             { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'ai_suite', label: 'AI Commerce Suite', icon: Sparkles },
             { id: 'products', label: 'Products Catalog', icon: Shirt },
             { id: 'orders', label: 'Customer Orders', icon: ShoppingBag },
             { id: 'users', label: 'User Accounts', icon: Users },
@@ -916,6 +899,28 @@ export default function AdminDashboardPage() {
             </div>
           ) : (
             <>
+              {/* AI COMMERCE SUITE VIEW */}
+              {adminTab === 'ai_suite' && (
+                <div className="space-y-8 animate-in fade-in duration-300">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <div>
+                      <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+                        AI Commerce Platform Suite
+                      </h2>
+                      <p className="text-xs text-gray-500">
+                        Manage automated AI product descriptions, studio image enhancers, review sentiment intelligence, and sales advisors.
+                      </p>
+                    </div>
+                  </div>
+
+                  <AISalesAdvisor />
+                  <AIProductDescriptionGen />
+                  <AIImageEnhancer />
+                  <AIReviewAnalyzer />
+                </div>
+              )}
+
               {/* 1. OVERVIEW VIEW */}
               {adminTab === 'overview' && dashboard && (
                 <div className="space-y-8">
@@ -940,6 +945,9 @@ export default function AdminDashboardPage() {
                       <span className="text-lg font-black text-gray-900 dark:text-white mt-1 block">{dashboard.stats.productsCount}</span>
                     </div>
                   </div>
+
+                  {/* AI Sales Advisor Widget */}
+                  <AISalesAdvisor />
 
                   {/* Stock Alert */}
                   {dashboard.lowStockProducts.length > 0 && (
@@ -1909,122 +1917,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* CREATE/EDIT PRODUCT DIALOG MODAL */}
-      {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 relative">
-            
-            <button onClick={() => setIsProductModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-              <X className="w-4 h-4" />
-            </button>
 
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2">
-              {editingProduct ? 'Modify Product Specifications' : 'Publish New Product'}
-            </h3>
-
-            <form onSubmit={handleProductFormSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Product Title</label>
-                <Input
-                  type="text"
-                  value={productForm.title}
-                  onChange={(e) => setProductForm({ ...productForm, title: e.target.value })}
-                  required
-                  className="w-full text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Brand Name</label>
-                  <Input
-                    type="text"
-                    value={productForm.brand}
-                    onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })}
-                    required
-                    className="w-full text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Material Category</label>
-                  <select
-                    value={productForm.category}
-                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                    className="w-full text-sm border border-gray-200 bg-white rounded-xl p-2.5 focus:outline-none"
-                  >
-                    <option value="top">Tops</option>
-                    <option value="pants">Pants</option>
-                    <option value="dress">Dresses</option>
-                    <option value="jacket">Jackets</option>
-                    <option value="shoes">Shoes</option>
-                    <option value="hat">Hats</option>
-                    <option value="bag">Bags</option>
-                    <option value="glasses">Glasses</option>
-                    <option value="jewelry">Jewelry</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Price ($)</label>
-                  <Input
-                    type="number"
-                    value={productForm.price}
-                    onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })}
-                    required
-                    className="w-full text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Discount %</label>
-                  <Input
-                    type="number"
-                    value={productForm.discountPercentage}
-                    onChange={(e) => setProductForm({ ...productForm, discountPercentage: Number(e.target.value) })}
-                    className="w-full text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Stock Count</label>
-                  <Input
-                    type="number"
-                    value={productForm.stock}
-                    onChange={(e) => setProductForm({ ...productForm, stock: Number(e.target.value) })}
-                    required
-                    className="w-full text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Description</label>
-                <textarea
-                  value={productForm.description}
-                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                  required
-                  rows={2}
-                  className="w-full text-sm border border-gray-250 rounded-xl p-2.5 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Thumbnail Image URL</label>
-                <Input
-                  type="text"
-                  value={productForm.thumbnail}
-                  onChange={(e) => setProductForm({ ...productForm, thumbnail: e.target.value })}
-                  className="w-full text-sm"
-                />
-              </div>
-
-              <Button type="submit" className="w-full text-sm py-2.5 font-bold rounded-xl mt-4">
-                {editingProduct ? 'Update Specifications' : 'Publish Product'}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* CREATE/EDIT CAMPAIGN DIALOG MODAL */}
       {isCampaignModalOpen && (

@@ -487,13 +487,13 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         isOpen={isQuickViewOpen}
         onClose={() => setIsQuickViewOpen(false)}
         title="Product Details Quick View"
-        size="lg"
+        size="xl"
       >
         {isQuickViewOpen && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-3 sm:p-5">
             
             {/* Gallery images inside modal */}
-            <div className="relative w-full h-64 bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden border">
+            <div className="relative w-full h-80 md:h-[360px] bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
               <Image
                 src={product.thumbnail}
                 alt={product.title}

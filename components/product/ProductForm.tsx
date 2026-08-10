@@ -1,12 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Product, ProductVariantGroup, VariantCombination, ProductAttribute } from '@/types';
-import apiClient from '@/lib/apiClient';
+import Link from 'next/link';
+import {
+  Product,
+  ProductVariantGroup,
+  VariantCombination,
+  ProductAttribute,
+  ProductMedia,
+  ProductPricing,
+  ProductInventory,
+  ProductShipping,
+  ProductSEO
+} from '@/types';
+import { productService } from '@/services/productService';
 import { useToast } from '@/context/ToastContext';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import {
   Save,
   Send,
@@ -17,7 +29,6 @@ import {
   Image as ImageIcon,
   Sparkles,
   RefreshCw,
-  HelpCircle,
   Eye,
   CheckCircle2,
   AlertCircle,
@@ -29,14 +40,15 @@ import {
   Globe,
   Tag,
   Sliders,
-  Calendar,
   MoveUp,
   MoveDown,
-  Crop,
   Video,
-  Box
+  Box,
+  Star,
+  Check,
+  ChevronRight,
+  Info
 } from 'lucide-react';
-import Link from 'next/link';
 
 interface ProductFormProps {
   initialData?: Product | null;
@@ -47,155 +59,178 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   const router = useRouter();
   const toast = useToast();
 
-  // Active section for sticky right sidebar indicator
-  const [activeSection, setActiveSection] = useState('basic');
-  const [autosaveTime, setAutosaveTime] = useState<string | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [targetNavigationUrl, setTargetNavigationUrl] = useState<string | null>(null);
 
   // 1. Basic Info State
-  const [title, setTitle] = useState(initialData?.title || '');
+  const [title, setTitle] = useState(initialData?.title || initialData?.name || '');
   const [slug, setSlug] = useState(initialData?.slug || '');
   const [sku, setSku] = useState(initialData?.sku || initialData?.SKU || '');
   const [barcode, setBarcode] = useState(initialData?.barcode || '');
-  const [brand, setBrand] = useState(initialData?.brand || '');
-  const [category, setCategory] = useState(initialData?.category || 'clothing');
+  const [brand, setBrand] = useState(initialData?.brand || 'SwiftCart Signature');
+  const [category, setCategory] = useState(initialData?.category || 'Clothing');
   const [subcategory, setSubcategory] = useState(initialData?.subcategory || '');
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>(initialData?.tags || ['New Arrival']);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || ['New Arrival', 'Casual']);
   const [shortDescription, setShortDescription] = useState(initialData?.shortDescription || '');
   const [description, setDescription] = useState(initialData?.description || '');
+
+  // 2. Status & Visibility State
   const [status, setStatus] = useState<'draft' | 'published' | 'archived'>(initialData?.status || 'published');
   const [visibility, setVisibility] = useState<'public' | 'private' | 'hidden'>(initialData?.visibility || 'public');
-  const [featured, setFeatured] = useState<boolean>(initialData?.featured || false);
+  const [featured, setFeatured] = useState<boolean>(initialData?.featured || initialData?.isFeatured || false);
   const [trending, setTrending] = useState<boolean>(initialData?.trending || false);
-  const [newArrival, setNewArrival] = useState<boolean>(initialData?.newArrival || true);
-  const [bestSeller, setBestSeller] = useState<boolean>(initialData?.bestSeller || false);
+  const [newArrival, setNewArrival] = useState<boolean>(initialData?.newArrival ?? true);
+  const [bestSeller, setBestSeller] = useState<boolean>(initialData?.bestSeller || initialData?.bestseller || false);
 
-  // 2. Media State
-  const [images, setImages] = useState<string[]>(
-    initialData?.images && initialData.images.length > 0
-      ? initialData.images
-      : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80']
+  // 3. Media State
+  const [mediaList, setMediaList] = useState<ProductMedia[]>(
+    initialData?.media && initialData.media.length > 0
+      ? initialData.media
+      : (initialData?.images || ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80']).map((url, idx) => ({
+          id: `med-${idx}`,
+          url,
+          alt: `${initialData?.title || 'Product'} Image ${idx + 1}`,
+          isPrimary: idx === 0,
+          type: 'image',
+          sortOrder: idx,
+        }))
   );
-  const [thumbnail, setThumbnail] = useState(initialData?.thumbnail || images[0] || '');
-  const [altTexts, setAltTexts] = useState<Record<string, string>>({});
-  const [videoUrl, setVideoUrl] = useState(initialData?.videos?.[0] || '');
-  const [has360Viewer, setHas360Viewer] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState(initialData?.videos?.[0] || '');
+  const [mediaError, setMediaError] = useState('');
 
-  // 3. Pricing State
-  const [price, setPrice] = useState<number>(initialData?.price || 99);
-  const [originalPrice, setOriginalPrice] = useState<number>(initialData?.originalPrice || 149);
-  const [tax, setTax] = useState<number>(initialData?.tax || 5);
-  const [currency, setCurrency] = useState(initialData?.currency || 'USD');
-  const [costPrice, setCostPrice] = useState<number>(initialData?.costPrice || 45);
+  // 4. Pricing State
+  const [price, setPrice] = useState<number>(initialData?.price ?? 79);
+  const [originalPrice, setOriginalPrice] = useState<number>(initialData?.originalPrice ?? 99);
+  const [costPrice, setCostPrice] = useState<number>(initialData?.costPrice ?? 35);
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(
+    initialData?.pricing?.discountType || 'percentage'
+  );
+  const [discountValue, setDiscountValue] = useState<number>(
+    initialData?.pricing?.discountValue || (initialData?.discountPercentage ?? 20)
+  );
+  const [taxRate, setTaxRate] = useState<number>(initialData?.pricing?.taxRate ?? initialData?.tax ?? 5);
+  const [currency, setCurrency] = useState<string>(initialData?.pricing?.currency || initialData?.currency || 'USD');
 
-  // 4. Inventory State
-  const [stock, setStock] = useState<number>(initialData?.stock || 50);
-  const [reservedStock, setReservedStock] = useState<number>(initialData?.reservedStock || 0);
-  const [lowStockThreshold, setLowStockThreshold] = useState<number>(initialData?.lowStockThreshold || 5);
-  const [warehouse, setWarehouse] = useState(initialData?.warehouse || 'Main Warehouse - NY');
-  const [stockStatus, setStockStatus] = useState<'in_stock' | 'out_of_stock' | 'backorder'>(initialData?.stockStatus || 'in_stock');
-  const [maxOrderQuantity, setMaxOrderQuantity] = useState<number>(initialData?.maxOrderQuantity || 10);
-  const [minOrderQuantity, setMinOrderQuantity] = useState<number>(initialData?.minOrderQuantity || 1);
-  const [allowBackorders, setAllowBackorders] = useState(initialData?.allowBackorders || false);
-  const [trackInventory, setTrackInventory] = useState(initialData?.trackInventory ?? true);
+  // 5. Inventory State
+  const [stock, setStock] = useState<number>(initialData?.stock ?? 45);
+  const [reservedStock, setReservedStock] = useState<number>(initialData?.reservedStock ?? 0);
+  const [lowStockThreshold, setLowStockThreshold] = useState<number>(initialData?.lowStockThreshold ?? 10);
+  const [warehouse, setWarehouse] = useState<string>(initialData?.warehouse || 'Main Distribution Hub - NY');
+  const [trackInventory, setTrackInventory] = useState<boolean>(initialData?.trackInventory ?? true);
+  const [allowBackorder, setAllowBackorder] = useState<boolean>(
+    initialData?.allowBackorder ?? initialData?.allowBackorders ?? false
+  );
+  const [minOrderQuantity, setMinOrderQuantity] = useState<number>(initialData?.minOrderQuantity ?? 1);
+  const [maxOrderQuantity, setMaxOrderQuantity] = useState<number>(initialData?.maxOrderQuantity ?? 10);
 
-  // 5. Variants State
-  const [variantTypes, setVariantTypes] = useState<{ name: string; values: string[] }[]>([
-    { name: 'Colour', values: ['Black', 'Navy', 'White'] },
+  // 6. Variants State
+  const [variantOptionGroups, setVariantOptionGroups] = useState<{ name: string; values: string[] }[]>([
+    { name: 'Color', values: ['Black', 'White', 'Navy'] },
     { name: 'Size', values: ['S', 'M', 'L', 'XL'] }
   ]);
   const [variantCombinations, setVariantCombinations] = useState<VariantCombination[]>(
     initialData?.variantCombinations || []
   );
 
-  // 6. Shipping State
-  const [weight, setWeight] = useState<number>(initialData?.shippingInfo?.weight || 0.8);
-  const [length, setLength] = useState<number>(initialData?.shippingInfo?.dimensions?.length || 25);
-  const [width, setWidth] = useState<number>(initialData?.shippingInfo?.dimensions?.width || 15);
-  const [height, setHeight] = useState<number>(initialData?.shippingInfo?.dimensions?.height || 5);
-  const [shippingClass, setShippingClass] = useState(initialData?.shippingInfo?.shippingClass || 'Standard Parcel');
-  const [freeShipping, setFreeShipping] = useState(initialData?.shippingInfo?.freeShipping ?? true);
-  const [expressShipping, setExpressShipping] = useState(initialData?.shippingInfo?.expressShipping ?? true);
-  const [estimate, setEstimate] = useState(initialData?.shippingInfo?.estimate || '2 - 4 Business Days');
-  const [packagingType, setPackagingType] = useState(initialData?.shippingInfo?.packagingType || 'Recyclable Box');
-  const [countryOfOrigin, setCountryOfOrigin] = useState(initialData?.shippingInfo?.countryOfOrigin || 'United States');
-  const [hsCode, setHsCode] = useState(initialData?.shippingInfo?.hsCode || '6109.10.00');
-
-  // 7. SEO State
-  const [metaTitle, setMetaTitle] = useState(initialData?.seo?.metaTitle || '');
-  const [metaDescription, setMetaDescription] = useState(initialData?.seo?.metaDescription || '');
-  const [keywords, setKeywords] = useState<string[]>(initialData?.seo?.keywords || ['ecommerce', 'swiftcart']);
-  const [canonicalUrl, setCanonicalUrl] = useState(initialData?.seo?.canonicalUrl || '');
-  const [ogImage, setOgImage] = useState(initialData?.seo?.ogImage || '');
-
-  // 8. Related Products
-  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [selectedRelatedIds, setSelectedRelatedIds] = useState<string[]>([]);
-
-  // 9. Attributes State
-  const [attributes, setAttributes] = useState<ProductAttribute[]>([
-    { name: 'Material', value: '100% Organic Cotton', group: 'Fabric' },
-    { name: 'Fit Type', value: 'Regular Slim Fit', group: 'Apparel' },
-    { name: 'Care Instructions', value: 'Machine Wash Cold', group: 'Maintenance' },
-    { name: 'Warranty', value: '1 Year Manufacturer Guarantee', group: 'Guarantee' }
-  ]);
+  // 7. Attributes State
+  const [attributes, setAttributes] = useState<ProductAttribute[]>(
+    initialData?.attributes || [
+      { name: 'Material', value: '100% Organic Cotton', group: 'Fabric' },
+      { name: 'Fit Type', value: 'Regular Slim Fit', group: 'Apparel' },
+      { name: 'Season', value: 'Summer / All-Year', group: 'Usage' },
+      { name: 'Occasion', value: 'Casual & Semi-Formal', group: 'Style' }
+    ]
+  );
   const [newAttrName, setNewAttrName] = useState('');
   const [newAttrVal, setNewAttrVal] = useState('');
-  const [newAttrGroup, setNewAttrGroup] = useState('Custom');
 
-  // 10. Publish Schedule
-  const [scheduledPublishDate, setScheduledPublishDate] = useState('');
+  // 8. Shipping State
+  const [weight, setWeight] = useState<number>(initialData?.shippingInfo?.weight ?? initialData?.shipping?.weight ?? 0.75);
+  const [length, setLength] = useState<number>(initialData?.shippingInfo?.dimensions?.length ?? initialData?.shipping?.length ?? 25);
+  const [width, setWidth] = useState<number>(initialData?.shippingInfo?.dimensions?.width ?? initialData?.shipping?.width ?? 18);
+  const [height, setHeight] = useState<number>(initialData?.shippingInfo?.dimensions?.height ?? initialData?.shipping?.height ?? 5);
+  const [shippingClass, setShippingClass] = useState<string>(
+    initialData?.shippingInfo?.shippingClass || initialData?.shipping?.shippingClass || 'Standard Express Parcel'
+  );
+  const [freeShipping, setFreeShipping] = useState<boolean>(
+    initialData?.shippingInfo?.freeShipping ?? initialData?.shipping?.freeShipping ?? true
+  );
+  const [expressShipping, setExpressShipping] = useState<boolean>(
+    initialData?.shippingInfo?.expressShipping ?? initialData?.shipping?.expressShipping ?? true
+  );
+  const [estimate, setEstimate] = useState<string>(
+    initialData?.shippingInfo?.estimate || initialData?.shipping?.estimate || '2 - 4 Business Days'
+  );
+  const [countryOfOrigin, setCountryOfOrigin] = useState<string>(
+    initialData?.shippingInfo?.countryOfOrigin || initialData?.shipping?.countryOfOrigin || 'United States'
+  );
 
-  // Auto-generate slug & SKU
+  // 9. SEO State
+  const [metaTitle, setMetaTitle] = useState<string>(initialData?.seo?.metaTitle || '');
+  const [metaDescription, setMetaDescription] = useState<string>(initialData?.seo?.metaDescription || '');
+  const [keywordsInput, setKeywordsInput] = useState('');
+  const [keywords, setKeywords] = useState<string[]>(initialData?.seo?.keywords || ['swiftcart', 'fashion', 'premium']);
+  const [canonicalUrl, setCanonicalUrl] = useState<string>(initialData?.seo?.canonicalUrl || '');
+
+  // Subcategories mapping by Category
+  const subcategoryOptions: Record<string, string[]> = {
+    Clothing: ['T-Shirts', 'Hoodies & Sweatshirts', 'Jackets', 'Pants & Jeans', 'Dresses', 'Shorts'],
+    Top: ['T-Shirts', 'Shirts', 'Polo', 'Tank Tops'],
+    Bottom: ['Jeans', 'Trousers', 'Shorts', 'Joggers'],
+    Dresses: ['Casual Dresses', 'Evening Gowns', 'Cocktail Dresses'],
+    Outerwear: ['Coats', 'Jackets', 'Blazers', 'Windbreakers'],
+    Footwear: ['Sneakers', 'Boots', 'Loafers', 'Sandals'],
+    Accessories: ['Bags & Backpacks', 'Watches', 'Sunglasses', 'Belts & Hats'],
+    Sofa: ['Sectional', '3-Seater Standard', 'Recliner', 'Loveseat'],
+    Chair: ['Dining Chair', 'Lounge Chair', 'Ergonomic Office Chair'],
+    Table: ['Coffee Table', 'Dining Table', 'Side Table', 'Desk']
+  };
+
+  // Auto Slug generation from Title (if not manually edited)
   useEffect(() => {
-    if (title && (!slug || !isEditMode)) {
+    if (title && !isSlugManuallyEdited) {
       const generatedSlug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
       setSlug(generatedSlug);
     }
-  }, [title]);
+  }, [title, isSlugManuallyEdited]);
 
+  // Auto SKU & Barcode generation if empty
   useEffect(() => {
     if (!sku && !isEditMode) {
-      setSku('SKU-' + Math.floor(100000 + Math.random() * 900000));
+      const catCode = category ? category.slice(0, 3).toUpperCase() : 'SCT';
+      setSku(`${catCode}-${Math.floor(100000 + Math.random() * 900000)}`);
     }
-    if (!barcode) {
-      setBarcode('BC-' + Math.floor(100000000000 + Math.random() * 900000000000));
+    if (!barcode && !isEditMode) {
+      setBarcode(`BC-${Math.floor(100000000000 + Math.random() * 900000000000)}`);
     }
-  }, []);
+  }, [category, isEditMode]);
 
-  // Fetch product list for related products selection
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const res = await apiClient.get('/products?limit=50');
-        if (res.data?.products) {
-          setAvailableProducts(res.data.products.filter((p: Product) => String(p.id) !== String(initialData?.id)));
-        }
-      } catch (err) {
-        console.error('Failed to load related products list:', err);
-      }
-    };
-    loadProducts();
-  }, [initialData]);
-
-  // Calculations for pricing section
-  const discountAmount = originalPrice > price ? originalPrice - price : 0;
-  const discountPercentage = originalPrice > 0 && discountAmount > 0 ? Math.round((discountAmount / originalPrice) * 100) : 0;
-  const profit = price - costPrice;
-  const profitMargin = price > 0 ? Math.round((profit / price) * 100) : 0;
-
-  // Track field changes
+  // Dirty tracking for unsaved changes warning
   useEffect(() => {
     setIsDirty(true);
-  }, [title, price, stock, description, images, status, visibility]);
+  }, [
+    title,
+    slug,
+    sku,
+    price,
+    stock,
+    category,
+    status,
+    visibility,
+    mediaList,
+    attributes,
+    variantCombinations
+  ]);
 
-  // Unsaved changes warning
+  // Prevent unload if dirty
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty && !submitting) {
@@ -207,53 +242,132 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, submitting]);
 
-  // Keyboard shortcut Ctrl+S / Cmd+S
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleSaveDraft();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [title, price, stock]);
+  // Derived Pricing Calculations (NaN & Infinity safe)
+  const calculatedDiscountAmount = useMemo(() => {
+    const orig = Number(originalPrice) || 0;
+    const currentPrice = Number(price) || 0;
+    return orig > currentPrice ? orig - currentPrice : 0;
+  }, [originalPrice, price]);
 
-  // Autosave timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (isDirty && title.trim()) {
-        const timestamp = new Date().toLocaleTimeString();
-        localStorage.setItem(
-          `swiftcart_draft_${initialData?.id || 'new'}`,
-          JSON.stringify({ title, price, stock, category, status })
-        );
-        setAutosaveTime(timestamp);
-      }
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [isDirty, title, price, stock, category, status]);
+  const calculatedDiscountPercentage = useMemo(() => {
+    const orig = Number(originalPrice) || 0;
+    if (orig <= 0 || calculatedDiscountAmount <= 0) return 0;
+    return Math.round((calculatedDiscountAmount / orig) * 100);
+  }, [originalPrice, calculatedDiscountAmount]);
 
-  // Form completion percentage
-  const calculateCompletion = () => {
+  const estimatedProfit = useMemo(() => {
+    const currentPrice = Number(price) || 0;
+    const cost = Number(costPrice) || 0;
+    return currentPrice - cost;
+  }, [price, costPrice]);
+
+  const profitMargin = useMemo(() => {
+    const currentPrice = Number(price) || 0;
+    if (currentPrice <= 0 || estimatedProfit <= 0) return 0;
+    const margin = (estimatedProfit / currentPrice) * 100;
+    return isFinite(margin) ? Math.round(margin * 100) / 100 : 0;
+  }, [price, estimatedProfit]);
+
+  // Derived Stock Status
+  const calculatedStockStatus = useMemo(() => {
+    const currentStock = Number(stock) || 0;
+    const threshold = Number(lowStockThreshold) || 10;
+    if (currentStock <= 0) return 'out_of_stock';
+    if (currentStock <= threshold) return 'low_stock';
+    return 'in_stock';
+  }, [stock, lowStockThreshold]);
+
+  // Derived Available Stock
+  const availableStock = useMemo(() => {
+    const currentStock = Number(stock) || 0;
+    const reserved = Number(reservedStock) || 0;
+    return Math.max(0, currentStock - reserved);
+  }, [stock, reservedStock]);
+
+  // Completion calculation
+  const missingRequiredFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!title.trim()) missing.push('Product Name');
+    if (!category.trim()) missing.push('Category');
+    if (Number(price) <= 0) missing.push('Selling Price (must be > 0)');
+    if (mediaList.length === 0) missing.push('At least 1 Product Image');
+    return missing;
+  }, [title, category, price, mediaList]);
+
+  const completionPercentage = useMemo(() => {
     let count = 0;
-    const totalFields = 10;
-    if (title) count++;
-    if (brand) count++;
-    if (category) count++;
-    if (description) count++;
-    if (price > 0) count++;
-    if (images.length > 0) count++;
-    if (stock >= 0) count++;
-    if (sku) count++;
+    const totalChecks = 10;
+    if (title.trim()) count++;
+    if (brand.trim()) count++;
+    if (category.trim()) count++;
+    if (description.trim()) count++;
+    if (Number(price) > 0) count++;
+    if (mediaList.length > 0) count++;
+    if (Number(stock) >= 0) count++;
+    if (sku.trim()) count++;
     if (attributes.length > 0) count++;
     if (metaTitle || description) count++;
-    return Math.round((count / totalFields) * 100);
+    return Math.round((count / totalChecks) * 100);
+  }, [title, brand, category, description, price, mediaList, stock, sku, attributes, metaTitle]);
+
+  // Primary image
+  const primaryMedia = useMemo(() => {
+    return mediaList.find((m) => m.isPrimary) || mediaList[0] || null;
+  }, [mediaList]);
+
+  // Media Handlers
+  const handleAddMediaUrl = () => {
+    if (!newImageUrl.trim()) return;
+
+    // Validate URL format
+    if (!newImageUrl.startsWith('http://') && !newImageUrl.startsWith('https://')) {
+      setMediaError('Image URL must start with http:// or https://');
+      return;
+    }
+
+    setMediaError('');
+    const newMediaItem: ProductMedia = {
+      id: `med_${Date.now()}`,
+      url: newImageUrl.trim(),
+      alt: `${title || 'Product'} Image ${mediaList.length + 1}`,
+      isPrimary: mediaList.length === 0,
+      type: 'image',
+      sortOrder: mediaList.length,
+    };
+
+    setMediaList([...mediaList, newMediaItem]);
+    setNewImageUrl('');
+    toast.success('Media image added to gallery.');
   };
 
-  const completionPct = calculateCompletion();
+  const handleRemoveMedia = (index: number) => {
+    const updated = mediaList.filter((_, i) => i !== index);
+    if (mediaList[index]?.isPrimary && updated.length > 0) {
+      updated[0].isPrimary = true;
+    }
+    setMediaList(updated);
+  };
 
-  // Helper functions
+  const handleSetPrimaryMedia = (index: number) => {
+    const updated = mediaList.map((m, i) => ({
+      ...m,
+      isPrimary: i === index,
+    }));
+    setMediaList(updated);
+    toast.success('Primary product image updated!');
+  };
+
+  const handleMoveMedia = (index: number, direction: 'up' | 'down') => {
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= mediaList.length) return;
+    const updated = [...mediaList];
+    const temp = updated[index];
+    updated[index] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    setMediaList(updated);
+  };
+
+  // Tags Handlers
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()]);
@@ -265,1225 +379,1423 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  const handleAddImage = () => {
-    if (newImageUrl.trim()) {
-      setImages([...images, newImageUrl.trim()]);
-      if (!thumbnail) setThumbnail(newImageUrl.trim());
-      setNewImageUrl('');
-      toast.success('Media image added!');
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    const updated = images.filter((_, i) => i !== index);
-    setImages(updated);
-    if (thumbnail === images[index]) {
-      setThumbnail(updated[0] || '');
-    }
-  };
-
-  const handleMoveImage = (index: number, direction: 'up' | 'down') => {
-    const newIdx = direction === 'up' ? index - 1 : index + 1;
-    if (newIdx < 0 || newIdx >= images.length) return;
-    const updated = [...images];
-    const temp = updated[index];
-    updated[index] = updated[newIdx];
-    updated[newIdx] = temp;
-    setImages(updated);
-  };
-
-  const handleGenerateCombinations = () => {
-    if (variantTypes.length === 0 || variantTypes.some((v) => v.values.length === 0)) {
-      toast.error('Please define variant types and at least one value each.');
+  // Generate Variant Combinations Matrix
+  const handleGenerateVariants = () => {
+    if (variantOptionGroups.length === 0 || variantOptionGroups.some((g) => g.values.length === 0)) {
+      toast.error('Please define option groups and at least one option value each.');
       return;
     }
 
     let results: Record<string, string>[] = [{}];
-    variantTypes.forEach((vt) => {
+    variantOptionGroups.forEach((group) => {
       const temp: Record<string, string>[] = [];
       results.forEach((acc) => {
-        vt.values.forEach((val) => {
-          temp.push({ ...acc, [vt.name]: val });
+        group.values.forEach((val) => {
+          temp.push({ ...acc, [group.name]: val });
         });
       });
       results = temp;
     });
 
-    const generated: VariantCombination[] = results.map((comb, idx) => ({
-      id: `var-${Date.now()}-${idx}`,
-      sku: `${sku || 'SKU'}-${Object.values(comb).join('-').toUpperCase()}`,
-      price: price,
-      stock: Math.floor(stock / results.length) || 10,
-      barcode: `BC-VAR-${idx + 100}`,
-      status: 'active',
-      images: [images[0] || ''],
-      attributes: comb
-    }));
+    const generated: VariantCombination[] = results.map((comb, idx) => {
+      const optionSuffix = Object.values(comb).join('-').toUpperCase();
+      return {
+        id: `var-${Date.now()}-${idx}`,
+        sku: `${sku || 'SKU'}-${optionSuffix}`,
+        price: Number(price) || 49,
+        stock: Math.floor((Number(stock) || 10) / results.length) || 5,
+        barcode: `BC-VAR-${idx + 100}`,
+        status: 'active',
+        images: [primaryMedia?.url || ''],
+        attributes: comb
+      };
+    });
 
     setVariantCombinations(generated);
     toast.success(`Generated ${generated.length} variant combinations matrix!`);
   };
 
-  const handleAddCustomAttr = () => {
+  const handleUpdateVariantRow = (index: number, field: keyof VariantCombination, val: any) => {
+    const updated = [...variantCombinations];
+    updated[index] = { ...updated[index], [field]: val };
+    setVariantCombinations(updated);
+  };
+
+  // Custom Attribute Handlers
+  const handleAddAttribute = () => {
     if (newAttrName.trim() && newAttrVal.trim()) {
-      setAttributes([...attributes, { name: newAttrName.trim(), value: newAttrVal.trim(), group: newAttrGroup }]);
+      setAttributes([
+        ...attributes,
+        { name: newAttrName.trim(), value: newAttrVal.trim(), group: 'Custom' }
+      ]);
       setNewAttrName('');
       setNewAttrVal('');
-      toast.success('Custom attribute added!');
+      toast.success('Custom attribute added.');
     }
   };
 
+  const handleRemoveAttribute = (idx: number) => {
+    setAttributes(attributes.filter((_, i) => i !== idx));
+  };
+
+  // SEO Keywords Handlers
+  const handleAddKeyword = () => {
+    if (keywordsInput.trim() && !keywords.includes(keywordsInput.trim())) {
+      setKeywords([...keywords, keywordsInput.trim()]);
+      setKeywordsInput('');
+    }
+  };
+
+  // Form Save/Publish Handlers
   const handleSaveDraft = async () => {
     setStatus('draft');
-    await handleSubmitForm('draft');
+    await submitForm('draft');
   };
 
   const handlePublish = async () => {
+    if (missingRequiredFields.length > 0) {
+      toast.error(`Please complete missing required fields: ${missingRequiredFields.join(', ')}`);
+      return;
+    }
     setStatus('published');
-    await handleSubmitForm('published');
+    await submitForm('published');
   };
 
-  const handleSubmitForm = async (targetStatus: 'draft' | 'published' | 'archived') => {
-    if (!title.trim()) {
-      toast.error('Product title is required.');
-      return;
-    }
-    if (price <= 0) {
-      toast.error('Product price must be greater than 0.');
-      return;
-    }
-
+  const submitForm = async (targetStatus: 'draft' | 'published' | 'archived') => {
     setSubmitting(true);
-    const payload = {
+
+    const imagesArray = mediaList.map((m) => m.url);
+    const primaryUrl = primaryMedia?.url || imagesArray[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80';
+
+    const pricingObj: ProductPricing = {
+      price: Math.max(0, Number(price) || 0),
+      originalPrice: Math.max(0, Number(originalPrice) || 0),
+      costPrice: Math.max(0, Number(costPrice) || 0),
+      discountType,
+      discountValue: Number(discountValue) || 0,
+      taxRate: Number(taxRate) || 0,
+      currency
+    };
+
+    const inventoryObj: ProductInventory = {
+      stock: Math.max(0, Number(stock) || 0),
+      reservedStock: Math.max(0, Number(reservedStock) || 0),
+      lowStockThreshold: Math.max(0, Number(lowStockThreshold) || 10),
+      trackInventory,
+      allowBackorder,
+      allowBackorders: allowBackorder,
+      minOrderQuantity: Math.max(1, Number(minOrderQuantity) || 1),
+      maxOrderQuantity: Math.max(1, Number(maxOrderQuantity) || 10),
+      warehouse,
+      status: calculatedStockStatus
+    };
+
+    const shippingObj: ProductShipping = {
+      weight: Math.max(0, Number(weight) || 0),
+      dimensions: {
+        length: Math.max(0, Number(length) || 0),
+        width: Math.max(0, Number(width) || 0),
+        height: Math.max(0, Number(height) || 0)
+      },
+      length: Math.max(0, Number(length) || 0),
+      width: Math.max(0, Number(width) || 0),
+      height: Math.max(0, Number(height) || 0),
+      shippingClass,
+      freeShipping,
+      expressShipping,
+      estimate,
+      countryOfOrigin
+    };
+
+    const seoObj: ProductSEO = {
+      metaTitle: metaTitle || title,
+      metaDescription: metaDescription || shortDescription || description.slice(0, 150),
+      keywords,
+      canonicalUrl: canonicalUrl || `https://swiftcart.com/products/${slug}`
+    };
+
+    const payload: Partial<Product> = {
       title,
+      name: title,
       slug,
       sku,
+      SKU: sku,
       barcode,
-      brand: brand || 'SwiftCart Brand',
+      brand,
       category,
       subcategory,
       tags,
+      shortDescription,
+      description,
       status: targetStatus,
       visibility,
       featured,
+      isFeatured: featured,
       trending,
       newArrival,
       bestSeller,
-      price: Number(price),
-      originalPrice: Number(originalPrice),
-      salePrice: Number(price),
-      discountPercentage,
-      tax: Number(tax),
+      bestseller: bestSeller,
+
+      price: Math.max(0, Number(price) || 0),
+      originalPrice: Math.max(0, Number(originalPrice) || 0),
+      salePrice: Math.max(0, Number(price) || 0),
+      discountPercentage: calculatedDiscountPercentage,
+      costPrice: Math.max(0, Number(costPrice) || 0),
+      tax: Number(taxRate) || 0,
       currency,
-      costPrice: Number(costPrice),
-      stock: Number(stock),
-      reservedStock: Number(reservedStock),
-      lowStockThreshold: Number(lowStockThreshold),
+
+      stock: Math.max(0, Number(stock) || 0),
+      totalStock: Math.max(0, Number(stock) || 0),
+      reservedStock: Math.max(0, Number(reservedStock) || 0),
+      lowStockThreshold: Math.max(0, Number(lowStockThreshold) || 10),
+      stockStatus: calculatedStockStatus,
       warehouse,
-      stockStatus: stock <= 0 ? 'out_of_stock' : stockStatus,
-      maxOrderQuantity: Number(maxOrderQuantity),
-      minOrderQuantity: Number(minOrderQuantity),
-      allowBackorders,
       trackInventory,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80'],
+      allowBackorder,
+      allowBackorders: allowBackorder,
+      minOrderQuantity: Number(minOrderQuantity) || 1,
+      maxOrderQuantity: Number(maxOrderQuantity) || 10,
+
+      pricing: pricingObj,
+      inventory: inventoryObj,
+      media: mediaList,
+      images: imagesArray.length > 0 ? imagesArray : [primaryUrl],
+      thumbnail: primaryUrl,
       videos: videoUrl ? [videoUrl] : [],
-      thumbnail: thumbnail || images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80',
-      shortDescription,
-      description: description || shortDescription || 'High quality product available at SwiftCart.',
-      specifications: attributes.reduce((acc, curr) => ({ ...acc, [curr.name]: curr.value }), {}),
-      attributes,
-      variants: variantTypes.map((vt) => ({
-        id: vt.name.toLowerCase(),
-        name: vt.name,
-        options: vt.values.map((val, idx) => ({
-          id: `${vt.name.toLowerCase()}-${idx}`,
-          name: vt.name,
+
+      variants: variantOptionGroups.map((group) => ({
+        id: group.name.toLowerCase(),
+        name: group.name,
+        options: group.values.map((val, idx) => ({
+          id: `${group.name.toLowerCase()}-${idx}`,
+          name: group.name,
           value: val,
-          stock: stock,
+          stock: Number(stock) || 10,
           sku: `${sku}-${val.toUpperCase()}`
         }))
       })),
       variantCombinations,
-      shippingInfo: {
-        estimate,
-        freeShipping,
-        expressShipping,
-        returnPolicy: '30-Day Hassle-Free Returns',
-        cost: freeShipping ? 0 : 15,
-        weight: Number(weight),
-        dimensions: { length: Number(length), width: Number(width), height: Number(height) },
-        shippingClass,
-        packagingType,
-        countryOfOrigin,
-        hsCode
-      },
-      seo: {
-        metaTitle: metaTitle || title,
-        metaDescription: metaDescription || shortDescription,
-        keywords,
-        canonicalUrl: canonicalUrl || `https://swiftcart.com/product/${slug}`,
-        ogImage: ogImage || thumbnail
-      },
-      relatedProducts: selectedRelatedIds
+
+      attributes,
+      specifications: attributes.reduce((acc, curr) => ({ ...acc, [curr.name]: curr.value }), {}),
+
+      shippingInfo: shippingObj,
+      shipping: shippingObj,
+
+      seo: seoObj,
+      rating: initialData?.rating ?? 4.8,
+      reviewCount: initialData?.reviewCount ?? 15,
+      updatedAt: new Date().toISOString()
     };
 
     try {
       if (isEditMode && initialData?.id) {
-        const res = await apiClient.put(`/products/${initialData.id}`, payload);
-        if (res.data?.success || res.status === 200) {
-          toast.success(`Product "${title}" updated successfully!`);
-          setIsDirty(false);
-          router.push('/admin');
-        }
+        await productService.updateProduct(initialData.id, payload);
+        toast.success(`Product "${title}" updated successfully!`);
       } else {
-        const res = await apiClient.post('/products', payload);
-        if (res.data?.success || res.status === 201) {
-          toast.success(`Product "${title}" created and published successfully!`);
-          setIsDirty(false);
-          router.push('/admin');
-        }
+        await productService.createProduct(payload);
+        toast.success(`Product "${title}" ${targetStatus === 'draft' ? 'saved as draft' : 'published'} successfully!`);
       }
+      setIsDirty(false);
+      router.push('/dashboard/products');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save product. Please check required fields.');
+      toast.error('Failed to save product. Please check form values.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const sections = [
-    { id: 'basic', label: 'Basic Info', icon: FileText },
-    { id: 'media', label: 'Media', icon: ImageIcon },
-    { id: 'pricing', label: 'Pricing', icon: DollarSign },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'variants', label: 'Variants', icon: Layers },
-    { id: 'shipping', label: 'Shipping', icon: Truck },
-    { id: 'seo', label: 'SEO', icon: Globe },
-    { id: 'related', label: 'Related Products', icon: Tag },
-    { id: 'attributes', label: 'Attributes', icon: Sliders },
-    { id: 'publish', label: 'Publish', icon: Calendar },
-  ];
+  const handleCancel = () => {
+    if (isDirty) {
+      setTargetNavigationUrl('/dashboard/products');
+      setIsLeaveModalOpen(true);
+    } else {
+      router.push('/dashboard/products');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-6 sm:py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        
-        {/* Modern Header Banner */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-150/50 dark:border-gray-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sticky top-4 z-30 backdrop-blur-md bg-white/95 dark:bg-gray-900/95">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-              <Link href="/admin" className="hover:text-[#8b6f47]">Admin Dashboard</Link>
-              <span>/</span>
-              <span className="text-gray-900 dark:text-white font-serif">{isEditMode ? 'Edit Product' : 'Create Product'}</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold font-serif text-gray-900 dark:text-white tracking-tight">
-              {isEditMode ? `Edit: ${title || 'Product'}` : 'Create New Product'}
-            </h1>
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span>Form Completion: <strong className="text-[#8b6f47] dark:text-[#c9a96b] font-bold">{completionPct}%</strong></span>
-              {autosaveTime && (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Draft autosaved at {autosaveTime}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Link href="/admin">
-              <Button variant="outline" size="sm" className="rounded-xl text-xs font-bold px-4 py-2">
-                Cancel
-              </Button>
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      
+      {/* Sticky Action Header */}
+      <div className="sticky top-4 z-30 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md p-4 rounded-2xl border border-gray-150/80 dark:border-gray-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/products"
+              className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
+            >
+              ← Products
             </Link>
-            <Button
-              onClick={handleSaveDraft}
-              variant="outline"
-              size="sm"
-              loading={submitting && status === 'draft'}
-              className="rounded-xl text-xs font-bold px-4 py-2 border-gray-300 text-gray-700 dark:text-gray-200 flex items-center gap-1.5"
-            >
-              <Save className="w-3.5 h-3.5 text-gray-500" /> Save Draft
-            </Button>
-            <Button
-              onClick={handlePublish}
-              size="sm"
-              loading={submitting && status === 'published'}
-              className="rounded-xl text-xs font-bold px-5 py-2 bg-[#8b6f47] hover:bg-[#725a38] text-white flex items-center gap-1.5 shadow-sm"
-            >
-              <Send className="w-3.5 h-3.5" /> Publish Product
-            </Button>
+            <span className="text-gray-300 dark:text-gray-700">/</span>
+            <span className="text-xs text-text-muted capitalize">
+              {isEditMode ? 'Edit Product' : 'Create Product'}
+            </span>
+          </div>
+          <h1 className="text-xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wide mt-1">
+            {isEditMode ? `Edit: ${initialData?.title || 'Product'}` : 'Create New Product'}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            className="rounded-xl border-gray-200 dark:border-gray-800"
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveDraft}
+            disabled={submitting}
+            className="rounded-xl border-gray-200 dark:border-gray-800 flex items-center gap-2"
+          >
+            <Save className="w-4 h-4 text-amber-500" />
+            <span>Save Draft</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handlePublish}
+            disabled={submitting}
+            className="rounded-xl bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] text-white font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+          >
+            <Send className="w-4 h-4" />
+            <span>{isEditMode ? 'Save Changes' : 'Publish Product'}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Validation missing fields summary banner */}
+      {missingRequiredFields.length > 0 && (
+        <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-300">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              <strong>Completion: {completionPercentage}%</strong> — Missing required fields for publish:{' '}
+              {missingRequiredFields.join(', ')}
+            </span>
           </div>
         </div>
+      )}
 
-        {/* Progress Bar Indicator */}
-        <div className="w-full bg-gray-200 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] transition-all duration-500 rounded-full"
-            style={{ width: `${completionPct}%` }}
-          />
-        </div>
-
-        {/* Form Main Layout Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      {/* Two-Column Responsive Layout (Main 70% | Sidebar 30%) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left / Main Content Area (~70%) */}
+        <div className="lg:col-span-8 space-y-6">
           
-          {/* Left Column: 10 Form Sections */}
-          <div className="lg:col-span-3 space-y-8">
-            
-            {/* 1. BASIC INFORMATION */}
-            <section id="section-basic" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-[#8b6f47]" /> 1. Basic Information
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-1">Product identity, titles, categorization, and badges.</p>
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">Required</span>
+          {/* SECTION 1: Basic Information */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#8b6f47]" />
+                Basic Information
+              </h2>
+              <span className="text-[11px] text-text-muted font-medium">* Required</span>
+            </div>
+
+            {/* Product Title */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                Product Name <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Premium Organic Cotton T-Shirt"
+                className="w-full text-sm font-serif"
+              />
+            </div>
+
+            {/* Slug & SKU & Barcode */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* Slug */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  URL Slug
+                </label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => {
+                    setSlug(e.target.value);
+                    setIsSlugManuallyEdited(true);
+                  }}
+                  placeholder="premium-cotton-tshirt"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Product Title *
+              {/* SKU */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                    SKU
                   </label>
-                  <Input
-                    type="text"
-                    placeholder="e.g., Swift Oxford Cotton Button-Down Shirt"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    className="w-full text-sm rounded-xl py-2.5 font-serif font-bold"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const generated = `SCT-${category.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                      setSku(generated);
+                    }}
+                    className="text-[10px] text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline"
+                  >
+                    Auto-Generate
+                  </button>
                 </div>
+                <input
+                  type="text"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  placeholder="SCT-TSH-001"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-mono"
+                />
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      URL Slug
-                    </label>
-                    <Input
-                      type="text"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      className="w-full text-xs font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      SKU Code
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        value={sku}
-                        onChange={(e) => setSku(e.target.value)}
-                        className="w-full text-xs font-mono font-bold"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setSku('SKU-' + Math.floor(100000 + Math.random() * 900000))}
-                        className="p-2 bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200 text-gray-600 dark:text-gray-300"
-                        title="Auto Generate SKU"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Barcode (EAN/UPC)
-                    </label>
-                    <Input
-                      type="text"
-                      value={barcode}
-                      onChange={(e) => setBarcode(e.target.value)}
-                      className="w-full text-xs font-mono"
-                    />
-                  </div>
-                </div>
+              {/* Barcode */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Barcode (UPC / EAN)
+                </label>
+                <input
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="BC-984021482014"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-mono"
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Brand Name
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="e.g. SwiftCart Atelier"
-                      value={brand}
-                      onChange={(e) => setBrand(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Primary Category
-                    </label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full text-xs border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-2.5 font-bold focus:outline-none"
-                    >
-                      <option value="clothing">Clothing & Apparel</option>
-                      <option value="electronics">Electronics & Tech</option>
-                      <option value="top">Tops & Shirts</option>
-                      <option value="pants">Pants & Trousers</option>
-                      <option value="shoes">Footwear & Sneakers</option>
-                      <option value="accessories">Accessories & Watches</option>
-                      <option value="jewelry">Jewelry & Luxuries</option>
-                      <option value="home">Home & Living</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Subcategory
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="e.g. Formal Shirts"
-                      value={subcategory}
-                      onChange={(e) => setSubcategory(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                </div>
+            {/* Brand, Category & Subcategory */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* Brand */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Brand
+                </label>
+                <input
+                  type="text"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="SwiftCart Signature"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
 
-                {/* Tags input */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Product Tags
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <Input
-                      type="text"
-                      placeholder="Type a tag and click Add (e.g. Organic, Summer, Cotton)"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      className="w-full text-xs"
-                    />
-                    <Button type="button" onClick={handleAddTag} size="sm" className="rounded-xl px-4 text-xs font-bold bg-gray-900 text-white dark:bg-white dark:text-gray-900">
-                      Add Tag
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((t, idx) => (
-                      <span key={idx} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium border border-gray-200/60 dark:border-gray-700">
-                        #{t}
-                        <button type="button" onClick={() => handleRemoveTag(t)} className="hover:text-red-500">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              {/* Category */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Category <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setSubcategory('');
+                  }}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                >
+                  <option value="Clothing">Clothing</option>
+                  <option value="Top">Top</option>
+                  <option value="Bottom">Bottom</option>
+                  <option value="Dresses">Dresses</option>
+                  <option value="Outerwear">Outerwear</option>
+                  <option value="Footwear">Footwear</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Sofa">Sofa</option>
+                  <option value="Chair">Chair</option>
+                  <option value="Table">Table</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Short Description / Teaser
-                  </label>
-                  <textarea
-                    value={shortDescription}
-                    onChange={(e) => setShortDescription(e.target.value)}
-                    rows={2}
-                    placeholder="Brief 1-2 sentence overview shown in cards and headers..."
-                    className="w-full text-xs border border-gray-200 dark:border-gray-800 rounded-xl p-3 focus:outline-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Long Description (Rich Text Editor)
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={5}
-                    placeholder="Detailed specs, fabric details, sizing info, features..."
-                    className="w-full text-xs border border-gray-200 dark:border-gray-800 rounded-xl p-3 focus:outline-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-serif leading-relaxed"
-                  />
-                </div>
-
-                {/* Status & Visibility */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Product Status
-                    </label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as any)}
-                      className="w-full text-xs border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-2.5 font-bold focus:outline-none"
-                    >
-                      <option value="published">Published (Live in Store)</option>
-                      <option value="draft">Draft (Hidden in Admin)</option>
-                      <option value="archived">Archived (Deactivated)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Visibility
-                    </label>
-                    <select
-                      value={visibility}
-                      onChange={(e) => setVisibility(e.target.value as any)}
-                      className="w-full text-xs border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-2.5 font-bold focus:outline-none"
-                    >
-                      <option value="public">Public (Visible in search & catalog)</option>
-                      <option value="private">Private (Only accessible via link)</option>
-                      <option value="hidden">Hidden (Completely hidden)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Feature Toggles */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                  {[
-                    { label: 'Featured Item', state: featured, setter: (val: boolean) => setFeatured(val) },
-                    { label: 'New Arrival', state: newArrival, setter: (val: boolean) => setNewArrival(val) },
-                    { label: 'Trending Item', state: trending, setter: (val: boolean) => setTrending(val) },
-                    { label: 'Best Seller', state: bestSeller, setter: (val: boolean) => setBestSeller(val) },
-                  ].map((t, idx) => (
-                    <label key={idx} className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-850 rounded-2xl border border-gray-200/50 dark:border-gray-800 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={t.state}
-                        onChange={(e) => t.setter(e.target.checked)}
-                        className="rounded border-gray-300 text-[#8b6f47] focus:ring-[#8b6f47]/30"
-                      />
-                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">{t.label}</span>
-                    </label>
+              {/* Subcategory */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Subcategory
+                </label>
+                <select
+                  value={subcategory}
+                  onChange={(e) => setSubcategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                >
+                  <option value="">Select Subcategory</option>
+                  {(subcategoryOptions[category] || ['General']).map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
-            </section>
+            </div>
 
-            {/* 2. MEDIA GALLERY */}
-            <section id="section-media" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-[#8b6f47]" /> 2. Media Gallery & Video
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Upload multiple photos, set thumbnail, ordering, alt text, and video URLs.</p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Drag & Drop Add Image Input */}
-                <div className="border-2 border-dashed border-gray-250 dark:border-gray-800 rounded-3xl p-6 text-center space-y-3 bg-gray-50/50 dark:bg-gray-950/40">
-                  <Upload className="w-8 h-8 text-[#8b6f47] mx-auto" />
-                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300">Enter Image URL or Drag & Drop Media</p>
-                  <div className="flex gap-2 max-w-md mx-auto">
-                    <Input
-                      type="text"
-                      placeholder="https://images.unsplash.com/photo-..."
-                      value={newImageUrl}
-                      onChange={(e) => setNewImageUrl(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                    <Button type="button" onClick={handleAddImage} size="sm" className="rounded-xl px-4 text-xs font-bold bg-[#8b6f47] text-white">
-                      Add Media
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Images Reordering & Thumbnails */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {images.map((img, idx) => (
-                    <div key={idx} className="relative group border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-950 p-2 space-y-2">
-                      <div className="relative h-32 w-full rounded-xl overflow-hidden">
-                        <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
-                        {thumbnail === img && (
-                          <span className="absolute top-2 left-2 bg-[#8b6f47] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-md">
-                            Main Thumbnail
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs px-1">
-                        <button
-                          type="button"
-                          onClick={() => setThumbnail(img)}
-                          className={`text-[10px] font-bold ${thumbnail === img ? 'text-[#8b6f47]' : 'text-gray-400 hover:text-gray-700'}`}
-                        >
-                          {thumbnail === img ? '✓ Cover' : 'Set Cover'}
-                        </button>
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => handleMoveImage(idx, 'up')} disabled={idx === 0} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30">
-                            <MoveUp className="w-3 h-3" />
-                          </button>
-                          <button type="button" onClick={() => handleMoveImage(idx, 'down')} disabled={idx === images.length - 1} className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30">
-                            <MoveDown className="w-3 h-3" />
-                          </button>
-                          <button type="button" onClick={() => handleRemoveImage(idx)} className="p-1 text-red-500 hover:text-red-700">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Video & 360 Viewer */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t dark:border-gray-800">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                      <Video className="w-4 h-4 text-purple-500" /> Video URL (YouTube / Vimeo / MP4)
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="e.g. https://www.youtube.com/watch?v=..."
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                      <Box className="w-4 h-4 text-emerald-500" /> Interactive 360 Viewer
-                    </label>
-                    <label className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-gray-850 border border-gray-200/50 dark:border-gray-800 rounded-xl cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={has360Viewer}
-                        onChange={(e) => setHas360Viewer(e.target.checked)}
-                        className="rounded border-gray-300 text-[#8b6f47]"
-                      />
-                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Enable 360 Product Spin Preview</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 3. PRICING & FINANCIAL CALCULATIONS */}
-            <section id="section-pricing" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-[#8b6f47]" /> 3. Pricing & Financials
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Set selling price, original compare price, cost price, and live profit calculations.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Selling Price ($) *
-                    </label>
-                    <Input
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(Number(e.target.value))}
-                      required
-                      className="w-full text-sm font-black text-[#8b6f47]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Original / MSRP ($)
-                    </label>
-                    <Input
-                      type="number"
-                      value={originalPrice}
-                      onChange={(e) => setOriginalPrice(Number(e.target.value))}
-                      className="w-full text-sm font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Cost Price ($)
-                    </label>
-                    <Input
-                      type="number"
-                      value={costPrice}
-                      onChange={(e) => setCostPrice(Number(e.target.value))}
-                      className="w-full text-sm font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Sales Tax %
-                    </label>
-                    <Input
-                      type="number"
-                      value={tax}
-                      onChange={(e) => setTax(Number(e.target.value))}
-                      className="w-full text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* Live Profit & Discount Calculation Banner */}
-                <div className="bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-blue-500/10 border border-emerald-500/20 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <span className="block text-[10px] uppercase font-black text-gray-400">Calculated Discount</span>
-                    <span className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">
-                      ${discountAmount} ({discountPercentage}% OFF)
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-black text-gray-400">Profit Per Unit</span>
-                    <span className="text-base font-black text-blue-600 dark:text-blue-400 mt-0.5 block">
-                      ${profit}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-black text-gray-400">Profit Margin %</span>
-                    <span className="text-base font-black text-purple-600 dark:text-purple-400 mt-0.5 block">
-                      {profitMargin}%
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-black text-gray-400">Base Currency</span>
-                    <span className="text-base font-black text-gray-900 dark:text-white mt-0.5 block font-mono">
-                      {currency}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 4. INVENTORY & WAREHOUSING */}
-            <section id="section-inventory" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <Package className="w-5 h-5 text-[#8b6f47]" /> 4. Inventory & Warehousing
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Manage stock quantity, low stock alerts, backorders, and warehouse tracking.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Available Stock *
-                    </label>
-                    <Input
-                      type="number"
-                      value={stock}
-                      onChange={(e) => setStock(Number(e.target.value))}
-                      required
-                      className="w-full text-sm font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Reserved Stock
-                    </label>
-                    <Input
-                      type="number"
-                      value={reservedStock}
-                      onChange={(e) => setReservedStock(Number(e.target.value))}
-                      className="w-full text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Low Stock Threshold
-                    </label>
-                    <Input
-                      type="number"
-                      value={lowStockThreshold}
-                      onChange={(e) => setLowStockThreshold(Number(e.target.value))}
-                      className="w-full text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Warehouse Location
-                    </label>
-                    <Input
-                      type="text"
-                      value={warehouse}
-                      onChange={(e) => setWarehouse(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Stock Status
-                    </label>
-                    <select
-                      value={stockStatus}
-                      onChange={(e) => setStockStatus(e.target.value as any)}
-                      className="w-full text-xs border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-2.5 font-bold focus:outline-none"
+            {/* Product Tags */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                Tags & Keywords
+              </label>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-800 dark:text-gray-200"
+                  >
+                    <Tag className="w-3 h-3 text-[#8b6f47]" />
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="ml-1 text-gray-400 hover:text-rose-500"
                     >
-                      <option value="in_stock">In Stock</option>
-                      <option value="out_of_stock">Out of Stock</option>
-                      <option value="backorder">On Backorder</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Max Order Quantity
-                    </label>
-                    <Input
-                      type="number"
-                      value={maxOrderQuantity}
-                      onChange={(e) => setMaxOrderQuantity(Number(e.target.value))}
-                      className="w-full text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Min Order Quantity
-                    </label>
-                    <Input
-                      type="number"
-                      value={minOrderQuantity}
-                      onChange={(e) => setMinOrderQuantity(Number(e.target.value))}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-6 pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={allowBackorders}
-                      onChange={(e) => setAllowBackorders(e.target.checked)}
-                      className="rounded border-gray-300 text-[#8b6f47]"
-                    />
-                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Allow Backorders</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={trackInventory}
-                      onChange={(e) => setTrackInventory(e.target.checked)}
-                      className="rounded border-gray-300 text-[#8b6f47]"
-                    />
-                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Track Inventory Quantity</span>
-                  </label>
-                </div>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
               </div>
-            </section>
-
-            {/* 5. PRODUCT VARIANTS MATRIX */}
-            <section id="section-variants" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-[#8b6f47]" /> 5. Dynamic Product Variants Matrix
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-1">Configure Color, Size, Material, Storage options and auto-generate combination SKUs.</p>
-                </div>
-                <Button type="button" onClick={handleGenerateCombinations} size="sm" className="rounded-xl text-xs font-bold bg-[#8b6f47] text-white">
-                  Generate Matrix ⚡
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
+                  }}
+                  placeholder="Add tag (e.g. summer, cotton) and press Enter"
+                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddTag}
+                  className="rounded-xl"
+                >
+                  Add
                 </Button>
               </div>
+            </div>
 
-              <div className="space-y-4">
-                {/* Variant Types Definition */}
-                {variantTypes.map((vt, idx) => (
-                  <div key={idx} className="p-4 bg-gray-50/70 dark:bg-gray-850 rounded-2xl border border-gray-200/50 dark:border-gray-800 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-black uppercase text-[#8b6f47] tracking-wider">Variant Option #{idx + 1}</span>
-                      <button type="button" onClick={() => setVariantTypes(variantTypes.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:underline">
-                        Remove Option
-                      </button>
+            {/* Short Description */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                Short Description
+              </label>
+              <textarea
+                rows={2}
+                value={shortDescription}
+                onChange={(e) => setShortDescription(e.target.value)}
+                placeholder="Brief summary displayed on product cards and search results..."
+                className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+              />
+            </div>
+
+            {/* Full Description */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                Detailed Product Description
+              </label>
+              <textarea
+                rows={6}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Detailed specifications, features, washing guidelines, craftsmanship..."
+                className="w-full p-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs leading-relaxed"
+              />
+            </div>
+          </div>
+
+          {/* SECTION 2: Media Management */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[#8b6f47]" />
+                Media Gallery
+              </h2>
+              <span className="text-xs text-text-muted">
+                Supported formats: JPG, PNG, WEBP
+              </span>
+            </div>
+
+            {/* Add Image URL Form */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block">
+                Add Image URL
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800"
+                  className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleAddMediaUrl}
+                  className="rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Image</span>
+                </Button>
+              </div>
+              {mediaError && (
+                <p className="text-[11px] text-rose-500 font-medium">{mediaError}</p>
+              )}
+            </div>
+
+            {/* Media Items List & Cards */}
+            {mediaList.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {mediaList.map((media, idx) => (
+                  <div
+                    key={media.id || idx}
+                    className={`relative rounded-2xl border overflow-hidden group bg-gray-50 dark:bg-gray-800 p-2 space-y-2 transition-all ${
+                      media.isPrimary
+                        ? 'border-[#8b6f47] ring-2 ring-[#8b6f47]/30'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900">
+                      <img
+                        src={media.url}
+                        alt={media.alt || 'Product'}
+                        className="w-full h-full object-cover"
+                      />
+
+                      {media.isPrimary && (
+                        <span className="absolute top-2 left-2 bg-[#8b6f47] text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-md shadow-xs">
+                          Primary Image
+                        </span>
+                      )}
+
+                      {/* Action buttons overlay */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {!media.isPrimary && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryMedia(idx)}
+                            className="p-1.5 bg-white dark:bg-gray-900 text-[#8b6f47] rounded-lg text-[10px] font-bold shadow-xs hover:scale-105 transition-transform"
+                            title="Set as primary"
+                          >
+                            Set Primary
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMedia(idx)}
+                          className="p-1.5 bg-rose-600 text-white rounded-lg text-[10px] font-bold shadow-xs hover:scale-105 transition-transform"
+                          title="Delete image"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Input
-                        type="text"
-                        placeholder="Option Name (e.g. Size, Color, Storage)"
-                        value={vt.name}
-                        onChange={(e) => {
-                          const updated = [...variantTypes];
-                          updated[idx].name = e.target.value;
-                          setVariantTypes(updated);
-                        }}
-                        className="w-full text-xs font-bold"
-                      />
-                      <Input
-                        type="text"
-                        placeholder="Values separated by comma (e.g. S, M, L, XL)"
-                        value={vt.values.join(', ')}
-                        onChange={(e) => {
-                          const updated = [...variantTypes];
-                          updated[idx].values = e.target.value.split(',').map((v) => v.trim()).filter(Boolean);
-                          setVariantTypes(updated);
-                        }}
-                        className="w-full text-xs"
-                      />
+
+                    {/* Reordering Controls */}
+                    <div className="flex items-center justify-between text-[10px] text-text-muted px-1">
+                      <span>#{idx + 1}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveMedia(idx, 'up')}
+                          className="p-1 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                        >
+                          <MoveUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === mediaList.length - 1}
+                          onClick={() => handleMoveMedia(idx, 'down')}
+                          className="p-1 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                        >
+                          <MoveDown className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
-
-                <Button
-                  type="button"
-                  onClick={() => setVariantTypes([...variantTypes, { name: 'Material', values: ['Cotton', 'Polyester'] }])}
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl text-xs font-bold border-dashed border-gray-300"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Another Variant Option
-                </Button>
-
-                {/* Variant Combinations Table */}
-                {variantCombinations.length > 0 && (
-                  <div className="overflow-x-auto border rounded-2xl mt-4 max-h-[300px] overflow-y-auto">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-gray-100 dark:bg-gray-800 text-gray-500 uppercase text-[9px] sticky top-0">
-                        <tr>
-                          <th className="p-2.5">Variant Combination</th>
-                          <th className="p-2.5">SKU</th>
-                          <th className="p-2.5">Price ($)</th>
-                          <th className="p-2.5">Stock</th>
-                          <th className="p-2.5">Barcode</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {variantCombinations.map((vc, i) => (
-                          <tr key={vc.id} className="hover:bg-gray-50/50">
-                            <td className="p-2.5 font-bold text-gray-800 dark:text-gray-200">
-                              {Object.entries(vc.attributes).map(([k, v]) => `${k}: ${v}`).join(' / ')}
-                            </td>
-                            <td className="p-2.5 font-mono text-[10px]">{vc.sku}</td>
-                            <td className="p-2.5 font-bold text-[#8b6f47]">${vc.price}</td>
-                            <td className="p-2.5 font-mono">{vc.stock}</td>
-                            <td className="p-2.5 font-mono text-[10px]">{vc.barcode}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
-            </section>
-
-            {/* 6. SHIPPING & LOGISTICS */}
-            <section id="section-shipping" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-[#8b6f47]" /> 6. Shipping & Logistics
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Weight, package dimensions, delivery estimates, and customs HS code.</p>
+            ) : (
+              <div className="p-8 text-center border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl text-text-muted space-y-2">
+                <Upload className="w-8 h-8 mx-auto text-gray-400" />
+                <p className="text-xs font-medium">No media uploaded yet.</p>
+                <p className="text-[11px] text-text-muted">
+                  Add at least one product image to publish.
+                </p>
               </div>
+            )}
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Weight (kg)
-                    </label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={weight}
-                      onChange={(e) => setWeight(Number(e.target.value))}
-                      className="w-full text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Length (cm)
-                    </label>
-                    <Input
-                      type="number"
-                      value={length}
-                      onChange={(e) => setLength(Number(e.target.value))}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Width (cm)
-                    </label>
-                    <Input
-                      type="number"
-                      value={width}
-                      onChange={(e) => setWidth(Number(e.target.value))}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Height (cm)
-                    </label>
-                    <Input
-                      type="number"
-                      value={height}
-                      onChange={(e) => setHeight(Number(e.target.value))}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Estimated Delivery
-                    </label>
-                    <Input
-                      type="text"
-                      value={estimate}
-                      onChange={(e) => setEstimate(e.target.value)}
-                      className="w-full text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Packaging Type
-                    </label>
-                    <Input
-                      type="text"
-                      value={packagingType}
-                      onChange={(e) => setPackagingType(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                      Country of Origin
-                    </label>
-                    <Input
-                      type="text"
-                      value={countryOfOrigin}
-                      onChange={(e) => setCountryOfOrigin(e.target.value)}
-                      className="w-full text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-6 pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={freeShipping}
-                      onChange={(e) => setFreeShipping(e.target.checked)}
-                      className="rounded border-gray-300 text-[#8b6f47]"
-                    />
-                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Free Shipping Eligible</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={expressShipping}
-                      onChange={(e) => setExpressShipping(e.target.checked)}
-                      className="rounded border-gray-300 text-[#8b6f47]"
-                    />
-                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Express Delivery Available</span>
-                  </label>
-                </div>
+            {/* Optional Video URL */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                Product Video URL (Optional)
+              </label>
+              <div className="flex items-center gap-2">
+                <Video className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=sample or MP4 URL"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
               </div>
-            </section>
-
-            {/* 7. SEO METADATA & LIVE GOOGLE PREVIEW */}
-            <section id="section-seo" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-[#8b6f47]" /> 7. SEO & Open Graph Preview
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Configure search engine titles, descriptions, and view live Google result preview.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Meta Title (Max 60 chars)
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder={title || 'Product Page Meta Title'}
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    className="w-full text-xs font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-                    Meta Description (Max 160 chars)
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder={shortDescription || 'Search engine summary snippet...'}
-                    value={metaDescription}
-                    onChange={(e) => setMetaDescription(e.target.value)}
-                    className="w-full text-xs border border-gray-200 dark:border-gray-800 rounded-xl p-3 focus:outline-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
-                  />
-                </div>
-
-                {/* Live Google Preview Card */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-950 border border-gray-200/60 dark:border-gray-800 rounded-2xl space-y-1">
-                  <span className="text-[10px] uppercase font-black text-gray-400 block mb-2">Live Google Search Snippet</span>
-                  <p className="text-sm text-blue-700 dark:text-blue-400 font-medium hover:underline truncate cursor-pointer">
-                    {metaTitle || title || 'Product Title | SwiftCart Store'}
-                  </p>
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-500 font-mono truncate">
-                    https://swiftcart.com/product/{slug || 'product-slug'}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                    {metaDescription || shortDescription || 'Buy the finest quality product at SwiftCart. Enjoy free shipping and 30-day returns.'}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* 8. RELATED PRODUCTS & BUNDLES */}
-            <section id="section-related" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-[#8b6f47]" /> 8. Related Products & Bundles
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Cross-sell and upsell products recommended on the detail page.</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-48 overflow-y-auto p-2 border rounded-2xl">
-                {availableProducts.map((p) => {
-                  const isSelected = selectedRelatedIds.includes(String(p.id));
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelectedRelatedIds(selectedRelatedIds.filter((id) => id !== String(p.id)));
-                        } else {
-                          setSelectedRelatedIds([...selectedRelatedIds, String(p.id)]);
-                        }
-                      }}
-                      className={`p-2.5 rounded-xl border flex items-center gap-3 cursor-pointer transition ${
-                        isSelected
-                          ? 'border-[#8b6f47] bg-[#8b6f47]/10'
-                          : 'border-gray-200 dark:border-gray-800 hover:bg-gray-50'
-                      }`}
-                    >
-                      <img src={p.thumbnail} alt={p.title} className="w-10 h-10 object-cover rounded-lg" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{p.title}</p>
-                        <p className="text-[10px] text-[#8b6f47] font-bold">${p.price}</p>
-                      </div>
-                      <input type="checkbox" checked={isSelected} readOnly className="rounded text-[#8b6f47]" />
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* 9. PRODUCT ATTRIBUTES & SPECIFICATIONS */}
-            <section id="section-attributes" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-[#8b6f47]" /> 9. Specifications & Custom Attributes
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Material, care instructions, origin, and custom key-value attributes.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Input
-                    type="text"
-                    placeholder="Attribute Name (e.g. Sleeve Length)"
-                    value={newAttrName}
-                    onChange={(e) => setNewAttrName(e.target.value)}
-                    className="text-xs"
-                  />
-                  <Input
-                    type="text"
-                    placeholder="Attribute Value (e.g. Long Sleeve)"
-                    value={newAttrVal}
-                    onChange={(e) => setNewAttrVal(e.target.value)}
-                    className="text-xs"
-                  />
-                  <Button type="button" onClick={handleAddCustomAttr} size="sm" className="rounded-xl text-xs font-bold bg-[#8b6f47] text-white">
-                    Add Attribute
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  {attributes.map((attr, idx) => (
-                    <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-850 rounded-xl border border-gray-200/50 dark:border-gray-800 flex justify-between items-center text-xs">
-                      <div>
-                        <span className="block font-bold text-gray-800 dark:text-gray-200">{attr.name}</span>
-                        <span className="text-gray-500">{attr.value}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAttributes(attributes.filter((_, i) => i !== idx))}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* 10. PUBLISH CONTROL */}
-            <section id="section-publish" className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="border-b pb-4 dark:border-gray-800">
-                <h2 className="text-lg font-bold font-serif text-gray-900 dark:text-white flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-[#8b6f47]" /> 10. Final Publish & Action
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">Publish immediately or save as draft.</p>
-              </div>
-
-              <div className="flex flex-wrap gap-4 pt-2">
-                <Button
-                  type="button"
-                  onClick={handleSaveDraft}
-                  loading={submitting && status === 'draft'}
-                  variant="outline"
-                  className="rounded-2xl px-6 py-3 font-bold text-xs border-gray-300"
-                >
-                  Save as Draft
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handlePublish}
-                  loading={submitting && status === 'published'}
-                  className="rounded-2xl px-8 py-3 font-bold text-xs bg-[#8b6f47] hover:bg-[#725a38] text-white shadow-md"
-                >
-                  Publish Product Now
-                </Button>
-              </div>
-            </section>
-
-          </div>
-
-          {/* Right Column: Sticky Navigation Jump Sidebar */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div className="sticky top-28 space-y-4 bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-5 shadow-xs">
-              <span className="block text-xs font-extrabold uppercase font-serif tracking-wider text-gray-900 dark:text-white border-b pb-3 dark:border-gray-800">
-                Form Sections
-              </span>
-
-              <nav className="space-y-1">
-                {sections.map((sec) => {
-                  const Icon = sec.icon;
-                  return (
-                    <a
-                      key={sec.id}
-                      href={`#section-${sec.id}`}
-                      onClick={() => setActiveSection(sec.id)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition ${
-                        activeSection === sec.id
-                          ? 'bg-[#8b6f47]/10 text-[#8b6f47] dark:text-[#c9a96b]'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-[#8b6f47]" /> {sec.label}
-                      </span>
-                    </a>
-                  );
-                })}
-              </nav>
             </div>
           </div>
 
+          {/* SECTION 3: Pricing */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-[#8b6f47]" />
+                Pricing Strategy
+              </h2>
+              <span className="text-xs text-text-muted">Currency: {currency}</span>
+            </div>
+
+            {/* Price Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* Selling Price */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Selling Price <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Original Price */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Original Price (MSRP)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={originalPrice}
+                    onChange={(e) => setOriginalPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Cost Price */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Cost Price (Unit Cost)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={costPrice}
+                    onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tax & Discount Type */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Tax Rate (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Discount Type
+                </label>
+                <select
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount ($)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Currency
+                </label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="CAD">CAD ($)</option>
+                  <option value="AUD">AUD ($)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Live Pricing Summary Box */}
+            <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl border border-emerald-150 dark:border-emerald-900/40 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
+                  Selling Price
+                </span>
+                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
+                  ${price}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
+                  Calculated Discount
+                </span>
+                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
+                  {calculatedDiscountPercentage}% OFF (${calculatedDiscountAmount.toFixed(2)})
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
+                  Estimated Profit
+                </span>
+                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
+                  ${estimatedProfit.toFixed(2)}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
+                  Profit Margin
+                </span>
+                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
+                  {profitMargin}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 4: Inventory Management */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#8b6f47]" />
+                Inventory Control
+              </h2>
+              
+              {/* Derived status badge */}
+              {calculatedStockStatus === 'out_of_stock' ? (
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
+                  Out of Stock
+                </span>
+              ) : calculatedStockStatus === 'low_stock' ? (
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                  Low Stock
+                </span>
+              ) : (
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                  In Stock
+                </span>
+              )}
+            </div>
+
+            {/* Inventory Controls Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* Total Stock */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Stock Quantity <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={stock}
+                  onChange={(e) => setStock(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              {/* Reserved Stock */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Reserved Stock
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={reservedStock}
+                  onChange={(e) => setReservedStock(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              {/* Low Stock Threshold */}
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Low Stock Threshold
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={lowStockThreshold}
+                  onChange={(e) => setLowStockThreshold(parseInt(e.target.value) || 10)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Warehouse & Order Limits */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Warehouse Location
+                </label>
+                <input
+                  type="text"
+                  value={warehouse}
+                  onChange={(e) => setWarehouse(e.target.value)}
+                  placeholder="Main Hub - NY"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Min Order Qty
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={minOrderQuantity}
+                  onChange={(e) => setMinOrderQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
+                  Max Order Qty
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={maxOrderQuantity}
+                  onChange={(e) => setMaxOrderQuantity(parseInt(e.target.value) || 10)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Toggles */}
+            <div className="flex items-center gap-6 pt-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={trackInventory}
+                  onChange={(e) => setTrackInventory(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+                <span>Track Stock Quantity</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowBackorder}
+                  onChange={(e) => setAllowBackorder(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+                <span>Allow Backorders</span>
+              </label>
+            </div>
+          </div>
+
+          {/* SECTION 5: Variant Foundation */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+              <div>
+                <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-[#8b6f47]" />
+                  Product Variants Matrix
+                </h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Define variant options (Color, Size, Material) to generate SKU combinations.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateVariants}
+                className="rounded-xl flex items-center gap-1.5 border-[#8b6f47] text-[#8b6f47] dark:text-[#c9a96b]"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Generate Combinations</span>
+              </Button>
+            </div>
+
+            {/* Generated Variant Table */}
+            {variantCombinations.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-[10px] uppercase font-bold text-gray-500">
+                      <th className="py-2.5 px-3">Variant</th>
+                      <th className="py-2.5 px-3">SKU</th>
+                      <th className="py-2.5 px-3">Price</th>
+                      <th className="py-2.5 px-3">Stock</th>
+                      <th className="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {variantCombinations.map((comb, idx) => (
+                      <tr key={comb.id || idx}>
+                        <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-white">
+                          {Object.entries(comb.attributes)
+                            .map(([k, v]) => `${v}`)
+                            .join(' / ')}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="text"
+                            value={comb.sku}
+                            onChange={(e) => handleUpdateVariantRow(idx, 'sku', e.target.value)}
+                            className="w-32 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            value={comb.price}
+                            onChange={(e) => handleUpdateVariantRow(idx, 'price', parseFloat(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            value={comb.stock}
+                            onChange={(e) => handleUpdateVariantRow(idx, 'stock', parseInt(e.target.value) || 0)}
+                            className="w-20 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <select
+                            value={comb.status || 'active'}
+                            onChange={(e) => handleUpdateVariantRow(idx, 'status', e.target.value as any)}
+                            className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                          >
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-text-muted italic">
+                No variants matrix generated yet. Click "Generate Combinations" above.
+              </p>
+            )}
+          </div>
+
+          {/* SECTION 6: Custom Attributes */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
+            <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-4 border-gray-100 dark:border-gray-800">
+              <Layers className="w-5 h-5 text-[#8b6f47]" />
+              Specifications & Custom Attributes
+            </h2>
+
+            {/* List */}
+            <div className="space-y-2">
+              {attributes.map((attr, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-gray-900 dark:text-white">{attr.name}:</span>{' '}
+                    <span className="text-gray-700 dark:text-gray-300">{attr.value}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttribute(idx)}
+                    className="text-gray-400 hover:text-rose-500"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add Custom Attribute */}
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="text"
+                value={newAttrName}
+                onChange={(e) => setNewAttrName(e.target.value)}
+                placeholder="Attribute Name (e.g. Care)"
+                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+              />
+              <input
+                type="text"
+                value={newAttrVal}
+                onChange={(e) => setNewAttrVal(e.target.value)}
+                placeholder="Attribute Value (e.g. Machine Wash Cold)"
+                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddAttribute}
+                className="rounded-xl"
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+
+          {/* SECTION 7: Shipping Details */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
+            <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-4 border-gray-100 dark:border-gray-800">
+              <Truck className="w-5 h-5 text-[#8b6f47]" />
+              Shipping & Logistics
+            </h2>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                  Weight (kg)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={weight}
+                  onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                  Length (cm)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={length}
+                  onChange={(e) => setLength(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                  Width (cm)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={width}
+                  onChange={(e) => setWidth(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                  Height (cm)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={height}
+                  onChange={(e) => setHeight(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6 pt-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={freeShipping}
+                  onChange={(e) => setFreeShipping(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+                <span>Free Shipping Available</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={expressShipping}
+                  onChange={(e) => setExpressShipping(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+                <span>Express Courier Shipping</span>
+              </label>
+            </div>
+          </div>
+
+          {/* SECTION 8: SEO Foundation */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
+            <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-4 border-gray-100 dark:border-gray-800">
+              <Globe className="w-5 h-5 text-[#8b6f47]" />
+              SEO Engine Optimization
+            </h2>
+
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                Meta Title
+              </label>
+              <input
+                type="text"
+                value={metaTitle}
+                onChange={(e) => setMetaTitle(e.target.value)}
+                placeholder={title || 'Product Meta Title'}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                Meta Description
+              </label>
+              <textarea
+                rows={2}
+                value={metaDescription}
+                onChange={(e) => setMetaDescription(e.target.value)}
+                placeholder={shortDescription || 'Compelling search preview summary...'}
+                className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+              />
+            </div>
+
+            {/* Google Search Visual Preview Card */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-200 dark:border-gray-700 space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                Google Search Result Preview
+              </span>
+              <h3 className="text-sm font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer">
+                {metaTitle || title || 'Product Title | SwiftCart'}
+              </h3>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
+                https://swiftcart.com/products/{slug || 'product-slug'}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
+                {metaDescription || shortDescription || description || 'Product description preview...'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar Area (~30%) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Status & Visibility Card */}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4 sticky top-24">
+            <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider pb-3 border-b border-gray-100 dark:border-gray-800">
+              Publish Status & Flags
+            </h3>
+
+            {/* Status Selector */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+              >
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+
+            {/* Visibility Selector */}
+            <div>
+              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
+                Visibility
+              </label>
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as any)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+              >
+                <option value="public">Public (Catalog)</option>
+                <option value="private">Private (Admin only)</option>
+                <option value="hidden">Hidden (Link only)</option>
+              </select>
+            </div>
+
+            {/* Feature Toggles */}
+            <div className="space-y-2.5 pt-2">
+              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <span>Featured Product</span>
+                <input
+                  type="checkbox"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+              </label>
+
+              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <span>New Arrival</span>
+                <input
+                  type="checkbox"
+                  checked={newArrival}
+                  onChange={(e) => setNewArrival(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+              </label>
+
+              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <span>Bestseller Badge</span>
+                <input
+                  type="checkbox"
+                  checked={bestSeller}
+                  onChange={(e) => setBestSeller(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+              </label>
+
+              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+                <span>Trending Badge</span>
+                <input
+                  type="checkbox"
+                  checked={trending}
+                  onChange={(e) => setTrending(e.target.checked)}
+                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                />
+              </label>
+            </div>
+
+            {/* LIVE PRODUCT CARD PREVIEW PANEL */}
+            <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                Live Product Card Preview
+              </span>
+              
+              <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm p-3 space-y-2">
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
+                  <img
+                    src={primaryMedia?.url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'}
+                    alt={title || 'Product Preview'}
+                    className="w-full h-full object-cover"
+                  />
+                  {calculatedDiscountPercentage > 0 && (
+                    <span className="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                      -{calculatedDiscountPercentage}%
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider">
+                    {brand}
+                  </span>
+                  <h4 className="font-serif font-bold text-sm text-gray-900 dark:text-white truncate">
+                    {title || 'Product Title'}
+                  </h4>
+
+                  {/* Rating Stars Mock */}
+                  <div className="flex items-center gap-1 my-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    ))}
+                    <span className="text-[10px] text-text-muted ml-1">(15)</span>
+                  </div>
+
+                  {/* Pricing line */}
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="font-bold text-gray-900 dark:text-white font-serif text-sm">
+                      ${price}
+                    </span>
+                    {originalPrice > price && (
+                      <span className="text-xs text-text-muted line-through">
+                        ${originalPrice}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
 
       </div>
+
+      {/* Confirmation Modal when Leaving with Unsaved Changes */}
+      <ConfirmationModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        onConfirm={() => {
+          setIsLeaveModalOpen(false);
+          setIsDirty(false);
+          if (targetNavigationUrl) router.push(targetNavigationUrl);
+        }}
+        title="Unsaved Changes"
+        message="You have unsaved changes on this product form. Are you sure you want to leave?"
+        confirmText="Leave Page"
+        variant="warning"
+      />
+
     </div>
   );
 }

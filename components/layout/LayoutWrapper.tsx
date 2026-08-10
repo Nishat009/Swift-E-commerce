@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import StickyCompareBar from "@/components/comparison/StickyCompareBar";
 import CompareModal from "@/components/comparison/CompareModal";
+import FloatingAIStylist from "@/features/ai/chatbot/FloatingAIStylist";
 
 type Props = {
   children: React.ReactNode;
@@ -35,6 +36,7 @@ export default function LayoutWrapper({ children }: Props) {
       <Footer />
       <StickyCompareBar />
       <CompareModal />
+      <FloatingAIStylist />
     </>
   );
 }

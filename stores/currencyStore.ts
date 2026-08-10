@@ -60,7 +60,7 @@ export const useCurrencyStore = create<CurrencyState>()(
             }
           }
         } catch (error) {
-          console.error('Failed to load dynamic currencies, using defaults:', error);
+          console.warn('Failed to load dynamic currencies, using defaults:', error);
           set({ availableCurrencies: defaultCurrencies });
         }
       },
