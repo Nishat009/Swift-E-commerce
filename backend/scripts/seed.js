@@ -1148,6 +1148,25 @@ const seed = async () => {
       ]
     });
 
+    // Create 1 Test User (Demo user)
+    usersToCreate.push({
+      name: 'Test User',
+      email: 'user@email.com',
+      password: '12345678',
+      phone: '+1 555 019 2831',
+      role: 'customer',
+      addresses: [
+        {
+          street: '456 Sample Ave',
+          city: 'New York',
+          state: 'NY',
+          zipCode: '10001',
+          country: 'United States',
+          isDefault: true
+        }
+      ]
+    });
+
     // Create 19 Customers
     const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Lisa', 'William', 'Jessica', 'James', 'Ashley', 'Joseph', 'Amanda', 'Charles', 'Mary', 'Thomas', 'Patricia', 'Daniel'];
     const lastNames = ['Smith', 'Doe', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis', 'Wilson', 'Anderson', 'Taylor', 'Thomas', 'Moore', 'Martin', 'Jackson', 'Thompson', 'White', 'Harris', 'Martin'];

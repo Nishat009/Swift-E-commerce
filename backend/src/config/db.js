@@ -30,6 +30,30 @@ const connectDB = async () => {
       console.log('Fixed administrator account created successfully.');
     }
 
+    // Ensure fixed test user exists
+    const testUserExists = await User.findOne({ email: 'user@email.com' });
+    if (!testUserExists) {
+      console.log('Seeding fixed test user account (user@email.com)...');
+      await User.create({
+        name: 'Test User',
+        email: 'user@email.com',
+        password: '12345678',
+        role: 'customer',
+        phone: '+1 555 019 2831',
+        addresses: [
+          {
+            street: '456 Sample Ave',
+            city: 'New York',
+            state: 'NY',
+            zipCode: '10001',
+            country: 'United States',
+            isDefault: true
+          }
+        ]
+      });
+      console.log('Fixed test user account created successfully.');
+    }
+
     // Seed initial currencies if none exist
     const Currency = require('../models/Currency');
     const currencyCount = await Currency.countDocuments();
