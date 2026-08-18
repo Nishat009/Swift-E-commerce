@@ -39,7 +39,9 @@ import {
   Heart,
   Clock,
   ShieldCheck,
-  Globe
+  Globe,
+  LogOut,
+  Store
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -63,9 +65,19 @@ interface NewsletterSub {
 }
 
 export default function AdminDashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const toast = useToast();
   const router = useRouter();
+
+  const handleAdminLogout = async () => {
+    try {
+      await logout();
+      toast.success('Logged out successfully.');
+      router.push('/auth/login');
+    } catch (err) {
+      toast.error('Failed to log out.');
+    }
+  };
 
   // Navigation states
   const [adminTab, setAdminTab] = useState<'overview' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages'>('overview');
@@ -829,14 +841,24 @@ export default function AdminDashboardPage() {
             </p>
           </div>
 
-          <div className="hidden lg:flex items-center gap-4">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-2 px-4 shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-red-500">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800 rounded-2xl py-2 px-3.5 text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
+            >
+              <Store className="w-4 h-4 text-[#8b6f47] dark:text-[#c9a96b]" />
+              <span>View Storefront</span>
+            </Link>
+
+           
+
+            <div className="hidden sm:flex bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-2 px-4 shadow-sm items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-red-500">
                 <ShieldAlert className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <span className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold">Role Authority</span>
-                <span className="text-sm font-black text-gray-800 dark:text-gray-250">Master Admin</span>
+                <span className="block text-[9px] text-gray-400 uppercase tracking-widest font-bold">Role Authority</span>
+                <span className="text-xs font-black text-gray-800 dark:text-gray-250">Master Admin</span>
               </div>
             </div>
           </div>
@@ -887,6 +909,19 @@ export default function AdminDashboardPage() {
           <Button onClick={loadAdminData} variant="outline" className="w-full text-xs font-bold flex items-center justify-center gap-2 py-2.5">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh Dashboard
           </Button>
+
+          <Link href="/" className="w-full">
+            <Button variant="outline" className="w-full text-xs font-bold flex items-center justify-center gap-2 py-2.5 mt-1">
+              <Store className="w-3.5 h-3.5" /> Return to Storefront
+            </Button>
+          </Link>
+
+          <button
+            onClick={handleAdminLogout}
+            className="w-full text-left py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 text-red-600 dark:text-red-400 bg-red-50/70 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800/80 transition-colors cursor-pointer mt-1 shadow-xs"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Log Out as Admin
+          </button>
         </div>
 
         {/* WORKSPACE DETAILED VIEWS */}

@@ -17,7 +17,10 @@ import {
   Leaf,
   ShieldCheck,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  LogOut,
+  Shield,
+  LayoutDashboard
 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
@@ -44,13 +47,14 @@ interface Notification {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { theme, toggleTheme } = useThemeStore();
   const { code: activeCurrencyCode, setCurrency, availableCurrencies, loadCurrencies } = useCurrencyStore();
   const { code: activeLanguageCode, setLanguage, availableLanguages, loadLanguages } = useLanguageStore();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -328,14 +332,117 @@ export default function Navbar() {
             {/* Row 1 Right: Icons & Currency / Language Selectors */}
             <div className="flex items-center justify-end space-x-2 sm:space-x-3 w-1/3">
               
-              {/* User Account / Profile */}
-              <Link
-                href={user ? '/dashboard' : '/auth/login'}
-                className="p-1.5 text-gray-800 dark:text-gray-200 hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition-colors"
-                title={user ? user.name : 'Account'}
+              {/* User Account / Profile Dropdown */}
+              <div
+                className="relative"
+                onMouseEnter={() => setIsUserMenuOpen(true)}
+                onMouseLeave={() => setIsUserMenuOpen(false)}
               >
-                <User className="w-5 h-5" />
-              </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="p-1.5 text-gray-800 dark:text-gray-200 hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition-colors cursor-pointer flex items-center gap-1"
+                  title={user ? user.name : 'Account'}
+                >
+                  <User className="w-5 h-5" />
+                  {user?.role === 'admin' && (
+                    <span className="hidden sm:inline-block bg-red-500 text-white text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full">
+                      Admin
+                    </span>
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-1.5 w-60 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-2 z-50 text-left"
+                    >
+                      {user ? (
+                        <div className="space-y-1">
+                          {/* User Header */}
+                          <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">
+                                {user.name}
+                              </p>
+                              {user.role === 'admin' && (
+                                <span className="bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-zinc-500 truncate mt-0.5">{user.email}</p>
+                          </div>
+
+                          {/* Admin Portal Link */}
+                          {user.role === 'admin' && (
+                            <Link
+                              href="/admin"
+                              onClick={() => setIsUserMenuOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                            >
+                              <Shield className="w-4 h-4" /> Admin Console
+                            </Link>
+                          )}
+
+                          {/* Customer Dashboard Link */}
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <LayoutDashboard className="w-4 h-4 text-zinc-500" /> Account Dashboard
+                          </Link>
+
+                          {/* Wishlist Link */}
+                          <Link
+                            href="/wishlist"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <Heart className="w-4 h-4 text-zinc-500" /> My Wishlist
+                          </Link>
+
+                          {/* Logout Button */}
+                          <div className="pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                            <button
+                              onClick={async () => {
+                                setIsUserMenuOpen(false);
+                                await logout();
+                                router.push('/auth/login');
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer text-left"
+                            >
+                              <LogOut className="w-4 h-4" /> Log Out
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 p-1">
+                          <Link
+                            href="/auth/login"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="block w-full text-center bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 font-bold text-xs py-2 rounded-xl hover:opacity-90 transition-opacity"
+                          >
+                            Sign In
+                          </Link>
+                          <Link
+                            href="/auth/register"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="block w-full text-center border border-zinc-200 dark:border-zinc-700 font-bold text-xs py-2 rounded-xl hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors text-zinc-800 dark:text-zinc-200"
+                          >
+                            Create Account
+                          </Link>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Wishlist Heart Icon */}
               <Link

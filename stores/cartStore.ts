@@ -161,23 +161,30 @@ export const useCartStore = create<CartStore>()(
         const guestItems = get().items;
         if (guestItems.length === 0 || !getAccessToken()) return;
         try {
-          // Push guest cart items to backend cart
+          // Push guest cart items to backend cart safely
           await Promise.all(
             guestItems.map((item) =>
               apiClient.post('/cart', {
                 productId: item.product.id,
                 quantity: item.quantity,
+              }).catch((err) => {
+                console.warn(`Could not sync item ${item.product.id} to cart:`, err);
+                return null;
               })
             )
           );
           // Load integrated cart from backend
-          const response = await apiClient.get('/cart');
-          if (response.data?.success) {
-            const backendItems = response.data.data.products.map((item: any) => ({
-              product: item.product,
-              quantity: item.quantity,
-            }));
-            set({ items: backendItems });
+          const response = await apiClient.get('/cart').catch(() => null);
+          if (response?.data?.success && response.data.data?.products) {
+            const backendItems = response.data.data.products
+              .filter((item: any) => item.product)
+              .map((item: any) => ({
+                product: item.product,
+                quantity: item.quantity,
+              }));
+            if (backendItems.length > 0) {
+              set({ items: backendItems });
+            }
           }
         } catch (error) {
           console.error('Failed to sync guest cart to backend:', error);
