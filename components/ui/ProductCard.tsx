@@ -206,7 +206,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
     );
   }
 
-  // Grid View Mode (Clean Minimalist Luxury Card)
+  // Grid View Mode (Clean Minimalist Luxury Card with Smooth Transitions)
   return (
     <>
       <motion.div
@@ -214,10 +214,10 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="group flex flex-col h-full text-left"
+        className="group flex flex-col h-full text-left transition-all duration-500 ease-out hover:-translate-y-2"
       >
-        {/* 1. Image Container (Single authentic image with subtle luxury zoom on hover) */}
-        <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 transition-all duration-500 group-hover:shadow-md">
+        {/* 1. Image Container (Single authentic image with subtle luxury zoom & glow on hover) */}
+        <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800/80 transition-all duration-500 ease-out group-hover:border-[#8b6f47]/40 dark:group-hover:border-[#c9a96b]/40 group-hover:shadow-[0_16px_36px_-12px_rgba(139,111,71,0.18)] dark:group-hover:shadow-[0_16px_36px_-12px_rgba(0,0,0,0.6)]">
           
           {/* Product Image Link with smooth zoom */}
           <Link href={`/product/${product.id}`} className="block w-full h-full relative cursor-pointer">
@@ -226,12 +226,12 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
               alt={product.title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-105"
+              className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-108"
             />
           </Link>
 
           {/* Minimalist Badges (Top Left) */}
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none">
+          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none transition-transform duration-300 group-hover:translate-x-0.5">
             {product.discountPercentage > 0 && (
               <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-xs">
                 -{product.discountPercentage}%
@@ -244,25 +244,25 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
             )}
           </div>
 
-          {/* Floating Action Cluster (Top Right) */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {/* Floating Action Cluster (Top Right - Smooth Staggered Slide In) */}
+          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 ease-out">
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={handleWishlistToggle}
               disabled={wishlistLoading}
-              className="w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border border-zinc-200/70 dark:border-zinc-700 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm cursor-pointer"
+              className="w-8 h-8 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 hover:text-red-500 hover:scale-110 transition-all shadow-sm cursor-pointer"
               title="Wishlist"
             >
-              <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart className={`w-3.5 h-3.5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
             </motion.button>
 
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={handleCompareToggle}
-              className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center border transition-colors shadow-sm cursor-pointer ${
+              className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center border transition-all hover:scale-110 shadow-sm cursor-pointer ${
                 isCompared
                   ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
-                  : 'bg-white/90 dark:bg-zinc-900/90 text-zinc-800 dark:text-zinc-200 border-zinc-200/70 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800'
+                  : 'bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-200 border-zinc-200/80 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800'
               }`}
               title={isCompared ? 'Remove Compare' : 'Add Compare'}
             >
@@ -276,19 +276,19 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 e.stopPropagation();
                 setIsQuickViewOpen(true);
               }}
-              className="w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border border-zinc-200/70 dark:border-zinc-700 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 transition-colors shadow-sm cursor-pointer"
+              className="w-8 h-8 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 hover:scale-110 transition-all shadow-sm cursor-pointer"
               title="Quick View"
             >
               <Eye className="w-3.5 h-3.5" />
             </motion.button>
           </div>
 
-          {/* Quick Add Slide-up Bar (Bottom of Image) */}
-          <div className="absolute inset-x-3 bottom-3 z-10 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          {/* Quick Add Slide-up Bar (Bottom of Image - Smooth Spring-like Slide Up) */}
+          <div className="absolute inset-x-3 bottom-3 z-10 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-400 ease-out">
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}
-              className="w-full bg-zinc-950/95 dark:bg-white/95 hover:bg-[#8b6f47] dark:hover:bg-[#c9a96b] text-white dark:text-zinc-950 dark:hover:text-zinc-950 backdrop-blur-md py-2.5 px-4 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 shadow-md cursor-pointer border-0"
+              className="w-full bg-zinc-950/95 dark:bg-white/95 hover:bg-[#8b6f47] dark:hover:bg-[#c9a96b] text-white dark:text-zinc-950 dark:hover:text-zinc-950 backdrop-blur-md py-2.5 px-4 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 shadow-md cursor-pointer border-0 active:scale-[0.98]"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               {product.stock === 0 ? 'Out of Stock' : 'Quick Add to Bag'}
@@ -319,7 +319,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                     <span
                       key={opt.id}
                       title={opt.value}
-                      className="w-2.5 h-2.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs inline-block"
+                      className="w-2.5 h-2.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs inline-block transition-transform hover:scale-125"
                       style={{ backgroundColor: opt.colorHex || '#d4cbbe' }}
                     />
                   ))}
@@ -329,14 +329,14 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 </div>
               ) : primaryColorHex ? (
                 <span
-                  className="w-2.5 h-2.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs inline-block"
+                  className="w-2.5 h-2.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs inline-block transition-transform hover:scale-125"
                   style={{ backgroundColor: primaryColorHex }}
                 />
               ) : null}
             </div>
 
-            {/* Row 2: Product Title (Single clean line) */}
-            <Link href={`/product/${product.id}`} className="block group-hover:text-[#8b6f47] transition-colors mt-0.5">
+            {/* Row 2: Product Title (Single clean line with smooth hover transition) */}
+            <Link href={`/product/${product.id}`} className="block group-hover:text-[#8b6f47] dark:group-hover:text-[#c9a96b] transition-colors duration-300 mt-0.5">
               <h3 className="font-serif text-[15px] sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-snug">
                 <HighlightText text={product.title} query={searchQuery} />
               </h3>

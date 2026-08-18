@@ -108,8 +108,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Improved Fashion & AI Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#FAF8F5] via-[#F5F1EB] to-[#FAF8F5] dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 py-12 lg:py-16">
+      {/* Improved Fashion & AI Hero Section with Editorial Background Image */}
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden py-12 lg:py-16 bg-[#FAF8F5] dark:bg-zinc-950">
+        
+        {/* Full-width Luxury Editorial Background Image Layer */}
+        <div className="absolute inset-0 z-0 select-none pointer-events-none">
+          <Image
+            src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1920&q=85"
+            alt="SwiftCart Atelier High Fashion Background"
+            fill
+            priority
+            className="object-cover object-center opacity-30 dark:opacity-20 scale-105 transition-transform duration-1000"
+          />
+          {/* Subtle Directional Gradients for Crisp Text Contrast */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#FAF8F5] via-[#FAF8F5]/85 to-transparent dark:from-zinc-950 dark:via-zinc-950/85 dark:to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FAF8F5] via-transparent to-[#FAF8F5]/50 dark:from-zinc-950 dark:via-transparent dark:to-zinc-950/50"></div>
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             
@@ -379,8 +394,20 @@ export default function Home() {
       </div>
 
       {/* Curated Editorial Collection Grid (Ately / Zara Minimalist Showcase) */}
-      <section className="py-16 sm:py-24 bg-white dark:bg-zinc-950 border-t border-zinc-200/60 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative py-16 sm:py-24 bg-[#faf8f5] dark:bg-zinc-950 border-t border-zinc-200/60 dark:border-zinc-800 overflow-hidden">
+        
+        {/* Luxury Architectural / Plaster Texture Background Image */}
+        <div className="absolute inset-0 pointer-events-none select-none z-0">
+          <Image
+            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=80"
+            alt="Atelier Background Texture"
+            fill
+            className="object-cover opacity-20 dark:opacity-15 mix-blend-multiply dark:mix-blend-overlay"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#faf8f5]/60 dark:via-zinc-950/60 to-[#faf8f5] dark:to-zinc-950"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Header & Filter Tabs */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 sm:mb-16">
