@@ -9,23 +9,23 @@ const Coupon = require('../src/models/Coupon');
 const Review = require('../src/models/Review');
 
 const categoriesData = [
-  { name: 'Top', slug: 'top', image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&h=400&fit=crop', featured: true },
-  { name: 'Pants', slug: 'pants', image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop', featured: true },
-  { name: 'Dress', slug: 'dress', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop', featured: true },
-  { name: 'Jacket', slug: 'jacket', image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop', featured: true },
-  { name: 'Shoes', slug: 'shoes', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop', featured: true },
-  { name: 'Hat', slug: 'hat', image: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=400&h=400&fit=crop', featured: false },
-  { name: 'Bag', slug: 'bag', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop', featured: false },
-  { name: 'Jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=400&fit=crop', featured: false },
-  { name: 'Glasses', slug: 'glasses', image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&h=400&fit=crop', featured: false },
-  { name: 'Sofa', slug: 'sofa', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=400&fit=crop', featured: true },
-  { name: 'Chair', slug: 'chair', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=400&h=400&fit=crop', featured: true },
-  { name: 'Table', slug: 'table', image: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=400&h=400&fit=crop', featured: true },
-  { name: 'Lighting', slug: 'lighting', image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=400&h=400&fit=crop', featured: false },
-  { name: 'Decor', slug: 'decor', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop', featured: true },
-  { name: 'Kitchen', slug: 'kitchen', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop', featured: false },
-  { name: 'Bathroom', slug: 'bathroom', image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=400&fit=crop', featured: false },
-  { name: 'Outdoor', slug: 'outdoor', image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=400&h=400&fit=crop', featured: true }
+  { name: 'Top', slug: 'top', image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop', featured: true },
+  { name: 'Pants', slug: 'pants', image: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&h=1200&fit=crop', featured: true },
+  { name: 'Dress', slug: 'dress', image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=1200&fit=crop', featured: true },
+  { name: 'Jacket', slug: 'jacket', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1200&fit=crop', featured: true },
+  { name: 'Shoes', slug: 'shoes', image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=1200&fit=crop', featured: true },
+  { name: 'Hat', slug: 'hat', image: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=1200&fit=crop', featured: false },
+  { name: 'Bag', slug: 'bag', image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=1200&fit=crop', featured: false },
+  { name: 'Jewelry', slug: 'jewelry', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=1200&fit=crop', featured: false },
+  { name: 'Glasses', slug: 'glasses', image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=1200&fit=crop', featured: false },
+  { name: 'Sofa', slug: 'sofa', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&h=600&fit=crop', featured: true },
+  { name: 'Chair', slug: 'chair', image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=600&h=600&fit=crop', featured: true },
+  { name: 'Table', slug: 'table', image: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=600&h=600&fit=crop', featured: true },
+  { name: 'Lighting', slug: 'lighting', image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=600&h=600&fit=crop', featured: false },
+  { name: 'Decor', slug: 'decor', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&h=600&fit=crop', featured: true },
+  { name: 'Kitchen', slug: 'kitchen', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&h=600&fit=crop', featured: false },
+  { name: 'Bathroom', slug: 'bathroom', image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&h=600&fit=crop', featured: false },
+  { name: 'Outdoor', slug: 'outdoor', image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&h=600&fit=crop', featured: true }
 ];
 
 // ─── Curated Product Catalog (50 products, unique names & images) ────────────
@@ -37,10 +37,10 @@ const curatedProducts = [
     shortDescription: 'Premium cropped tank in ribbed organic cotton.',
     category: 'top', brand: 'ZaraStyle', price: 39, salePrice: 35,
     stock: 45, rating: 4.7, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1571513722275-4b41940f54b8?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&h=1200&fit=crop'
     ],
     tags: ['minimalist', 'summer', 'casual'],
     specifications: {
@@ -63,10 +63,10 @@ const curatedProducts = [
     shortDescription: 'Oversized warm wool blend cable-knit sweater.',
     category: 'top', brand: 'H&MClassic', price: 89, salePrice: 80,
     stock: 25, rating: 4.8, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1614975058789-41316d0e2e9c?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&h=1200&fit=crop'
     ],
     tags: ['cozy', 'winter', 'casual'],
     specifications: {
@@ -89,10 +89,10 @@ const curatedProducts = [
     shortDescription: 'Classic straight-leg vintage denim jeans.',
     category: 'pants', brand: 'ZaraStyle', price: 79, salePrice: 69,
     stock: 35, rating: 4.6, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop'
     ],
     tags: ['streetwear', 'denim', 'vintage'],
     specifications: {
@@ -115,9 +115,10 @@ const curatedProducts = [
     shortDescription: 'High-rise wide-leg pure linen trousers.',
     category: 'pants', brand: 'ZaraStyle', price: 95,
     stock: 18, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=800&h=1200&fit=crop'
     ],
     tags: ['resort', 'smart-casual', 'office'],
     specifications: {
@@ -140,9 +141,10 @@ const curatedProducts = [
     shortDescription: 'Luxurious midi mulberry silk slip dress.',
     category: 'dress', brand: 'ZaraStyle', price: 180, salePrice: 153,
     stock: 12, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=1200&fit=crop'
     ],
     tags: ['luxury', 'wedding-guest', 'summer-party'],
     specifications: {
@@ -165,9 +167,10 @@ const curatedProducts = [
     shortDescription: 'Classic double-breasted cotton gabardine trench.',
     category: 'jacket', brand: 'H&MClassic', price: 220, salePrice: 202,
     stock: 15, rating: 4.8, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&h=1200&fit=crop'
     ],
     tags: ['classic', 'autumn', 'layering'],
     specifications: {
@@ -190,9 +193,9 @@ const curatedProducts = [
     shortDescription: 'Full-grain Italian leather shoulder bag.',
     category: 'bag', brand: 'ZaraStyle', price: 150,
     stock: 20, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=1200&fit=crop'
     ],
     tags: ['accessory', 'luxury', 'sleek'],
     specifications: {
@@ -215,9 +218,10 @@ const curatedProducts = [
     shortDescription: '14k gold-plated brass hoops and choker set.',
     category: 'jewelry', brand: 'ZaraStyle', price: 45, salePrice: 40,
     stock: 50, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&h=1200&fit=crop'
     ],
     tags: ['accessory', 'gold', 'chic'],
     specifications: {
@@ -240,9 +244,9 @@ const curatedProducts = [
     shortDescription: '280gsm heavyweight crewneck boxy tee.',
     category: 'top', brand: 'H&MClassic', price: 35,
     stock: 60, rating: 4.8, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=1200&fit=crop'
     ],
     tags: ['minimalist', 'streetwear', 'everyday'],
     specifications: {
@@ -265,9 +269,10 @@ const curatedProducts = [
     shortDescription: 'Classic button-down pre-washed Oxford shirt.',
     category: 'top', brand: 'H&MClassic', price: 65, salePrice: 60,
     stock: 40, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=1200&fit=crop'
     ],
     tags: ['smart-casual', 'preppy', 'office'],
     specifications: {
@@ -290,9 +295,9 @@ const curatedProducts = [
     shortDescription: 'Rugged ripstop utility cargo trousers.',
     category: 'pants', brand: 'NikeSports', price: 85, salePrice: 72,
     stock: 30, rating: 4.5, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=1200&fit=crop'
     ],
     tags: ['streetwear', 'utility', 'outdoor'],
     specifications: {
@@ -315,9 +320,9 @@ const curatedProducts = [
     shortDescription: 'Stretch cotton-twill flat-front chino trousers.',
     category: 'pants', brand: 'H&MClassic', price: 69,
     stock: 45, rating: 4.6, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&h=1200&fit=crop'
     ],
     tags: ['smart-casual', 'office', 'preppy'],
     specifications: {
@@ -340,9 +345,9 @@ const curatedProducts = [
     shortDescription: 'Premium vegan eco-leather classic bomber jacket.',
     category: 'jacket', brand: 'ZaraStyle', price: 140, salePrice: 126,
     stock: 22, rating: 4.8, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&h=1200&fit=crop'
     ],
     tags: ['edgy', 'winter', 'streetwear'],
     specifications: {
@@ -365,9 +370,9 @@ const curatedProducts = [
     shortDescription: 'Heavy 14oz raw-indigo classic trucker jacket.',
     category: 'jacket', brand: 'ZaraStyle', price: 110, salePrice: 104,
     stock: 20, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=800&h=1200&fit=crop'
     ],
     tags: ['classic', 'vintage', 'layering'],
     specifications: {
@@ -390,9 +395,9 @@ const curatedProducts = [
     shortDescription: 'Retro running platform sneakers with cushioned soles.',
     category: 'shoes', brand: 'NikeSports', price: 120,
     stock: 50, rating: 4.9, featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&h=600&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=1200&fit=crop'
     ],
     tags: ['athletic', 'streetwear', 'comfort'],
     specifications: {
@@ -415,9 +420,9 @@ const curatedProducts = [
     shortDescription: 'Goodyear-welted full-grain leather Chelsea boots.',
     category: 'shoes', brand: 'H&MClassic', price: 160, salePrice: 144,
     stock: 15, rating: 4.8, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&h=1200&fit=crop'
     ],
     tags: ['smart', 'classic', 'formal'],
     specifications: {
@@ -440,9 +445,9 @@ const curatedProducts = [
     shortDescription: 'Structured fedora hat in premium Australian wool felt.',
     category: 'hat', brand: 'ZaraStyle', price: 75,
     stock: 12, rating: 4.6, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=1200&fit=crop'
     ],
     tags: ['accessory', 'classic', 'wool'],
     specifications: {
@@ -465,9 +470,9 @@ const curatedProducts = [
     shortDescription: 'Six-panel washed cotton canvas baseball cap.',
     category: 'hat', brand: 'NikeSports', price: 25,
     stock: 80, rating: 4.7, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=1200&fit=crop'
     ],
     tags: ['accessory', 'athletic', 'everyday'],
     specifications: {
@@ -490,9 +495,9 @@ const curatedProducts = [
     shortDescription: 'Retro oval sunglasses with 100% UV protection lenses.',
     category: 'glasses', brand: 'ZaraStyle', price: 49, salePrice: 44,
     stock: 40, rating: 4.8, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=1200&fit=crop'
     ],
     tags: ['accessory', 'retro', 'beach'],
     specifications: {

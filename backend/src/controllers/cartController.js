@@ -2,6 +2,59 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/response');
 
+// Helper to find product by ObjectId, numeric ID, SKU, or slug
+const findProductFlexible = async (id) => {
+  if (!id) return null;
+  const idStr = String(id);
+  if (idStr.match(/^[0-9a-fA-F]{24}$/)) {
+    const prod = await Product.findById(idStr);
+    if (prod) return prod;
+  }
+
+  // Check slug, SKU, or exact title
+  let prod = await Product.findOne({
+    $or: [
+      { slug: idStr },
+      { sku: idStr },
+      { SKU: idStr },
+      { barcode: idStr },
+      { title: new RegExp(`^${idStr.replace(/-/g, ' ')}$`, 'i') }
+    ]
+  });
+  if (prod) return prod;
+
+  // Numeric catalog mapping
+  if (/^\d+$/.test(idStr)) {
+    const numId = parseInt(idStr, 10);
+    const catalogTitleMap = {
+      101: 'Cropped Ribbed Knit Tank',
+      102: 'Cozy Cable Knit Sweater',
+      103: 'High-Rise Denim Jeans',
+      104: 'Tailored Linen Trouser',
+      105: 'Floral Silk Slip Dress',
+      106: 'Oversized Classic Trench Coat',
+      107: 'Minimalist Leather Shoulder Bag',
+      108: 'Gold Hoop Earrings & Necklace Set',
+      201: 'Premium Heavyweight Cotton Tee',
+      202: 'Relaxed Oxford Cotton Shirt',
+      203: 'Streetwear Cargo Utility Pants',
+      204: 'Classic Relaxed Chino',
+      205: 'Eco-Leather Bomber Jacket',
+      206: 'Retro Denim Trucker Jacket',
+      207: 'Air Platform Sneakers',
+      208: 'Classic Leather Chelsea Boots',
+      301: 'Premium Wool Felt Fedora',
+      302: 'Canvas Sport Baseball Cap',
+      303: 'Retro Oval Acetate Sunglasses',
+    };
+    if (catalogTitleMap[numId]) {
+      prod = await Product.findOne({ title: catalogTitleMap[numId] });
+      if (prod) return prod;
+    }
+  }
+  return null;
+};
+
 // Helper to recalculate cart subtotal
 const recalculateCart = async (cart) => {
   let subtotal = 0;
@@ -44,7 +97,7 @@ const addToCart = async (req, res, next) => {
   const { productId, quantity = 1 } = req.body;
 
   try {
-    const product = await Product.findById(productId);
+    const product = await findProductFlexible(productId);
     if (!product) {
       return sendError(res, 'Product not found', 404);
     }
@@ -58,12 +111,12 @@ const addToCart = async (req, res, next) => {
       cart = await Cart.create({ user: req.user.id, products: [], subtotal: 0 });
     }
 
-    const itemIndex = cart.products.findIndex((item) => item.product.toString() === productId);
+    const itemIndex = cart.products.findIndex((item) => item.product && item.product.toString() === product._id.toString());
 
     if (itemIndex > -1) {
       cart.products[itemIndex].quantity += Number(quantity);
     } else {
-      cart.products.push({ product: productId, quantity: Number(quantity) });
+      cart.products.push({ product: product._id, quantity: Number(quantity) });
     }
 
     await recalculateCart(cart);
@@ -88,7 +141,7 @@ const updateCartItem = async (req, res, next) => {
   }
 
   try {
-    const product = await Product.findById(productId);
+    const product = await findProductFlexible(productId);
     if (!product) {
       return sendError(res, 'Product not found', 404);
     }
@@ -102,7 +155,7 @@ const updateCartItem = async (req, res, next) => {
       return sendError(res, 'Cart not found', 404);
     }
 
-    const itemIndex = cart.products.findIndex((item) => item.product.toString() === productId);
+    const itemIndex = cart.products.findIndex((item) => item.product && item.product.toString() === product._id.toString());
 
     if (itemIndex > -1) {
       cart.products[itemIndex].quantity = Number(quantity);
@@ -129,7 +182,10 @@ const removeFromCart = async (req, res, next) => {
       return sendError(res, 'Cart not found', 404);
     }
 
-    cart.products = cart.products.filter((item) => item.product.toString() !== productId);
+    const product = await findProductFlexible(productId);
+    const targetIdStr = product ? product._id.toString() : String(productId);
+
+    cart.products = cart.products.filter((item) => item.product && item.product.toString() !== targetIdStr);
 
     await recalculateCart(cart);
     await cart.populate('products.product');

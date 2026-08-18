@@ -145,11 +145,11 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
     <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 select-none">
       
       {/* 1. Elegant Animated Header (Perfect Harmony slogan) */}
-      <div className="text-center min-h-[140px] flex flex-col justify-center mb-8">
-        <span className="text-xs font-bold tracking-widest uppercase text-[#8b6f47] dark:text-[#c9a96b] mb-3">
+      <div className="text-center flex flex-col items-center justify-center mb-8 sm:mb-12">
+        <span className="text-xs font-bold tracking-widest uppercase text-[#8b6f47] dark:text-[#c9a96b] mb-2.5">
           Explore Curated Categories
         </span>
-        <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-zinc-900 dark:text-zinc-50 leading-tight">
+        <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[42px] text-zinc-900 dark:text-zinc-50 leading-tight tracking-tight whitespace-normal sm:whitespace-nowrap">
           Where design meets lifestyle in{' '}
           <span className="font-serif italic text-[#8b6f47] dark:text-[#c9a96b] font-medium pr-1">
             perfect harmony
@@ -249,12 +249,12 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
                             style={{ originX: `${center.x}px`, originY: `${center.y}px` }}
                           >
                             <image
-                              href={category.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=600&fit=crop'}
+                              href={category.image || 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop'}
                               x={center.x - 110}
                               y={center.y - 110}
                               width="220"
                               height="220"
-                              preserveAspectRatio="xMidYMid meet"
+                              preserveAspectRatio="xMidYMid slice"
                             />
                             {/* Dark Overlay for contrast when not hovered */}
                             <path

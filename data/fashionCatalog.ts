@@ -12,10 +12,10 @@ export const fashionProducts: Product[] = [
     stock: 45,
     brand: 'ZaraStyle',
     category: 'top',
-    thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'top',
@@ -93,10 +93,10 @@ export const fashionProducts: Product[] = [
     stock: 25,
     brand: 'H&MClassic',
     category: 'top',
-    thumbnail: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1614975058789-41316d0e2e9c?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'top',
@@ -121,10 +121,10 @@ export const fashionProducts: Product[] = [
     stock: 35,
     brand: 'ZaraStyle',
     category: 'pants',
-    thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'pants',
@@ -149,9 +149,10 @@ export const fashionProducts: Product[] = [
     stock: 18,
     brand: 'ZaraStyle',
     category: 'pants',
-    thumbnail: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'pants',
@@ -176,10 +177,10 @@ export const fashionProducts: Product[] = [
     stock: 12,
     brand: 'ZaraStyle',
     category: 'dress',
-    thumbnail: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1585487000160-6ebcfceb0d03?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'dress',
@@ -204,9 +205,10 @@ export const fashionProducts: Product[] = [
     stock: 15,
     brand: 'H&MClassic',
     category: 'jacket',
-    thumbnail: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'jacket',
@@ -231,9 +233,9 @@ export const fashionProducts: Product[] = [
     stock: 20,
     brand: 'ZaraStyle',
     category: 'bag',
-    thumbnail: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'bag',
@@ -258,9 +260,10 @@ export const fashionProducts: Product[] = [
     stock: 50,
     brand: 'ZaraStyle',
     category: 'jewelry',
-    thumbnail: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'jewelry',
@@ -287,10 +290,9 @@ export const fashionProducts: Product[] = [
     stock: 60,
     brand: 'H&MClassic',
     category: 'top',
-    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'top',
@@ -315,9 +317,10 @@ export const fashionProducts: Product[] = [
     stock: 40,
     brand: 'H&MClassic',
     category: 'top',
-    thumbnail: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1200&fit=crop',
+      'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'top',
@@ -342,9 +345,9 @@ export const fashionProducts: Product[] = [
     stock: 30,
     brand: 'NikeSports',
     category: 'pants',
-    thumbnail: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'pants',
@@ -369,9 +372,9 @@ export const fashionProducts: Product[] = [
     stock: 45,
     brand: 'H&MClassic',
     category: 'pants',
-    thumbnail: 'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1479064555552-3ef4979f8908?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'pants',
@@ -396,10 +399,9 @@ export const fashionProducts: Product[] = [
     stock: 22,
     brand: 'ZaraStyle',
     category: 'jacket',
-    thumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'jacket',
@@ -424,9 +426,9 @@ export const fashionProducts: Product[] = [
     stock: 20,
     brand: 'ZaraStyle',
     category: 'jacket',
-    thumbnail: 'https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'jacket',
@@ -451,9 +453,9 @@ export const fashionProducts: Product[] = [
     stock: 50,
     brand: 'NikeSports',
     category: 'shoes',
-    thumbnail: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'shoes',
@@ -478,9 +480,9 @@ export const fashionProducts: Product[] = [
     stock: 15,
     brand: 'H&MClassic',
     category: 'shoes',
-    thumbnail: 'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'shoes',
@@ -507,9 +509,9 @@ export const fashionProducts: Product[] = [
     stock: 12,
     brand: 'ZaraStyle',
     category: 'hat',
-    thumbnail: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1514327605112-b887c0e61c0a?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'hat',
@@ -534,9 +536,9 @@ export const fashionProducts: Product[] = [
     stock: 80,
     brand: 'NikeSports',
     category: 'hat',
-    thumbnail: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'hat',
@@ -561,9 +563,9 @@ export const fashionProducts: Product[] = [
     stock: 40,
     brand: 'ZaraStyle',
     category: 'glasses',
-    thumbnail: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&h=400&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=1200&fit=crop',
     images: [
-      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=800&fit=crop'
+      'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&h=1200&fit=crop'
     ],
     specifications: {
       'Layer': 'glasses',
