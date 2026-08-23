@@ -102,6 +102,8 @@ export function normalizeProduct(raw: Partial<Product>): Product {
     brand: raw.brand || 'SwiftCart Signature',
     category: raw.category || 'General',
     thumbnail: raw.thumbnail || images[0],
+    productImage: raw.productImage || raw.thumbnail || images[0],
+    modelWearingImage: raw.modelWearingImage || null,
     images,
     specifications: raw.specifications || {},
     variants: raw.variants || [],

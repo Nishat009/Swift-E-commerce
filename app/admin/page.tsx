@@ -286,7 +286,8 @@ export default function AdminDashboardPage() {
     description: '',
     stock: 10,
     discountPercentage: 0,
-    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=300&q=80'
+    thumbnail: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=300&q=80',
+    modelWearingImage: ''
   });
 
   // Verify Admin role

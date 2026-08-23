@@ -10,6 +10,8 @@ import { useCartStore } from '@/stores/cartStore';
 import { Sparkles, Upload, User, ShoppingBag, Eye, Camera, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 
+import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
+
 interface TryOnModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,7 +22,7 @@ export default function TryOnModal({ isOpen, onClose, product }: TryOnModalProps
   const { tryOnItem } = useAvatarStore();
   const addItem = useCartStore((state) => state.addItem);
 
-  const [mode, setMode] = useState<'avatar' | 'photo'>('avatar');
+  const [mode, setMode] = useState<'dressroom' | 'avatar' | 'photo'>('dressroom');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewAngle, setViewAngle] = useState<'front' | 'left' | 'right' | 'back'>('front');
@@ -50,18 +52,31 @@ export default function TryOnModal({ isOpen, onClose, product }: TryOnModalProps
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <AIBadge type="recommended" label="AI Virtual Try-On Studio" />
+              <AIBadge type="recommended" label="SwiftCart Dress Room Studio" />
             </div>
             <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">
-              Try On &quot;{product.title}&quot; Virtually
+              &quot;{product.title}&quot; Dress Room
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Visualize fit, drape, and styling before making a purchase.
+              Switch between studio product shots and real editorial model wearing look.
             </p>
           </div>
 
-          {/* Mode Switcher */}
+          {/* Mode Switcher (Avatar modes temporarily commented out for later development) */}
+          {/*
           <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setMode('dressroom')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                mode === 'dressroom'
+                  ? 'bg-[#8b6f47] text-white shadow-xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Dress Room
+            </button>
+
             <button
               onClick={() => {
                 setMode('avatar');
@@ -69,63 +84,44 @@ export default function TryOnModal({ isOpen, onClose, product }: TryOnModalProps
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 mode === 'avatar'
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-[#8b6f47] text-white shadow-xs'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              AI Avatar
+              3D Avatar
             </button>
 
             <button
               onClick={() => setMode('photo')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 mode === 'photo'
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-[#8b6f47] text-white shadow-xs'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
               }`}
             >
               <Camera className="w-3.5 h-3.5" />
-              Upload Personal Photo
+              Photo
             </button>
           </div>
+          */}
         </div>
 
-        {/* Tab Switcher for Avatar customization */}
-        {mode === 'avatar' && (
-          <div className="flex border-b border-gray-200 dark:border-gray-800">
-            <button
-              onClick={() => setActiveTab('preview')}
-              className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${
-                activeTab === 'preview'
-                  ? 'border-amber-500 text-amber-600 dark:text-amber-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Virtual Try-On Preview
-            </button>
-            <button
-              onClick={() => setActiveTab('customize')}
-              className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${
-                activeTab === 'customize'
-                  ? 'border-amber-500 text-amber-600 dark:text-amber-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Customize Avatar Profile
-            </button>
-          </div>
-        )}
+        {/* Content Area: Dress Room Dual Product & Model View */}
+        <div className="py-2">
+          <DressRoomViewer product={product} showDetails={true} />
+        </div>
 
-        {/* Content Area */}
+        {/*
+        ========================================================================
+        [3D AVATAR & PHOTO RENDERING PREVIEWS - TEMPORARILY COMMENTED OUT]
+        ========================================================================
         {mode === 'avatar' ? (
           activeTab === 'preview' ? (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-              {/* Interactive SVG / Avatar Render View */}
               <div className="md:col-span-7 bg-gradient-to-b from-gray-50 to-amber-500/5 dark:from-gray-950 dark:to-amber-950/20 rounded-3xl p-4 border border-gray-200 dark:border-gray-800 shadow-inner flex flex-col items-center justify-center min-h-[380px] relative">
                 <AvatarViewer />
 
-                {/* View Angle selector */}
                 <div className="absolute bottom-3 flex items-center gap-1.5 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-800 text-xs shadow-md">
                   {(['front', 'left', 'right', 'back'] as const).map((angle) => (
                     <button
@@ -143,7 +139,6 @@ export default function TryOnModal({ isOpen, onClose, product }: TryOnModalProps
                 </div>
               </div>
 
-              {/* Product Meta & Actions */}
               <div className="md:col-span-5 space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shrink-0">
@@ -187,7 +182,6 @@ export default function TryOnModal({ isOpen, onClose, product }: TryOnModalProps
             <AvatarProfileComponent />
           )
         ) : (
-          /* Personal Photo Upload Mode */
           <div className="space-y-4 text-center py-4">
             {!photoPreview ? (
               <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl p-8 hover:border-amber-500 transition-colors flex flex-col items-center justify-center space-y-3 bg-gray-50/50 dark:bg-gray-900/50">
@@ -248,6 +242,7 @@ export default function TryOnModal({ isOpen, onClose, product }: TryOnModalProps
             )}
           </div>
         )}
+        */}
       </div>
     </Modal>
   );

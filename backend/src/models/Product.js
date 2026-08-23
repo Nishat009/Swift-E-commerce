@@ -64,6 +64,8 @@ const ProductSchema = new mongoose.Schema(
     images: [{ type: String }],
     videos: [{ type: String }],
     thumbnail: { type: String, required: true },
+    productImage: { type: String }, // Conceptual alias for primary storefront image
+    modelWearingImage: { type: String, default: null }, // Dedicated image of a model wearing this exact product for Dress Room
 
     // Specifications & Attributes
     specifications: {
@@ -214,6 +216,10 @@ ProductSchema.pre('validate', function (next) {
     this.stockStatus = 'in_stock';
   }
   
+  if (!this.productImage && (this.thumbnail || (this.images && this.images.length > 0))) {
+    this.productImage = this.thumbnail || this.images[0];
+  }
+
   next();
 });
 
@@ -221,6 +227,8 @@ ProductSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {
     ret.id = ret._id.toString();
+    ret.productImage = ret.productImage || ret.thumbnail || (ret.images && ret.images[0]) || '';
+    ret.modelWearingImage = ret.modelWearingImage || null;
     delete ret._id;
     delete ret.__v;
     return ret;

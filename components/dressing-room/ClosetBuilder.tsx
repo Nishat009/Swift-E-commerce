@@ -9,6 +9,7 @@ import { Search, SlidersHorizontal, Check, RefreshCw, X, Eye, Sparkles } from 'l
 import Image from 'next/image';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import DressRoomViewer from './DressRoomViewer';
 
 interface ClosetBuilderProps {
   onProductSelect?: (product: Product) => void;
@@ -240,7 +241,7 @@ export default function ClosetBuilder({ onProductSelect }: ClosetBuilderProps) {
                     {/* Image Frame */}
                     <div className="relative aspect-square bg-gray-50 dark:bg-gray-900 w-full overflow-hidden">
                       <Image
-                        src={product.thumbnail}
+                        src={product.productImage || product.thumbnail}
                         alt={product.title}
                         fill
                         sizes="(max-width: 768px) 50vw, 30vw"
@@ -254,12 +255,19 @@ export default function ClosetBuilder({ onProductSelect }: ClosetBuilderProps) {
                           setSelectedProductForQuickView(product);
                         }}
                         className="absolute top-2 left-2 bg-white/90 dark:bg-gray-900/90 text-gray-700 dark:text-gray-300 p-1.5 rounded-full shadow-sm hover:text-[#8b6f47] dark:hover:text-[#c9a96b] opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title="Zoom Detail View"
+                        title="Open Dress Room Preview"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
 
-                      {worn && (
+                      {product.modelWearingImage && (
+                        <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-md text-[#c9a96b] text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 border border-[#c9a96b]/30">
+                          <Sparkles className="w-2.5 h-2.5" />
+                          <span>Model</span>
+                        </div>
+                      )}
+
+                      {worn && !product.modelWearingImage && (
                         <div className="absolute top-2 right-2 bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950 p-1 rounded-full shadow-sm">
                           <Check className="w-3.5 h-3.5 font-extrabold" />
                         </div>
@@ -310,128 +318,27 @@ export default function ClosetBuilder({ onProductSelect }: ClosetBuilderProps) {
         </div>
       </div>
 
-      {/* QUICK VIEW ZOOM MODAL */}
+      {/* QUICK VIEW DRESS ROOM MODAL */}
       {selectedProductForQuickView && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative flex flex-col md:flex-row">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl w-full max-w-4xl p-6 sm:p-8 overflow-hidden shadow-2xl relative my-auto">
             
             {/* Close Button */}
             <button
               onClick={() => {
                 setSelectedProductForQuickView(null);
-                setIsZoomed(false);
               }}
-              className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full border border-gray-100 dark:border-gray-900 text-gray-550 hover:text-gray-800 dark:hover:text-gray-200 z-10 transition-colors"
+              className="absolute top-5 right-5 p-2.5 bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 rounded-full border border-stone-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 z-30 transition-all cursor-pointer shadow-sm"
+              title="Close Preview"
             >
               <X className="w-4 h-4" />
             </button>
 
-            {/* Left Column: Interactive Zoom Canvas */}
-            <div className="md:w-1/2 relative bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-6 border-r border-gray-100 dark:border-gray-900 min-h-[300px]">
-              <div
-                className="relative w-full h-72 rounded-2xl overflow-hidden cursor-zoom-in group/zoom shadow-inner"
-                onMouseEnter={() => setIsZoomed(true)}
-                onMouseLeave={() => setIsZoomed(false)}
-                onMouseMove={handleImageMouseMove}
-              >
-                <Image
-                  src={selectedProductForQuickView.thumbnail}
-                  alt={selectedProductForQuickView.title}
-                  fill
-                  className="object-cover transition-transform duration-300"
-                  style={
-                    isZoomed
-                      ? {
-                          transform: 'scale(2.5)',
-                          transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`
-                        }
-                      : {}
-                  }
-                />
-                {!isZoomed && (
-                  <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover/zoom:opacity-100 transition-opacity">
-                    <span className="bg-black/60 text-white text-[9px] py-1.5 px-3 rounded-full font-bold">Hover to Magnify Fabric</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column: Spec Sheet */}
-            <div className="md:w-1/2 p-6 flex flex-col justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                  {selectedProductForQuickView.brand}
-                </span>
-                <h3 className="font-serif text-base font-bold text-gray-900 dark:text-gray-100 leading-snug mb-2">
-                  {selectedProductForQuickView.title}
-                </h3>
-                
-                {/* Pricing */}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-base font-extrabold text-[#8b6f47] dark:text-[#c9a96b]">
-                    ${(selectedProductForQuickView.price * (1 - selectedProductForQuickView.discountPercentage / 100)).toFixed(0)}
-                  </span>
-                  {selectedProductForQuickView.discountPercentage > 0 && (
-                    <span className="text-xs text-gray-450 line-through">
-                      ${selectedProductForQuickView.price}
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-gray-500 dark:text-gray-450 leading-relaxed mb-4">
-                  {selectedProductForQuickView.description}
-                </p>
-
-                {/* Specs map */}
-                <div className="space-y-2 border-t border-gray-150 dark:border-gray-800 pt-4">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-400 font-semibold">Material Layer</span>
-                    <span className="text-gray-700 dark:text-gray-300 font-bold capitalize">{getSpec(selectedProductForQuickView, 'Layer') || selectedProductForQuickView.category}</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-400 font-semibold">Color Shade</span>
-                    <span className="text-gray-700 dark:text-gray-300 font-bold flex items-center gap-1.5">
-                      <span
-                        className="inline-block w-3.5 h-3.5 rounded-full border border-gray-200"
-                        style={{ backgroundColor: getSpec(selectedProductForQuickView, 'SvgColor') || '#ccc' }}
-                      />
-                      {getSpec(selectedProductForQuickView, 'Color') || 'Multi'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-400 font-semibold">Fabric Type</span>
-                    <span className="text-gray-700 dark:text-gray-300 font-bold capitalize">{getSpec(selectedProductForQuickView, 'Material') || 'Cotton/Polyester'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 mt-6">
-                <Button
-                  onClick={() => {
-                    handleProductToggle(selectedProductForQuickView);
-                    setSelectedProductForQuickView(null);
-                    setIsZoomed(false);
-                  }}
-                  variant={isWorn(selectedProductForQuickView) ? 'outline' : 'primary'}
-                  className="flex-1 text-xs py-2.5 rounded-xl font-bold"
-                >
-                  {isWorn(selectedProductForQuickView) ? 'Take Off' : 'Try On Avatar'}
-                </Button>
-                <Button
-                  onClick={() => {
-                    addItem(selectedProductForQuickView, 1);
-                    alert(`Added ${selectedProductForQuickView.title} to shopping bag!`);
-                  }}
-                  variant="secondary"
-                  className="flex-1 text-xs py-2.5 rounded-xl font-bold bg-[#8b6f47] text-white hover:bg-[#725a38] border-0"
-                >
-                  Add to Bag
-                </Button>
-              </div>
-
-            </div>
-
+            {/* Modular Dress Room Viewer */}
+            <DressRoomViewer
+              product={selectedProductForQuickView}
+              showDetails={true}
+            />
           </div>
         </div>
       )}

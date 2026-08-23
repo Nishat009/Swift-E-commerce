@@ -174,6 +174,8 @@ export interface Product {
   images: string[];
   videos?: string[];
   thumbnail: string;
+  productImage?: string;
+  modelWearingImage?: string | null;
   description: string;
   shortDescription?: string;
   specifications?: Record<string, string>;
