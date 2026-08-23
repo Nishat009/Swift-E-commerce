@@ -101,6 +101,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   );
   const [newImageUrl, setNewImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState(initialData?.videos?.[0] || '');
+  const [modelWearingImage, setModelWearingImage] = useState<string>(initialData?.modelWearingImage || '');
   const [mediaError, setMediaError] = useState('');
 
   // 4. Pricing State
@@ -561,6 +562,8 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
       media: mediaList,
       images: imagesArray.length > 0 ? imagesArray : [primaryUrl],
       thumbnail: primaryUrl,
+      productImage: primaryUrl,
+      modelWearingImage: modelWearingImage.trim() || null,
       videos: videoUrl ? [videoUrl] : [],
 
       variants: variantOptionGroups.map((group) => ({
@@ -1055,6 +1058,93 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                 />
               </div>
+            </div>
+
+            {/* DEDICATED DRESS ROOM / MODEL IMAGE SECTION */}
+            <div className="pt-6 border-t border-gray-200/80 dark:border-gray-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#8b6f47] dark:text-[#c9a96b]" />
+                    Dress Room / Model Wearing Image
+                  </h3>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl">
+                    <strong className="text-gray-700 dark:text-gray-300">Product Image:</strong> The standard image displayed throughout the store (cards, details, cart).<br />
+                    <strong className="text-gray-700 dark:text-gray-300">Model Wearing Image:</strong> An image showing a model wearing this exact product, used inside the Dress Room.
+                  </p>
+                </div>
+                {modelWearingImage ? (
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-500/20">
+                    Model Preview Configured
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-500/20">
+                    Optional (Not Set)
+                  </span>
+                )}
+              </div>
+
+              {/* Model Image URL Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block">
+                  Model Image URL
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={modelWearingImage}
+                    onChange={(e) => setModelWearingImage(e.target.value)}
+                    placeholder="https://... or /images/dress-room/shirt-model.jpg"
+                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  />
+                  {modelWearingImage && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setModelWearingImage('')}
+                      className="rounded-xl text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-950/20 flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              {modelWearingImage ? (
+                <div className="p-4 bg-[#8b6f47]/5 dark:bg-[#8b6f47]/10 rounded-2xl border border-[#8b6f47]/20 flex flex-col sm:flex-row items-center gap-4">
+                  <div className="relative w-24 h-32 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-[#8b6f47]/30 shrink-0 shadow-sm">
+                    <img
+                      src={modelWearingImage}
+                      alt="Model Wearing Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1 text-left flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#8b6f47] dark:text-[#c9a96b]">
+                      Dress Room Preview Live
+                    </span>
+                    <h4 className="text-xs font-bold text-gray-900 dark:text-white">
+                      Model Wearing &quot;{title || 'This Product'}&quot;
+                    </h4>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      When shoppers open the Dress Room and select &quot;Model&quot;, this image will seamlessly display without page reloads.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 text-center border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl text-gray-400 space-y-1">
+                  <p className="text-xs font-medium">No model-wearing image specified.</p>
+                  <p className="text-[10px] text-gray-400">
+                    If omitted, the Dress Room will gracefully default to the standard product image with the Model toggle disabled.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

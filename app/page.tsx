@@ -380,20 +380,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Dynamic Semi-Circular Category Design Slider */}
-      <section className="bg-background border-b border-zinc-150/30 dark:border-zinc-800/30">
-        <CategoryDesignSlider
-          categories={dynamicCategories}
-          allProducts={catalogProducts}
-        />
-      </section>
+      {/* 1. Zara-Style Editorial Lookbook Section ("Quiet Luxury & Architectural Silhouettes") */}
+      <ZaraLookbookSection />
 
-      {/* AI Recommendations Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AIPicksForYou />
-      </div>
-
-      {/* Curated Editorial Collection Grid (Ately / Zara Minimalist Showcase) */}
+      {/* 2. Curated Editorial Collection Grid ("Curated Wardrobe") */}
       <section className="relative py-16 sm:py-24 bg-[#faf8f5] dark:bg-zinc-950 border-t border-zinc-200/60 dark:border-zinc-800 overflow-hidden">
         
         {/* Luxury Architectural / Plaster Texture Background Image */}
@@ -490,7 +480,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Big Zara / Nike Style Runway Editorial Banner */}
+      {/* 3. Dynamic Semi-Circular Category Design Slider */}
+      <section className="bg-background border-b border-zinc-150/30 dark:border-zinc-800/30">
+        <CategoryDesignSlider
+          categories={dynamicCategories}
+          allProducts={catalogProducts}
+        />
+      </section>
+
+      {/* 4. AI Recommendations Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AIPicksForYou />
+      </div>
+
+      {/* 5. Big Zara / Nike Style Runway Editorial Banner */}
       <motion.section
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
@@ -578,7 +581,7 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* Nike / Zara Style Split Category Banners */}
+      {/* 6. Nike / Zara Style Split Category Banners */}
       <section className="py-12 sm:py-16 bg-white dark:bg-gray-950 border-b border-gray-150/40 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
@@ -658,11 +661,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-
-
-      {/* Zara-Style Editorial Lookbook Section */}
-      <ZaraLookbookSection />
 
       {/* Classic Features Section */}
       <motion.section

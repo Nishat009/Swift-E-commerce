@@ -11,9 +11,19 @@ import AIStudio from '@/components/dressing-room/AIStudio';
 import { Sparkles, MessageSquare, Award, Shirt, Sliders, ChevronRight, Bot } from 'lucide-react';
 import Link from 'next/link';
 
+import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
+import { fashionProducts } from '@/data/fashionCatalog';
+import { Product } from '@/types';
+
 export default function DressingRoomPage() {
   const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
   const [shopTab, setShopTab] = useState<'closet' | 'stylist'>('closet');
+  const [selectedSpotlightProduct, setSelectedSpotlightProduct] = useState<Product>(fashionProducts[0]);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+
+  const filteredSpotlightProducts = activeCategoryFilter === 'all'
+    ? fashionProducts
+    : fashionProducts.filter((p) => p.category.toLowerCase() === activeCategoryFilter.toLowerCase());
 
   return (
     <div className="min-h-screen bg-[#fafaf9] dark:bg-gray-950">
@@ -31,7 +41,7 @@ export default function DressingRoomPage() {
               Virtual Dressing Room
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
-              Strut down the runway, customize your rigged Ready Player Me model, and inspect color coordinates instantly.
+              Switch between studio product views and editorial model wearing looks, customize your 3D runway avatar, and curate your wardrobe.
             </p>
           </div>
 
@@ -42,8 +52,8 @@ export default function DressingRoomPage() {
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <span className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold">Studio Engine</span>
-                <span className="text-xs font-black text-gray-800 dark:text-gray-250">WebGL 3D Catwalk</span>
+                <span className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold">Dress Room Engine</span>
+                <span className="text-xs font-black text-gray-800 dark:text-gray-250">Dual Product & Model View</span>
               </div>
             </div>
           </div>
@@ -51,12 +61,19 @@ export default function DressingRoomPage() {
       </section>
 
       {/* Main Grid Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+        
+        {/* 
+        ====================================================================================
+        [UPPER 3D AVATAR WORKSPACE - TEMPORARILY COMMENTED OUT FOR LATER DEVELOPMENT]
+        Includes: 3D Avatar Runway Visualizer, Avatar Customizer, Challenges, AI Stylist, Closet Racks
+        ====================================================================================
+        
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* COLUMN 1: Avatar Settings / Achievements / AI Chat (4 Columns) */}
+          {/ * COLUMN 1: Avatar Settings / Achievements / AI Chat (4 Columns) * /}
           <div className="lg:col-span-4 flex flex-col gap-6 h-full">
-            {/* Sidebar Tab Triggers */}
+            {/ * Sidebar Tab Triggers * /}
             <div className="grid grid-cols-4 bg-gray-100 dark:bg-gray-900 p-1 rounded-2xl border border-gray-200/55 dark:border-gray-850">
               <button
                 onClick={() => setSidebarTab('customizer')}
@@ -104,7 +121,7 @@ export default function DressingRoomPage() {
               </button>
             </div>
 
-            {/* Sidebar Active Panel */}
+            {/ * Sidebar Active Panel * /}
             <div className="min-h-[500px]">
               {sidebarTab === 'customizer' && <AvatarControls />}
               {sidebarTab === 'challenges' && <StyleChallenges />}
@@ -113,14 +130,14 @@ export default function DressingRoomPage() {
             </div>
           </div>
 
-          {/* COLUMN 2: Large Viewport Visualizer (4 Columns) */}
+          {/ * COLUMN 2: Large Viewport Visualizer (4 Columns) * /}
           <div className="lg:col-span-4 h-full min-h-[500px]">
             <AvatarViewer />
           </div>
 
-          {/* COLUMN 3: E-commerce Closet Inventory / Stylist scoring (4 Columns) */}
+          {/ * COLUMN 3: E-commerce Closet Inventory / Stylist scoring (4 Columns) * /}
           <div className="lg:col-span-4 flex flex-col gap-6 h-full">
-            {/* Shop Drawer Tab Triggers */}
+            {/ * Shop Drawer Tab Triggers * /}
             <div className="grid grid-cols-2 bg-gray-100 dark:bg-gray-900 p-1 rounded-2xl border border-gray-200/55 dark:border-gray-850">
               <button
                 onClick={() => setShopTab('closet')}
@@ -146,14 +163,121 @@ export default function DressingRoomPage() {
               </button>
             </div>
 
-            {/* Shop Active Panel */}
+            {/ * Shop Active Panel * /}
             <div className="min-h-[500px]">
-              {shopTab === 'closet' && <ClosetBuilder />}
+              {shopTab === 'closet' && <ClosetBuilder onProductSelect={(p) => setSelectedSpotlightProduct(p)} />}
               {shopTab === 'stylist' && <SmartStylist />}
             </div>
           </div>
 
         </div>
+        ====================================================================================
+        */}
+
+        {/* SECTION 2: DRESS ROOM DEDICATED SPOTLIGHT VIEWER */}
+        <div className="pt-8 border-t border-stone-200/70 dark:border-zinc-800 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                Interactive Dress Room Spotlight
+              </span>
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                Garment & Model View Studio
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
+                Click any outfit below to test instantaneous switching between high-resolution flat-lay product photography and editorial model looks.
+              </p>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-zinc-900 p-1.5 rounded-2xl border border-stone-200/60 dark:border-zinc-800">
+              {[
+                { label: 'All Items', key: 'all' },
+                { label: 'Tops & Shirts', key: 'top' },
+                { label: 'Dresses', key: 'dress' },
+                { label: 'Outerwear', key: 'jacket' },
+                { label: 'Trousers & Denim', key: 'pants' }
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  onClick={() => setActiveCategoryFilter(cat.key)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeCategoryFilter === cat.key
+                      ? 'bg-white dark:bg-zinc-800 text-[#8b6f47] dark:text-[#c9a96b] shadow-xs'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Main Interactive Stage */}
+          <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-stone-200/80 dark:border-zinc-800 shadow-md">
+            <DressRoomViewer
+              product={selectedSpotlightProduct}
+              onProductChange={(p) => setSelectedSpotlightProduct(p)}
+              showDetails={true}
+            />
+          </div>
+
+          {/* Outfit Carousel / Rack Selector */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                Select Garment to Inspect ({filteredSpotlightProducts.length} items)
+              </h3>
+              <span className="text-[11px] text-zinc-400">
+                Items with gold badge include Model Wearing previews
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              {filteredSpotlightProducts.map((p) => {
+                const isSelected = selectedSpotlightProduct.id === p.id;
+                const hasModel = Boolean(p.modelWearingImage);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedSpotlightProduct(p)}
+                    className={`relative p-2 rounded-2xl border text-left transition-all duration-300 group cursor-pointer overflow-hidden ${
+                      isSelected
+                        ? 'border-[#8b6f47] dark:border-[#c9a96b] bg-[#8b6f47]/5 dark:bg-[#8b6f47]/10 ring-2 ring-[#8b6f47]/30 shadow-md scale-[1.02]'
+                        : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-900/50 hover:border-stone-300 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="relative aspect-square rounded-xl overflow-hidden bg-stone-100 dark:bg-zinc-950 mb-2">
+                      <img
+                        src={p.productImage || p.thumbnail}
+                        alt={p.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {hasModel && (
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-extrabold uppercase tracking-wide bg-black/80 backdrop-blur-xs text-[#c9a96b] border border-[#c9a96b]/30">
+                          Model
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 line-clamp-1">
+                      {p.brand}
+                    </p>
+                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">
+                      {p.title}
+                    </h4>
+                    <p className="text-[11px] font-extrabold text-[#8b6f47] dark:text-[#c9a96b] mt-0.5">
+                      ${p.price.toFixed(0)}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+
       </main>
     </div>
   );

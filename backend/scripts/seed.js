@@ -28,9 +28,321 @@ const categoriesData = [
   { name: 'Outdoor', slug: 'outdoor', image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&h=600&fit=crop', featured: true }
 ];
 
-// ─── Curated Product Catalog (50 products, unique names & images) ────────────
+// ─── Curated Product Catalog (50+ products, unique names & images) ────────────
 const curatedProducts = [
-  // --- FASHION PRODUCTS ---
+  // --- 10 DRESS ROOM FEATURE OUTFITS (WITH PRODUCT & MODEL WEARING IMAGES) ---
+  {
+    title: 'Oversized Silk White Shirt',
+    slug: 'oversized-silk-white-shirt',
+    description: 'A luxurious oversized button-down shirt crafted in lightweight pure mulberry silk. Features a clean architectural collar, mother-of-pearl buttons, and relaxed dropped shoulders for effortless day-to-evening dressing.',
+    shortDescription: 'Luxurious oversized shirt in pure mulberry silk.',
+    category: 'top',
+    brand: 'Swift Atelier',
+    price: 125,
+    salePrice: 125,
+    originalPrice: 145,
+    discountPercentage: 14,
+    stock: 35,
+    rating: 4.9,
+    featured: true,
+    thumbnail: '/images/dress-room/white-silk-shirt-product.jpg',
+    productImage: '/images/dress-room/white-silk-shirt-product.jpg',
+    modelWearingImage: '/images/dress-room/white-silk-shirt-model.jpg',
+    images: [
+      '/images/dress-room/white-silk-shirt-product.jpg',
+      '/images/dress-room/white-silk-shirt-model.jpg'
+    ],
+    tags: ['New', 'Bestseller', 'Featured', 'minimalist', 'luxury'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'female',
+      'Color': '#ffffff',
+      'Material': '100% Mulberry Silk',
+      'Fabric': 'Lustrous lightweight silk crepe',
+      'Occasion': 'luxury, evening, editorial'
+    }
+  },
+  {
+    title: 'Emerald Linen Camp Collar Shirt',
+    slug: 'emerald-linen-camp-collar-shirt',
+    description: "A tailored men's resort shirt tailored from premium breathable European flax linen in a rich emerald green shade. Finished with a relaxed camp collar and single chest welt pocket.",
+    shortDescription: 'Tailored European flax linen camp collar shirt.',
+    category: 'top',
+    brand: 'Swift Atelier',
+    price: 89,
+    salePrice: 89,
+    originalPrice: 110,
+    discountPercentage: 19,
+    stock: 28,
+    rating: 4.8,
+    featured: true,
+    thumbnail: '/images/dress-room/emerald-linen-shirt-product.jpg',
+    productImage: '/images/dress-room/emerald-linen-shirt-product.jpg',
+    modelWearingImage: '/images/dress-room/emerald-linen-shirt-model.jpg',
+    images: [
+      '/images/dress-room/emerald-linen-shirt-product.jpg',
+      '/images/dress-room/emerald-linen-shirt-model.jpg'
+    ],
+    tags: ['New', 'Featured', 'linen', 'resort'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'male',
+      'Color': '#0a5c36',
+      'Material': '100% European Flax Linen',
+      'Fabric': 'Textured breathable woven linen',
+      'Occasion': 'resort, casual, summer'
+    }
+  },
+  {
+    title: 'Floral Silk Slip Evening Dress',
+    slug: 'floral-silk-slip-evening-dress',
+    description: 'An ethereal midi-length slip evening dress rendered in fluid deep burgundy silk jacquard with delicate tonal floral motifs. Designed with a draped cowl neckline and side leg slit.',
+    shortDescription: 'Ethereal burgundy silk jacquard slip evening dress.',
+    category: 'dress',
+    brand: 'Swift Atelier',
+    price: 185,
+    salePrice: 185,
+    originalPrice: 220,
+    discountPercentage: 16,
+    stock: 22,
+    rating: 4.9,
+    featured: true,
+    thumbnail: '/images/dress-room/floral-silk-dress-product.jpg',
+    productImage: '/images/dress-room/floral-silk-dress-product.jpg',
+    modelWearingImage: '/images/dress-room/floral-silk-dress-model.jpg',
+    images: [
+      '/images/dress-room/floral-silk-dress-product.jpg',
+      '/images/dress-room/floral-silk-dress-model.jpg'
+    ],
+    tags: ['New', 'Bestseller', 'evening', 'silk'],
+    specifications: {
+      'Layer': 'dress',
+      'Gender': 'female',
+      'Color': '#58111a',
+      'Material': '100% Silk Charmeuse',
+      'Fabric': 'High-drape silk jacquard',
+      'Occasion': 'evening, gala, cocktail'
+    }
+  },
+  {
+    title: 'Minimalist Noir Bodycon Midi Dress',
+    slug: 'minimalist-noir-bodycon-midi-dress',
+    description: 'A sculptural black ribbed-knit midi dress with a square neckline and body-skimming silhouette. Engineered in compact stretch viscose for comfortable all-day hold.',
+    shortDescription: 'Sculptural black ribbed-knit bodycon midi dress.',
+    category: 'dress',
+    brand: 'Swift Atelier',
+    price: 135,
+    salePrice: 135,
+    originalPrice: 160,
+    discountPercentage: 15,
+    stock: 30,
+    rating: 4.8,
+    featured: true,
+    thumbnail: '/images/dress-room/noir-bodycon-dress-product.jpg',
+    productImage: '/images/dress-room/noir-bodycon-dress-product.jpg',
+    modelWearingImage: '/images/dress-room/noir-bodycon-dress-model.jpg',
+    images: [
+      '/images/dress-room/noir-bodycon-dress-product.jpg',
+      '/images/dress-room/noir-bodycon-dress-model.jpg'
+    ],
+    tags: ['New', 'Featured', 'minimalist', 'black'],
+    specifications: {
+      'Layer': 'dress',
+      'Gender': 'female',
+      'Color': '#111111',
+      'Material': '80% Viscose, 20% Polyamide',
+      'Fabric': 'Compact vertical ribbed knit',
+      'Occasion': 'contemporary, minimalist, evening'
+    }
+  },
+  {
+    title: 'Tailored Camel Wool Trench Coat',
+    slug: 'tailored-camel-wool-trench-coat',
+    description: 'A double-breasted outerwear masterpiece crafted in double-faced Italian camel virgin wool. Features epaulets, storm flaps, and a matching belt with buckle.',
+    shortDescription: 'Double-breasted Italian camel virgin wool trench coat.',
+    category: 'jacket',
+    brand: 'Swift Atelier',
+    price: 295,
+    salePrice: 295,
+    originalPrice: 350,
+    discountPercentage: 15,
+    stock: 18,
+    rating: 5.0,
+    featured: true,
+    thumbnail: '/images/dress-room/camel-wool-trench-product.jpg',
+    productImage: '/images/dress-room/camel-wool-trench-product.jpg',
+    modelWearingImage: '/images/dress-room/camel-wool-trench-model.jpg',
+    images: [
+      '/images/dress-room/camel-wool-trench-product.jpg',
+      '/images/dress-room/camel-wool-trench-model.jpg'
+    ],
+    tags: ['New', 'Bestseller', 'Featured', 'luxury', 'outerwear'],
+    specifications: {
+      'Layer': 'jacket',
+      'Gender': 'female',
+      'Color': '#c19a6b',
+      'Material': '100% Virgin Wool',
+      'Fabric': 'Double-faced Italian melton wool',
+      'Occasion': 'autumn, winter, luxury'
+    }
+  },
+  {
+    title: 'Vintage Distressed Denim Trucker Jacket',
+    slug: 'vintage-distressed-denim-trucker-jacket',
+    description: 'An authentic heavy-duty 14oz rigid cotton denim trucker jacket in an authentic vintage stonewash finish with antique brass buttons and chest flap pockets.',
+    shortDescription: '14oz rigid selvedge cotton denim trucker jacket.',
+    category: 'jacket',
+    brand: 'Swift Denim Co.',
+    price: 119,
+    salePrice: 119,
+    originalPrice: 140,
+    discountPercentage: 15,
+    stock: 40,
+    rating: 4.7,
+    featured: false,
+    thumbnail: '/images/dress-room/denim-trucker-jacket-product.jpg',
+    productImage: '/images/dress-room/denim-trucker-jacket-product.jpg',
+    modelWearingImage: '/images/dress-room/denim-trucker-jacket-model.jpg',
+    images: [
+      '/images/dress-room/denim-trucker-jacket-product.jpg',
+      '/images/dress-room/denim-trucker-jacket-model.jpg'
+    ],
+    tags: ['New', 'streetwear', 'denim'],
+    specifications: {
+      'Layer': 'jacket',
+      'Gender': 'male',
+      'Color': '#466d8c',
+      'Material': '100% Organic Cotton Denim',
+      'Fabric': '14oz rigid selvedge denim',
+      'Occasion': 'streetwear, casual, heritage'
+    }
+  },
+  {
+    title: 'Asymmetric Black Leather Biker Jacket',
+    slug: 'asymmetric-black-leather-biker-jacket',
+    description: 'Handcrafted in buttery full-grain lambskin leather with heavy-gauge silver metal hardware, asymmetrical front zip, notched lapels, and adjustable waist buckles.',
+    shortDescription: 'Buttery full-grain lambskin moto biker jacket.',
+    category: 'jacket',
+    brand: 'Swift Atelier',
+    price: 340,
+    salePrice: 340,
+    originalPrice: 420,
+    discountPercentage: 19,
+    stock: 15,
+    rating: 4.9,
+    featured: true,
+    thumbnail: '/images/dress-room/black-leather-biker-product.jpg',
+    productImage: '/images/dress-room/black-leather-biker-product.jpg',
+    modelWearingImage: '/images/dress-room/black-leather-biker-model.jpg',
+    images: [
+      '/images/dress-room/black-leather-biker-product.jpg',
+      '/images/dress-room/black-leather-biker-model.jpg'
+    ],
+    tags: ['New', 'Featured', 'leather', 'edgy'],
+    specifications: {
+      'Layer': 'jacket',
+      'Gender': 'female',
+      'Color': '#0d0d0d',
+      'Material': '100% Full-Grain Lambskin Leather',
+      'Fabric': 'Plonge lambskin, silky satin lining',
+      'Occasion': 'edgy, streetwear, night out'
+    }
+  },
+  {
+    title: 'High-Rise Pleated Wide-Leg Trousers',
+    slug: 'high-rise-pleated-wide-leg-trousers',
+    description: 'Sculptural high-waisted wide-leg trousers in a tailored cream twill weave. Features deep front pleats, pressed center creases, and slant side pockets for a clean silhouette.',
+    shortDescription: 'High-waisted wide-leg trousers in cream wool-silk twill.',
+    category: 'pants',
+    brand: 'Swift Atelier',
+    price: 115,
+    salePrice: 115,
+    originalPrice: 135,
+    discountPercentage: 14,
+    stock: 25,
+    rating: 4.8,
+    featured: false,
+    thumbnail: '/images/dress-room/cream-wide-trousers-product.jpg',
+    productImage: '/images/dress-room/cream-wide-trousers-product.jpg',
+    modelWearingImage: '/images/dress-room/cream-wide-trousers-model.jpg',
+    images: [
+      '/images/dress-room/cream-wide-trousers-product.jpg',
+      '/images/dress-room/cream-wide-trousers-model.jpg'
+    ],
+    tags: ['New', 'Bestseller', 'quiet-luxury', 'tailored'],
+    specifications: {
+      'Layer': 'pants',
+      'Gender': 'female',
+      'Color': '#ece6da',
+      'Material': '70% Wool, 30% Silk Twill',
+      'Fabric': 'High-density drape twill',
+      'Occasion': 'quiet luxury, professional, formal'
+    }
+  },
+  {
+    title: 'Relaxed Raw Indigo Denim Jeans',
+    slug: 'relaxed-raw-indigo-denim-jeans',
+    description: 'Crafted from unwashed raw Japanese selvedge denim in deep indigo blue. Cut in a modern relaxed straight-leg fit designed to develop unique personal fade patterns.',
+    shortDescription: 'Japanese selvedge raw rigid indigo denim jeans.',
+    category: 'pants',
+    brand: 'Swift Denim Co.',
+    price: 98,
+    salePrice: 98,
+    originalPrice: 120,
+    discountPercentage: 18,
+    stock: 32,
+    rating: 4.7,
+    featured: false,
+    thumbnail: '/images/dress-room/raw-indigo-jeans-product.jpg',
+    productImage: '/images/dress-room/raw-indigo-jeans-product.jpg',
+    modelWearingImage: '/images/dress-room/raw-indigo-jeans-model.jpg',
+    images: [
+      '/images/dress-room/raw-indigo-jeans-product.jpg',
+      '/images/dress-room/raw-indigo-jeans-model.jpg'
+    ],
+    tags: ['New', 'denim', 'selvedge'],
+    specifications: {
+      'Layer': 'pants',
+      'Gender': 'unisex',
+      'Color': '#1a233a',
+      'Material': '100% Japanese Selvedge Cotton',
+      'Fabric': '13.5oz raw rigid denim',
+      'Occasion': 'casual, streetwear, everyday'
+    }
+  },
+  {
+    title: 'Chunky Cable Knit Cashmere Sweater',
+    slug: 'chunky-cable-knit-cashmere-sweater',
+    description: 'A decadent oversized knit sweater woven from 100% pure Mongolian cashmere in a rich oat-cream shade. Detailed with heritage rope cable motifs and ribbed trims.',
+    shortDescription: '100% Mongolian cashmere chunky cable knit sweater.',
+    category: 'top',
+    brand: 'Swift Atelier',
+    price: 175,
+    salePrice: 175,
+    originalPrice: 210,
+    discountPercentage: 16,
+    stock: 20,
+    rating: 4.9,
+    featured: true,
+    thumbnail: '/images/dress-room/cashmere-knit-sweater-product.jpg',
+    productImage: '/images/dress-room/cashmere-knit-sweater-product.jpg',
+    modelWearingImage: '/images/dress-room/cashmere-knit-sweater-model.jpg',
+    images: [
+      '/images/dress-room/cashmere-knit-sweater-product.jpg',
+      '/images/dress-room/cashmere-knit-sweater-model.jpg'
+    ],
+    tags: ['New', 'Bestseller', 'Featured', 'cashmere', 'knitwear'],
+    specifications: {
+      'Layer': 'top',
+      'Gender': 'female',
+      'Color': '#e6ded3',
+      'Material': '100% Mongolian Cashmere',
+      'Fabric': '7-gauge 4-ply chunky cable knit',
+      'Occasion': 'cozy, autumn, winter luxury'
+    }
+  },
+
+  // --- EXISTING FASHION PRODUCTS (PRESERVED) ---
   {
     title: 'Cropped Ribbed Knit Tank',
     description: 'A premium cropped tank top knitted in soft, ribbed organic cotton. Features a sleek scoop neck and flatlock seams for ultimate comfort. Designed to flatter and fit close to the body, perfect for layering or wearing standalone during warm weather.',
