@@ -494,26 +494,26 @@ export default function ZaraLookbookSection() {
               </div>
 
               {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-3">
                 <Button
                   onClick={() => handleAddLookToCart(activeLook)}
-                  className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold py-3 text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md border-0"
+                  className="flex-1 w-full bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold py-3.5 px-4 sm:px-6 text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md border-0 whitespace-nowrap cursor-pointer"
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  Add Look to Cart
+                  <ShoppingBag className="w-4 h-4 shrink-0" />
+                  <span className="whitespace-nowrap">Add Look to Cart</span>
                 </Button>
 
                 <Link
                   href="/dressing-room"
                   onClick={() => setActiveLook(null)}
-                  className="flex-1"
+                  className="flex-1 w-full"
                 >
                   <Button
                     variant="outline"
-                    className="w-full rounded-full font-bold py-3 text-xs uppercase tracking-wider flex items-center justify-center gap-2 border-zinc-300 dark:border-zinc-700"
+                    className="w-full rounded-full font-bold py-3.5 px-4 sm:px-6 text-xs uppercase tracking-wider flex items-center justify-center gap-2 border-zinc-300 dark:border-zinc-700 hover:bg-stone-100 whitespace-nowrap cursor-pointer"
                   >
-                    <Wand2 className="w-4 h-4 text-[#8b6f47]" />
-                    Try on 3D Avatar
+                    <Wand2 className="w-4 h-4 text-[#8b6f47] shrink-0" />
+                    <span className="whitespace-nowrap">Try on 3D Avatar</span>
                   </Button>
                 </Link>
               </div>

@@ -402,16 +402,19 @@ export default function Home() {
           {/* Header & Filter Tabs */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 sm:mb-16">
             <div>
-              <span className="text-[11px] font-bold tracking-widest uppercase text-[#8b6f47] dark:text-[#c9a96b]">
-                The Atelier Drop
-              </span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 border border-[#8b6f47]/20 dark:border-[#c9a96b]/20 mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#8b6f47] dark:text-[#c9a96b]" />
+                <span className="text-[11px] font-bold tracking-widest uppercase text-[#8b6f47] dark:text-[#c9a96b]">
+                  The Atelier Collection
+                </span>
+              </div>
               <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium text-zinc-900 dark:text-zinc-50 mt-1">
                 Curated Wardrobe
               </h2>
             </div>
 
             {/* Category / Collection Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {[
                 { id: 'all', label: 'All Pieces' },
                 { id: 'new', label: 'New Arrivals' },
@@ -425,8 +428,8 @@ export default function Home() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                     activeTab === tab.id
-                      ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm scale-105'
-                      : 'bg-stone-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white border border-transparent'
+                      ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md scale-105'
+                      : 'bg-white/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border border-zinc-250 dark:border-zinc-800 hover:border-[#8b6f47]'
                   }`}
                 >
                   {tab.label}

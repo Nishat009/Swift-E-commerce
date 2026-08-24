@@ -19,7 +19,7 @@ export default function Button({
   loading,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'font-medium rounded-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden uppercase tracking-wide text-xs sm:text-sm';
+  const baseStyles = 'font-medium rounded-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden uppercase tracking-wide text-xs sm:text-sm whitespace-nowrap cursor-pointer select-none';
   
   const variants = {
     primary: 'bg-[#8b6f47] text-white hover:bg-[#6b5435] focus:ring-[#8b6f47] shadow-sm hover:shadow-md',
@@ -60,7 +60,7 @@ export default function Button({
         whileHover={{ x: '100%' }}
         transition={{ duration: 0.5 }}
       />
-      <span className="relative z-10 flex items-center justify-center gap-2">
+      <span className="relative z-10 flex items-center justify-center gap-2 whitespace-nowrap">
         {loading && (
           <svg className="animate-spin h-4 w-4 text-current" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

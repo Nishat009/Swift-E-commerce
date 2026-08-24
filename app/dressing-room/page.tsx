@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AvatarViewer from '@/components/dressing-room/AvatarViewer';
 import AvatarControls from '@/components/dressing-room/AvatarControls';
 import ClosetBuilder from '@/components/dressing-room/ClosetBuilder';
@@ -15,11 +16,26 @@ import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
 import { fashionProducts } from '@/data/fashionCatalog';
 import { Product } from '@/types';
 
-export default function DressingRoomPage() {
+function DressingRoomContent() {
+  const searchParams = useSearchParams();
   const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
   const [shopTab, setShopTab] = useState<'closet' | 'stylist'>('closet');
   const [selectedSpotlightProduct, setSelectedSpotlightProduct] = useState<Product>(fashionProducts[0]);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+
+  useEffect(() => {
+    const productId = searchParams?.get('product');
+    const category = searchParams?.get('category');
+    if (productId) {
+      const match = fashionProducts.find((p) => String(p.id) === String(productId));
+      if (match) {
+        setSelectedSpotlightProduct(match);
+        if (category && category !== 'all') {
+          setActiveCategoryFilter(category);
+        }
+      }
+    }
+  }, [searchParams]);
 
   const filteredSpotlightProducts = activeCategoryFilter === 'all'
     ? fashionProducts
@@ -280,5 +296,13 @@ export default function DressingRoomPage() {
 
       </main>
     </div>
+  );
+}
+
+export default function DressingRoomPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-zinc-500">Loading Dressing Room...</div>}>
+      <DressingRoomContent />
+    </Suspense>
   );
 }
