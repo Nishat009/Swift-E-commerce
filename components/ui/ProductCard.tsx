@@ -49,12 +49,15 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
   const handleCompareToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const success = toggleCompare(product);
-    if (!success) {
-      toast.error('Maximum 3 products can be compared at a time.');
+    if (isCompared) {
+      toggleCompare(product);
+      toast.info(`Removed "${product.title}" from comparison`);
     } else {
-      if (!isCompared) {
-        toast.info(`Added ${product.title} to comparison`);
+      const added = toggleCompare(product);
+      if (added) {
+        toast.info(`Added "${product.title}" to comparison`);
+      } else {
+        toast.error('Maximum 3 products can be compared at a time.');
       }
     }
   };
@@ -63,8 +66,13 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
     if (user && user.wishlist) {
       const wishlistIds = user.wishlist.map((item: any) => String(item._id || item.id || item));
       setIsWishlisted(wishlistIds.includes(String(product.id)));
-    } else {
-      setIsWishlisted(false);
+    } else if (typeof window !== 'undefined') {
+      try {
+        const guestWishlist = JSON.parse(localStorage.getItem('swiftcart_guest_wishlist') || '[]');
+        setIsWishlisted(guestWishlist.includes(String(product.id)));
+      } catch {
+        setIsWishlisted(false);
+      }
     }
   }, [user, product.id]);
 
@@ -83,8 +91,27 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
     e.preventDefault();
     e.stopPropagation();
 
+    // Guest wishlist support with localStorage
     if (!user) {
-      toast.error('Please log in to manage your wishlist.');
+      if (typeof window !== 'undefined') {
+        try {
+          const guestWishlist: string[] = JSON.parse(localStorage.getItem('swiftcart_guest_wishlist') || '[]');
+          const productIdStr = String(product.id);
+          let updated: string[];
+          if (guestWishlist.includes(productIdStr)) {
+            updated = guestWishlist.filter((id) => id !== productIdStr);
+            setIsWishlisted(false);
+            toast.success(`Removed "${product.title}" from wishlist.`);
+          } else {
+            updated = [...guestWishlist, productIdStr];
+            setIsWishlisted(true);
+            toast.success(`Saved "${product.title}" to wishlist.`);
+          }
+          localStorage.setItem('swiftcart_guest_wishlist', JSON.stringify(updated));
+        } catch {
+          toast.error('Could not save to wishlist.');
+        }
+      }
       return;
     }
 
@@ -206,7 +233,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
     );
   }
 
-  // Grid View Mode (Clean Minimalist Luxury Card with Smooth Transitions)
+  const [isHovered, setIsHovered] = useState(false);
+  const displayImage = product.modelWearingImage || product.productImage || product.thumbnail || (product.images && product.images[0]) || '';
+  const secondaryImage = product.productImage || product.thumbnail || displayImage;
+
+  // Grid View Mode (Quiet Luxury & Architectural Silhouettes Editorial Card Design)
   return (
     <>
       <motion.div
@@ -214,163 +245,192 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="group flex flex-col h-full text-left transition-all duration-500 ease-out hover:-translate-y-2"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="relative w-full h-[500px] sm:h-[560px] md:h-[600px] rounded-[28px] sm:rounded-[32px] overflow-hidden group cursor-pointer shadow-xl hover:shadow-2xl bg-stone-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 select-none transition-all duration-500 ease-out flex flex-col justify-between"
       >
-        {/* 1. Image Container (Single authentic image with subtle luxury zoom & glow on hover) */}
-        <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800/80 transition-all duration-500 ease-out group-hover:border-[#8b6f47]/40 dark:group-hover:border-[#c9a96b]/40 group-hover:shadow-[0_16px_36px_-12px_rgba(139,111,71,0.18)] dark:group-hover:shadow-[0_16px_36px_-12px_rgba(0,0,0,0.6)]">
-          
-          {/* Product Image Link with smooth zoom */}
-          <Link href={`/product/${product.id}`} className="block w-full h-full relative cursor-pointer">
-            <Image
-              src={mainImage}
-              alt={product.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-108"
-            />
-          </Link>
+        {/* 1. Full-Length Editorial Visual */}
+        <Link href={`/product/${product.id}`} className="absolute inset-0 block w-full h-full cursor-pointer z-0">
+          <Image
+            src={displayImage}
+            alt={product.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover object-center sm:object-top transition-transform duration-700 ease-out group-hover:scale-105"
+            priority={index < 3}
+          />
+        </Link>
 
-          {/* Minimalist Badges (Top Left) */}
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 pointer-events-none transition-transform duration-300 group-hover:translate-x-0.5">
-            {product.discountPercentage > 0 && (
-              <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-xs">
-                -{product.discountPercentage}%
+        {/* 2. Top Vignette & Bottom Luxury Dark Gradient Overlay */}
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 via-black/20 to-transparent pointer-events-none z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 via-40% to-transparent pointer-events-none z-10 transition-opacity duration-300" />
+
+        {/* 3. Top Badges & Actions Strip */}
+        <div className="relative z-20 flex items-center justify-between p-4 sm:p-5 pointer-events-none">
+          {/* Top Left: Discount / Drop Pill */}
+          <div className="flex items-center gap-1.5">
+            {product.discountPercentage > 0 ? (
+              <span className="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
+                -{product.discountPercentage}% OFF
+              </span>
+            ) : (
+              <span className="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
+                PIECE {index + 1 < 10 ? `0${index + 1}` : index + 1}
               </span>
             )}
             {product.stock <= 5 && product.stock > 0 && (
-              <span className="bg-[#8b6f47] text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs">
+              <span className="inline-block text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-white bg-amber-600/90 backdrop-blur-md px-3 py-1 rounded-full shadow-md">
                 Low Stock
               </span>
             )}
           </div>
 
-          {/* Floating Action Cluster (Top Right - Smooth Staggered Slide In) */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 ease-out">
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={handleWishlistToggle}
-              disabled={wishlistLoading}
-              className="w-8 h-8 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 hover:text-red-500 hover:scale-110 transition-all shadow-sm cursor-pointer"
-              title="Wishlist"
-            >
-              <Heart className={`w-3.5 h-3.5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-            </motion.button>
+          {/* Top Right: Tag & Glass Action Cluster */}
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <span className="inline-block text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.08em] text-white/95 bg-[#3a3a3a]/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 shadow-md">
+              {product.category.toUpperCase()}
+            </span>
 
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={handleCompareToggle}
-              className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center border transition-all hover:scale-110 shadow-sm cursor-pointer ${
-                isCompared
-                  ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
-                  : 'bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-200 border-zinc-200/80 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800'
-              }`}
-              title={isCompared ? 'Remove Compare' : 'Add Compare'}
-            >
-              <Scale className="w-3.5 h-3.5" />
-            </motion.button>
+            {/* Quick Action Icons */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleWishlistToggle}
+                disabled={wishlistLoading}
+                className="w-8 h-8 rounded-full bg-black/40 hover:bg-white text-white hover:text-red-500 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 shadow-md hover:scale-110 cursor-pointer"
+                title="Wishlist"
+              >
+                <Heart className={`w-3.5 h-3.5 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+              </button>
 
-            <motion.button
-              whileTap={{ scale: 0.85 }}
+              <button
+                onClick={handleCompareToggle}
+                className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center border transition-all duration-300 hover:scale-110 shadow-md cursor-pointer ${
+                  isCompared
+                    ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
+                    : 'bg-black/40 hover:bg-white text-white hover:text-zinc-900 border-white/20'
+                }`}
+                title={isCompared ? 'Remove Compare' : 'Add Compare'}
+              >
+                <Scale className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Bottom Editorial Outfit Caption Overlay */}
+        <div className="relative z-20 p-5 sm:p-6 pb-6 text-white space-y-2 transform transition-transform duration-300">
+          
+          {/* Brand & Material Subhead */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#dfb76c]">
+                {product.brand || 'Swift Atelier'}
+              </span>
+              <span className="text-zinc-400 text-xs">•</span>
+              <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-zinc-300 line-clamp-1">
+                {materialTag}
+              </span>
+            </div>
+
+            {/* Color Swatches */}
+            {colorOptions.length > 0 ? (
+              <div className="flex items-center gap-1">
+                {colorOptions.slice(0, 3).map((opt) => (
+                  <span
+                    key={opt.id}
+                    title={opt.value}
+                    className="w-2.5 h-2.5 rounded-full border border-white/40 shadow-xs inline-block transition-transform hover:scale-125"
+                    style={{ backgroundColor: opt.colorHex || '#d4cbbe' }}
+                  />
+                ))}
+              </div>
+            ) : primaryColorHex ? (
+              <span
+                className="w-2.5 h-2.5 rounded-full border border-white/40 shadow-xs inline-block"
+                style={{ backgroundColor: primaryColorHex }}
+              />
+            ) : null}
+          </div>
+
+          {/* Product Title */}
+          <Link href={`/product/${product.id}`}>
+            <h3 className="font-serif text-xl sm:text-[22px] font-bold leading-[1.2] text-white drop-shadow-sm group-hover:text-[#dfb76c] transition-colors line-clamp-2">
+              <HighlightText text={product.title} query={searchQuery} />
+            </h3>
+          </Link>
+
+          {/* Subtitle / Short Description */}
+          <p className="text-xs sm:text-[13px] text-zinc-300 line-clamp-1 mt-1 font-normal tracking-normal">
+            {product.description || materialTag}
+          </p>
+
+          {/* Pricing, Rating & View Look Action Row */}
+          <div className="flex items-center justify-between mt-3 pt-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-base sm:text-lg font-black text-[#dfb76c] tracking-tight font-sans">
+                {formatPrice(discountedPrice)}
+              </span>
+              {product.discountPercentage > 0 && (
+                <span className="text-xs text-zinc-400 line-through font-mono font-normal">
+                  {formatPrice(product.price)}
+                </span>
+              )}
+              <div className="flex items-center gap-1 text-[11px] text-amber-300 ml-2 font-mono">
+                <Star className="w-3 h-3 fill-amber-300 text-amber-300" />
+                <span>{product.rating.toFixed(1)}</span>
+              </div>
+            </div>
+
+            <Link
+              href={`/product/${product.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold uppercase tracking-wider bg-white hover:bg-stone-100 text-zinc-900 px-4 py-2 rounded-full transition-all cursor-pointer shadow-lg active:scale-95"
+            >
+              <Eye className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.2} />
+              <span>VIEW</span>
+            </Link>
+          </div>
+
+          {/* 5. Hover Action Strip (Shop Bag + 3D Try On + Quick View) */}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={isHovered ? { opacity: 1, height: 'auto' } : { opacity: 0, height: 0 }}
+            transition={{ duration: 0.22 }}
+            className="flex items-center gap-2 pt-2.5 overflow-hidden"
+          >
+            <button
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              className="flex-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-[#8b6f47] hover:bg-[#725a38] text-white py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">{product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}</span>
+            </button>
+
+            <Link
+              href={`/dressing-room?product=${product.id}&category=${product.category || 'all'}`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 shrink-0"
+            >
+              <span className="w-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
+                <Sparkles className="w-3.5 h-3.5 text-[#dfb76c] shrink-0" /> <span className="whitespace-nowrap">3D Try On</span>
+              </span>
+            </Link>
+
+            <button
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setIsQuickViewOpen(true);
               }}
-              className="w-8 h-8 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700 flex items-center justify-center hover:bg-white dark:hover:bg-zinc-800 hover:scale-110 transition-all shadow-sm cursor-pointer"
-              title="Quick View"
+              className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/30 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              title="Quick Inspector"
             >
-              <Eye className="w-3.5 h-3.5" />
-            </motion.button>
-          </div>
-
-          {/* Quick Add Slide-up Bar (Bottom of Image - Smooth Spring-like Slide Up) */}
-          <div className="absolute inset-x-3 bottom-3 z-10 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-400 ease-out">
-            <button
-              onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              className="w-full bg-zinc-950/95 dark:bg-white/95 hover:bg-[#8b6f47] dark:hover:bg-[#c9a96b] text-white dark:text-zinc-950 dark:hover:text-zinc-950 backdrop-blur-md py-2.5 px-4 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 shadow-md cursor-pointer border-0 active:scale-[0.98]"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              {product.stock === 0 ? 'Out of Stock' : 'Quick Add to Bag'}
+              <Eye className="w-3.5 h-3.5 shrink-0" />
             </button>
-          </div>
+          </motion.div>
 
         </div>
-
-        {/* 2. Defined Product Details (Clean Ately/Zara Typography Beneath Image) */}
-        <div className="pt-3 pb-1 space-y-1.5 flex flex-col flex-grow justify-between">
-          <div>
-            {/* Row 1: Brand & Category + Color Swatches */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
-                  {product.brand || 'Swift Atelier'}
-                </span>
-                <span className="text-zinc-300 dark:text-zinc-700 text-[10px]">•</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  {product.category}
-                </span>
-              </div>
-
-              {/* Color Swatch Dots */}
-              {colorOptions.length > 0 ? (
-                <div className="flex items-center gap-1">
-                  {colorOptions.slice(0, 3).map((opt) => (
-                    <span
-                      key={opt.id}
-                      title={opt.value}
-                      className="w-2.5 h-2.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs inline-block transition-transform hover:scale-125"
-                      style={{ backgroundColor: opt.colorHex || '#d4cbbe' }}
-                    />
-                  ))}
-                  {colorOptions.length > 3 && (
-                    <span className="text-[9px] text-zinc-400 font-mono">+{colorOptions.length - 3}</span>
-                  )}
-                </div>
-              ) : primaryColorHex ? (
-                <span
-                  className="w-2.5 h-2.5 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-2xs inline-block transition-transform hover:scale-125"
-                  style={{ backgroundColor: primaryColorHex }}
-                />
-              ) : null}
-            </div>
-
-            {/* Row 2: Product Title (Single clean line with smooth hover transition) */}
-            <Link href={`/product/${product.id}`} className="block group-hover:text-[#8b6f47] dark:group-hover:text-[#c9a96b] transition-colors duration-300 mt-0.5">
-              <h3 className="font-serif text-[15px] sm:text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-snug">
-                <HighlightText text={product.title} query={searchQuery} />
-              </h3>
-            </Link>
-
-            {/* Row 3: Material / Fabric Descriptor */}
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-light truncate">
-              {materialTag}
-            </p>
-          </div>
-
-          {/* Row 4: Pricing, Discount Tag, and Rating/Stock Status */}
-          <div className="flex items-center justify-between pt-1 border-t border-zinc-100 dark:border-zinc-900 mt-1">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-50">
-                {formatPrice(discountedPrice)}
-              </span>
-              {product.discountPercentage > 0 && (
-                <span className="font-mono text-xs text-zinc-400 line-through font-normal">
-                  {formatPrice(product.price)}
-                </span>
-              )}
-            </div>
-
-            {/* Rating / Stock Status */}
-            <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-              <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 font-mono">
-                {product.rating.toFixed(1)}
-              </span>
-            </div>
-          </div>
-        </div>
-
       </motion.div>
 
       {/* Quick View Modal (Spacious Luxury Dialog) */}
@@ -384,7 +444,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
           {/* Modal Image Box (Wide & High Impact) */}
           <div className="md:col-span-6 relative aspect-[3/4] min-h-[380px] sm:min-h-[480px] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <Image
-              src={mainImage}
+              src={displayImage || mainImage}
               alt={product.title}
               fill
               className="object-cover object-top"

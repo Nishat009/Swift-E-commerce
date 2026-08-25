@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/stores/cartStore';
+import { useCurrencyStore } from '@/stores/currencyStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Address, Order } from '@/types';
@@ -20,6 +21,12 @@ export default function CheckoutPage() {
   const items = useCartStore((state) => state.items);
   const getTotalPrice = useCartStore((state) => state.getTotalPrice);
   const clearCart = useCartStore((state) => state.clearCart);
+  const { symbol: currencySymbol, rate: currencyRate } = useCurrencyStore();
+  
+  const formatPrice = (amount: number) => {
+    const converted = amount * currencyRate;
+    return `${currencySymbol}${converted.toFixed(2)}`;
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -375,28 +382,28 @@ export default function CheckoutPage() {
                     <span className="text-gray-600 dark:text-gray-400">
                       {item.product.title} × {item.quantity}
                     </span>
-                    <span className="text-gray-900 dark:text-white">
-                      ${(item.product.price * (1 - item.product.discountPercentage / 100) * item.quantity).toFixed(2)}
+                    <span className="text-gray-900 dark:text-white font-mono font-medium">
+                      {formatPrice((item.product.price * (1 - item.product.discountPercentage / 100)) * item.quantity)}
                     </span>
                   </div>
                 ))}
               </div>
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                   <span>Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span className="font-mono font-medium">{formatPrice(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                  <span>Tax</span>
-                  <span>${tax.toFixed(2)}</span>
+                <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
+                  <span>Tax (10%)</span>
+                  <span className="font-mono font-medium">{formatPrice(tax)}</span>
                 </div>
-                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                   <span>Shipping</span>
-                  <span>{shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}</span>
+                  <span className="font-mono font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
                 </div>
-                <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-3 border-t border-gray-200 dark:border-gray-700">
                   <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span className="font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b]">{formatPrice(total)}</span>
                 </div>
               </div>
             </div>
