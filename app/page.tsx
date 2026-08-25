@@ -446,7 +446,7 @@ export default function Home() {
             <AnimatePresence mode="popLayout">
               {(
                 activeTab === 'new'
-                  ? (catalogProducts.filter(p => p.tags?.includes('New') || p.id > 200).slice(0, 8))
+                  ? (catalogProducts.filter(p => p.tags?.includes('New') || Number(p.id) > 200).slice(0, 8))
                   : activeTab === 'bestseller'
                   ? (catalogProducts.filter(p => p.rating >= 4.7).slice(0, 8))
                   : activeTab === 'tops'

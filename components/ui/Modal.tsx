@@ -9,7 +9,7 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   title?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 }
 
 export default function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalProps) {
