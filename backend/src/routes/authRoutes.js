@@ -21,14 +21,14 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
-const { registerRules, loginRules, profileRules } = require('../validations/authValidation');
+const { registerRules, loginRules, profileRules, forgotPasswordRules, resetPasswordRules } = require('../validations/authValidation');
 
 router.post('/register', registerRules, validate, register);
 router.post('/login', loginRules, validate, login);
 router.post('/logout', logout);
 router.post('/refresh', refreshToken);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/forgot-password', forgotPasswordRules, validate, forgotPassword);
+router.post('/reset-password', resetPasswordRules, validate, resetPassword);
 
 // 2FA & OTP verification routes (Public)
 router.post('/verify-2fa', verify2FA);

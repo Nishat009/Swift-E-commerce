@@ -59,7 +59,7 @@ export default function OrdersHistoryPage() {
       const response = await apiClient.put(`/orders/${cancellingOrderId}/cancel`);
       if (response.data?.success) {
         toast.success('Order cancelled successfully.');
-        setOrders(orders.map((o) => (o.id === cancellingOrderId ? { ...o, orderStatus: 'Cancelled' } : o)));
+        setOrders(orders.map((o) => (o.id === cancellingOrderId || (o as any)._id === cancellingOrderId ? { ...o, orderStatus: 'Cancelled' } : o)));
       }
     } catch (err: any) {
       console.error(err);

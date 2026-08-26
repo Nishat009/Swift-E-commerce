@@ -63,9 +63,13 @@ export default function Navbar() {
 
   useEffect(() => {
     setMounted(true);
-    loadCurrencies();
-    loadLanguages();
-  }, [loadCurrencies, loadLanguages]);
+    if (!availableCurrencies || availableCurrencies.length <= 1) {
+      loadCurrencies();
+    }
+    if (!availableLanguages || availableLanguages.length <= 1) {
+      loadLanguages();
+    }
+  }, [availableCurrencies, availableLanguages, loadCurrencies, loadLanguages]);
 
   // Notifications state
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -87,10 +91,11 @@ export default function Navbar() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return;
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [user, fetchNotifications]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -207,7 +212,7 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.4 }}
-        className={`sticky top-0 z-40 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 transition-shadow duration-300 ${
+        className={`sticky top-0 z-50 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 transition-shadow duration-300 ${
           isScrolled ? 'shadow-md backdrop-blur-md bg-white/95 dark:bg-gray-950/95' : ''
         }`}
       >
@@ -359,7 +364,7 @@ export default function Navbar() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-1.5 w-60 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-2 z-50 text-left"
+                      className="absolute right-0 top-full mt-1.5 w-60 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 p-2 z-[100] text-left"
                     >
                       {user ? (
                         <div className="space-y-1">
@@ -498,24 +503,6 @@ export default function Navbar() {
                     {availableCurrencies.map((curr) => (
                       <option key={curr.code} value={curr.code} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
                         {curr.code} ({curr.symbol})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform group-hover:translate-y-[-30%]" />
-                </div>
-              )}
-
-              {/* Language Selector Switcher */}
-              {mounted && (
-                <div className="relative group">
-                  <select
-                    value={activeLanguageCode}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="appearance-none bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-[10px] sm:text-[11px] font-bold text-gray-800 dark:text-gray-200 py-1 pl-2.5 pr-6 rounded-full border border-gray-200 dark:border-gray-800 cursor-pointer focus:outline-none transition-colors"
-                  >
-                    {availableLanguages.map((lang) => (
-                      <option key={lang.code} value={lang.code} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-                        {lang.flag} {lang.name}
                       </option>
                     ))}
                   </select>

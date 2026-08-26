@@ -193,7 +193,9 @@ export const useCartStore = create<CartStore>()(
 
       getTotalPrice: () => {
         return get().items.reduce((total, item) => {
-          const price = item.product.price * (1 - item.product.discountPercentage / 100);
+          if (!item.product) return total;
+          const discount = item.product.discountPercentage || 0;
+          const price = (item.product.price || 0) * (1 - discount / 100);
           return total + price * item.quantity;
         }, 0);
       },

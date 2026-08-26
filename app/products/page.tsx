@@ -186,7 +186,12 @@ function ProductsPageContent() {
 
     const queryString = params.toString();
     const targetPath = queryString ? `${pathname}?${queryString}` : pathname;
-    router.push(targetPath, { scroll: false });
+    if (typeof window !== 'undefined') {
+      const currentFullUrl = window.location.pathname + window.location.search;
+      if (currentFullUrl !== targetPath) {
+        router.replace(targetPath, { scroll: false });
+      }
+    }
   }, [selectedCategory, searchQuery, priceRange, sortBy, selectedColors, selectedSizes, selectedTags, selectedBrands, currentPage, viewMode, pathname, router]);
 
   // Debounced 300ms search query handler
@@ -825,7 +830,7 @@ function ProductsPageContent() {
 
               {/* Debounced Search Input with Suggestions Dropdown */}
               <div 
-                className="relative flex-1 sm:w-64 z-40" 
+                className="relative flex-1 sm:w-64 z-10" 
                 onFocus={() => setIsSearchFocused(true)} 
                 onBlur={() => {
                   // Delay to allow option selections to click before panel unmounts
@@ -856,7 +861,7 @@ function ProductsPageContent() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-950 border border-gray-150/50 dark:border-gray-800 rounded-3xl shadow-xl z-50 p-4 space-y-4 max-h-[380px] overflow-y-auto"
+                      className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-950 border border-gray-150/50 dark:border-gray-800 rounded-3xl shadow-xl z-20 p-4 space-y-4 max-h-[380px] overflow-y-auto"
                     >
                       {!searchInput.trim() ? (
                         <div className="space-y-4 text-left">

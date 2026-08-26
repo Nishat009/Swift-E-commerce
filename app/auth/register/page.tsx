@@ -1,16 +1,32 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 
-export default function RegisterPage() {
+function RegisterFormContent() {
   const router = useRouter();
-  const { register } = useAuth();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams?.get('redirect') || '';
+  const { user, loading: authLoading, register } = useAuth();
   const toast = useToast();
+  
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.includes('/auth/')) {
+        router.push(redirectUrl);
+      } else if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router, redirectUrl]);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -64,7 +80,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await register(formData.name, formData.email, formData.password);
+      await register(formData.name, formData.email, formData.password, redirectUrl);
       toast.success('Account created successfully!');
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -276,7 +292,10 @@ export default function RegisterPage() {
               <div className="text-center pt-2">
                 <span className="text-[11px] text-gray-500">
                   Already have an account?{' '}
-                  <Link href="/auth/login" className="text-emerald-700 hover:text-emerald-800 font-black hover:underline dark:text-emerald-500">
+                  <Link 
+                    href={redirectUrl ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}` : '/auth/login'} 
+                    className="text-emerald-700 hover:text-emerald-800 font-black hover:underline dark:text-emerald-500"
+                  >
                     Sign in here
                   </Link>
                 </span>
@@ -288,5 +307,13 @@ export default function RegisterPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-white text-xs">Loading registration...</div>}>
+      <RegisterFormContent />
+    </Suspense>
   );
 }

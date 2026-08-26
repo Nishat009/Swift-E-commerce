@@ -294,9 +294,9 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
-        router.push('/auth/login');
+        router.push('/auth/login?redirect=/admin');
       } else if (user.role !== 'admin') {
-        router.push('/profile'); // Redirect non-admins
+        router.push('/dashboard'); // Redirect non-admins
       } else {
         loadAdminData();
       }

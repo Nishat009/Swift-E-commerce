@@ -99,6 +99,11 @@ app.use('/api/languages', languageRoutes);
 // 8. Swagger documentation endpoint
 setupSwagger(app);
 
+// Health check route
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Default test route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to SwiftCart E-Commerce REST API' });

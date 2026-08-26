@@ -8,10 +8,11 @@
 [![Express.js](https://img.shields.io/badge/Express.js-4-000000?style=flat-square&logo=express)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
 [![Three.js](https://img.shields.io/badge/Three.js-3D_Studio-black?style=flat-square&logo=three.js)](https://threejs.org/)
-[![Swagger API](https://img.shields.io/badge/Swagger-API_Docs-85EA2D?style=flat-square&logo=swagger)](http://localhost:5000/api-docs)
+[![Swagger API](https://img.shields.io/badge/Swagger-API_Docs-85EA2D?style=flat-square&logo=swagger)](http://localhost:5001/api-docs)
 
-> **Live Preview & Demo:** [http://localhost:3001](http://localhost:3001)  
-> **API Documentation (Swagger):** [http://localhost:5000/api-docs](http://localhost:5000/api-docs)
+> **Live Preview & Demo:** [http://localhost:3000](http://localhost:3000) (or `http://localhost:3001`)  
+> **API Documentation (Swagger):** [http://localhost:5001/api-docs](http://localhost:5001/api-docs)  
+> **Backend REST API:** [http://localhost:5001/api](http://localhost:5001/api)
 
 ---
 
@@ -183,8 +184,8 @@ cd Swift-E-commerce
    ```bash
    npm run dev
    ```
-   * The API server will be available at: **[http://localhost:5000](http://localhost:5000)**
-   * Swagger Documentation is mounted at: **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**
+   * The API server will be available at: **[http://localhost:5001](http://localhost:5001)**
+   * Swagger Documentation is mounted at: **[http://localhost:5001/api-docs](http://localhost:5001/api-docs)**
 
 ---
 

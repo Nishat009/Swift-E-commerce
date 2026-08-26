@@ -145,8 +145,17 @@ The system serves two main user profiles:
 
 ---
 
+### Feature 14: Dual-Image Studio & Virtual Dressing Room Suite
+*   **Normal Customer View**:
+    *   Interactive Virtual Dressing Room (`/dressing-room`) featuring 30 dual-image curated luxury fashion pieces with instant switching between Flat-Lay Product and Editorial Model Looks.
+    *   Multi-category filter tabs: All Pieces, Tops & Shirts, Dresses, Outerwear, Trousers & Denim, Footwear, Bags & Leather, Jewelry & Accessories.
+    *   High-resolution zoom lens, garment specification drawer, and live Add-to-Bag synchronization.
+    *   AI Style Recommendation Suite (AI Picks, Complete The Look, Because You Viewed, Trending Styles).
+
+---
+
 ## 5. Technology Stack Summary
-*   **Frontend**: React 19, Next.js 16 (App Router), Zustand (State Management), Framer Motion (Animations), Tailwind CSS 4.
+*   **Frontend**: React 19, Next.js 16 (App Router), Three.js (3D Studio), Zustand (State Management), Framer Motion (Animations), Tailwind CSS 4.
 *   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose ODM.
 *   **Authentication & Security**: Custom TOTP validation (crypto module), JWT tokens, email OTP dispatch.
-*   **Database**: MongoDB (Collections: Products, Users, Orders, Reviews, Campaigns, Audit Trails).
+*   **Database**: MongoDB (Collections: Products, Users, Categories, Orders, Reviews, Campaigns, Audit Trails).

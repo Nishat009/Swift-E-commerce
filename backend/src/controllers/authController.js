@@ -165,6 +165,12 @@ const updateProfile = async (req, res, next) => {
     }
 
     if (req.body.password) {
+      if (req.body.currentPassword) {
+        const isMatch = await user.matchPassword(req.body.currentPassword);
+        if (!isMatch) {
+          return sendError(res, 'Current password is incorrect', 400);
+        }
+      }
       user.password = req.body.password;
     }
 
@@ -255,35 +261,62 @@ const refreshToken = async (req, res, next) => {
   }
 };
 
-// @desc    Forgot password request
+// @desc    Forgot password request (Generates OTP)
 // @route   POST /api/auth/forgot-password
 // @access  Public
 const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
       return sendError(res, 'No user found with that email address', 404);
     }
-    // Simulate email send
-    return sendSuccess(res, 'Reset password instructions sent to your email.');
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetPasswordOtp = otp;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+    await user.save();
+
+    console.log(`[PASSWORD RESET] Reset code for ${email}: ${otp}`);
+
+    return sendSuccess(res, `Password reset instructions sent. (Test code: ${otp})`, {
+      testOtp: otp
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Reset password using token
+// @desc    Reset password using verified OTP code
 // @route   POST /api/auth/reset-password
 // @access  Public
 const resetPassword = async (req, res, next) => {
-  const { email, newPassword } = req.body;
+  const { email, otp, newPassword } = req.body;
   try {
-    const user = await User.findOne({ email });
+    if (!email || !otp || !newPassword) {
+      return sendError(res, 'Email, reset code, and new password are required', 400);
+    }
+
+    if (newPassword.length < 6) {
+      return sendError(res, 'Password must be at least 6 characters long', 400);
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
 
+    if (!user.resetPasswordOtp || user.resetPasswordOtp !== otp.trim()) {
+      return sendError(res, 'Invalid or incorrect reset code', 400);
+    }
+
+    if (Date.now() > user.resetPasswordExpires) {
+      return sendError(res, 'Reset code has expired. Please request a new one', 400);
+    }
+
     user.password = newPassword;
+    user.resetPasswordOtp = '';
+    user.resetPasswordExpires = null;
     await user.save();
 
     return sendSuccess(res, 'Password reset successful. Please login with your new password.');

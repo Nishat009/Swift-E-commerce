@@ -22,8 +22,9 @@ export const getAccessToken = () => {
 };
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
   withCredentials: true, // Crucial for sending/receiving HTTP-Only cookies (refreshToken)
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },

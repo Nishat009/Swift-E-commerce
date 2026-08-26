@@ -43,8 +43,31 @@ const profileRules = [
     .trim()
 ];
 
+const forgotPasswordRules = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email')
+    .normalizeEmail()
+];
+
+const resetPasswordRules = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email')
+    .normalizeEmail(),
+  body('otp')
+    .notEmpty()
+    .withMessage('Reset code is required')
+    .trim(),
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters long')
+];
+
 module.exports = {
   registerRules,
   loginRules,
   profileRules,
+  forgotPasswordRules,
+  resetPasswordRules,
 };

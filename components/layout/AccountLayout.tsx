@@ -34,9 +34,9 @@ export default function AccountLayout({ children, activeTabName }: AccountLayout
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/login');
+      router.push(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   if (loading || !user) {
     return <Loading />;
