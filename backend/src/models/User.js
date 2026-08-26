@@ -25,6 +25,8 @@ const UserSchema = new mongoose.Schema(
     twoFactorRecoveryCodes: { type: [String], default: [] },
     otpCode: { type: String, default: '' },
     otpExpires: { type: Date },
+    resetPasswordOtp: { type: String, default: '' },
+    resetPasswordExpires: { type: Date },
   },
   { timestamps: true }
 );

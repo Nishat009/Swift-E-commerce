@@ -49,12 +49,18 @@ export default function SettingsPage() {
     
     setChangingPassword(true);
     try {
-      // Profile update endpoint supports changing password
+      // Profile update endpoint supports changing password with currentPassword verification
       await updateProfile(
         user?.name || '',
         user?.email || '',
         user?.phone || '',
-        passwordData.newPassword
+        passwordData.newPassword,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        passwordData.currentPassword
       );
       toast.success('Your password has been changed successfully.');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });

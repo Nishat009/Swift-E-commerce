@@ -383,7 +383,7 @@ export default function CheckoutPage() {
                       {item.product.title} × {item.quantity}
                     </span>
                     <span className="text-gray-900 dark:text-white font-mono font-medium">
-                      {formatPrice((item.product.price * (1 - item.product.discountPercentage / 100)) * item.quantity)}
+                      {formatPrice((item.product.price * (1 - (item.product.discountPercentage || 0) / 100)) * item.quantity)}
                     </span>
                   </div>
                 ))}

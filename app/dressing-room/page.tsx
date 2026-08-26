@@ -39,6 +39,8 @@ function DressingRoomContent() {
 
   const filteredSpotlightProducts = activeCategoryFilter === 'all'
     ? fashionProducts
+    : activeCategoryFilter === 'accessories'
+    ? fashionProducts.filter((p) => ['jewelry', 'glasses', 'hat'].includes(p.category.toLowerCase()))
     : fashionProducts.filter((p) => p.category.toLowerCase() === activeCategoryFilter.toLowerCase());
 
   return (
@@ -209,11 +211,14 @@ function DressingRoomContent() {
             {/* Category Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-zinc-900 p-1.5 rounded-2xl border border-stone-200/60 dark:border-zinc-800">
               {[
-                { label: 'All Items', key: 'all' },
+                { label: 'All Pieces (30)', key: 'all' },
                 { label: 'Tops & Shirts', key: 'top' },
                 { label: 'Dresses', key: 'dress' },
                 { label: 'Outerwear', key: 'jacket' },
-                { label: 'Trousers & Denim', key: 'pants' }
+                { label: 'Trousers & Denim', key: 'pants' },
+                { label: 'Footwear', key: 'shoes' },
+                { label: 'Bags & Leather', key: 'bag' },
+                { label: 'Jewelry & Accessories', key: 'accessories' }
               ].map((cat) => (
                 <button
                   key={cat.key}

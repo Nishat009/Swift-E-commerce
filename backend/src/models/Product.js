@@ -229,10 +229,17 @@ ProductSchema.set('toJSON', {
     ret.id = ret._id.toString();
     ret.productImage = ret.productImage || ret.thumbnail || (ret.images && ret.images[0]) || '';
     ret.modelWearingImage = ret.modelWearingImage || null;
-    delete ret._id;
-    delete ret.__v;
     return ret;
   }
 });
+
+ProductSchema.index({ active: 1, createdAt: -1 });
+ProductSchema.index({ category: 1, active: 1 });
+ProductSchema.index({ brand: 1 });
+ProductSchema.index({ price: 1 });
+ProductSchema.index({ rating: -1 });
+ProductSchema.index({ featured: 1, active: 1 });
+ProductSchema.index({ trending: 1, active: 1 });
+ProductSchema.index({ title: 'text', brand: 'text', category: 'text', description: 'text' });
 
 module.exports = mongoose.model('Product', ProductSchema);

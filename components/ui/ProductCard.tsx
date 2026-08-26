@@ -13,7 +13,7 @@ import apiClient from '@/lib/apiClient';
 import Modal from './Modal';
 import Button from './Button';
 import HighlightText from './HighlightText';
-import { ShoppingBag, Heart, Star, Eye, Scale, ArrowRight, Check, Sparkles } from 'lucide-react';
+import { ShoppingBag, Heart, Star, Eye, Scale, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ProductCardProps {
@@ -41,6 +41,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Compare Store
   const { toggleCompare, isInCompare } = useCompareStore();
@@ -141,6 +142,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
 
   const mockReviewCount = Math.floor((Number(String(product.id).charCodeAt(0)) % 30) + 8);
   const mainImage = product.thumbnail || (product.images && product.images[0]) || '';
+  const displayImage = product.modelWearingImage || product.productImage || product.thumbnail || (product.images && product.images[0]) || '';
 
   // Extract color swatches from variants or specifications
   const colorVariant = product.variants?.find(v => v.name.toLowerCase().includes('color'));
@@ -232,10 +234,6 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
       </motion.div>
     );
   }
-
-  const [isHovered, setIsHovered] = useState(false);
-  const displayImage = product.modelWearingImage || product.productImage || product.thumbnail || (product.images && product.images[0]) || '';
-  const secondaryImage = product.productImage || product.thumbnail || displayImage;
 
   // Grid View Mode (Quiet Luxury & Architectural Silhouettes Editorial Card Design)
   return (
@@ -429,125 +427,142 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
               <Eye className="w-3.5 h-3.5 shrink-0" />
             </button>
           </motion.div>
-
         </div>
       </motion.div>
 
-      {/* Quick View Modal (Spacious Luxury Dialog) */}
-      <Modal
-        isOpen={isQuickViewOpen}
-        onClose={() => setIsQuickViewOpen(false)}
-        size="2xl"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 sm:gap-10 p-2 sm:p-6 text-left items-center">
-          
-          {/* Modal Image Box (Wide & High Impact) */}
-          <div className="md:col-span-6 relative aspect-[3/4] min-h-[380px] sm:min-h-[480px] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-            <Image
-              src={displayImage || mainImage}
-              alt={product.title}
-              fill
-              className="object-cover object-top"
-            />
-            {product.discountPercentage > 0 && (
-              <div className="absolute top-4 left-4 bg-zinc-950 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-                -{product.discountPercentage}% OFF
-              </div>
-            )}
-          </div>
-
-          {/* Modal Details (Spacious Typography & CTAs) */}
-          <div className="md:col-span-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
-                  {product.brand || 'Swift Atelier'}
-                </span>
-                <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  {product.category}
-                </span>
-              </div>
-
-              <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-900 dark:text-white leading-tight">
-                {product.title}
-              </h3>
-              
-              <p className="text-xs sm:text-sm font-medium text-[#8b6f47] dark:text-[#c9a96b]">
-                {materialTag}
-              </p>
-
-              <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed font-light pt-1">
-                {product.description}
-              </p>
-
-              {/* Color Swatch in Modal */}
-              {colorOptions.length > 0 && (
-                <div className="pt-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 block mb-2">
-                    Available Colors:
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {colorOptions.map((opt) => (
-                      <span
-                        key={opt.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-zinc-250 dark:border-zinc-700 text-xs font-medium bg-stone-50 dark:bg-zinc-900"
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full border border-zinc-300 shadow-2xs inline-block"
-                          style={{ backgroundColor: opt.colorHex || '#d4cbbe' }}
-                        />
-                        {opt.value}
-                      </span>
-                    ))}
-                  </div>
+      {/* Quick View Modal (Only mounted on demand) */}
+      {isQuickViewOpen && (
+        <Modal
+          isOpen={isQuickViewOpen}
+          onClose={() => setIsQuickViewOpen(false)}
+          size="2xl"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 sm:gap-10 p-2 sm:p-6 text-left items-center">
+            
+            {/* Modal Image Box */}
+            <div className="md:col-span-6 relative aspect-[3/4] min-h-[380px] sm:min-h-[480px] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <Image
+                src={displayImage || mainImage}
+                alt={product.title}
+                fill
+                className="object-cover object-top"
+              />
+              {product.discountPercentage > 0 && (
+                <div className="absolute top-4 left-4 bg-zinc-950 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                  -{product.discountPercentage}% OFF
                 </div>
               )}
+            </div>
+
+            {/* Modal Details */}
+            <div className="md:col-span-6 flex flex-col justify-between space-y-5">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                    {product.brand || 'Swift Atelier'}
+                  </span>
+                  <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    {product.category}
+                  </span>
+                </div>
+
+                <h3 className="font-serif text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white leading-tight">
+                  {product.title}
+                </h3>
+                
+                <p className="text-xs sm:text-sm font-medium text-[#8b6f47] dark:text-[#c9a96b]">
+                  {materialTag}
+                </p>
+
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed font-light">
+                  {product.description}
+                </p>
+
+                {/* Color Swatches */}
+                {colorOptions.length > 0 && (
+                  <div className="pt-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 block mb-1.5">
+                      Available Colors:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {colorOptions.map((opt) => (
+                        <span
+                          key={opt.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-zinc-250 dark:border-zinc-700 text-[11px] font-medium bg-stone-50 dark:bg-zinc-900"
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full border border-zinc-300 inline-block"
+                            style={{ backgroundColor: opt.colorHex || '#d4cbbe' }}
+                          />
+                          {opt.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reviews & Stock */}
+                <div className="flex items-center gap-2 pt-2 text-xs">
+                  <div className="flex items-center text-amber-400">
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span className="ml-1 font-bold text-zinc-800 dark:text-zinc-200">{product.rating.toFixed(1)}</span>
+                  </div>
+                  <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                  <span className="text-zinc-500 font-light">{mockReviewCount} reviews</span>
+                  <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                  <span className={`font-semibold ${product.stock > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                    {product.stock > 0 ? `In Stock (${product.stock} left)` : 'Sold Out'}
+                  </span>
+                </div>
+              </div>
 
               {/* Pricing in Modal */}
-              <div className="flex items-baseline gap-4 pt-4 border-t border-zinc-200/80 dark:border-zinc-800">
-                <span className="font-mono text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="flex items-baseline gap-3 py-2 border-y border-zinc-150 dark:border-zinc-800">
+                <span className="font-mono text-2xl font-bold text-zinc-900 dark:text-white">
                   {formatPrice(discountedPrice)}
                 </span>
                 {product.discountPercentage > 0 && (
-                  <span className="font-mono text-base text-zinc-400 line-through">
-                    {formatPrice(product.price)}
-                  </span>
+                  <>
+                    <span className="font-mono text-sm text-zinc-400 line-through">
+                      {formatPrice(product.price)}
+                    </span>
+                    <span className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                      Save {product.discountPercentage}%
+                    </span>
+                  </>
                 )}
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold ml-auto flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> In Stock & Ready to Ship
-                </span>
+              </div>
+
+              {/* CTAs */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0}
+                  className="flex-1 bg-zinc-950 hover:bg-[#8b6f47] text-white rounded-full font-bold py-3 text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  Add to Bag
+                </Button>
+
+                <Link
+                  href={`/product/${product.id}`}
+                  onClick={() => setIsQuickViewOpen(false)}
+                  className="flex-1"
+                >
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-full font-bold py-3 text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border-zinc-300 dark:border-zinc-700 hover:bg-stone-100"
+                  >
+                    View Full Details <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </Link>
               </div>
             </div>
 
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-3.5 pt-4">
-              <Button
-                onClick={handleAddToCart}
-                disabled={product.stock === 0}
-                className="flex-1 bg-zinc-950 hover:bg-[#8b6f47] text-white rounded-full font-bold py-3.5 text-xs uppercase tracking-wider flex items-center justify-center gap-2 border-0 shadow-lg"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                Add to Bag
-              </Button>
-
-              <Link
-                href={`/product/${product.id}`}
-                onClick={() => setIsQuickViewOpen(false)}
-                className="flex-1"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full rounded-full font-bold py-3.5 text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 border-zinc-300 dark:border-zinc-700 hover:bg-stone-100"
-                >
-                  View Full Details <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              </Link>
-            </div>
           </div>
-
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </>
   );
 }

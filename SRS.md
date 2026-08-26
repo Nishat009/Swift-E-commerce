@@ -52,6 +52,14 @@ SwiftCart is a multi-tier web application combining an e-commerce catalog with a
 
 ---
 
+### 2.4 Virtual Dressing Room & AI Recommendation Suite
+*   **FR-4.1**: The system shall feature an interactive Virtual Dressing Room (`/dressing-room`) allowing instantaneous toggling between Flat-lay Product Photography and Editorial Model Looks on the avatar runway.
+*   **FR-4.2**: The virtual fitting studio shall provide category filtering across 8 distinct wardrobe groups: All Pieces (30), Tops & Shirts, Dresses, Outerwear, Trousers & Denim, Footwear, Bags & Leather, Jewelry & Accessories.
+*   **FR-4.3**: The Dressing Room viewer shall include an interactive zoom lens, color swatch matrix, layer selector, and direct Add-to-Bag synchronization.
+*   **FR-4.4**: The AI Suite shall compute dynamic recommendations across four channels: AI Picks For You, Complete The Look, Because You Viewed Similar Styles, and Trending For Your Style.
+
+---
+
 ## 3. Technology Stack & Architectural Diagram
 
 The system follows a classic **Client-Server MVC architecture** with Next.js frontend and Express/Node API backend.

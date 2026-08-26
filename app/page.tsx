@@ -32,35 +32,31 @@ export default function Home() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [featured, arrivals, allProducts, catsRes] = await Promise.all([
-          fetchProducts({ limit: 8 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 8 })),
-          fetchProducts({ limit: 8, skip: 0 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 8 })),
+        const [allProductsRes, catsRes] = await Promise.all([
           fetchProducts({ limit: 50 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 50 })),
           apiClient.get('/categories').catch(() => ({ data: { success: false, data: [] } }))
         ]);
 
-        if (featured?.products) {
-          setFeaturedProducts(featured.products);
-        }
-        if (arrivals?.products) {
-          setNewArrivals(arrivals.products);
-        }
-        if (allProducts?.products && allProducts.products.length > 0) {
-          setCatalogProducts(allProducts.products);
-          const best = allProducts.products
+        const prods = allProductsRes?.products || [];
+        if (prods.length > 0) {
+          setCatalogProducts(prods);
+          setFeaturedProducts(prods.slice(0, 8));
+          setNewArrivals(prods.filter(p => p.tags?.includes('New') || Number(p.id) > 200).slice(0, 8).length > 0 ? prods.filter(p => p.tags?.includes('New') || Number(p.id) > 200).slice(0, 8) : prods.slice(0, 8));
+          
+          const best = prods
             .filter(p => p.rating >= 4.5)
             .slice(0, 8);
-          setBestsellers(best);
+          setBestsellers(best.length > 0 ? best : prods.slice(0, 8));
 
-          const deals = allProducts.products
+          const deals = prods
             .filter(p => p.discountPercentage > 0)
             .sort((a, b) => b.discountPercentage - a.discountPercentage)
             .slice(0, 3);
-          setBestDeals(deals.length > 0 ? deals : allProducts.products.slice(0, 3));
+          setBestDeals(deals.length > 0 ? deals : prods.slice(0, 3));
 
           // Derive all system categories from catalog products
           const categoryMap = new Map();
-          allProducts.products.forEach((p) => {
+          prods.forEach((p) => {
             if (p.category && !categoryMap.has(p.category.toLowerCase())) {
               categoryMap.set(p.category.toLowerCase(), {
                 name: p.category.charAt(0).toUpperCase() + p.category.slice(1),
@@ -420,8 +416,11 @@ export default function Home() {
                 { id: 'new', label: 'New Arrivals' },
                 { id: 'bestseller', label: 'Bestsellers' },
                 { id: 'tops', label: 'Tops & Shirts' },
+                { id: 'dresses', label: 'Dresses' },
                 { id: 'pants', label: 'Trousers' },
                 { id: 'outerwear', label: 'Jackets & Coats' },
+                { id: 'shoes', label: 'Footwear' },
+                { id: 'accessories', label: 'Accessories' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -446,16 +445,22 @@ export default function Home() {
             <AnimatePresence mode="popLayout">
               {(
                 activeTab === 'new'
-                  ? (catalogProducts.filter(p => p.tags?.includes('New') || Number(p.id) > 200).slice(0, 8))
+                  ? (catalogProducts.filter(p => p.tags?.includes('New') || Number(p.id) > 500).slice(0, 9))
                   : activeTab === 'bestseller'
-                  ? (catalogProducts.filter(p => p.rating >= 4.7).slice(0, 8))
+                  ? (catalogProducts.filter(p => p.rating >= 4.8 || p.tags?.includes('Bestseller')).slice(0, 9))
                   : activeTab === 'tops'
-                  ? (catalogProducts.filter(p => p.category === 'top' || p.category === 'mens-shirts' || p.category === 'womens-dresses').slice(0, 8))
+                  ? (catalogProducts.filter(p => p.category === 'top').slice(0, 9))
+                  : activeTab === 'dresses'
+                  ? (catalogProducts.filter(p => p.category === 'dress').slice(0, 9))
                   : activeTab === 'pants'
-                  ? (catalogProducts.filter(p => p.category === 'pants').slice(0, 8))
+                  ? (catalogProducts.filter(p => p.category === 'pants').slice(0, 9))
                   : activeTab === 'outerwear'
-                  ? (catalogProducts.filter(p => p.category === 'jacket').slice(0, 8))
-                  : (catalogProducts.length > 0 ? catalogProducts.slice(0, 8) : featuredProducts.slice(0, 8))
+                  ? (catalogProducts.filter(p => p.category === 'jacket').slice(0, 9))
+                  : activeTab === 'shoes'
+                  ? (catalogProducts.filter(p => p.category === 'shoes').slice(0, 9))
+                  : activeTab === 'accessories'
+                  ? (catalogProducts.filter(p => ['bag', 'jewelry', 'hat', 'glasses'].includes(p.category)).slice(0, 9))
+                  : (catalogProducts.length > 0 ? catalogProducts.slice(0, 9) : featuredProducts.slice(0, 9))
               ).map((product, idx) => (
                 <motion.div
                   key={product.id}

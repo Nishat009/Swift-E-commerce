@@ -10,8 +10,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ require2FA?: boolean; userId?: string } | void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  register: (name: string, email: string, password: string, redirectUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (
     name: string,
@@ -22,12 +22,15 @@ interface AuthContextType {
     city?: string,
     state?: string,
     zipCode?: string,
-    country?: string
+    country?: string,
+    currentPassword?: string
   ) => Promise<void>;
   clearError: () => void;
-  verify2FA: (userId: string, code: string, rememberMe?: boolean) => Promise<void>;
+  verify2FA: (userId: string, code: string, rememberMe?: boolean, redirectUrl?: string) => Promise<void>;
   requestOTP: (email: string) => Promise<{ testOtp?: string } | void>;
-  verifyOTP: (email: string, otp: string, rememberMe?: boolean) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  verifyOTP: (email: string, otp: string, rememberMe?: boolean, redirectUrl?: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  forgotPassword: (email: string) => Promise<{ testOtp?: string } | void>;
+  resetPassword: (email: string, otp: string, newPassword: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -101,7 +104,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string, rememberMe?: boolean) => {
+  const redirectUser = (role?: string, redirectUrl?: string) => {
+    if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.includes('/auth/')) {
+      router.push(redirectUrl);
+      return;
+    }
+    if (role === 'admin') {
+      router.push('/admin');
+    } else {
+      router.push('/dashboard');
+    }
+  };
+
+  const login = async (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -123,9 +138,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (refreshToken) {
             localStorage.setItem('refreshToken', refreshToken);
           }
-        }
-
-        if (typeof window !== 'undefined') {
           if (rememberMe) {
             localStorage.setItem('rememberMe', 'true');
           } else {
@@ -134,15 +146,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sessionStorage.setItem('session_active', 'true');
         }
 
-        // Automatically load cart on success
+        // Automatically sync & load cart
         await useCartStore.getState().syncGuestCart();
         await useCartStore.getState().loadCart();
-        // Redirect admin users to admin panel, customers to dashboard
-        if (loggedInUser.role === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        
+        redirectUser(loggedInUser.role, redirectUrl);
       } else {
         throw new Error(response.data?.message || 'Login failed');
       }
@@ -168,11 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           sessionStorage.setItem('session_active', 'true');
         }
-        if (demoUser.role === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        redirectUser(demoUser.role, redirectUrl);
         return;
       }
 
@@ -184,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, redirectUrl?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -199,16 +203,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (refreshToken) {
             localStorage.setItem('refreshToken', refreshToken);
           }
-        }
-
-        if (typeof window !== 'undefined') {
           localStorage.setItem('rememberMe', 'true');
           sessionStorage.setItem('session_active', 'true');
         }
 
         // Automatically load cart on success
-        useCartStore.getState().loadCart();
-        router.push('/dashboard');
+        await useCartStore.getState().syncGuestCart();
+        await useCartStore.getState().loadCart();
+        redirectUser(registeredUser.role, redirectUrl);
       } else {
         throw new Error(response.data?.message || 'Registration failed');
       }
@@ -252,7 +254,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     city?: string,
     state?: string,
     zipCode?: string,
-    country?: string
+    country?: string,
+    currentPassword?: string
   ) => {
     setLoading(true);
     setError(null);
@@ -260,6 +263,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const payload: any = { name, email, phone, address, city, state, zipCode, country };
       if (password) {
         payload.password = password;
+      }
+      if (currentPassword) {
+        payload.currentPassword = currentPassword;
       }
       const response = await apiClient.put('/auth/profile', payload);
       if (response.data?.success) {
@@ -276,7 +282,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verify2FA = async (userId: string, code: string, rememberMe?: boolean) => {
+  const verify2FA = async (userId: string, code: string, rememberMe?: boolean, redirectUrl?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -291,9 +297,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (refreshToken) {
             localStorage.setItem('refreshToken', refreshToken);
           }
-        }
-
-        if (typeof window !== 'undefined') {
           if (rememberMe) {
             localStorage.setItem('rememberMe', 'true');
           } else {
@@ -302,12 +305,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sessionStorage.setItem('session_active', 'true');
         }
 
-        useCartStore.getState().loadCart();
-        if (loggedInUser.role === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        await useCartStore.getState().syncGuestCart();
+        await useCartStore.getState().loadCart();
+        redirectUser(loggedInUser.role, redirectUrl);
       } else {
         throw new Error(response.data?.message || 'Verification failed');
       }
@@ -341,7 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verifyOTP = async (email: string, otp: string, rememberMe?: boolean) => {
+  const verifyOTP = async (email: string, otp: string, rememberMe?: boolean, redirectUrl?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -363,9 +363,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (refreshToken) {
             localStorage.setItem('refreshToken', refreshToken);
           }
-        }
-
-        if (typeof window !== 'undefined') {
           if (rememberMe) {
             localStorage.setItem('rememberMe', 'true');
           } else {
@@ -374,17 +371,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sessionStorage.setItem('session_active', 'true');
         }
 
-        useCartStore.getState().loadCart();
-        if (loggedInUser.role === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        await useCartStore.getState().syncGuestCart();
+        await useCartStore.getState().loadCart();
+        redirectUser(loggedInUser.role, redirectUrl);
       } else {
         throw new Error(response.data?.message || 'OTP verification failed');
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'OTP verification failed.';
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forgotPassword = async (email: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/auth/forgot-password', { email });
+      if (response.data?.success) {
+        return {
+          testOtp: response.data.data?.testOtp
+        };
+      } else {
+        throw new Error(response.data?.message || 'Failed to send reset code');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to send reset code.';
+      setError(msg);
+      throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string, otp: string, newPassword: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/auth/reset-password', { email, otp, newPassword });
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Password reset failed');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Password reset failed.';
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -408,6 +440,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verify2FA,
         requestOTP,
         verifyOTP,
+        forgotPassword,
+        resetPassword,
         refreshUser: checkSession,
       }}
     >
