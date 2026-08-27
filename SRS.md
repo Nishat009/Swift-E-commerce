@@ -32,18 +32,29 @@ SwiftCart is a multi-tier web application combining an e-commerce catalog with a
 
 ---
 
-### 2.2 User Authentication & MFA Security Module
+### 2.2 User Authentication, MFA & OAuth Security Module
 *   **FR-2.1**: Customers shall be able to set up Two-Factor Authentication (2FA) by scanning a generated QR code with any standard authenticator app.
 *   **FR-2.2**: The system shall validate time-based one-time passwords (TOTP) during login step-up verification.
 *   **FR-2.3**: The system shall generate 10 single-use Recovery Codes for alternative account access.
-*   **FR-2.4**: Normal Customers shall be able to request dynamic, temporary login OTP codes sent to their email.
-*   **FR-2.5**: The customer settings area shall leverage a shared sidebar shell layout (`AccountLayout`), organizing account management into distinct routes: `/dashboard`, `/profile`, `/orders`, `/wishlist`, `/addresses`, and `/settings`.
-*   **FR-2.6**: The addresses page shall support full CRUD operations on user shipping destinations, allowing default selections.
-*   **FR-2.7**: The system shall prevent admins from viewing raw or decrypted customer password strings.
+*   **FR-2.4**: Customers shall be able to request dynamic, temporary login OTP codes sent to their email.
+*   **FR-2.5**: The system shall support Google OAuth 2.0 and Google Identity Services (GSI) allowing 1-click customer registration and authentication with automatic profile synchronisation.
+*   **FR-2.6**: The system shall enforce brute-force lockout protection, suspending login attempts for 30 seconds after 3 consecutive failures.
+*   **FR-2.7**: The customer settings area shall leverage a shared sidebar shell layout (`AccountLayout`), organizing account management into distinct routes: `/dashboard`, `/profile`, `/orders`, `/wishlist`, `/addresses`, and `/settings`.
+*   **FR-2.8**: The addresses page shall support full CRUD operations on user shipping destinations, allowing default selections.
+*   **FR-2.9**: The system shall prevent admins from viewing raw or decrypted customer password strings.
 
 ---
 
-### 2.3 Enterprise Administration & Inspection Module
+### 2.3 Order Lifecycle & Automated Transactional Invoicing Module
+*   **FR-3.1**: The system shall immediately generate and dispatch a branded, responsive HTML Order Confirmation invoice email to the customer's registered email address upon successful order creation.
+*   **FR-3.2**: The email engine shall support dual-mode operation via Nodemailer: a zero-configuration Ethereal Email test mode generating live browser preview URLs, and standard production SMTP (e.g. Gmail App Password, Resend, Brevo).
+*   **FR-3.3**: The confirmation email shall contain an itemized product list with thumbnail imagery, pricing, discounts, 10% tax breakdown, shipping charges, shipping address, and a direct CTA link to view order status.
+*   **FR-3.4**: The system shall trigger automated status notification emails when an order progresses to `Confirmed`, `Shipped`, `Delivered`, or `Cancelled`.
+*   **FR-3.5**: The system shall synchronize order event notifications to MongoDB, delivering in-app notification badges with unread counters.
+
+---
+
+### 2.4 Enterprise Administration & Inspection Module
 *   **FR-3.1**: Administrators shall be able to inspect any customer's active shopping cart items, quantities, and subtotal.
 *   **FR-3.2**: Administrators shall be able to inspect any customer's wishlist choices.
 *   **FR-3.3**: The system shall log all administrative actions in a persistent Audit Trail, capturing previous vs updated states.

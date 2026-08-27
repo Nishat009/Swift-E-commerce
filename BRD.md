@@ -154,8 +154,25 @@ The system serves two main user profiles:
 
 ---
 
+### Feature 15: Google Authentication & Enterprise Access Protection
+*   **Normal Customer View**:
+    *   1-Click Google OAuth 2.0 sign-in and registration with automated account provisioning.
+    *   Enterprise brute-force protection locking out failed attempts after 3 invalid credentials.
+    *   Multi-Factor 2FA with Authenticator apps and emergency recovery codes.
+
+---
+
+### Feature 16: Automated Order Confirmation & Invoicing Engine
+*   **Customer & Admin View**:
+    *   Instant dispatch of itemized, responsive HTML order confirmation invoices to customer email.
+    *   Dual-mode email infrastructure (Nodemailer) with free zero-config Ethereal Email test preview links and production SMTP support.
+    *   Lifecycle notification emails for order updates (`Confirmed`, `Shipped`, `Delivered`, `Cancelled`).
+    *   In-app notification synchronization and activity tracking.
+
+---
+
 ## 5. Technology Stack Summary
 *   **Frontend**: React 19, Next.js 16 (App Router), Three.js (3D Studio), Zustand (State Management), Framer Motion (Animations), Tailwind CSS 4.
-*   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose ODM.
-*   **Authentication & Security**: Custom TOTP validation (crypto module), JWT tokens, email OTP dispatch.
-*   **Database**: MongoDB (Collections: Products, Users, Categories, Orders, Reviews, Campaigns, Audit Trails).
+*   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose ODM, Nodemailer (Email Engine).
+*   **Authentication & Security**: Google OAuth 2.0, TOTP validation (crypto module), JWT tokens, email OTP dispatch, HttpOnly cookies.
+*   **Database**: MongoDB (Collections: Products, Users, Categories, Orders, Notifications, Reviews, Campaigns, Audit Trails).
