@@ -211,8 +211,15 @@ graph TD
 
 ### 5.2 Security & Integrity
 - **Password Protection**: Encryption using `bcryptjs` (salt rounds: 10).
-- **API Guarding**: Helmet middleware and Express Rate Limiter restrict excessive requests. JWT tokens stored securely.
+- **Google OAuth 2.0 Integration**: Validated Google ID Tokens with auto-provisioning and session issuance.
+- **MFA & Account Lockout**: Time-based OTP (TOTP) validation with brute-force lockout after 3 consecutive invalid attempts.
+- **API Guarding**: Helmet middleware and Express Rate Limiter restrict excessive requests. JWT tokens stored securely in HttpOnly cookies.
 
-### 5.3 Scalability
+### 5.3 Automated Invoicing & Notifications
+- **Nodemailer Transactional Engine**: Real-time dispatch of itemized HTML invoice emails upon order creation and status transitions (`Confirmed`, `Shipped`, `Delivered`, `Cancelled`).
+- **Zero-Config Developer Preview**: Automated Ethereal test inbox integration generating web preview links.
+- **In-App Notification Synchronization**: Database-backed notification activity feed with live unread indicators.
+
+### 5.4 Scalability
 - **MongoDB Indexing**: Database indexing on frequently filtered fields (`category`, `status`, `sku`, `price`, `rating`).
 - **Responsive Layout**: Fluid breakpoints supporting views from mobile portrait ($320\text{px}$) to widescreen desktops ($1440\text{px}$).

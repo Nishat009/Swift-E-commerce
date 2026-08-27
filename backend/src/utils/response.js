@@ -6,10 +6,10 @@
  * @param {number} statusCode - HTTP status code
  */
 const sendSuccess = (res, message, data = {}, statusCode = 200) => {
-  return res.status(statusCode).json({
+  return res.status(200).json({
     success: true,
-    code: statusCode,
-    status: statusCode,
+    code: 200,
+    status: 200,
     message,
     data,
   });
@@ -23,10 +23,11 @@ const sendSuccess = (res, message, data = {}, statusCode = 200) => {
  * @param {Object|Array} errors - Detailed errors (e.g. validation errors)
  */
 const sendError = (res, message, statusCode = 422, errors = null) => {
+  const code = 422;
   const response = {
     success: false,
-    code: statusCode,
-    status: statusCode,
+    code,
+    status: code,
     message,
   };
 
@@ -34,7 +35,7 @@ const sendError = (res, message, statusCode = 422, errors = null) => {
     response.errors = errors;
   }
 
-  return res.status(statusCode).json(response);
+  return res.status(code).json(response);
 };
 
 module.exports = {

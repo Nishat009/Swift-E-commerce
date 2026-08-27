@@ -10,7 +10,7 @@ const validate = (req, res, next) => {
       errorMap[err.path || err.param] = err.msg;
     });
 
-    return sendError(res, 'Validation error', 400, errorMap);
+    return sendError(res, 'Validation error', 422, errorMap);
   }
   next();
 };

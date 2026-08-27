@@ -62,6 +62,17 @@ Built for enterprise scale, SwiftCart offers a seamless shopping experience for 
   * **Multi-Currency & Language Engine**: Dynamic price conversion (`USD`, `EUR`, `GBP`, `BDT`) and language localizer.
   * **Verified Photo Reviews**: Customer reviews with outfit photo attachments and AI sentiment rating bars.
 
+* **Multi-Layered Security & Google Authentication**:
+  * **Google OAuth 2.0 & Identity Services (GSI)**: 1-click Google sign-in modal with automatic account creation and JWT session linking.
+  * **Two-Factor Authentication (2FA)**: Google Authenticator TOTP verification + emergency backup recovery codes.
+  * **Passwordless Email OTP**: Secure 6-digit one-time passcodes dispatched for fast login.
+  * **Brute-force Account Lockout**: Automatic 30-second security cooldown after 3 consecutive failed attempts.
+* **Automated Order Invoicing & Email Notifications**:
+  * **Transactional Order Confirmation**: Instant dispatch of branded, itemized HTML invoice receipts upon order placement.
+  * **Dual-Mode Engine (Nodemailer)**: Zero-config **Ethereal Email** test mode with clickable live browser preview URLs, and seamless **Production SMTP** integration (Gmail, Resend, Brevo).
+  * **Order Lifecycle Email Triggers**: Automatic status update emails on `Confirmed`, `Shipped`, `Delivered`, or `Cancelled`.
+  * **In-App Notification Center**: Synchronized notifications stored in MongoDB with real-time notification bell counts.
+
 ---
 
 ### 🛡️ 2. Enterprise Admin & Seller Portal (`/admin`)
@@ -72,7 +83,7 @@ Built for enterprise scale, SwiftCart offers a seamless shopping experience for 
   * Bulk operations: Select multiple items for Bulk Delete, Bulk Publish, and Bulk Archive.
   * CSV Inventory Export & JSON Catalog Payload Importer.
 * **Order Lifecycle Control**:
-  * Status progression: `Pending` ➔ `Processing` ➔ `Shipped` ➔ `Delivered` ➔ `Cancelled`.
+  * Status progression: `Pending` ➔ `Processing` ➔ `Shipped` ➔ `Delivered` ➔ `Cancelled` (with automated customer email dispatch).
 * **Security & Action Audit Trail**:
   * Real-time audit logs of administrative changes and access records.
 * **Currencies & Languages Manager**:
@@ -102,6 +113,7 @@ Built for enterprise scale, SwiftCart offers a seamless shopping experience for 
 | **Node.js 18+** | High-performance JavaScript runtime |
 | **Express.js 4** | Robust REST API server with modular routing and controllers |
 | **MongoDB & Mongoose 8** | NoSQL document database with strict schema validation and populate indexing |
+| **Nodemailer** | Transactional HTML email dispatch with Ethereal test preview and SMTP support |
 | **JSON Web Tokens (JWT)** | Secure stateless authentication with HTTP-only cookie support |
 | **Bcrypt.js** | Salted password hashing and security verification |
 | **Swagger UI Express** | Interactive OpenAPI / Swagger 2.0 API documentation |
