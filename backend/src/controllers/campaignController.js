@@ -15,14 +15,16 @@ const getCampaigns = async (req, res, next) => {
     if (status) {
       query.status = status;
     }
-    // Default: only show public campaigns to non-admin
+    // Default to public visibility unless admin explicitly specifies
     if (visibility) {
       query.visibility = visibility;
+    } else if (!req.user || req.user.role !== 'admin') {
+      query.visibility = 'public';
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const campaigns = await Campaign.find(query)
-      .populate('winnerUser', 'name email')
+      .populate('winnerUser', 'name avatar')
       .populate('linkedProducts', 'title price thumbnail')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -44,7 +46,7 @@ const getCampaigns = async (req, res, next) => {
 const getCampaignById = async (req, res, next) => {
   try {
     const campaign = await Campaign.findById(req.params.id)
-      .populate('winnerUser', 'name email')
+      .populate('winnerUser', 'name avatar')
       .populate('linkedProducts', 'title price thumbnail description stock');
 
     if (!campaign) {
@@ -81,48 +83,80 @@ const purchaseTicket = async (req, res, next) => {
       return sendError(res, `You can hold a maximum of ${campaign.maxTicketsPerUser} tickets for this campaign. You currently have ${userTicketCount}.`, 400);
     }
 
-    const availableTickets = campaign.ticketLimit - campaign.ticketsSold;
-    if (qty > availableTickets) {
-      return sendError(res, `Only ${availableTickets} tickets remaining for this campaign`, 400);
+    // Atomic concurrency-safe ticket pool decrement
+    const updatedCampaign = await Campaign.findOneAndUpdate(
+      {
+        _id: campaignId,
+        status: 'active',
+        $expr: { $lte: [{ $add: ['$ticketsSold', qty] }, '$ticketLimit'] }
+      },
+      {
+        $inc: { ticketsSold: qty }
+      },
+      { new: true }
+    );
+
+    if (!updatedCampaign) {
+      return sendError(res, 'Insufficient tickets available or campaign is no longer active', 400);
     }
 
-    // Generate Tickets
+    // Generate Tickets with rollback capability
     const generatedTickets = [];
-    for (let i = 0; i < qty; i++) {
-      const uniqueSuffix = `${campaignId.substring(18, 24).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
-      const ticketNumber = `SWIFT-TKT-${uniqueSuffix}`;
+    try {
+      for (let i = 0; i < qty; i++) {
+        const uniqueSuffix = `${campaignId.substring(18, 24).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+        const ticketNumber = `SWIFT-TKT-${uniqueSuffix}`;
 
-      const ticket = await Ticket.create({
-        ticketNumber,
+        const ticket = await Ticket.create({
+          ticketNumber,
+          user: req.user.id,
+          campaign: campaignId,
+          purchaseAmount: campaign.productPrice,
+          paymentMethod: paymentMethod || 'simulated_wallet',
+          status: 'active'
+        });
+        generatedTickets.push(ticket);
+      }
+
+      // Check if pool is exhausted
+      if (updatedCampaign.ticketsSold >= updatedCampaign.ticketLimit) {
+        updatedCampaign.status = 'sold-out';
+        await updatedCampaign.save();
+      }
+
+      // Create user notification
+      await Notification.create({
         user: req.user.id,
-        campaign: campaignId,
-        purchaseAmount: campaign.productPrice,
-        paymentMethod: paymentMethod || 'simulated_wallet',
-        status: 'active'
+        title: 'Tickets Earned! 🎟️',
+        message: `You earned ${qty} ticket(s) for the "${campaign.title}" campaign. Good luck in the draw!`,
+        type: 'campaign_purchase',
+        relatedCampaign: campaignId
       });
-      generatedTickets.push(ticket);
+
+      // Audit and activity records
+      await ActivityLog.create({
+        user: req.user.id,
+        action: 'PURCHASE_CAMPAIGN_TICKET',
+        details: `Purchased ${qty} ticket(s) for campaign "${campaign.title}" (Payment: ${paymentMethod || 'simulated_wallet'})`
+      });
+
+      await AuditTrail.create({
+        entityType: 'Campaign',
+        entityId: campaignId,
+        changedBy: req.user.id,
+        changeSummary: `User purchased ${qty} ticket(s)`,
+        newState: { ticketsSold: updatedCampaign.ticketsSold, status: updatedCampaign.status }
+      });
+
+      return sendSuccess(res, `Successfully purchased ${qty} products & earned entry tickets`, {
+        tickets: generatedTickets,
+        campaign: updatedCampaign
+      });
+    } catch (ticketError) {
+      // Rollback ticket count on failure
+      await Campaign.findByIdAndUpdate(campaignId, { $inc: { ticketsSold: -qty } });
+      throw ticketError;
     }
-
-    // Update campaign counters
-    campaign.ticketsSold += qty;
-    if (campaign.ticketsSold >= campaign.ticketLimit) {
-      campaign.status = 'sold-out';
-    }
-    await campaign.save();
-
-    // Create notification for the user
-    await Notification.create({
-      user: req.user.id,
-      title: 'Tickets Earned! 🎟️',
-      message: `You earned ${qty} ticket(s) for the "${campaign.title}" campaign. Good luck in the draw!`,
-      type: 'campaign_purchase',
-      relatedCampaign: campaignId
-    });
-
-    return sendSuccess(res, `Successfully purchased ${qty} products & earned entry tickets`, {
-      tickets: generatedTickets,
-      campaign
-    });
   } catch (error) {
     next(error);
   }
@@ -155,7 +189,7 @@ const getMyTickets = async (req, res, next) => {
 const getWinners = async (req, res, next) => {
   try {
     const winners = await Campaign.find({ status: 'completed' })
-      .populate('winnerUser', 'name email')
+      .populate('winnerUser', 'name avatar')
       .sort({ updatedAt: -1 });
 
     return sendSuccess(res, 'Winners gallery retrieved successfully', winners);

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendError } = require('../utils/response');
+const { getRequiredSecret } = require('../utils/generateTokens');
 
 const protect = async (req, res, next) => {
   let token;
@@ -19,10 +20,10 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkey123456!@#');
+    const decoded = jwt.verify(token, getRequiredSecret('JWT_SECRET'));
     
     // Attach user to request, excluding password
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.id);
     if (!user) {
       return sendError(res, 'User no longer exists', 401);
     }

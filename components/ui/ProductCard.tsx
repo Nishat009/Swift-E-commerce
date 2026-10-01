@@ -235,6 +235,8 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
     );
   }
 
+  const secondaryImage = product.productImage || product.thumbnail || displayImage;
+
   // Grid View Mode (Quiet Luxury & Architectural Silhouettes Editorial Card Design)
   return (
     <>
@@ -245,7 +247,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="relative w-full h-[500px] sm:h-[560px] md:h-[600px] rounded-[28px] sm:rounded-[32px] overflow-hidden group cursor-pointer shadow-xl hover:shadow-2xl bg-stone-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 select-none transition-all duration-500 ease-out flex flex-col justify-between"
+        className="relative w-full aspect-[4/5] min-h-[460px] sm:aspect-[3/4] sm:min-h-0 rounded-[28px] sm:rounded-[32px] overflow-hidden group cursor-pointer shadow-xl hover:shadow-2xl bg-stone-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 select-none transition-all duration-500 ease-out flex flex-col justify-between"
       >
         {/* 1. Full-Length Editorial Visual */}
         <Link href={`/product/${product.id}`} className="absolute inset-0 block w-full h-full cursor-pointer z-0">

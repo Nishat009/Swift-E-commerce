@@ -22,7 +22,7 @@ export const getAccessToken = () => {
 };
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   withCredentials: true, // Crucial for sending/receiving HTTP-Only cookies (refreshToken)
   timeout: 10000,
   headers: {
@@ -106,6 +106,8 @@ apiClient.interceptors.response.use(
       if (
         originalRequest.url?.includes('/auth/login') ||
         originalRequest.url?.includes('/auth/register') ||
+        originalRequest.url?.includes('/auth/google') ||
+        originalRequest.url?.includes('/auth/verify-2fa') ||
         originalRequest.url?.includes('/auth/refresh') ||
         originalRequest.url?.includes('/auth/logout')
       ) {

@@ -3,7 +3,13 @@ const mongoose = require('mongoose');
 const OrderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   quantity: { type: Number, required: true, min: 1 },
-  price: { type: Number, required: true }
+  price: { type: Number, required: true },
+  variant: {
+    id: { type: String, default: '' },
+    name: { type: String, default: '' },
+    sku: { type: String, default: '' },
+    options: { type: mongoose.Schema.Types.Mixed, default: {} }
+  }
 });
 
 const OrderAddressSchema = new mongoose.Schema({
@@ -35,6 +41,10 @@ const OrderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+OrderSchema.index({ user: 1, createdAt: -1 });
+OrderSchema.index({ orderStatus: 1, createdAt: -1 });
+OrderSchema.index({ createdAt: -1 });
 
 OrderSchema.set('toJSON', {
   virtuals: true,

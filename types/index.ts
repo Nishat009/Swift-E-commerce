@@ -212,6 +212,7 @@ export interface User {
   updatedAt?: string;
   addresses?: Address[];
   twoFactorEnabled?: boolean;
+  googleConnected?: boolean;
   wishlist?: any[];
 }
 

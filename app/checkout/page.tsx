@@ -51,10 +51,54 @@ export default function CheckoutPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; isFixed?: boolean } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponMessage, setCouponMessage] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('applied_coupon');
+      if (stored) {
+        setCouponCode(stored);
+        validateAndApplyCoupon(stored);
+      }
+    }
+  }, []);
+
+  const validateAndApplyCoupon = async (codeToTest: string) => {
+    const code = codeToTest.trim().toUpperCase();
+    if (!code) return;
+    setCouponLoading(true);
+    setCouponMessage('');
+    try {
+      const res = await apiClient.get(`/coupons/${code}`);
+      if (res.data?.success && res.data.data) {
+        const coupon = res.data.data;
+        const discountVal = coupon.percentage ? coupon.percentage / 100 : (coupon.amount || 0);
+        setAppliedCoupon({ code: coupon.code, discount: discountVal, isFixed: Boolean(coupon.amount) });
+        setCouponMessage(`Coupon "${coupon.code}" applied!`);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('applied_coupon', coupon.code);
+        }
+      } else {
+        setCouponMessage('Invalid coupon code');
+      }
+    } catch (err: any) {
+      setCouponMessage(err.response?.data?.message || 'Invalid or expired coupon code');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
   const subtotal = getTotalPrice();
-  const tax = subtotal * 0.1;
+  const discountAmount = appliedCoupon
+    ? (appliedCoupon.isFixed ? appliedCoupon.discount : subtotal * appliedCoupon.discount)
+    : 0;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const tax = discountedSubtotal * 0.1;
   const shipping = subtotal > 100 ? 0 : 10;
-  const total = subtotal + tax + shipping;
+  const total = discountedSubtotal + tax + shipping;
 
   const validateAddress = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -96,12 +140,17 @@ export default function CheckoutPage() {
           products: items.map((item) => ({
             product: item.product.id,
             quantity: item.quantity,
+            variant: item.selectedVariant,
           })),
           shippingAddress: address,
           paymentMethod,
+          couponCode: appliedCoupon?.code || undefined,
         });
 
         if (response.data?.success) {
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('applied_coupon');
+          }
           await clearCart();
           setStep('confirmation');
         }
@@ -133,24 +182,24 @@ export default function CheckoutPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="font-serif text-3xl font-bold text-gray-900 dark:text-white mb-8">Checkout</h1>
 
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-center">
+      {/* Progress Steps (Responsive for 320px to 1920px viewports) */}
+      <div className="mb-8 px-2">
+        <div className="flex items-center justify-center max-w-xl mx-auto">
           <div className="flex items-center">
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0 ${
                 step === 'address' || step === 'payment' || step === 'confirmation'
                   ? 'bg-[#8b6f47] text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
-              {step === 'confirmation' ? <CheckCircle className="w-6 h-6" /> : '1'}
+              {step === 'confirmation' ? <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6" /> : '1'}
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="hidden xs:inline sm:inline ml-1.5 sm:ml-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
               Address
             </span>
           </div>
-          <div className="w-24 h-1 mx-4 bg-gray-200 dark:bg-gray-700">
+          <div className="flex-1 max-w-[48px] sm:max-w-[80px] h-0.5 sm:h-1 mx-1.5 sm:mx-3 bg-gray-200 dark:bg-gray-700">
             <div
               className={`h-full transition-all ${
                 step === 'payment' || step === 'confirmation'
@@ -161,19 +210,19 @@ export default function CheckoutPage() {
           </div>
           <div className="flex items-center">
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0 ${
                 step === 'payment' || step === 'confirmation'
                   ? 'bg-[#8b6f47] text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
-              {step === 'confirmation' ? <CheckCircle className="w-6 h-6" /> : '2'}
+              {step === 'confirmation' ? <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6" /> : '2'}
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="hidden xs:inline sm:inline ml-1.5 sm:ml-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
               Payment
             </span>
           </div>
-          <div className="w-24 h-1 mx-4 bg-gray-200 dark:bg-gray-700">
+          <div className="flex-1 max-w-[48px] sm:max-w-[80px] h-0.5 sm:h-1 mx-1.5 sm:mx-3 bg-gray-200 dark:bg-gray-700">
             <div
               className={`h-full transition-all ${
                 step === 'confirmation' ? 'bg-[#8b6f47] w-full' : 'bg-gray-200 dark:bg-gray-700 w-0'
@@ -182,15 +231,15 @@ export default function CheckoutPage() {
           </div>
           <div className="flex items-center">
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0 ${
                 step === 'confirmation'
                   ? 'bg-[#8b6f47] text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
             >
-              {step === 'confirmation' ? <CheckCircle className="w-6 h-6" /> : '3'}
+              {step === 'confirmation' ? <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6" /> : '3'}
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="hidden xs:inline sm:inline ml-1.5 sm:ml-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
               Confirmation
             </span>
           </div>
@@ -393,6 +442,12 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="font-mono font-medium">{formatPrice(subtotal)}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+                    <span>Discount ({appliedCoupon?.code})</span>
+                    <span className="font-mono">-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                   <span>Tax (10%)</span>
                   <span className="font-mono font-medium">{formatPrice(tax)}</span>
@@ -400,6 +455,31 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                   <span>Shipping</span>
                   <span className="font-mono font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
+                </div>
+                {/* Promo Code Input */}
+                <div className="pt-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Promo / Coupon code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 uppercase font-mono"
+                    />
+                    <button
+                      type="button"
+                      disabled={couponLoading || !couponCode.trim()}
+                      onClick={() => validateAndApplyCoupon(couponCode)}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 disabled:opacity-50"
+                    >
+                      {couponLoading ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                  {couponMessage && (
+                    <p className={`text-[11px] mt-1 ${appliedCoupon ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                      {couponMessage}
+                    </p>
+                  )}
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-3 border-t border-gray-200 dark:border-gray-700">
                   <span>Total</span>

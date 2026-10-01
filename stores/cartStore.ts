@@ -1,19 +1,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { CartItem, Product } from '@/types';
+import { CartItem, Product, VariantCombination } from '@/types';
 import apiClient, { getAccessToken } from '@/lib/apiClient';
+
+interface BackendCartProduct {
+  product: Product;
+  quantity: number;
+  variant?: VariantCombination;
+}
 
 interface CartStore {
   items: CartItem[];
   loadCart: () => Promise<void>;
-  addItem: (product: Product, quantity?: number) => Promise<void>;
-  removeItem: (productId: string | number) => Promise<void>;
-  updateQuantity: (productId: string | number, quantity: number) => Promise<void>;
+  addItem: (product: Product, quantity?: number, selectedVariant?: VariantCombination) => Promise<void>;
+  removeItem: (productId: string | number, variantId?: string) => Promise<void>;
+  updateQuantity: (productId: string | number, quantity: number, variantId?: string) => Promise<void>;
   clearCart: () => Promise<void>;
   getTotalPrice: () => number;
   getTotalItems: () => number;
   syncGuestCart: () => Promise<void>;
 }
+
+const isSameItem = (item: CartItem, productId: string | number, variantId?: string) => {
+  const sameProd = String(item.product.id) === String(productId);
+  const currentVarId = item.selectedVariant?.id || '';
+  const targetVarId = variantId || '';
+  return targetVarId ? (sameProd && currentVarId === targetVarId) : sameProd;
+};
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -24,11 +37,14 @@ export const useCartStore = create<CartStore>()(
         if (!getAccessToken()) return;
         try {
           const response = await apiClient.get('/cart');
-          if (response.data?.success) {
-            const backendItems = response.data.data.products.map((item: any) => ({
-              product: item.product,
-              quantity: item.quantity,
-            }));
+          if (response.data?.success && Array.isArray(response.data.data?.products)) {
+            const backendItems = (response.data.data.products as BackendCartProduct[])
+              .filter((item) => Boolean(item.product))
+              .map((item) => ({
+                product: item.product,
+                quantity: item.quantity,
+                selectedVariant: item.variant || undefined,
+              }));
             set({ items: backendItems });
           }
         } catch (error) {
@@ -36,62 +52,73 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      addItem: async (product, quantity = 1) => {
+      addItem: async (product, quantity = 1, selectedVariant) => {
         const previousItems = get().items;
         const productId = product.id;
-        const existingItem = previousItems.find((item) => String(item.product.id) === String(productId));
+        const variantId = selectedVariant?.id;
+        const existingItem = previousItems.find((item) => isSameItem(item, productId, variantId));
 
         // 1. Optimistic Update (Immediate UI response)
         let optimisticItems: CartItem[] = [];
         if (existingItem) {
           optimisticItems = previousItems.map((item) =>
-            String(item.product.id) === String(productId)
+            isSameItem(item, productId, variantId)
               ? { ...item, quantity: item.quantity + quantity }
               : item
           );
         } else {
-          optimisticItems = [...previousItems, { product, quantity }];
+          optimisticItems = [...previousItems, { product, quantity, selectedVariant }];
         }
         set({ items: optimisticItems });
 
         // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
-            const response = await apiClient.post('/cart', { productId, quantity });
-            if (response.data?.success) {
-              const backendItems = response.data.data.products.map((item: any) => ({
-                product: item.product,
-                quantity: item.quantity,
-              }));
+            const response = await apiClient.post('/cart', {
+              productId,
+              quantity,
+              variant: selectedVariant,
+            });
+            if (response.data?.success && Array.isArray(response.data.data?.products)) {
+              const backendItems = (response.data.data.products as BackendCartProduct[])
+                .filter((item) => Boolean(item.product))
+                .map((item) => ({
+                  product: item.product,
+                  quantity: item.quantity,
+                  selectedVariant: item.variant || undefined,
+                }));
               set({ items: backendItems });
             } else {
               throw new Error('Backend update unsuccessful');
             }
           } catch (error) {
             console.error('Failed to add item to backend cart, rolling back:', error);
-            // Roll back state to previous items cache
             set({ items: previousItems });
-            throw error; // Re-throw to trigger toast warning in UI
+            throw error;
           }
         }
       },
 
-      removeItem: async (productId) => {
+      removeItem: async (productId, variantId) => {
         const previousItems = get().items;
         
         // 1. Optimistic Update
-        const optimisticItems = previousItems.filter((item) => String(item.product.id) !== String(productId));
+        const optimisticItems = previousItems.filter((item) => !isSameItem(item, productId, variantId));
         set({ items: optimisticItems });
 
         // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
-            const response = await apiClient.delete(`/cart/${productId}`);
-            if (response.data?.success) {
-              const backendItems = response.data.data.products.map((item: any) => ({
-                product: item.product,
-                quantity: item.quantity,
-              }));
+            const query = variantId ? `?variantId=${encodeURIComponent(variantId)}` : '';
+            const response = await apiClient.delete(`/cart/${productId}${query}`);
+            if (response.data?.success && Array.isArray(response.data.data?.products)) {
+              const backendItems = (response.data.data.products as BackendCartProduct[])
+                .filter((item) => Boolean(item.product))
+                .map((item) => ({
+                  product: item.product,
+                  quantity: item.quantity,
+                  selectedVariant: item.variant || undefined,
+                }));
               set({ items: backendItems });
             } else {
               throw new Error('Backend update unsuccessful');
@@ -104,9 +131,9 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      updateQuantity: async (productId, quantity) => {
+      updateQuantity: async (productId, quantity, variantId) => {
         if (quantity <= 0) {
-          await get().removeItem(productId);
+          await get().removeItem(productId, variantId);
           return;
         }
 
@@ -114,19 +141,22 @@ export const useCartStore = create<CartStore>()(
 
         // 1. Optimistic Update
         const optimisticItems = previousItems.map((item) =>
-          String(item.product.id) === String(productId) ? { ...item, quantity } : item
+          isSameItem(item, productId, variantId) ? { ...item, quantity } : item
         );
         set({ items: optimisticItems });
 
         // 2. Asynchronous backend sync if logged in
         if (getAccessToken()) {
           try {
-            const response = await apiClient.put('/cart', { productId, quantity });
-            if (response.data?.success) {
-              const backendItems = response.data.data.products.map((item: any) => ({
-                product: item.product,
-                quantity: item.quantity,
-              }));
+            const response = await apiClient.put('/cart', { productId, quantity, variantId });
+            if (response.data?.success && Array.isArray(response.data.data?.products)) {
+              const backendItems = (response.data.data.products as BackendCartProduct[])
+                .filter((item) => Boolean(item.product))
+                .map((item) => ({
+                  product: item.product,
+                  quantity: item.quantity,
+                  selectedVariant: item.variant || undefined,
+                }));
               set({ items: backendItems });
             } else {
               throw new Error('Backend update unsuccessful');
@@ -161,26 +191,26 @@ export const useCartStore = create<CartStore>()(
         const guestItems = get().items;
         if (guestItems.length === 0 || !getAccessToken()) return;
         try {
-          // Push guest cart items to backend cart safely
           await Promise.all(
             guestItems.map((item) =>
               apiClient.post('/cart', {
                 productId: item.product.id,
                 quantity: item.quantity,
+                variant: item.selectedVariant,
               }).catch((err) => {
                 console.warn(`Could not sync item ${item.product.id} to cart:`, err);
                 return null;
               })
             )
           );
-          // Load integrated cart from backend
           const response = await apiClient.get('/cart').catch(() => null);
-          if (response?.data?.success && response.data.data?.products) {
-            const backendItems = response.data.data.products
-              .filter((item: any) => item.product)
-              .map((item: any) => ({
+          if (response?.data?.success && Array.isArray(response.data.data?.products)) {
+            const backendItems = (response.data.data.products as BackendCartProduct[])
+              .filter((item) => Boolean(item.product))
+              .map((item) => ({
                 product: item.product,
                 quantity: item.quantity,
+                selectedVariant: item.variant || undefined,
               }));
             if (backendItems.length > 0) {
               set({ items: backendItems });

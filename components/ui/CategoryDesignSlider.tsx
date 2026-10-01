@@ -249,12 +249,12 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
                             style={{ originX: `${center.x}px`, originY: `${center.y}px` }}
                           >
                             <image
-                              href={category.image || 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=1200&fit=crop'}
+                              href={category.image || '/images/categories/top.jpg'}
                               x={center.x - 110}
                               y={center.y - 110}
                               width="220"
                               height="220"
-                              preserveAspectRatio="xMidYMid slice"
+                              preserveAspectRatio="xMidYMid meet"
                             />
                             {/* Dark Overlay for contrast when not hovered */}
                             <path
@@ -335,7 +335,7 @@ export default function CategoryDesignSlider({ categories }: CategoryDesignSlide
             >
               <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border border-zinc-100 dark:border-zinc-800">
                 <Image
-                  src={activeCategories[hoveredWedgeIndex].image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=100&h=100&fit=crop'}
+                  src={activeCategories[hoveredWedgeIndex].image || '/images/categories/top.jpg'}
                   alt="Category Image"
                   fill
                   className="object-cover"

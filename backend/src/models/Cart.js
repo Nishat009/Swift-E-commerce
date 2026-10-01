@@ -2,7 +2,13 @@ const mongoose = require('mongoose');
 
 const CartItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-  quantity: { type: Number, required: true, min: 1, default: 1 }
+  quantity: { type: Number, required: true, min: 1, default: 1 },
+  variant: {
+    id: { type: String, default: '' },
+    name: { type: String, default: '' },
+    sku: { type: String, default: '' },
+    options: { type: mongoose.Schema.Types.Mixed, default: {} }
+  }
 });
 
 const CartSchema = new mongoose.Schema(

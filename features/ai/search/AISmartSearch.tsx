@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Sparkles, X, Tag, TrendingUp, Filter } from 'lucide-react';
+import { Sparkles, X, TrendingUp, Filter } from 'lucide-react';
 import { aiService } from '@/services/aiService';
 import { useAIStore } from '@/stores/aiStore';
 import { fashionProducts } from '@/data/fashionCatalog';
@@ -18,12 +18,12 @@ export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    if (!query.trim()) {
-      setSearchResult(null);
-      return;
-    }
-
     const timer = setTimeout(() => {
+      if (!query.trim()) {
+        setSearchResult(null);
+        return;
+      }
+
       const parsed = aiService.parseSemanticSearch(query, fashionProducts);
       setSearchResult(parsed);
       if (onResultsFound) {

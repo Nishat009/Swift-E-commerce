@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
 function RegisterFormContent() {
   const router = useRouter();
@@ -270,23 +271,10 @@ function RegisterFormContent() {
               </button>
             </form>
 
-            {/* Google Sign-in Simulation */}
-            <div className="space-y-4 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  toast.info('Google registration is simulated.');
-                }}
-                className="w-full py-2.5 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-800 flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-900 transition shadow-sm"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#ea4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.6 15 1 12 1 7.35 1 3.39 3.65 1.5 7.5l3.87 3C6.27 7.77 8.87 5.04 12 5.04z" />
-                  <path fill="#4285f4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.29 1.48-1.14 2.73-2.42 3.58l3.76 2.91c2.2-2.03 3.49-5.02 3.49-8.64z" />
-                  <path fill="#fbbc05" d="M5.37 14.5c-.24-.72-.37-1.49-.37-2.3s.13-1.58.37-2.3L1.5 6.9C.54 8.82 0 10.97 0 13.2s.54 4.38 1.5 6.3l3.87-3z" />
-                  <path fill="#34a853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.76-2.91c-1.1.74-2.51 1.18-4.2 1.18-3.13 0-5.73-2.73-6.63-5.46L1.5 15.9C3.39 19.75 7.35 23 12 23z" />
-                </svg>
-                Sign up with Google
-              </button>
+            {/* Google Sign-up */}
+            <div className="space-y-4">
+              <GoogleSignIn mode="signup" rememberMe={true} disabled={loading || !formData.agreeTerms} />
+              {!formData.agreeTerms && <p className="text-center text-xs text-gray-500">Accept the Terms &amp; Conditions above to continue with Google.</p>}
 
               {/* Bottom text */}
               <div className="text-center pt-2">

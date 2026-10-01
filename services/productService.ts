@@ -106,10 +106,17 @@ export const productService = {
         allProducts = res.data.products.map(normalizeProduct);
         saveLocalDataset(allProducts);
       } else {
-        allProducts = getLocalDataset();
+        throw new Error('Failed to retrieve product records from API');
       }
-    } catch (err) {
-      allProducts = getLocalDataset();
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Failed to fetch products from server';
+      const cached = getLocalDataset();
+      if (cached && cached.length > 0 && (!err.response || err.code === 'ERR_NETWORK')) {
+        console.warn('Network offline, using cached product dataset:', message);
+        allProducts = cached;
+      } else {
+        throw new Error(message);
+      }
     }
 
     // Calculate Summary Stats from complete dataset
@@ -227,12 +234,16 @@ export const productService = {
       if (res.data?.product) {
         return normalizeProduct(res.data.product);
       }
-    } catch (err) {
-      console.warn('API fetch failed for product ID, checking local dataset:', id);
+      return null;
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || `Failed to fetch product ${id}`;
+      if (!err.response || err.code === 'ERR_NETWORK') {
+        const local = getLocalDataset();
+        const found = local.find((p) => String(p.id) === String(id));
+        if (found) return normalizeProduct(found);
+      }
+      throw new Error(message);
     }
-    const local = getLocalDataset();
-    const found = local.find((p) => String(p.id) === String(id));
-    return found ? normalizeProduct(found) : null;
   },
 
   /**
@@ -254,43 +265,34 @@ export const productService = {
         saveLocalDataset([created, ...dataset]);
         return created;
       }
-    } catch (err) {
-      console.warn('API create product offline fallback activated');
+      throw new Error(res.data?.message || 'Failed to create product');
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Error creating product on server';
+      throw new Error(message);
     }
-
-    const dataset = getLocalDataset();
-    const updatedDataset = [newProduct, ...dataset];
-    saveLocalDataset(updatedDataset);
-    return newProduct;
   },
 
   /**
    * Updates an existing product by ID.
    */
   async updateProduct(id: string | number, productData: Partial<Product>): Promise<Product> {
-    let updatedProduct: Product;
-
     try {
       const res = await apiClient.put(`/products/${id}`, productData);
       if (res.data?.data) {
-        updatedProduct = normalizeProduct(res.data.data);
-      } else {
-        updatedProduct = normalizeProduct({ ...productData, id, updatedAt: new Date().toISOString() });
+        const updatedProduct = normalizeProduct(res.data.data);
+        const dataset = getLocalDataset();
+        const index = dataset.findIndex((p) => String(p.id) === String(id));
+        if (index !== -1) {
+          dataset[index] = { ...dataset[index], ...updatedProduct };
+          saveLocalDataset(dataset);
+        }
+        return updatedProduct;
       }
-    } catch (err) {
-      console.warn('API update product offline fallback activated');
-      updatedProduct = normalizeProduct({ ...productData, id, updatedAt: new Date().toISOString() });
+      throw new Error(res.data?.message || 'Failed to update product');
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Error updating product on server';
+      throw new Error(message);
     }
-
-    const dataset = getLocalDataset();
-    const index = dataset.findIndex((p) => String(p.id) === String(id));
-    if (index !== -1) {
-      dataset[index] = { ...dataset[index], ...updatedProduct };
-      saveLocalDataset(dataset);
-    } else {
-      saveLocalDataset([updatedProduct, ...dataset]);
-    }
-    return updatedProduct;
   },
 
   /**
@@ -299,14 +301,14 @@ export const productService = {
   async deleteProduct(id: string | number): Promise<boolean> {
     try {
       await apiClient.delete(`/products/${id}`);
-    } catch (err) {
-      console.warn('API delete product offline fallback activated');
+      const dataset = getLocalDataset();
+      const filtered = dataset.filter((p) => String(p.id) !== String(id));
+      saveLocalDataset(filtered);
+      return true;
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Error deleting product on server';
+      throw new Error(message);
     }
-
-    const dataset = getLocalDataset();
-    const filtered = dataset.filter((p) => String(p.id) !== String(id));
-    saveLocalDataset(filtered);
-    return true;
   },
 
   /**
@@ -341,24 +343,24 @@ export const productService = {
     const stringIds = ids.map((id) => String(id));
     try {
       await apiClient.post('/products/bulk', { productIds: stringIds, action });
-    } catch (err) {
-      console.warn('API bulk operation offline fallback activated');
+      const dataset = getLocalDataset();
+      let updated: Product[];
+
+      if (action === 'delete') {
+        updated = dataset.filter((p) => !stringIds.includes(String(p.id)));
+      } else {
+        const targetStatus = action === 'publish' ? 'published' : 'archived';
+        updated = dataset.map((p) =>
+          stringIds.includes(String(p.id)) ? { ...p, status: targetStatus, updatedAt: new Date().toISOString() } : p
+        );
+      }
+
+      saveLocalDataset(updated);
+      return true;
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Error executing bulk operation on server';
+      throw new Error(message);
     }
-
-    const dataset = getLocalDataset();
-    let updated: Product[];
-
-    if (action === 'delete') {
-      updated = dataset.filter((p) => !stringIds.includes(String(p.id)));
-    } else {
-      const targetStatus = action === 'publish' ? 'published' : 'archived';
-      updated = dataset.map((p) =>
-        stringIds.includes(String(p.id)) ? { ...p, status: targetStatus, updatedAt: new Date().toISOString() } : p
-      );
-    }
-
-    saveLocalDataset(updated);
-    return true;
   },
 
   /**

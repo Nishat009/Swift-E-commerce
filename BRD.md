@@ -176,3 +176,112 @@ The system serves two main user profiles:
 *   **Backend**: Node.js, Express.js (REST API, MVC Pattern), Mongoose ODM, Nodemailer (Email Engine).
 *   **Authentication & Security**: Google OAuth 2.0, TOTP validation (crypto module), JWT tokens, email OTP dispatch, HttpOnly cookies.
 *   **Database**: MongoDB (Collections: Products, Users, Categories, Orders, Notifications, Reviews, Campaigns, Audit Trails).
+
+
+---
+
+# Appendix A — Current Implementation Overview (as of 2026-10-01)
+
+A plain-language summary of what the project actually contains today, how it works, and where its data comes from. Where earlier sections of this document describe planned or aspirational features, this appendix reflects the code.
+
+## A1. What SwiftCart is
+A fashion e-commerce web app with a storefront, an admin console, a virtual dressing room, AI-style shopping helpers, and a "lucky draw" campaign system where customers buy tickets for a chance to win a prize.
+
+**Tech stack**
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, Zustand (state), Framer Motion, three.js |
+| Backend | Node.js, Express 4, Mongoose 8 (MongoDB), JWT, Helmet, rate limiting, Swagger docs at `/api-docs` |
+| Auth | Email/password, email OTP, Google sign-in, optional 2FA (authenticator app) |
+| Images | Local files in `public/`, Cloudinary upload support for admin |
+
+**How to run:** `npm run dev` starts the frontend (port 3001) and backend (port 5000) together. `npm run seed` (in `backend/`) fills the database with sample data. Required backend env vars: `MONGO_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET` (32+ characters each), `FRONTEND_URL`, `GOOGLE_CLIENT_ID`.
+
+## A2. What customers can do
+| Area | Pages | What happens |
+|---|---|---|
+| Browse | `/` landing page, `/products`, `/product/[id]` | Animated hero, category slider, lookbook, product grids, product detail with gallery, variants, reviews and AI helpers |
+| Buy | `/cart`, `/checkout`, `/orders` | Cart syncs to the server when logged in; coupons; order history and cancellation |
+| Account | `/auth/login`, `/auth/register`, `/profile`, `/addresses`, `/wishlist`, `/settings` | Login by password, OTP or Google; 2FA setup; saved addresses; wishlist |
+| Lucky draw | `/campaigns`, `/campaigns/[id]`, `/campaigns/my-tickets` | Buy a campaign product, receive tickets, see draw results and notifications |
+| Dressing room | `/dressing-room` | Mix and match clothes on an avatar (see A5) |
+
+Storefront extras: multi-currency (USD, EUR, GBP, BDT), language switcher, dark mode, product compare, newsletter signup.
+
+## A3. What admins can do
+- **`/admin`** is a single large console covering: dashboard stats (orders, revenue, low stock, 6-month revenue), products, orders and status changes, users (change role, delete, view their cart/wishlist), reviews, newsletter, currencies, languages, 2FA, and the full campaign toolkit (create, edit, pause, draw winner, analytics, audit trail, activity logs).
+- **`/dashboard/products/...`** is a product create/edit workflow (form and table) for sellers.
+- Roles are `customer` and `admin`. Admin routes are protected on the server.
+
+## A4. How the key flows work
+**Checkout and orders**
+1. Prices are always re-read from the database (never trusted from the browser), and stock is checked.
+2. Coupons are applied (percentage or flat amount; must be active and unexpired). Seeded coupons: `WELCOME10`, `SUMMER20`, `FREESHIP`.
+3. Tax is a flat 10%. Shipping is free over $100, otherwise $10.
+4. Stock is reduced atomically; if anything fails it is rolled back. Cancelling an order puts stock back.
+5. Order statuses: Pending, Processing, Confirmed, Packed, Shipped, Delivered, Cancelled, Returned.
+6. There is no real payment gateway; payment status starts as "Pending".
+
+**Lucky draw**
+1. Admin creates a campaign: a product, a prize, a ticket limit, per-user limits, and a draw date.
+2. A customer buys the product and receives numbered tickets (`SWIFT-TKT-...`), paid by a simulated wallet. Ticket counts are updated atomically so the limit cannot be exceeded.
+3. Admin presses "draw": one ticket is picked at random, the campaign is marked completed, and the winner and all other participants are notified.
+4. Every action is written to an activity log and an audit trail.
+
+**Authentication**
+- Short-lived access token (15 minutes) plus a 7-day refresh token in an httpOnly cookie. The frontend refreshes automatically on a 401.
+- Google sign-in uses a one-time challenge and server-side token verification. Accounts can be linked.
+- 2FA uses authenticator-app codes with recovery codes.
+- Protections: Helmet, CORS whitelist, request validation, rate limiting (300 per 15 minutes globally, stricter on sign-in), bcrypt password hashing.
+
+## A5. Dressing room and AI features
+- **Dressing room:** runs entirely in the browser. Clothes are layered on an SVG or 3D avatar, with undo/redo, a quiz-based stylist, a keyword chat assistant, and style challenges with badges. Nothing is saved to the server, only to the browser.
+- **AI smart search:** type something like "black shirt for office under 2500" and it extracts colour, category, occasion and price. This is rule-based logic written in `services/aiService.ts`, not a real language model, and it searches the local static catalogue rather than the database.
+- Other AI widgets (picks for you, sales advisor, outfit builder, review analyzer, floating stylist) are also simulated with rules and short delays.
+
+## A6. Data: what comes from the database and what does not
+**From the database (MongoDB)**
+- Products, categories, reviews, coupons, carts, wishlists, orders, users and addresses
+- Campaigns, tickets, notifications, activity logs, audit trail
+- Currencies and languages (defaults are seeded automatically on first server start)
+
+**Built into the frontend (not editable from admin)**
+- Hero section animation and its images
+- The "lookbook" looks (images in `public/images/dress-room/`)
+- Dressing-room clothing catalogue (`data/fashionCatalog.ts`) and chat/stylist content
+- All AI behaviour, the `/products` page's mock data, and text translations
+- Fallbacks: if the API is down, the app shows the local catalogue and a default category list
+
+**Images:** category images are stored in the database as paths such as `/images/categories/dress.jpg`. Product images come from product records.
+
+**Seed data (`npm run seed`) — warning: it deletes existing users, products, categories, coupons and reviews first.** It creates 17 categories (9 fashion plus home/furniture), fashion products plus sample furniture, 20 users (including `admin@email.com` and `user@email.com`, password `12345678`), 3 coupons, and random reviews.
+
+## A7. Main database collections
+| Collection | Purpose |
+|---|---|
+| User | Account, role, addresses, 2FA and OTP data |
+| Product | Pricing, stock, images, variants, ratings, flags (featured, trending, new) |
+| Category | Name, image, featured flag |
+| Cart / Wishlist | Per-user items |
+| Order | Items, totals, status, shipping address |
+| Coupon, Review | Discounts; ratings and comments |
+| Campaign, Ticket | Lucky draw campaigns and purchased tickets |
+| Notification | In-app messages to users |
+| ActivityLog, AuditTrail | Admin actions and change history |
+| AuthChallenge | Short-lived Google/2FA login challenges |
+| Currency, Language, Newsletter | Localisation settings and subscribers |
+
+## A8. Known gaps and issues (found during code review)
+These are differences between the documents and the code, or likely bugs. They have not been fixed yet.
+1. **No emails are sent.** The email service file is empty. Order confirmation emails, password reset emails and OTP emails described elsewhere in the docs do not exist; reset tokens and OTP codes are only returned in the API response in development mode.
+2. **No payment gateway.** Payments and the admin "monitoring" numbers (CPU, RAM, bkash/nagad/stripe status) are fake or simulated.
+3. **Likely bug in ticket purchase:** the activity log written when buying tickets uses the wrong field name (`user` instead of `adminUser`), which can make the purchase fail and roll back.
+4. **Order route order:** the admin "all orders" route in `/api/orders` is probably shadowed by `/:id`. The admin console may need `/api/admin/orders` instead.
+5. **Reviews are always marked "verified"** with no check that the user bought the product.
+6. **Wishlist data is stored twice** (inside the User record and in a separate Wishlist collection).
+7. **AuditTrail model** has a broken serialiser (`delete _id` on undeclared variables).
+8. **Winner video** in lucky draw is a hard-coded sample link.
+9. **Seed script mismatch:** `seed_campaigns.js` expects a user `customer@email.com` that `seed.js` does not create.
+10. **A broken image file:** `public/images/dress-room/raw-indigo-jeans-product.jpg` is not a real image.
+11. **Docs drift:** README mixes ports 5000/5001; order statuses in README omit Confirmed, Packed, Returned; some features in sections 1–4 above (360° spin, CSV import, autosave) were not verified in code.
+12. **Dead code:** the avatar GLB proxy route is commented out.

@@ -34,7 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${playfair.variable} ${cormorant.variable} antialiased min-h-screen flex flex-col bg-background text-foreground`}>
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${playfair.variable} ${cormorant.variable} antialiased min-h-screen flex flex-col bg-background text-foreground`}
+      >
         <AuthProvider>
           <ToastProvider>
             <LayoutWrapper>{children}</LayoutWrapper>

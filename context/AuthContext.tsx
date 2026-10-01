@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import apiClient, { setAccessToken } from '@/lib/apiClient';
 import { User } from '@/types';
 import { useCartStore } from '@/stores/cartStore';
+import { isAxiosError } from 'axios';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ require2FA?: boolean; userId?: string } | void>;
   register: (name: string, email: string, password: string, redirectUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (
@@ -29,8 +31,9 @@ interface AuthContextType {
   verify2FA: (userId: string, code: string, rememberMe?: boolean, redirectUrl?: string) => Promise<void>;
   requestOTP: (email: string) => Promise<{ testOtp?: string } | void>;
   verifyOTP: (email: string, otp: string, rememberMe?: boolean, redirectUrl?: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
-  forgotPassword: (email: string) => Promise<{ testOtp?: string } | void>;
-  resetPassword: (email: string, otp: string, newPassword: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<string>;
+  forgotPassword: (email: string) => Promise<{ testOtp?: string }>;
+  resetPassword: (email: string, token: string, newPassword: string) => Promise<string>;
   refreshUser: () => Promise<void>;
 }
 
@@ -155,34 +158,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(response.data?.message || 'Login failed');
       }
     } catch (err: any) {
-      // Demo fallback if backend server is offline
-      if (!err.response || err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
-        const isAdmin = email.toLowerCase().includes('admin');
-        const demoUser: User = {
-          id: isAdmin ? 'usr-admin-demo' : 'usr-test-demo',
-          name: isAdmin ? 'SwiftCart Administrator' : 'Test Customer User',
-          email,
-          role: isAdmin ? 'admin' : 'customer'
-        };
-        const demoToken = `demo_token_${Date.now()}`;
-        setAccessToken(demoToken);
-        setUser(demoUser);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', demoToken);
-          if (rememberMe) {
-            localStorage.setItem('rememberMe', 'true');
-          } else {
-            localStorage.removeItem('rememberMe');
-          }
-          sessionStorage.setItem('session_active', 'true');
-        }
-        redirectUser(demoUser.role, redirectUrl);
-        return;
-      }
-
       const msg = err.response?.data?.message || err.message || 'Login failed. Please check your credentials.';
       setError(msg);
       throw new Error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async (credential: string, rememberMe = false) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiClient.post('/auth/google', { credential, rememberMe });
+      if (!response.data?.success) throw new Error(response.data?.message || 'Google sign-in failed.');
+      if (response.data.data.require2FA) {
+        return { require2FA: true, userId: response.data.data.userId as string };
+      }
+      const { user: loggedInUser, accessToken } = response.data.data;
+      setAccessToken(accessToken);
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.removeItem('refreshToken');
+      if (rememberMe) localStorage.setItem('rememberMe', 'true');
+      else localStorage.removeItem('rememberMe');
+      sessionStorage.setItem('session_active', 'true');
+      setUser(loggedInUser);
+      await useCartStore.getState().syncGuestCart();
+      await useCartStore.getState().loadCart();
+      router.push(loggedInUser.role === 'admin' ? '/admin' : '/dashboard');
+    } catch (err: unknown) {
+      const message = (isAxiosError(err) && err.response?.data?.message) ||
+        (err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -225,6 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setLoading(true);
+    window.google?.accounts.id.disableAutoSelect();
     try {
       await apiClient.post('/auth/logout').catch(() => {});
     } catch (err) {
@@ -386,20 +395,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const forgotPassword = async (email: string) => {
+  const requestPasswordReset = async (email: string): Promise<string> => {
     setLoading(true);
     setError(null);
     try {
       const response = await apiClient.post('/auth/forgot-password', { email });
-      if (response.data?.success) {
-        return {
-          testOtp: response.data.data?.testOtp
-        };
-      } else {
-        throw new Error(response.data?.message || 'Failed to send reset code');
-      }
+      return response.data?.message || 'Password reset instructions sent to your email.';
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to send reset code.';
+      const msg = err.response?.data?.message || err.message || 'Failed to request password reset.';
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -407,16 +410,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const resetPassword = async (email: string, otp: string, newPassword: string) => {
+  const forgotPassword = async (email: string) => {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return { testOtp: response.data?.data?.resetToken as string | undefined };
+  };
+
+  const resetPassword = async (_email: string, token: string, newPassword: string): Promise<string> => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.post('/auth/reset-password', { email, otp, newPassword });
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Password reset failed');
-      }
+      const response = await apiClient.post('/auth/reset-password', { token, newPassword });
+      return response.data?.message || 'Password reset successfully.';
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Password reset failed.';
+      const msg = err.response?.data?.message || err.message || 'Failed to reset password.';
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -433,6 +439,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         error,
         login,
+        loginWithGoogle,
         register,
         logout,
         updateProfile,
@@ -440,6 +447,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verify2FA,
         requestOTP,
         verifyOTP,
+        requestPasswordReset,
         forgotPassword,
         resetPassword,
         refreshUser: checkSession,

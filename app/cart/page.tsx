@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
+import apiClient from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -80,19 +81,26 @@ export default function CartPage() {
     toast.success('Item removed from saved list.');
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
-    if (code === 'SAVE20') {
-      setActiveCoupon({ code: 'SAVE20', discount: 0.2 }); // 20% off
-      toast.success('Coupon applied: 20% discount on products!');
-      setCouponCode('');
-    } else if (code === 'FREESHIP') {
-      setActiveCoupon({ code: 'FREESHIP', discount: 0 }); // free shipping handled below
-      toast.success('Coupon applied: Free Shipping!');
-      setCouponCode('');
-    } else {
-      toast.error('Invalid coupon code. Try "SAVE20" or "FREESHIP".');
+    if (!code) return;
+    try {
+      const res = await apiClient.get(`/coupons/${code}`);
+      if (res.data?.success && res.data.data) {
+        const coupon = res.data.data;
+        const discountVal = coupon.percentage ? coupon.percentage / 100 : (coupon.amount || 0);
+        setActiveCoupon({ code: coupon.code, discount: discountVal });
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('applied_coupon', coupon.code);
+        }
+        toast.success(`Coupon "${coupon.code}" applied!`);
+        setCouponCode('');
+      } else {
+        toast.error('Invalid coupon code.');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Invalid or expired coupon code.');
     }
   };
 
