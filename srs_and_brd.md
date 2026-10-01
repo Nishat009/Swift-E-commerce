@@ -65,6 +65,7 @@ graph TD
 - **Database**: MongoDB (Mongoose ODM 8.3).
 - **Image hosting**: Cloudinary API.
 - **Authentication**: JWT token headers & cookies.
+- **Google Authentication**: Google Identity Services with a browser-bound nonce challenge, verified ID tokens, optional 2FA, and HttpOnly refresh cookies.
 
 ---
 
@@ -84,8 +85,12 @@ graph TD
 - **Passwordless Email OTP**: Secure credentials-free login via time-limited code delivery to customer email.
 - **Multi-Currency Localizer**: Navbar selector converts default USD catalog values into EUR (€, rate: 0.92) or GBP (£, rate: 0.78) and formats pricing across cards, detail views, sticky bars, cart summaries, and compare panels.
 - **Persistent Guest Cart Sync**: Instantly upload guest cart items to the database cart upon successful login.
+- **Google Sign-In Recovery**: Google initialization failures, missing configuration, invalid provider credentials, and expired challenges must leave email login usable and provide a retry action.
 
 ### 3.2 Product Catalog & Interactive Grid
+- **Responsive Homepage Catalog**: Product image frames must remain visually wide and stable at 320px, 375px, 390px, 430px, 768px, 1024px, 1280px, 1366px, 1440px, and 1920px viewports.
+- **Responsive Category Slider**: Category cards display two columns on small screens and four on larger screens at the supported viewport widths, with no horizontal overflow and full-object image presentation.
+- **Responsive Homepage Navigation**: The mobile menu, brand mark, and core account/cart controls must remain accessible without horizontal overflow; secondary selectors may collapse at smaller breakpoints.
 - **Enterprise Multi-Step Creation Workflow (`ProductForm.tsx`)**:
   - Full-page dedicated routes: `/dashboard/products/create` and `/dashboard/products/:id/edit`.
   - 10 form sections with sticky right sidebar jump navigation: *Basic Info, Media, Pricing, Inventory, Variants, Shipping, SEO, Related Products, Product Attributes, Publish*.

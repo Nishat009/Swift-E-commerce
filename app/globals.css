@@ -1,5 +1,181 @@
 @import "tailwindcss";
 
+.fashion-stage { isolation: isolate; }
+.fashion-stage::after {
+  content: ''; position: absolute; inset: 0; z-index: 40; pointer-events: none;
+  background: #17110f; opacity: 0; transition: opacity 1s ease-in-out;
+}
+.fashion-stage.is-leaving::after { opacity: 1; }
+.fashion-dust {
+  background-image:
+    radial-gradient(circle, #f1d5aa 0 1.5px, transparent 2px),
+    radial-gradient(circle, #d9b783 0 1px, transparent 1.5px);
+  background-size: 130px 130px, 80px 80px;
+  background-position: 0 0, 40px 30px;
+  opacity: .35;
+  animation: fashion-dust 15s linear forwards;
+}
+.fashion-rule { display: block; height: 1px; width: 0; background: linear-gradient(90deg, transparent, #d9b783); animation: fashion-rule 2.2s ease-out .2s forwards; }
+.fashion-rule:last-child { transform: scaleX(-1); }
+.fashion-shimmer {
+  background: linear-gradient(100deg, #f8f1e8 35%, #e3b86f 50%, #f8f1e8 65%) 200% 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: fashion-shimmer 2.8s ease-in-out .3s both;
+}
+.fashion-tagline { animation: fashion-tagline 1.6s ease-out .6s both; }
+.fashion-in { animation: fashion-rise .9s cubic-bezier(.2,.8,.2,1) both; }
+.fashion-in-1 { animation-delay: 3.6s; } .fashion-in-2 { animation-delay: 3.8s; } .fashion-in-3 { animation-delay: 4.1s; }
+.fashion-in-4 { animation-delay: 4.3s; } .fashion-in-5 { animation-delay: 4.6s; }
+@keyframes fashion-dust { from { background-position: 0 0, 40px 30px; opacity: .15; } 20% { opacity: .5; } to { background-position: 60px -500px, -30px -380px; opacity: .25; } }
+@keyframes fashion-rule { to { width: clamp(40px, 8vw, 120px); } }
+@keyframes fashion-shimmer { from { background-position: 200% 0; } to { background-position: -100% 0; } }
+@keyframes fashion-tagline { from { opacity: 0; letter-spacing: .6em; } to { opacity: 1; letter-spacing: .22em; } }
+@keyframes fashion-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+.fashion-spotlight {
+  background: radial-gradient(ellipse at 65% 47%, #a7978660 0, #4c39322b 32%, transparent 68%);
+  opacity: .3;
+  animation: fashion-light 5s ease-out forwards;
+}
+.fashion-fabric-detail,
+.fashion-ribbon {
+  background-image: url('/hero-atelier-fabric.webp');
+  background-size: cover;
+}
+.fashion-fabric-detail {
+  background-position: center 44%;
+  mask-image: radial-gradient(ellipse at 66% 49%, black 4%, #000b 24%, transparent 57%);
+  opacity: .72;
+  transform: scale(.9);
+  animation: fashion-fabric 5s ease-in-out forwards;
+}
+.fashion-ribbon {
+  left: 57%; top: 13%; width: min(29vw, 390px); height: 77vh;
+  background-position: center;
+  border-radius: 38% 62% 47% 53% / 16% 34% 66% 84%;
+  box-shadow: inset 12px 0 28px #f0d9ad45, 20px 25px 60px #080504a6;
+  opacity: 0;
+  filter: saturate(.85);
+  will-change: transform, opacity;
+}
+.fashion-ribbon-one { animation: fashion-ribbon-left 5s cubic-bezier(.22,.8,.23,1) forwards; }
+.fashion-ribbon-two { animation: fashion-ribbon-right 5s cubic-bezier(.22,.8,.23,1) forwards; }
+.fashion-ribbon-three { animation: fashion-ribbon-down 5s cubic-bezier(.22,.8,.23,1) forwards; }
+.fashion-fragment {
+  position: absolute;
+  left: 66%; top: 48%;
+  width: var(--fragment-size); height: calc(var(--fragment-size) * 1.5);
+  border-radius: 55% 45% 60% 40%;
+  background: linear-gradient(135deg, #fff2d8 0%, #d4b38b 44%, #805438 100%);
+  box-shadow: 0 0 12px #f5d6adac;
+  opacity: 0;
+  animation: fashion-fragment-flight 1.9s cubic-bezier(.18,.75,.28,1) calc(.72s + var(--fragment-delay)) both;
+  will-change: transform, opacity;
+}
+.fashion-fragment:nth-child(3n) { background-image: url('/hero-atelier-fabric.webp'); background-size: cover; }
+.fashion-fragment-thread {
+  width: 2px; height: calc(var(--fragment-size) * 4);
+  background: linear-gradient(#fff3dc, #ac7953);
+  border-radius: 10px;
+}
+.fashion-stitch {
+  left: 66%; top: 0; width: 2px; height: 0;
+  background: linear-gradient(transparent, #f9e1bf, #b38969 80%, transparent);
+  box-shadow: 0 0 18px #eac99d;
+  animation: fashion-stitch-fall 5s ease-in-out forwards;
+}
+.fashion-model {
+  background: url('/hero-atelier-desktop.webp') right top / auto 100% no-repeat;
+  mask-image: linear-gradient(90deg, transparent 0, #000 22%);
+  clip-path: circle(0 at 65% 49%);
+  opacity: 0;
+  transform: scale(1.16);
+  animation: fashion-garment-reveal 5s cubic-bezier(.22,.74,.22,1) forwards;
+  will-change: transform, opacity, clip-path;
+}
+.fashion-scrim {
+  background: linear-gradient(90deg, #17110ff2 0%, #17110fa6 36%, transparent 72%), linear-gradient(0deg, #17110f55, transparent 35%);
+  opacity: 0;
+  animation: fashion-scrim-in 5s linear forwards;
+}
+.fashion-opening { animation: fashion-title-out 5s ease-in-out forwards; }
+.fashion-final-copy { opacity: 0; animation: fashion-final-in 5s ease-out forwards; }
+.fashion-final-copy:focus-within { opacity: 1 !important; }
+.fashion-counter { opacity: 0; animation: fashion-final-in 5s ease-out forwards; }
+
+@keyframes fashion-light {
+  0% { opacity: .2; transform: scale(.7); }
+  24% { opacity: 1; transform: scale(1.15); }
+  60% { opacity: .7; transform: scale(1.35); }
+  100% { opacity: .45; transform: scale(1.1); }
+}
+@keyframes fashion-fabric {
+  0%, 15% { opacity: .55; transform: scale(.92) rotate(-3deg); }
+  32% { opacity: 1; transform: scale(1.3) rotate(2deg); }
+  52%, 100% { opacity: 0; transform: scale(1.8) rotate(-12deg); }
+}
+@keyframes fashion-ribbon-left {
+  0%, 17% { opacity: 0; transform: translate(0, 10vh) rotate(4deg) scale(.24); }
+  30% { opacity: 1; transform: translate(-18vw, -2vh) rotate(-35deg) scale(1); }
+  51% { opacity: .8; transform: translate(-39vw, -24vh) rotate(-70deg) scale(1.2); }
+  68%, 100% { opacity: 0; transform: translate(-53vw, -43vh) rotate(-95deg) scale(.55); }
+}
+@keyframes fashion-ribbon-right {
+  0%, 18% { opacity: 0; transform: translate(0, 5vh) rotate(-5deg) scale(.2); }
+  33% { opacity: .9; transform: translate(15vw, -9vh) rotate(39deg) scale(.85); }
+  54% { opacity: .65; transform: translate(32vw, -28vh) rotate(85deg) scale(1.1); }
+  70%, 100% { opacity: 0; transform: translate(47vw, -42vh) rotate(120deg) scale(.4); }
+}
+@keyframes fashion-ribbon-down {
+  0%, 21% { opacity: 0; transform: translate(0, 0) rotate(0) scale(.15); }
+  36% { opacity: .9; transform: translate(0, 7vh) rotate(11deg) scale(.8); }
+  56% { opacity: .45; transform: translate(-4vw, 29vh) rotate(30deg) scale(1); }
+  70%, 100% { opacity: 0; transform: translate(-8vw, 48vh) rotate(48deg) scale(.5); }
+}
+@keyframes fashion-fragment-flight {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0) scale(.15); }
+  16% { opacity: .95; }
+  66% { opacity: .85; }
+  100% { opacity: 0; transform: translate(var(--fragment-x), var(--fragment-y)) rotate(var(--fragment-rotation)) scale(.6); }
+}
+@keyframes fashion-stitch-fall {
+  0%, 40% { height: 0; opacity: 0; }
+  51% { height: 49vh; opacity: 1; }
+  68% { height: 66vh; opacity: .75; }
+  81%, 100% { height: 66vh; opacity: 0; }
+}
+@keyframes fashion-garment-reveal {
+  0%, 37% { opacity: 0; clip-path: circle(0 at 65% 49%); transform: scale(1.16); filter: brightness(.52); }
+  55% { opacity: .8; clip-path: circle(24% at 65% 49%); transform: scale(1.09); filter: brightness(.73); }
+  78% { opacity: 1; clip-path: circle(85% at 65% 49%); transform: scale(1.02); filter: brightness(1); }
+  100% { opacity: 1; clip-path: circle(130% at 65% 49%); transform: scale(1); filter: brightness(1); }
+}
+@keyframes fashion-title-out {
+  0%, 15% { opacity: 1; transform: translateY(0) scale(.97); }
+  25% { opacity: 1; transform: translateY(0) scale(1); }
+  43%, 100% { opacity: 0; transform: translateY(-5vh) scale(1.05); }
+}
+@keyframes fashion-scrim-in { 0%, 65% { opacity: 0; } 90%, 100% { opacity: 1; } }
+@keyframes fashion-final-in {
+  0%, 72% { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 767px) {
+  .fashion-model { background-size: cover; mask-image: none; background-image: url('/hero-atelier-portrait.webp'); background-position: 52% center; }
+  .fashion-fabric-detail { background-position: 58% center; }
+  .fashion-ribbon { left: 38%; width: 52vw; height: 67vh; }
+  .fashion-fragment { left: 50%; top: 44%; }
+  .fashion-stitch { left: 50%; }
+  .fashion-scrim { background: linear-gradient(0deg, #17110ff7 0%, #17110f9c 38%, transparent 80%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fashion-stage *, .fashion-stage *::before, .fashion-stage *::after { animation: none !important; transition: none !important; }
+  .fashion-in, .fashion-shimmer, .fashion-tagline { opacity: 1 !important; }
+  .fashion-dust, .fashion-spotlight, .fashion-fabric-detail, .fashion-ribbon, .fashion-fragments, .fashion-stitch, .fashion-opening { display: none; }
+  .fashion-model { opacity: 1; clip-path: none; transform: none; }
+  .fashion-scrim, .fashion-final-copy, .fashion-counter { opacity: 1; transform: none; }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {

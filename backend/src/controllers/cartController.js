@@ -94,7 +94,7 @@ const getCart = async (req, res, next) => {
 // @route   POST /api/cart
 // @access  Private
 const addToCart = async (req, res, next) => {
-  const { productId, quantity = 1 } = req.body;
+  const { productId, quantity = 1, variant } = req.body;
 
   try {
     const product = await findProductFlexible(productId);
@@ -111,12 +111,21 @@ const addToCart = async (req, res, next) => {
       cart = await Cart.create({ user: req.user.id, products: [], subtotal: 0 });
     }
 
-    const itemIndex = cart.products.findIndex((item) => item.product && item.product.toString() === product._id.toString());
+    const variantId = variant?.id || (typeof variant === 'string' ? variant : '');
+    const itemIndex = cart.products.findIndex((item) => {
+      const sameProd = item.product && item.product.toString() === product._id.toString();
+      const itemVariantId = item.variant?.id || '';
+      return sameProd && itemVariantId === variantId;
+    });
 
     if (itemIndex > -1) {
       cart.products[itemIndex].quantity += Number(quantity);
     } else {
-      cart.products.push({ product: product._id, quantity: Number(quantity) });
+      cart.products.push({
+        product: product._id,
+        quantity: Number(quantity),
+        variant: typeof variant === 'object' && variant ? variant : { id: variantId }
+      });
     }
 
     await recalculateCart(cart);
@@ -133,7 +142,7 @@ const addToCart = async (req, res, next) => {
 // @route   PUT /api/cart
 // @access  Private
 const updateCartItem = async (req, res, next) => {
-  const { productId, quantity } = req.body;
+  const { productId, quantity, variantId = '' } = req.body;
 
   if (quantity <= 0) {
     req.body.productId = productId;
@@ -155,7 +164,11 @@ const updateCartItem = async (req, res, next) => {
       return sendError(res, 'Cart not found', 404);
     }
 
-    const itemIndex = cart.products.findIndex((item) => item.product && item.product.toString() === product._id.toString());
+    const itemIndex = cart.products.findIndex((item) => {
+      const sameProd = item.product && item.product.toString() === product._id.toString();
+      const itemVarId = item.variant?.id || '';
+      return variantId ? (sameProd && itemVarId === variantId) : sameProd;
+    });
 
     if (itemIndex > -1) {
       cart.products[itemIndex].quantity = Number(quantity);
@@ -175,6 +188,7 @@ const updateCartItem = async (req, res, next) => {
 // @access  Private
 const removeFromCart = async (req, res, next) => {
   const productId = req.params.productId || req.body.productId;
+  const variantId = req.query.variantId || req.body.variantId || '';
 
   try {
     const cart = await Cart.findOne({ user: req.user.id });
@@ -185,7 +199,15 @@ const removeFromCart = async (req, res, next) => {
     const product = await findProductFlexible(productId);
     const targetIdStr = product ? product._id.toString() : String(productId);
 
-    cart.products = cart.products.filter((item) => item.product && item.product.toString() !== targetIdStr);
+    cart.products = cart.products.filter((item) => {
+      if (!item.product) return false;
+      const sameProd = item.product.toString() === targetIdStr;
+      if (!sameProd) return true;
+      if (variantId) {
+        return (item.variant?.id || '') !== variantId;
+      }
+      return false;
+    });
 
     await recalculateCart(cart);
     await cart.populate('products.product');

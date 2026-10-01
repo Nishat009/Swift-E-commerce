@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { ShieldCheck, ShieldAlert, Key, Award, Clock } from 'lucide-react';
+import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
 export default function SettingsPage() {
   const { user, updateProfile, refreshUser } = useAuth();
@@ -145,6 +146,17 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-8">
+          <div className="border border-gray-200 dark:border-gray-800 rounded-3xl p-6 space-y-4">
+            <h3 className="font-serif font-bold">Google account</h3>
+            {user?.googleConnected ? (
+              <p className="text-sm text-emerald-600">Google is connected. You can sign in using your Google account.</p>
+            ) : (
+              <>
+                <p className="text-sm text-text-muted">Connect Google using the same email as your account ({user?.email}). Your orders, cart and security settings will stay with this account.</p>
+                {user && <GoogleSignIn mode="link" />}
+              </>
+            )}
+          </div>
           
           {/* Two-Factor Authentication Box */}
           <div className="border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] p-6 space-y-6">

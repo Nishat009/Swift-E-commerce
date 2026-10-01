@@ -303,7 +303,15 @@ export default function ProductDetailPage() {
         price: calculatedPrice,
         stock: currentStock,
       };
-      addItem(customProductPayload, quantity);
+      const primaryVariant = Object.values(selectedVariants)[0];
+      const variantPayload = primaryVariant ? {
+        id: primaryVariant.id || `${product.id}-${activeVariantSummary}`,
+        sku: primaryVariant.sku || `${product.sku || product.SKU || 'SKU'}-${activeVariantSummary}`,
+        price: calculatedPrice,
+        stock: currentStock,
+        attributes: selectedVariants as any,
+      } : undefined;
+      addItem(customProductPayload, quantity, variantPayload as any);
       toast.success(`Added ${quantity} x "${product.title}" (${activeVariantSummary || 'Standard'}) to cart!`);
     }
   };

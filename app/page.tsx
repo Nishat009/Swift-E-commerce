@@ -15,6 +15,7 @@ import apiClient from '@/lib/apiClient';
 import AISmartSearch from '@/features/ai/search/AISmartSearch';
 import AIPicksForYou from '@/features/ai/recommendation/AIPicksForYou';
 import ZaraLookbookSection from '@/components/ui/ZaraLookbookSection';
+import CinematicFashionHero from '@/components/ui/CinematicFashionHero';
 
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -61,7 +62,7 @@ export default function Home() {
               categoryMap.set(p.category.toLowerCase(), {
                 name: p.category.charAt(0).toUpperCase() + p.category.slice(1),
                 description: `Explore our curated collection of ${p.category}.`,
-                image: p.thumbnail || p.images?.[0] || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop',
+                image: p.thumbnail || p.images?.[0] || '/images/dress-room/camel-wool-trench-model.jpg',
                 slug: p.category,
               });
             }
@@ -104,163 +105,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Improved Fashion & AI Hero Section with Editorial Background Image */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden py-12 lg:py-16 bg-[#FAF8F5] dark:bg-zinc-950">
-        
-        {/* Full-width Luxury Editorial Background Image Layer */}
-        <div className="absolute inset-0 z-0 select-none pointer-events-none">
-          <Image
-            src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1920&q=85"
-            alt="SwiftCart Atelier High Fashion Background"
-            fill
-            priority
-            className="object-cover object-center opacity-30 dark:opacity-20 scale-105 transition-transform duration-1000"
-          />
-          {/* Subtle Directional Gradients for Crisp Text Contrast */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#FAF8F5] via-[#FAF8F5]/85 to-transparent dark:from-zinc-950 dark:via-zinc-950/85 dark:to-transparent"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-[#FAF8F5] via-transparent to-[#FAF8F5]/50 dark:from-zinc-950 dark:via-transparent dark:to-zinc-950/50"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-            
-            {/* Left Column: Brand Messaging, Dual CTAs & Search */}
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              variants={containerVariants}
-              className="lg:col-span-7 space-y-6 text-left"
-            >
-              <motion.div variants={itemVariants} className="inline-block">
-                <span className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold tracking-widest text-[#8b6f47] dark:text-[#c9a96b] uppercase bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 px-4 py-2 rounded-full border border-[#8b6f47]/20">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI-Powered Fashion Platform
-                </span>
-              </motion.div>
-
-              <motion.h1
-                variants={itemVariants}
-                className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] leading-[1.12]"
-              >
-                Your Fashion. Your Style.{' '}
-                <br />
-                <span className="text-[#8b6f47] dark:text-[#c9a96b] italic font-serif">Powered by AI.</span>
-              </motion.h1>
-
-              <motion.p
-                variants={itemVariants}
-                className="font-elegant text-lg sm:text-xl md:text-2xl text-[#6b6b6b] dark:text-gray-300 max-w-xl leading-relaxed"
-              >
-                Shop curated fashion, build complete outfits, and use our AI 3D virtual dressing room to discover styles made just for you.
-              </motion.p>
-
-              {/* Dual Action CTAs */}
-              <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-4 pt-2">
-                <Link href="/products">
-                  <Button
-                    size="lg"
-                    className="bg-[#8b6f47] hover:bg-[#6b5435] text-white px-8 py-4 rounded-full font-medium tracking-wide shadow-md hover:shadow-lg flex items-center gap-2.5 text-xs sm:text-sm"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    Shop Now
-                  </Button>
-                </Link>
-
-                <Link href="/dressing-room">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="border-2 border-[#8b6f47] text-[#8b6f47] dark:text-[#c9a96b] dark:border-[#c9a96b] hover:bg-[#8b6f47] hover:text-white dark:hover:bg-[#c9a96b] dark:hover:text-zinc-950 px-7 py-4 rounded-full font-medium tracking-wide flex items-center gap-2.5 text-xs sm:text-sm"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Try AI Dressing Room
-                  </Button>
-                </Link>
-              </motion.div>
-
-              {/* AI Smart Search Bar */}
-              <motion.div variants={itemVariants} className="pt-2 max-w-xl">
-                <AISmartSearch />
-              </motion.div>
-            </motion.div>
-
-            {/* Right Column: Fashion Visual Composition */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="lg:col-span-5 relative flex justify-center items-center"
-            >
-              {/* Visual Card Container */}
-              <div className="relative w-full max-w-[420px] aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl border border-[#e8e0d6]/80 dark:border-zinc-800 bg-stone-100 dark:bg-zinc-900 group">
-                <Image
-                  src="/hero-fashion.jpg"
-                  alt="SwiftCart AI Fashion & Virtual Styling"
-                  fill
-                  priority
-                  className="object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                />
-
-                {/* Subtle gradient vignette overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/15 pointer-events-none" />
-
-                {/* Floating AI Try-On Pill (Top Left) */}
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                  className="absolute top-4 left-4 z-20 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-white/40 dark:border-zinc-700/50 flex items-center gap-2.5"
-                >
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8b6f47] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#8b6f47]"></span>
-                  </span>
-                  <div className="text-left">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b6f47] dark:text-[#c9a96b]">AI Virtual Try-On</p>
-                    <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Live 3D Fitting Ready</p>
-                  </div>
-                </motion.div>
-
-                {/* Runway Film Trigger Pill (Top Right) */}
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowRunwayVideo(true)}
-                  className="absolute top-4 right-4 z-20 bg-black/75 hover:bg-black/90 backdrop-blur-md text-white px-3.5 py-2 rounded-2xl shadow-lg border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
-                >
-                  <div className="w-5 h-5 rounded-full bg-[#c9a96b] text-zinc-950 flex items-center justify-center">
-                    <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-                  </div>
-                  <span className="text-[11px] font-bold tracking-wide">Runway Film</span>
-                </motion.button>
-
-                {/* Bottom Overlay Info Tag */}
-                <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/90 dark:bg-zinc-950/85 backdrop-blur-md p-4 rounded-2xl border border-white/40 dark:border-zinc-800 shadow-xl flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">Curated Autumn Drop</span>
-                    <h4 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">Tailored Cashmere Ensemble</h4>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowRunwayVideo(true)}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold bg-zinc-800 hover:bg-zinc-700 text-white px-2.5 py-1.5 rounded-full transition-colors cursor-pointer"
-                      title="Watch Runway Film"
-                    >
-                      <Film className="w-3 h-3" />
-                    </button>
-                    <Link href="/dressing-room">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#8b6f47] hover:bg-[#6b5435] text-white px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-sm">
-                        <Wand2 className="w-3 h-3" />
-                        Try On
-                      </span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-          </div>
-        </div>
-      </section>
+      <CinematicFashionHero />
 
       {/* AI Feature Highlight Banner: AI Virtual Dressing Room */}
       <section className="py-8 sm:py-10 bg-background border-y border-zinc-150/40 dark:border-zinc-800/40">
@@ -317,7 +162,7 @@ export default function Home() {
             whileInView="visible"
             viewport={{ once: true }}
             variants={containerVariants}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8"
           >
             {/* Experience 1: Shop */}
             <motion.div
@@ -385,7 +230,7 @@ export default function Home() {
         {/* Luxury Architectural / Plaster Texture Background Image */}
         <div className="absolute inset-0 pointer-events-none select-none z-0">
           <Image
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=80"
+            src="/hero-atelier-fabric.webp"
             alt="Atelier Background Texture"
             fill
             className="object-cover opacity-20 dark:opacity-15 mix-blend-multiply dark:mix-blend-overlay"

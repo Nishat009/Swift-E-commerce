@@ -22,6 +22,20 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
 const { registerRules, loginRules, profileRules, forgotPasswordRules, resetPasswordRules } = require('../validations/authValidation');
+const rateLimit = require('express-rate-limit');
+const { requireGoogleOrigin, googleChallenge, verifyGoogleCredential, googleLogin, linkGoogle } = require('../controllers/googleAuthController');
+
+const signInLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many sign-in attempts. Please try again in ten minutes.' },
+});
+
+router.post('/google/challenge', signInLimiter, requireGoogleOrigin, googleChallenge);
+router.post('/google', signInLimiter, requireGoogleOrigin, verifyGoogleCredential, googleLogin);
+router.post('/google/link', signInLimiter, requireGoogleOrigin, protect, verifyGoogleCredential, linkGoogle);
 
 router.post('/register', registerRules, validate, register);
 router.post('/login', loginRules, validate, login);
@@ -31,7 +45,7 @@ router.post('/forgot-password', forgotPasswordRules, validate, forgotPassword);
 router.post('/reset-password', resetPasswordRules, validate, resetPassword);
 
 // 2FA & OTP verification routes (Public)
-router.post('/verify-2fa', verify2FA);
+router.post('/verify-2fa', signInLimiter, verify2FA);
 router.post('/request-otp', requestOTP);
 router.post('/verify-otp', verifyOTP);
 

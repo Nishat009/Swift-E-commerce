@@ -91,10 +91,31 @@ export default function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchNotifications();
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [user, fetchNotifications]);
 
   useEffect(() => {
@@ -219,10 +240,10 @@ export default function Navbar() {
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* ROW 1: Search (Left) | Logo (Middle/Center) | Icons & Selectors (Right) */}
-          <div className="flex items-center justify-between py-3.5 sm:py-4 border-b border-gray-100 dark:border-gray-800/80 gap-4 min-h-[68px]">
+          <div className="flex items-center justify-between py-3.5 sm:py-4 border-b border-gray-100 dark:border-gray-800/80 gap-2 sm:gap-4 min-h-[68px]">
             
             {/* Row 1 Left: Search Field (Desktop) / Mobile Toggle */}
-            <div className="flex items-center space-x-3 w-1/3 justify-start">
+            <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-3 justify-start">
               {/* Mobile Menu Trigger */}
               <button
                 type="button"
@@ -326,16 +347,16 @@ export default function Navbar() {
             </div>
 
             {/* Row 1 Middle / Center: SWIFTCART Logo */}
-            <div className="w-1/3 text-center my-auto">
+            <div className="flex-none text-center my-auto">
               <Link href="/" className="inline-block group py-1">
-                <span className="text-2xl sm:text-3xl font-serif font-extrabold tracking-widest text-[#8b6f47] dark:text-[#c9a96b] group-hover:opacity-90 transition-opacity uppercase inline-block leading-none">
+                <span className="text-xl sm:text-3xl font-serif font-extrabold tracking-[0.12em] sm:tracking-widest text-[#8b6f47] dark:text-[#c9a96b] group-hover:opacity-90 transition-opacity uppercase inline-block leading-none">
                   SWIFTCART
                 </span>
               </Link>
             </div>
 
             {/* Row 1 Right: Icons & Currency / Language Selectors */}
-            <div className="flex items-center justify-end space-x-2 sm:space-x-3 w-1/3">
+            <div className="flex flex-none items-center justify-end space-x-1 sm:space-x-3">
               
               {/* User Account / Profile Dropdown */}
               <div
@@ -452,7 +473,7 @@ export default function Navbar() {
               {/* Wishlist Heart Icon */}
               <Link
                 href="/wishlist"
-                className={`p-1.5 transition-colors ${
+                className={`hidden sm:block p-1.5 transition-colors ${
                   pathname === '/wishlist' ? 'text-[#8b6f47] dark:text-[#c9a96b]' : 'text-gray-800 dark:text-gray-200 hover:text-[#8b6f47] dark:hover:text-[#c9a96b]'
                 }`}
                 title="My Wishlist"
@@ -494,7 +515,7 @@ export default function Navbar() {
 
               {/* Currency Selector Switcher */}
               {mounted && (
-                <div className="relative group">
+                <div className="relative group hidden md:block">
                   <select
                     value={activeCurrencyCode}
                     onChange={(e) => setCurrency(e.target.value)}
@@ -503,6 +524,24 @@ export default function Navbar() {
                     {availableCurrencies.map((curr) => (
                       <option key={curr.code} value={curr.code} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
                         {curr.code} ({curr.symbol})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none transition-transform group-hover:translate-y-[-30%]" />
+                </div>
+              )}
+
+              {/* Language Selector Switcher */}
+              {mounted && (
+                <div className="relative group hidden lg:block">
+                  <select
+                    value={activeLanguageCode}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="appearance-none bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-[10px] sm:text-[11px] font-bold text-gray-800 dark:text-gray-200 py-1 pl-2.5 pr-6 rounded-full border border-gray-200 dark:border-gray-800 cursor-pointer focus:outline-none transition-colors"
+                  >
+                    {availableLanguages.map((lang) => (
+                      <option key={lang.code} value={lang.code} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                        {lang.flag} {lang.name}
                       </option>
                     ))}
                   </select>

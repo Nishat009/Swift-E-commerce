@@ -3,6 +3,8 @@
 
 # Next.js build
 .next/
+test-results/
+playwright-report/
 out/
 
 # Production build

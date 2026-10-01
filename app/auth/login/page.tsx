@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Mail, Lock, Eye, EyeOff, ShoppingBag, ShieldCheck, Smartphone, Camera, X, User as UserIcon, KeyRound, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -260,9 +261,9 @@ function LoginFormContent() {
     setForgotTestNotice('');
     try {
       const res = await forgotPassword(forgotEmail);
-      toast.success('Reset code sent to your email!');
+      toast.success('Reset token generated.');
       if (res && res.testOtp) {
-        setForgotTestNotice(`[Test Mode] Reset code: ${res.testOtp}`);
+        setForgotTestNotice(`[Local development] Reset token: ${res.testOtp}`);
       }
       setForgotStep('reset');
     } catch (err: any) {
@@ -275,11 +276,11 @@ function LoginFormContent() {
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotOtp.trim()) {
-      toast.error('Please enter the 6-digit reset code');
+      toast.error('Please enter the reset token');
       return;
     }
-    if (!newPassword || newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmNewPassword) {
@@ -293,7 +294,7 @@ function LoginFormContent() {
       setForgotStep('success');
       setFormData((prev) => ({ ...prev, email: forgotEmail, password: newPassword }));
     } catch (err: any) {
-      toast.error(err.message || 'Failed to reset password. Check the code.');
+      toast.error(err.message || 'Failed to reset password. Check the token.');
     } finally {
       setForgotLoading(false);
     }
@@ -332,7 +333,7 @@ function LoginFormContent() {
               YOUR NEXT<br />ADVENTURE<br />AWAITS!
             </h1>
             <p className="text-xs sm:text-sm text-gray-200/90 max-w-sm leading-relaxed font-light">
-              Log in to unlock exclusive deals, plan your dream escapes, and pick up where you left off. Whether it's mountains, beaches, or city lights.
+              Log in to unlock exclusive deals, plan your dream escapes, and pick up where you left off. Whether it&apos;s mountains, beaches, or city lights.
             </p>
             <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
               Your journey starts here.
@@ -414,7 +415,7 @@ function LoginFormContent() {
                   </h2>
                   {isLocked ? (
                     <div className="mt-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold animate-pulse">
-                      ⛔ Access Temporarily Suspended. Cooldown: {cooldown}s
+                      â›” Access Temporarily Suspended. Cooldown: {cooldown}s
                     </div>
                   ) : (
                     <p className="text-xs text-gray-455 mt-2">
@@ -490,7 +491,7 @@ function LoginFormContent() {
                           disabled={isLocked}
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          placeholder="••••••••"
+                          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                           required
                           className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10 disabled:opacity-50"
                         />
@@ -586,7 +587,7 @@ function LoginFormContent() {
 
                         {testOtpNotice && (
                           <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold leading-normal">
-                            💡 {testOtpNotice}
+                            ðŸ’¡ {testOtpNotice}
                           </div>
                         )}
 
@@ -661,32 +662,15 @@ function LoginFormContent() {
                   </div>
                 </div>
 
-                {/* Google Sign-in Simulation */}
+                {/* Google Sign-in */}
                 <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast.info('Google Sign-In is simulated. Log in using admin@email.com or create an account.');
-                    }}
-                    className="w-full py-2.5 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-800 flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-900 transition shadow-sm"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path fill="#ea4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.6 15 1 12 1 7.35 1 3.39 3.65 1.5 7.5l3.87 3C6.27 7.77 8.87 5.04 12 5.04z" />
-                      <path fill="#4285f4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.29 1.48-1.14 2.73-2.42 3.58l3.76 2.91c2.2-2.03 3.49-5.02 3.49-8.64z" />
-                      <path fill="#fbbc05" d="M5.37 14.5c-.24-.72-.37-1.49-.37-2.3s.13-1.58.37-2.3L1.5 6.9C.54 8.82 0 10.97 0 13.2s.54 4.38 1.5 6.3l3.87-3z" />
-                      <path fill="#34a853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.76-2.91c-1.1.74-2.51 1.18-4.2 1.18-3.13 0-5.73-2.73-6.63-5.46L1.5 15.9C3.39 19.75 7.35 23 12 23z" />
-                    </svg>
-                    Sign in with Google
-                  </button>
+                  <GoogleSignIn rememberMe={formData.rememberMe} disabled={loading || isLocked} />
 
                   {/* Bottom text */}
                   <div className="text-center pt-2">
                     <span className="text-[11px] text-gray-550">
-                      Don't have an account?{' '}
-                      <Link 
-                        href={redirectUrl ? `/auth/register?redirect=${encodeURIComponent(redirectUrl)}` : '/auth/register'} 
-                        className="text-emerald-700 hover:text-emerald-800 font-black hover:underline dark:text-emerald-500"
-                      >
+                      Don&apos;t have an account?{' '}
+                      <Link href="/auth/register" className="text-emerald-700 hover:text-emerald-800 font-black hover:underline dark:text-emerald-500">
                         Sign up
                       </Link>
                     </span>
@@ -719,7 +703,7 @@ function LoginFormContent() {
                   </div>
                   <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Reset Password</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Enter the email address associated with your account and we will issue a secure 6-digit verification code.
+                    Enter the email address associated with your account and we will generate a secure reset token.
                   </p>
                 </div>
 
@@ -742,7 +726,7 @@ function LoginFormContent() {
                   disabled={forgotLoading}
                   className="w-full py-3 bg-[#0a3d4a] hover:bg-[#072a33] text-white font-bold text-xs rounded-xl transition shadow-md disabled:opacity-50 uppercase tracking-wider"
                 >
-                  {forgotLoading ? 'Sending Reset Code...' : 'Send Reset Code'}
+                  {forgotLoading ? 'Generating Reset Token...' : 'Generate Reset Token'}
                 </button>
               </form>
             )}
@@ -753,28 +737,28 @@ function LoginFormContent() {
                   <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/20 text-emerald-600">
                     <Lock className="w-7 h-7" />
                   </div>
-                  <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Enter Code & New Password</h3>
+                  <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Enter Token & New Password</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Check your email (or notice below) for the 6-digit code sent to <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span>.
+                    Use the reset token for <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span>.
                   </p>
                 </div>
 
                 {forgotTestNotice && (
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
-                    💡 {forgotTestNotice}
+                    ðŸ’¡ {forgotTestNotice}
                   </div>
                 )}
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                    6-Digit Reset Code
+                    Reset Token
                   </label>
                   <input
                     type="text"
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value)}
-                    placeholder="000000"
-                    maxLength={6}
+                    placeholder="Paste reset token"
+                    maxLength={128}
                     required
                     className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-center tracking-widest text-sm font-bold rounded-xl"
                   />
@@ -789,9 +773,9 @@ function LoginFormContent() {
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Minimum 6 characters"
+                      placeholder="Minimum 8 characters"
                       required
-                      minLength={6}
+                      minLength={8}
                       className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10"
                     />
                     <button
@@ -814,7 +798,7 @@ function LoginFormContent() {
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
                     placeholder="Re-type new password"
                     required
-                    minLength={6}
+                    minLength={8}
                     className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
                   />
                 </div>
@@ -833,7 +817,7 @@ function LoginFormContent() {
                     onClick={() => setForgotStep('request')}
                     className="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold"
                   >
-                    ← Back to email input
+                    â† Back to email input
                   </button>
                 </div>
               </form>
@@ -910,7 +894,7 @@ function LoginFormContent() {
                   onClick={() => handleSimulateScan('123456')}
                   className="py-2 px-3 text-xs bg-gray-55 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 border dark:border-gray-800 rounded-xl font-bold transition text-gray-800 dark:text-gray-200"
                 >
-                  Scan Code "123456"
+                  Scan Code &quot;123456&quot;
                 </button>
                 <button
                   type="button"

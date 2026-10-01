@@ -51,17 +51,13 @@ const forgotPasswordRules = [
 ];
 
 const resetPasswordRules = [
-  body('email')
-    .isEmail()
-    .withMessage('Please provide a valid email')
-    .normalizeEmail(),
-  body('otp')
+  body('token')
     .notEmpty()
-    .withMessage('Reset code is required')
+    .withMessage('Reset token is required')
     .trim(),
   body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('New password must be at least 6 characters long')
+    .isLength({ min: 8 })
+    .withMessage('New password must be at least 8 characters long')
 ];
 
 module.exports = {

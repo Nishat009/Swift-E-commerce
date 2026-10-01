@@ -35,7 +35,8 @@ const createOrder = async (req, res, next) => {
       orderItems.push({
         product: dbProduct._id,
         quantity: item.quantity,
-        price: finalPrice
+        price: finalPrice,
+        variant: item.variant || item.selectedVariant || {}
       });
     }
 
@@ -62,42 +63,64 @@ const createOrder = async (req, res, next) => {
     const shipping = subtotal > 100 ? 0 : 10; // Free shipping over $100, else $10
     const total = Number((discountedSubtotal + tax + shipping).toFixed(2));
 
-    // 4. Update inventories (decrement stocks)
+    // 4. Update inventories atomically with rollback protection
+    const decrementedProducts = [];
     for (const item of orderItems) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: -item.quantity }
+      const updated = await Product.findOneAndUpdate(
+        { _id: item.product, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+      if (!updated) {
+        for (const rolled of decrementedProducts) {
+          await Product.findByIdAndUpdate(rolled.id, { $inc: { stock: rolled.quantity } });
+        }
+        return sendError(
+          res,
+          `Stock changed or insufficient for a product in your order. Please review your cart.`,
+          400
+        );
+      }
+      decrementedProducts.push({ id: item.product, quantity: item.quantity });
+    }
+
+    try {
+      // 5. Generate Order Number
+      const orderNumber = `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // 6. Create Order
+      const order = await Order.create({
+        orderNumber,
+        user: req.user.id,
+        products: orderItems,
+        subtotal: Number(subtotal.toFixed(2)),
+        shipping,
+        tax,
+        coupon: couponCode || '',
+        total,
+        paymentMethod,
+        paymentStatus: 'Pending', // Default
+        orderStatus: 'Pending',
+        shippingAddress
       });
+
+      // 7. Clear user's Cart
+      const cart = await Cart.findOne({ user: req.user.id });
+      if (cart) {
+        cart.products = [];
+        cart.subtotal = 0;
+        await cart.save();
+      }
+
+      await order.populate('products.product');
+      return sendSuccess(res, 'Order created successfully', order, 201);
+    } catch (orderErr) {
+      // Rollback inventories if order creation failed
+      for (const rolled of decrementedProducts) {
+        await Product.findByIdAndUpdate(rolled.id, { $inc: { stock: rolled.quantity } });
+      }
+      throw orderErr;
     }
-
-    // 5. Generate Order Number
-    const orderNumber = `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    // 6. Create Order
-    const order = await Order.create({
-      orderNumber,
-      user: req.user.id,
-      products: orderItems,
-      subtotal: Number(subtotal.toFixed(2)),
-      shipping,
-      tax,
-      coupon: couponCode || '',
-      total,
-      paymentMethod,
-      paymentStatus: 'Pending', // Default
-      orderStatus: 'Pending',
-      shippingAddress
-    });
-
-    // 7. Clear user's Cart
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (cart) {
-      cart.products = [];
-      cart.subtotal = 0;
-      await cart.save();
-    }
-
-    await order.populate('products.product');
-    return sendSuccess(res, 'Order created successfully', order, 201);
   } catch (error) {
     next(error);
   }
@@ -211,11 +234,22 @@ const updateOrderStatus = async (req, res, next) => {
 // @access  Private/Admin
 const getAllOrders = async (req, res, next) => {
   try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    const skip = (page - 1) * limit;
+
     const orders = await Order.find()
       .populate('user', 'name email')
       .populate('products.product')
-      .sort({ createdAt: -1 });
-    return sendSuccess(res, 'All orders retrieved successfully', orders);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Order.countDocuments();
+
+    return sendSuccess(res, 'All orders retrieved successfully', orders, 200, {
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
   } catch (error) {
     next(error);
   }

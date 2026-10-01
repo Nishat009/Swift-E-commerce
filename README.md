@@ -61,6 +61,12 @@ Built for enterprise scale, SwiftCart offers a seamless shopping experience for 
   * **Instant Smart Search**: Debounced autocomplete with keyword highlighting and recent search history.
   * **Multi-Currency & Language Engine**: Dynamic price conversion (`USD`, `EUR`, `GBP`, `BDT`) and language localizer.
   * **Verified Photo Reviews**: Customer reviews with outfit photo attachments and AI sentiment rating bars.
+* **Responsive Homepage Shell**:
+  * Mobile navigation keeps the menu, logo, and core account/cart actions visible from 320px upward.
+  * Homepage catalog cards use responsive wide image frames across phone, tablet, and desktop layouts.
+  * Category slider uses a simple responsive card layout from 320px to 1920px; category artwork remains fully visible with contain-fit images.
+* **Google Sign-In**:
+  * Google Identity Services login/signup uses a one-use nonce challenge, HttpOnly cookies, optional 2FA, and guest-cart synchronization.
 
 * **Multi-Layered Security & Google Authentication**:
   * **Google OAuth 2.0 & Identity Services (GSI)**: 1-click Google sign-in modal with automatic account creation and JWT session linking.
@@ -208,11 +214,27 @@ cd Swift-E-commerce
    npm install
    ```
 
-2. Start the Next.js development server:
+2. Start only the Next.js development server (if the backend is already running):
    ```bash
-   npm run dev
+   npm run dev:frontend
    ```
    * The live storefront is running at: **[http://localhost:3001](http://localhost:3001)**
+
+### Run Frontend and Backend Together
+
+For real Google login/signup, see [Google sign-in setup and verification](docs/google-login.md). After creating a Google web client, configure it using `npm run setup:google -- YOUR_CLIENT_ID.apps.googleusercontent.com`.
+
+After installing dependencies in both the root and `backend` directories and configuring `backend/.env`, run this command from the project root:
+
+```bash
+npm run dev
+```
+
+This starts the frontend at **http://localhost:3001** and the backend at **http://localhost:5000** (unless `PORT` is overridden). MongoDB must be available using the configured `MONGO_URI`. Press `Ctrl+C` to stop both servers. Stop any separately running development servers first to avoid port conflicts.
+
+To run either service separately from the project root, use `npm run dev:frontend` or `npm run dev:backend`.
+
+On Windows PowerShell, if execution policy blocks `npm.ps1`, use `npm.cmd run dev`.
 
 ---
 
@@ -273,7 +295,10 @@ JWT_SECRET=your_super_secret_jwt_key_swiftcart_2026
 JWT_EXPIRE=30d
 COOKIE_EXPIRE=30
 FRONTEND_URL=http://localhost:3001
+GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
 ```
+
+Google login also requires `GOOGLE_CLIENT_ID` in `backend/.env`. Create a Google web client with `http://localhost:3001` as an authorized JavaScript origin, then run `npm.cmd run setup:google -- YOUR_CLIENT_ID.apps.googleusercontent.com` and restart the backend.
 
 ---
 

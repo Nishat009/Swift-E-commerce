@@ -17,6 +17,10 @@ const TicketSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+TicketSchema.index({ campaign: 1, user: 1 });
+TicketSchema.index({ campaign: 1, status: 1 });
+TicketSchema.index({ user: 1, createdAt: -1 });
+
 TicketSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {

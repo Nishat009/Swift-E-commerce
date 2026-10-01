@@ -2,7 +2,11 @@ const User = require('../models/User');
 const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
 const { sendSuccess, sendError } = require('../utils/response');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { generateSecret, verifyTOTP, generateRecoveryCodes } = require('../utils/totp');
+const { getRequiredSecret } = require('../utils/generateTokens');
+const AuthChallenge = require('../models/AuthChallenge');
+const { cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -27,12 +31,7 @@ const register = async (req, res, next) => {
     const refreshToken = generateRefreshToken(user);
 
     // Store refresh token in HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('refreshToken', refreshToken, cookieOptions(true));
 
     return sendSuccess(res, 'User registered successfully', {
       user: {
@@ -45,7 +44,7 @@ const register = async (req, res, next) => {
         twoFactorEnabled: false
       },
       accessToken,
-      refreshToken
+      // Refresh token is intentionally only stored in the HttpOnly cookie.
     }, 201);
   } catch (error) {
     next(error);
@@ -59,23 +58,14 @@ const login = async (req, res, next) => {
   const { email, password, rememberMe } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
     if (!user || !(await user.matchPassword(password))) {
       return sendError(res, 'Invalid email or password', 401);
     }
 
-    // Auto-promote admin@email.com to admin role (useful for live environments where seed script wasn't run)
-    if (user.email === 'admin@email.com' && user.role !== 'admin') {
-      user.role = 'admin';
-      await user.save();
-    }
-
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
-      return sendSuccess(res, '2FA code required to login', {
-        require2FA: true,
-        userId: user.id
-      });
+      return await requestSecondFactor(req, res, user, !!rememberMe);
     }
 
     const accessToken = generateAccessToken(user);
@@ -83,15 +73,7 @@ const login = async (req, res, next) => {
 
     // Store refresh token in HttpOnly cookie
     // Only set maxAge when "Remember Me" is checked; otherwise use a session cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    };
-    if (rememberMe) {
-      cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-    }
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
 
     return sendSuccess(res, 'User logged in successfully', {
       user: {
@@ -101,10 +83,11 @@ const login = async (req, res, next) => {
         phone: user.phone,
         avatar: user.avatar,
         role: user.role,
-        twoFactorEnabled: user.twoFactorEnabled
+        twoFactorEnabled: user.twoFactorEnabled,
+        googleConnected: Boolean(user.googleId)
       },
       accessToken,
-      refreshToken
+      // Refresh token is intentionally only stored in the HttpOnly cookie.
     });
   } catch (error) {
     next(error);
@@ -115,6 +98,14 @@ const login = async (req, res, next) => {
 // @route   POST /api/auth/logout
 // @access  Public
 const logout = async (req, res, next) => {
+  try {
+    await AuthChallenge.deleteOne(challengeQuery(req, 'two-factor'));
+    await AuthChallenge.deleteOne(challengeQuery(req, 'google'));
+    clearChallenge(res, 'two-factor');
+    clearChallenge(res, 'google');
+  } catch (error) {
+    return next(error);
+  }
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -133,7 +124,7 @@ const logout = async (req, res, next) => {
 // @access  Private
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id);
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
@@ -165,11 +156,12 @@ const updateProfile = async (req, res, next) => {
     }
 
     if (req.body.password) {
-      if (req.body.currentPassword) {
-        const isMatch = await user.matchPassword(req.body.currentPassword);
-        if (!isMatch) {
-          return sendError(res, 'Current password is incorrect', 400);
-        }
+      if (!req.body.currentPassword) {
+        return sendError(res, 'Current password is required to set a new password', 400);
+      }
+      const passwordUser = await User.findById(req.user.id).select('+password');
+      if (!passwordUser || !(await passwordUser.matchPassword(req.body.currentPassword))) {
+        return sendError(res, 'Current password is incorrect', 401);
       }
       user.password = req.body.password;
     }
@@ -217,7 +209,8 @@ const updateProfile = async (req, res, next) => {
         avatar: updatedUser.avatar,
         role: updatedUser.role,
         addresses: updatedUser.addresses,
-        twoFactorEnabled: updatedUser.twoFactorEnabled
+        twoFactorEnabled: updatedUser.twoFactorEnabled,
+        googleConnected: Boolean(updatedUser.googleId)
       }
     });
   } catch (error) {
@@ -236,7 +229,7 @@ const refreshToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'supersecretjwtrefreshkey987654!@#');
+    const decoded = jwt.verify(token, getRequiredSecret('JWT_REFRESH_SECRET'));
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -255,7 +248,7 @@ const refreshToken = async (req, res, next) => {
     };
     res.cookie('refreshToken', newRefreshToken, cookieOptions);
 
-    return sendSuccess(res, 'Access token refreshed successfully', { accessToken, refreshToken: newRefreshToken });
+    return sendSuccess(res, 'Access token refreshed successfully', { accessToken });
   } catch (error) {
     return sendError(res, 'Invalid or expired refresh token', 401);
   }
@@ -267,21 +260,16 @@ const refreshToken = async (req, res, next) => {
 const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      return sendError(res, 'No user found with that email address', 404);
-    }
+    const user = await User.findOne({ email });
+    const genericMessage = 'If an account exists for that email, password reset instructions have been generated.';
+    if (!user) return sendSuccess(res, genericMessage);
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.resetPasswordOtp = otp;
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 mins
-    await user.save();
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
+    await user.save({ validateBeforeSave: false });
 
-    console.log(`[PASSWORD RESET] Reset code for ${email}: ${otp}`);
-
-    return sendSuccess(res, `Password reset instructions sent. (Test code: ${otp})`, {
-      testOtp: otp
-    });
+    return sendSuccess(res, genericMessage, process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_CODES === 'true' ? { resetToken } : {});
   } catch (error) {
     next(error);
   }
@@ -291,32 +279,23 @@ const forgotPassword = async (req, res, next) => {
 // @route   POST /api/auth/reset-password
 // @access  Public
 const resetPassword = async (req, res, next) => {
-  const { email, otp, newPassword } = req.body;
+  const { token, newPassword } = req.body;
   try {
-    if (!email || !otp || !newPassword) {
-      return sendError(res, 'Email, reset code, and new password are required', 400);
+    if (!token || typeof newPassword !== 'string' || newPassword.length < 8) {
+      return sendError(res, 'A valid reset token and an 8 character password are required', 400);
     }
-
-    if (newPassword.length < 6) {
-      return sendError(res, 'Password must be at least 6 characters long', 400);
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { $gt: Date.now() }
+    }).select('+passwordResetToken +passwordResetExpires');
     if (!user) {
-      return sendError(res, 'User not found', 404);
-    }
-
-    if (!user.resetPasswordOtp || user.resetPasswordOtp !== otp.trim()) {
-      return sendError(res, 'Invalid or incorrect reset code', 400);
-    }
-
-    if (Date.now() > user.resetPasswordExpires) {
-      return sendError(res, 'Reset code has expired. Please request a new one', 400);
+      return sendError(res, 'Reset token is invalid or expired', 400);
     }
 
     user.password = newPassword;
-    user.resetPasswordOtp = '';
-    user.resetPasswordExpires = null;
+    user.passwordResetToken = '';
+    user.passwordResetExpires = null;
     await user.save();
 
     return sendSuccess(res, 'Password reset successful. Please login with your new password.');
@@ -384,9 +363,16 @@ const verifyAndEnable2FA = async (req, res, next) => {
 // @access  Private
 const disable2FA = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const { code, currentPassword } = req.body;
+    const user = await User.findById(req.user.id).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
     if (!user) {
       return sendError(res, 'User not found', 404);
+    }
+
+    const passwordValid = currentPassword && await user.matchPassword(currentPassword);
+    const totpValid = code && verifyTOTP(String(code), user.twoFactorSecret);
+    if (!passwordValid && !totpValid) {
+      return sendError(res, 'Current password or a valid authenticator code is required', 401);
     }
 
     user.twoFactorEnabled = false;
@@ -404,17 +390,23 @@ const disable2FA = async (req, res, next) => {
 // @route   POST /api/auth/verify-2fa
 // @access  Public
 const verify2FA = async (req, res, next) => {
-  const { userId, code, rememberMe } = req.body;
+  const { userId, code } = req.body;
   try {
-    const user = await User.findById(userId);
-    if (!user) {
-      return sendError(res, 'User not found', 404);
+    if (typeof code !== 'string' || !/^(?:\d{6}|[A-Za-z0-9]{8})$/.test(code.trim())) {
+      return sendError(res, 'Enter a six-digit authenticator code or an eight-character recovery code.', 400);
     }
-
-    // Auto-promote admin@email.com to admin role
-    if (user.email === 'admin@email.com' && user.role !== 'admin') {
-      user.role = 'admin';
-      await user.save();
+    // A user ID and TOTP alone must never bypass the Google/password first factor.
+    const challenge = await AuthChallenge.findOneAndUpdate(
+      { ...challengeQuery(req, 'two-factor'), attempts: { $lt: 5 } },
+      { $inc: { attempts: 1 } },
+      { new: true },
+    );
+    if (!challenge || (userId && String(challenge.user) !== userId)) {
+      return sendError(res, 'Sign-in expired or too many attempts. Please sign in again.', 401);
+    }
+    const user = await User.findById(challenge.user).select('+twoFactorSecret +twoFactorRecoveryCodes');
+    if (!user || !user.twoFactorEnabled) {
+      return sendError(res, 'Please sign in again.', 401);
     }
 
     let isVerified = false;
@@ -430,8 +422,6 @@ const verify2FA = async (req, res, next) => {
       if (codeIndex !== -1) {
         isVerified = true;
         isRecoveryUsed = true;
-        user.twoFactorRecoveryCodes.splice(codeIndex, 1);
-        await user.save();
       }
     }
 
@@ -439,18 +429,21 @@ const verify2FA = async (req, res, next) => {
       return sendError(res, 'Invalid verification code or recovery code', 400);
     }
 
+    const consumed = await AuthChallenge.findOneAndDelete({ _id: challenge._id, expiresAt: { $gt: new Date() } });
+    if (!consumed) return sendError(res, 'This sign-in has already been used. Please sign in again.', 401);
+    clearChallenge(res, 'two-factor');
+    if (isRecoveryUsed) {
+      const used = await User.updateOne(
+        { _id: user._id, twoFactorRecoveryCodes: code.toUpperCase().trim() },
+        { $pull: { twoFactorRecoveryCodes: code.toUpperCase().trim() } },
+      );
+      if (!used.modifiedCount) return sendError(res, 'Recovery code has already been used.', 400);
+    }
+
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    };
-    if (rememberMe) {
-      cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
-    }
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    res.cookie('refreshToken', refreshToken, cookieOptions(challenge.rememberMe));
 
     return sendSuccess(res, 'Logged in successfully', {
       user: {
@@ -460,10 +453,10 @@ const verify2FA = async (req, res, next) => {
         phone: user.phone,
         avatar: user.avatar,
         role: user.role,
-        twoFactorEnabled: user.twoFactorEnabled
+        twoFactorEnabled: user.twoFactorEnabled,
+        googleConnected: Boolean(user.googleId)
       },
       accessToken,
-      refreshToken,
       recoveryUsed: isRecoveryUsed
     });
   } catch (error) {
@@ -477,25 +470,30 @@ const verify2FA = async (req, res, next) => {
 const requestOTP = async (req, res, next) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return sendError(res, 'User not found with this email', 404);
-    }
+    const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts +otpRequestedAt');
+    const genericMessage = 'If an eligible account exists, an OTP has been generated.';
+    if (!user) return sendSuccess(res, genericMessage);
 
     if (user.role !== 'customer') {
       return sendError(res, 'OTP Login is only available for customers', 403);
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otpCode = otp;
+    if (user.otpRequestedAt && Date.now() - user.otpRequestedAt.getTime() < 60 * 1000) {
+      return sendError(res, 'Please wait one minute before requesting another OTP', 429);
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    user.otpCode = crypto.createHash('sha256').update(otp).digest('hex');
     user.otpExpires = Date.now() + 5 * 60 * 1000;
+    user.otpAttempts = 0;
+    user.otpRequestedAt = new Date();
     await user.save();
 
-    console.log(`[EMAIL OTP] Generated OTP for customer email ${email}: ${otp}`);
-
-    return sendSuccess(res, `OTP sent successfully. (Test mode code is: ${otp})`, {
-      testOtp: otp
-    });
+    const data = {};
+    if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_CODES === 'true') {
+      data.developmentCode = otp;
+    }
+    return sendSuccess(res, genericMessage, data);
   } catch (error) {
     next(error);
   }
@@ -507,18 +505,19 @@ const requestOTP = async (req, res, next) => {
 const verifyOTP = async (req, res, next) => {
   const { email, otp, rememberMe } = req.body;
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts');
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
 
-    // Auto-promote admin@email.com to admin role
-    if (user.email === 'admin@email.com' && user.role !== 'admin') {
-      user.role = 'admin';
-      await user.save();
+    if ((user.otpAttempts || 0) >= 5) {
+      return sendError(res, 'Too many invalid OTP attempts. Request a new code.', 429);
     }
 
-    if (!user.otpCode || user.otpCode !== otp.trim()) {
+    const otpHash = crypto.createHash('sha256').update(String(otp).trim()).digest('hex');
+    if (!user.otpCode || user.otpCode !== otpHash) {
+      user.otpAttempts = (user.otpAttempts || 0) + 1;
+      await user.save({ validateBeforeSave: false });
       return sendError(res, 'Invalid OTP code', 400);
     }
 
@@ -528,27 +527,17 @@ const verifyOTP = async (req, res, next) => {
 
     user.otpCode = '';
     user.otpExpires = null;
+    user.otpAttempts = 0;
     await user.save();
 
     if (user.twoFactorEnabled) {
-      return sendSuccess(res, '2FA code required to login', {
-        require2FA: true,
-        userId: user.id
-      });
+      return await requestSecondFactor(req, res, user, !!rememberMe);
     }
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    };
-    if (rememberMe) {
-      cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000;
-    }
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
 
     return sendSuccess(res, 'Logged in successfully', {
       user: {
@@ -558,10 +547,11 @@ const verifyOTP = async (req, res, next) => {
         phone: user.phone,
         avatar: user.avatar,
         role: user.role,
-        twoFactorEnabled: user.twoFactorEnabled
+        twoFactorEnabled: user.twoFactorEnabled,
+        googleConnected: Boolean(user.googleId)
       },
       accessToken,
-      refreshToken
+      // Refresh token is intentionally only stored in the HttpOnly cookie.
     });
   } catch (error) {
     next(error);

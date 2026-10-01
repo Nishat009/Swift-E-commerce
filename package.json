@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "concurrently --kill-others --names frontend,backend \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "next dev -p 3001",
+    "dev:backend": "npm --prefix backend run dev",
+    "setup:google": "node scripts/setup-google.cjs",
+    "test:auth:browser": "playwright test tests/browser/google-auth.spec.js",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint"
@@ -23,11 +27,13 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.185.1",
+    "concurrently": "^10.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "tailwindcss": "^4",

@@ -41,8 +41,8 @@ const ProductSchema = new mongoose.Schema(
     discountAmount: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
     currency: { type: String, default: 'USD' },
-    costPrice: { type: Number, default: 0 },
-    profitMargin: { type: Number, default: 0 },
+    costPrice: { type: Number, default: 0, select: false },
+    profitMargin: { type: Number, default: 0, select: false },
 
     // Inventory & Warehousing
     stock: { type: Number, required: true, min: 0, default: 0 },
@@ -196,6 +196,13 @@ ProductSchema.pre('validate', function (next) {
   if (!this.SKU && this.sku) {
     this.SKU = this.sku;
   }
+
+  if (this.totalReviews && !this.reviewCount) {
+    this.reviewCount = this.totalReviews;
+  }
+  if (this.reviewCount && !this.totalReviews) {
+    this.totalReviews = this.reviewCount;
+  }
   
   if (this.originalPrice && this.originalPrice > this.price) {
     this.discountAmount = this.originalPrice - this.price;
@@ -223,23 +230,30 @@ ProductSchema.pre('validate', function (next) {
   next();
 });
 
+// Database indexes for fast querying, filtering, and sorting
+ProductSchema.index({ active: 1, status: 1, visibility: 1 });
+ProductSchema.index({ category: 1, active: 1 });
+ProductSchema.index({ brand: 1, active: 1 });
+ProductSchema.index({ price: 1 });
+ProductSchema.index({ rating: -1 });
+ProductSchema.index({ createdAt: -1 });
+ProductSchema.index({ title: 'text', brand: 'text', category: 'text', description: 'text' });
+
 ProductSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {
     ret.id = ret._id.toString();
     ret.productImage = ret.productImage || ret.thumbnail || (ret.images && ret.images[0]) || '';
     ret.modelWearingImage = ret.modelWearingImage || null;
+    delete ret._id;
+    delete ret.__v;
     return ret;
   }
 });
 
 ProductSchema.index({ active: 1, createdAt: -1 });
-ProductSchema.index({ category: 1, active: 1 });
 ProductSchema.index({ brand: 1 });
-ProductSchema.index({ price: 1 });
-ProductSchema.index({ rating: -1 });
 ProductSchema.index({ featured: 1, active: 1 });
 ProductSchema.index({ trending: 1, active: 1 });
-ProductSchema.index({ title: 'text', brand: 'text', category: 'text', description: 'text' });
 
 module.exports = mongoose.model('Product', ProductSchema);

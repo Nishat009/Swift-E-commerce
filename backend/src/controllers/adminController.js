@@ -112,8 +112,21 @@ const getDashboardStats = async (req, res, next) => {
 
 const getAllUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    return sendSuccess(res, 'Users list loaded successfully', users);
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+    const skip = (page - 1) * limit;
+
+    const users = await User.find()
+      .select('-password -twoFactorSecret -twoFactorRecoveryCodes -otpCode -otpExpires -otpAttempts -otpRequestedAt -passwordResetToken -passwordResetExpires')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await User.countDocuments();
+
+    return sendSuccess(res, 'Users list loaded successfully', users, 200, {
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
   } catch (error) {
     next(error);
   }
