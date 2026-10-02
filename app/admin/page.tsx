@@ -7,8 +7,18 @@ import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
 import { Product, Order, User } from '@/types';
 import Loading from '@/components/ui/Loading';
+import HeroImageAdmin from '@/components/ui/HeroImageAdmin';
+import CouponsAdmin from '@/components/admin/CouponsAdmin';
+import CategoriesAdmin from '@/components/admin/CategoriesAdmin';
+import ActivityLogsAdmin from '@/components/admin/ActivityLogsAdmin';
+import MonitoringAdmin from '@/components/admin/MonitoringAdmin';
+import ReportsAdmin from '@/components/admin/ReportsAdmin';
+import ContactMessages, { useContactUnread } from '@/components/admin/ContactMessages';
+import OrderDetailModal, { ORDER_STATUSES } from '@/components/admin/OrderDetailModal';
+import { errMsg } from '@/components/admin/adminUtils';
 import ProductTable from '@/components/product/ProductTable';
 import Button from '@/components/ui/Button';
+import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
 import Input from '@/components/ui/Input';
 import { useCurrencyStore } from '@/stores/currencyStore';
 import { useLanguageStore } from '@/stores/languageStore';
@@ -65,7 +75,7 @@ interface NewsletterSub {
 }
 
 export default function AdminDashboardPage() {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, logout, refreshUser } = useAuth();
   const toast = useToast();
   const router = useRouter();
 
@@ -80,7 +90,9 @@ export default function AdminDashboardPage() {
   };
 
   // Navigation states
-  const [adminTab, setAdminTab] = useState<'overview' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages'>('overview');
+  const [adminTab, setAdminTab] = useState<'overview' | 'hero' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages' | 'coupons' | 'categories' | 'messages'>('overview');
+  const [contactUnread, setContactUnread] = useContactUnread(!authLoading && user?.role === 'admin');
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
   // Currency Manager states
@@ -171,75 +183,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 2FA Setup states
-  const [isSettingUp2FA, setIsSettingUp2FA] = useState(false);
-  const [setupSecret, setSetupSecret] = useState('');
-  const [setupQrUrl, setSetupQrUrl] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [verificationError, setVerificationError] = useState('');
-  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
-  const [loading2FA, setLoading2FA] = useState(false);
-
-  const handleStart2FASetup = async () => {
-    setLoading2FA(true);
-    setVerificationError('');
-    try {
-      const res = await apiClient.post('/auth/2fa/setup');
-      if (res.data?.success) {
-        setSetupSecret(res.data.data.secret);
-        setSetupQrUrl(res.data.data.otpauthUrl);
-        setIsSettingUp2FA(true);
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to initialize 2FA setup');
-    } finally {
-      setLoading2FA(false);
-    }
-  };
-
-  const handleEnable2FA = async () => {
-    if (!verificationCode.trim()) {
-      setVerificationError('Verification code is required');
-      return;
-    }
-    setLoading2FA(true);
-    setVerificationError('');
-    try {
-      const res = await apiClient.post('/auth/2fa/enable', { code: verificationCode });
-      if (res.data?.success) {
-        setRecoveryCodes(res.data.data.recoveryCodes || []);
-        toast.success('Two-Factor Authentication activated successfully!');
-        if (user) {
-          user.twoFactorEnabled = true;
-        }
-      }
-    } catch (err: any) {
-      setVerificationError(err.response?.data?.message || 'Invalid code. Verification failed.');
-    } finally {
-      setLoading2FA(false);
-    }
-  };
-
-  const handleDisable2FA = async () => {
-    if (!confirm('Are you sure you want to deactivate 2FA? This lowers account security.')) return;
-    setLoading2FA(true);
-    try {
-      const res = await apiClient.post('/auth/2fa/disable');
-      if (res.data?.success) {
-        toast.success('Two-Factor Authentication has been deactivated.');
-        setIsSettingUp2FA(false);
-        setRecoveryCodes([]);
-        if (user) {
-          user.twoFactorEnabled = false;
-        }
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to deactivate 2FA');
-    } finally {
-      setLoading2FA(false);
-    }
-  };
-
   // Search/Filters states
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
@@ -297,20 +240,18 @@ export default function AdminDashboardPage() {
         router.push('/auth/login?redirect=/admin');
       } else if (user.role !== 'admin') {
         router.push('/dashboard'); // Redirect non-admins
-      } else {
-        loadAdminData();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
-  // Fetch data depending on active tab
+  // Fetch data depending on active tab (also runs once the admin user is known)
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (!authLoading && user && user.role === 'admin') {
       loadAdminData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminTab]);
+  }, [adminTab, authLoading, user?.id, user?.role]);
 
   const loadAdminData = async () => {
     setLoadingData(true);
@@ -320,13 +261,8 @@ export default function AdminDashboardPage() {
         if (res.data?.success) {
           setDashboard(res.data.data);
         }
-      } else if (adminTab === 'products') {
-        const res = await apiClient.get('/products?limit=100');
-        if (res.data?.products) {
-          setAllProducts(res.data.products);
-        }
       } else if (adminTab === 'orders') {
-        const res = await apiClient.get('/orders/admin/all');
+        const res = await apiClient.get('/orders/admin/all?limit=500');
         if (res.data?.success) {
           setAllOrders(res.data.data);
         }
@@ -356,25 +292,6 @@ export default function AdminDashboardPage() {
         if (analyticsRes.data?.success) {
           setCampaignAnalytics(analyticsRes.data.data);
         }
-      } else if (adminTab === 'logs') {
-        const res = await apiClient.get(`/enterprise/logs?page=${enterpriseLogsPage}&limit=10`);
-        if (res.data?.success) {
-          setEnterpriseLogs(res.data.data || []);
-          if (res.data.pagination) {
-            setEnterpriseLogsTotalPages(res.data.pagination.pages || 1);
-          }
-        }
-      } else if (adminTab === 'monitoring') {
-        const res = await apiClient.get('/enterprise/monitoring-stats');
-        if (res.data?.success) {
-          setMonitoringStats(res.data.data);
-        }
-      } else if (adminTab === 'reports') {
-        // Fetch general analytics
-        const res = await apiClient.get('/campaigns/admin/analytics').catch(() => ({ data: { success: false } }));
-        if (res.data?.success) {
-          setCampaignAnalytics(res.data.data);
-        }
       } else if (adminTab === 'currencies') {
         const res = await apiClient.get('/currencies');
         if (res.data?.success) {
@@ -388,6 +305,7 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Error fetching admin dashboard content:', err);
+      toast.error(errMsg(err, 'Failed to load this section from the server.'));
     } finally {
       setLoadingData(false);
     }
@@ -402,13 +320,18 @@ export default function AdminDashboardPage() {
         toast.success(`Order status updated to "${status}" successfully.`);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update order status.');
+      toast.error(errMsg(err, 'Failed to update order status.'));
     }
   };
 
   // --- USER ROLE ACTIONS ---
   const handleToggleUserRole = async (targetUser: User) => {
     const newRole = targetUser.role === 'admin' ? 'customer' : 'admin';
+    if (targetUser.id === user?.id) {
+      toast.error('You cannot change your own role.');
+      return;
+    }
+    if (!confirm(`${newRole === 'admin' ? 'Grant admin access to' : 'Remove admin access from'} ${targetUser.email}?`)) return;
     try {
       const res = await apiClient.put(`/admin/users/${targetUser.id}/role`, { role: newRole });
       if (res.data?.success) {
@@ -421,7 +344,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action is irreversible.')) return;
+    if (!confirm('Delete this user account? Their cart and wishlist are removed; past orders stay in the records. This cannot be undone.')) return;
     try {
       const res = await apiClient.delete(`/admin/users/${userId}`);
       if (res.data?.success) {
@@ -599,7 +522,7 @@ export default function AdminDashboardPage() {
           allCampaigns.map((c) => (c.id === camp.id ? res.data.data.campaign : c))
         );
       } else {
-        alert(res.data?.message || 'Lottery draw failed.');
+        toast.error(res.data?.message || 'Lottery draw failed.');
         setIsDrawing(false);
         setDrawingCampaign(null);
       }
@@ -812,6 +735,7 @@ export default function AdminDashboardPage() {
   const filteredOrders = allOrders.filter(
     (o) =>
       String(o.id).includes(orderSearch) ||
+      (o.orderNumber || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
       (o.user as any)?.name?.toLowerCase().includes(orderSearch.toLowerCase()) ||
       (o.user as any)?.email?.toLowerCase().includes(orderSearch.toLowerCase())
   );
@@ -873,10 +797,14 @@ export default function AdminDashboardPage() {
         <div className="lg:w-1/4 flex flex-col gap-2">
           {[
             { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'hero', label: 'Hero Images', icon: Shirt },
             { id: 'ai_suite', label: 'AI Commerce Suite', icon: Sparkles },
             { id: 'products', label: 'Products Catalog', icon: Shirt },
             { id: 'orders', label: 'Customer Orders', icon: ShoppingBag },
+            { id: 'categories', label: 'Categories', icon: Shirt },
+            { id: 'coupons', label: 'Coupons', icon: Gift },
             { id: 'users', label: 'User Accounts', icon: Users },
+            { id: 'reviews', label: 'Product Reviews', icon: Star },
             { id: 'newsletter', label: 'Newsletter Subs', icon: Mail },
             { id: 'campaigns', label: 'Manage Campaigns', icon: Gift },
             { id: 'monitoring', label: 'System Monitoring', icon: TrendingUp },
@@ -884,7 +812,8 @@ export default function AdminDashboardPage() {
             { id: 'logs', label: 'Action Audit Logs', icon: ShieldAlert },
             { id: 'security', label: 'Security & 2FA', icon: ShieldCheck },
             { id: 'currencies', label: 'Manage Currencies', icon: RefreshCw },
-            { id: 'languages', label: 'Manage Languages', icon: Globe }
+            { id: 'languages', label: 'Manage Languages', icon: Globe },
+            { id: 'messages', label: 'Messages', icon: Mail }
           ].map((item) => {
             const IconComponent = item.icon;
             const isActive = adminTab === item.id;
@@ -900,6 +829,9 @@ export default function AdminDashboardPage() {
               >
                 <span className="flex items-center gap-2">
                   <IconComponent className="w-4 h-4" /> {item.label}
+                  {item.id === 'messages' && contactUnread > 0 && (
+                    <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{contactUnread}</span>
+                  )}
                 </span>
                 <ChevronRight className={`w-3.5 h-3.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-40'}`} />
               </button>
@@ -936,6 +868,7 @@ export default function AdminDashboardPage() {
           ) : (
             <>
               {/* AI COMMERCE SUITE VIEW */}
+              {adminTab === 'hero' && <HeroImageAdmin />}
               {adminTab === 'ai_suite' && (
                 <div className="space-y-8 animate-in fade-in duration-300">
                   <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
@@ -1041,8 +974,15 @@ export default function AdminDashboardPage() {
 
               {/* 2. MANAGE PRODUCTS VIEW */}
               {adminTab === 'products' && (
-                <ProductTable onProductChange={loadAdminData} />
+                <ProductTable />
               )}
+
+              {adminTab === 'categories' && <CategoriesAdmin />}
+              {adminTab === 'coupons' && <CouponsAdmin />}
+              {adminTab === 'logs' && <ActivityLogsAdmin />}
+              {adminTab === 'monitoring' && <MonitoringAdmin />}
+              {adminTab === 'reports' && <ReportsAdmin />}
+              {adminTab === 'messages' && <ContactMessages onUnreadChange={setContactUnread} />}
 
               {/* 3. MANAGE ORDERS VIEW */}
               {adminTab === 'orders' && (
@@ -1073,15 +1013,24 @@ export default function AdminDashboardPage() {
                           <th className="p-3">Cost</th>
                           <th className="p-3">Method</th>
                           <th className="p-3">Status</th>
+                          <th className="p-3">Payment</th>
                           <th className="p-3 text-right">Update Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
+                        {filteredOrders.length === 0 && (
+                          <tr><td colSpan={7} className="p-8 text-center text-gray-400">No orders found.</td></tr>
+                        )}
                         {filteredOrders.map((o) => (
                           <tr key={o.id} className="hover:bg-gray-50/50">
-                            <td className="p-3 font-mono text-gray-500 text-[10px] truncate max-w-[80px]">{o.id}</td>
                             <td className="p-3">
-                              <span className="block font-bold text-gray-800 dark:text-gray-200">{(o.user as any)?.name || 'Guest'}</span>
+                              <button onClick={() => setSelectedOrder(o)} className="font-mono text-[10px] font-bold text-[#8b6f47] hover:underline text-left" title="View order details">
+                                {o.orderNumber || o.id}
+                              </button>
+                              <span className="block text-[9px] text-gray-400">{new Date(o.createdAt).toLocaleDateString()}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="block font-bold text-gray-800 dark:text-gray-200">{(o.user as any)?.name || 'Deleted user'}</span>
                               <span className="block text-[10px] text-gray-400">{(o.user as any)?.email}</span>
                             </td>
                             <td className="p-3 font-extrabold text-[#8b6f47] dark:text-[#c9a96b]">${o.total.toFixed(0)}</td>
@@ -1094,17 +1043,23 @@ export default function AdminDashboardPage() {
                                 {o.orderStatus}
                               </span>
                             </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                o.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' :
+                                o.paymentStatus === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {o.paymentStatus || 'Pending'}
+                              </span>
+                            </td>
                             <td className="p-3 text-right">
                               <select
                                 value={o.orderStatus}
                                 onChange={(e) => handleUpdateOrderStatus(o.id!, e.target.value)}
                                 className="text-[10px] font-bold border rounded-lg px-2 py-1 bg-white dark:bg-gray-900"
                               >
-                                <option value="Pending">Pending</option>
-                                <option value="Processing">Processing</option>
-                                <option value="Shipped">Shipped</option>
-                                <option value="Delivered">Delivered</option>
-                                <option value="Cancelled">Cancelled</option>
+                                {ORDER_STATUSES.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
                               </select>
                             </td>
                           </tr>
@@ -1166,17 +1121,25 @@ export default function AdminDashboardPage() {
                               >
                                 <Search className="w-3 h-3" /> Inspect Session
                               </Button>
-                              <Button
-                                onClick={() => handleToggleUserRole(u)}
-                                variant="outline"
-                                size="sm"
-                                className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55"
-                              >
-                                {u.role === 'admin' ? 'Revoke Admin' : 'Grant Admin'}
-                              </Button>
-                              <button onClick={() => handleDeleteUser(u.id!)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete User Account">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {u.id !== user?.id ? (
+                                <>
+                                  <Button
+                                    onClick={() => handleToggleUserRole(u)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55"
+                                  >
+                                    {u.role === 'admin' ? 'Revoke Admin' : 'Grant Admin'}
+                                  </Button>
+                                  {u.role !== 'admin' && (
+                                    <button onClick={() => handleDeleteUser(u.id!)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete User Account">
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[9px] font-bold text-gray-400 px-2">You</span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -1452,30 +1415,6 @@ export default function AdminDashboardPage() {
                                       <span className="text-[9px] text-yellow-600 font-bold px-1">
                                         🏆 {c.winnerUser?.name || 'Winner'}
                                       </span>
-                                      {proofFileNames[c.id] ? (
-                                        <span className="text-[7.5px] text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-200/20 font-bold">
-                                          📄 Proof: {proofFileNames[c.id]}
-                                        </span>
-                                      ) : (
-                                        <button
-                                          onClick={() => {
-                                            const proofInput = document.createElement('input');
-                                            proofInput.type = 'file';
-                                            proofInput.accept = 'image/*';
-                                            proofInput.onchange = (e: any) => {
-                                              const file = e.target.files?.[0];
-                                              if (file) {
-                                                setProofFileNames(prev => ({ ...prev, [c.id]: file.name }));
-                                                toast.success(`Successfully uploaded delivery proof validation file for drawing reward!`);
-                                              }
-                                            };
-                                            proofInput.click();
-                                          }}
-                                          className="text-[8px] font-black text-blue-600 hover:underline hover:text-blue-700 uppercase"
-                                        >
-                                          Upload Proof
-                                        </button>
-                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1496,153 +1435,9 @@ export default function AdminDashboardPage() {
                     <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Security & 2FA Setup</h2>
                   </div>
 
-                  {!user?.twoFactorEnabled ? (
-                    /* 2FA Disabled State */
-                    <div className="space-y-6">
-                      {!isSettingUp2FA ? (
-                        <div className="space-y-4 max-w-xl">
-                          <p className="text-xs text-gray-500 dark:text-gray-405 leading-relaxed">
-                            Protect your administrative credentials with Two-Factor Authentication (2FA). By enabling 2FA, you will be required to enter a 6-digit verification code from your authenticator app (like Google Authenticator or Microsoft Authenticator) or a recovery code whenever you sign in.
-                          </p>
-                          <Button 
-                            onClick={handleStart2FASetup} 
-                            loading={loading2FA}
-                            className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-xl font-bold px-6 border-0 shadow-md py-2.5 text-xs uppercase tracking-wider"
-                          >
-                            Enable 2FA Protection
-                          </Button>
-                        </div>
-                      ) : (
-                        /* 2FA Setup Flow */
-                        <div className="space-y-6 border border-gray-250 dark:border-gray-800 rounded-2xl p-5 bg-gray-50/50 dark:bg-gray-950/20 max-w-2xl">
-                          <h3 className="font-serif text-base font-bold text-gray-900 dark:text-white">
-                            Set Up Two-Factor Authentication
-                          </h3>
-                          
-                          {recoveryCodes.length > 0 ? (
-                            /* Step 2: Show recovery codes */
-                            <div className="space-y-4">
-                              <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold leading-normal">
-                                ✓ Two-Factor Authentication has been successfully enabled!
-                              </div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                IMPORTANT: Save these recovery codes in a secure place. If you lose access to your authenticator app, you can use these codes to log back into your account. Each code can only be used once.
-                              </p>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-100 dark:bg-gray-950 p-4 rounded-xl font-mono text-center text-xs font-bold text-gray-800 dark:text-gray-300 border dark:border-gray-800">
-                                {recoveryCodes.map((code, idx) => (
-                                  <div key={idx} className="tracking-wider">{code}</div>
-                                ))}
-                              </div>
-                              <Button 
-                                onClick={() => {
-                                  setIsSettingUp2FA(false);
-                                  setRecoveryCodes([]);
-                                  router.refresh();
-                                }}
-                                className="bg-gray-900 text-white dark:bg-white dark:text-gray-900 rounded-xl px-6 font-bold py-2 text-xs"
-                              >
-                                Done & Close
-                              </Button>
-                            </div>
-                          ) : (
-                            /* Step 1: Scan QR and Verify */
-                            <div className="space-y-6">
-                              <div className="flex flex-col sm:flex-row gap-6 items-center">
-                                {/* QR Code Container */}
-                                {setupQrUrl && (
-                                  <div className="p-3 bg-white border rounded-2xl shadow-sm flex-shrink-0">
-                                    <img 
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(setupQrUrl)}`} 
-                                      alt="2FA QR Code" 
-                                      className="w-[160px] h-[160px]"
-                                    />
-                                  </div>
-                                )}
-                                
-                                <div className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed text-left flex-1">
-                                  <p className="font-bold text-gray-800 dark:text-gray-250 font-serif">Instructions:</p>
-                                  <p>1. Open your authenticator app (Google Authenticator, Microsoft Authenticator, Authy, etc.).</p>
-                                  <p>2. Choose "Scan QR Code" or add a new account.</p>
-                                  <p>3. Scan the QR code, or enter this secret key manually:</p>
-                                  <div className="p-2 bg-gray-100 dark:bg-gray-950 rounded-lg font-mono text-[11px] font-bold text-center text-gray-800 dark:text-gray-300 break-all select-all border border-gray-200 dark:border-gray-800">
-                                    {setupSecret}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Verify Input */}
-                              <div className="space-y-2.5 border-t border-gray-200 dark:border-gray-800 pt-4">
-                                <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest text-left">
-                                  Enter 6-digit Verification Code
-                                </label>
-                                <div className="flex gap-4 items-end max-w-sm">
-                                  <input
-                                    type="text"
-                                    placeholder="000000"
-                                    maxLength={6}
-                                    value={verificationCode}
-                                    onChange={(e) => setVerificationCode(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-450 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-center tracking-widest text-xs font-bold rounded-xl"
-                                  />
-                                  <Button 
-                                    onClick={handleEnable2FA}
-                                    loading={loading2FA}
-                                    className="bg-gray-900 hover:bg-black text-white dark:bg-white dark:text-gray-950 rounded-xl font-bold px-5 py-2.5 text-xs"
-                                  >
-                                    Verify
-                                  </Button>
-                                </div>
-                                {verificationError && (
-                                  <p className="text-[10px] text-red-500 font-bold text-left">{verificationError}</p>
-                                )}
-                              </div>
-
-                              <div className="text-left">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsSettingUp2FA(false);
-                                    setVerificationCode('');
-                                    setVerificationError('');
-                                  }}
-                                  className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:underline"
-                                >
-                                  Cancel Setup
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* 2FA Enabled State */
-                    <div className="space-y-6 max-w-xl">
-                      <div className="flex items-center gap-3 p-4 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-2xl">
-                        <ShieldCheck className="w-6 h-6 flex-shrink-0" />
-                        <div>
-                          <p className="font-bold text-xs">Two-Factor Authentication is Active</p>
-                          <p className="text-[10px] opacity-90 mt-0.5">Your account has an extra layer of security validation active.</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 pt-2">
-                        <h3 className="font-serif text-base font-bold text-gray-800 dark:text-gray-200">
-                          Deactivate Two-Factor Authentication
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                          If you disable 2FA, you will no longer be prompted for a verification code when signing in, reducing your account security level.
-                        </p>
-                        <Button
-                          onClick={handleDisable2FA}
-                          loading={loading2FA}
-                          className="bg-red-650 hover:bg-red-750 text-white rounded-xl px-5 py-2.5 font-bold text-xs border-0 uppercase tracking-wider"
-                        >
-                          Disable 2FA
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  <div className="max-w-2xl">
+                    <TwoFactorSetup enabled={Boolean(user?.twoFactorEnabled)} onChanged={refreshUser} />
+                  </div>
                 </div>
               )}
 
@@ -1798,6 +1593,18 @@ export default function AdminDashboardPage() {
         </div>
 
       </main>
+
+      {selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onUpdated={(updated) => {
+            setSelectedOrder(updated);
+            setAllOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus } : o)));
+          }}
+          onViewAudit={(id) => fetchAuditTrail('Order', id)}
+        />
+      )}
 
       {/* AUDIT TRAIL LOG MODAL */}
       {showAuditTrailModal && (

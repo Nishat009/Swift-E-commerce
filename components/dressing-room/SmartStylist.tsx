@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useAvatarStore } from '@/stores/avatarStore';
 import { useCartStore } from '@/stores/cartStore';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
 import { Product } from '@/types';
 import { Sparkles, ShoppingCart, TrendingUp, DollarSign, Palette, Award, HelpCircle } from 'lucide-react';
 import Image from 'next/image';
@@ -10,6 +10,7 @@ import Button from '../ui/Button';
 export default function SmartStylist() {
   const { wornItems } = useAvatarStore();
   const addItem = useCartStore((state) => state.addItem);
+  const { products: fashionProducts } = useCatalog();
 
   // --- OUTFIT ANALYSIS ENGINE ---
   const analysis = useMemo(() => {
@@ -130,7 +131,7 @@ export default function SmartStylist() {
       aiSummary,
       recommendations,
     };
-  }, [wornItems]);
+  }, [wornItems, fashionProducts]);
 
   // Add all worn items to the cart
   const handleAddOutfitToCart = () => {

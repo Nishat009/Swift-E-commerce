@@ -11,7 +11,8 @@ const {
   updateCampaignStatus,
   getCampaignAnalytics,
   getCampaignTickets,
-  drawCampaignWinner
+  drawCampaignWinner,
+  updateDeliveryProof
 } = require('../controllers/campaignController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -30,6 +31,7 @@ router.put('/admin/:id', protect, authorize('admin'), updateCampaign);
 router.put('/admin/:id/status', protect, authorize('admin'), updateCampaignStatus);
 router.get('/admin/:id/tickets', protect, authorize('admin'), getCampaignTickets);
 router.post('/admin/:id/draw', protect, authorize('admin'), drawCampaignWinner);
+router.put('/admin/:id/delivery', protect, authorize('admin'), updateDeliveryProof);
 
 // Parameterized routes (must come after static / sub-path routes)
 router.get('/:id', getCampaignById);

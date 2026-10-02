@@ -230,7 +230,8 @@ export interface Order {
   orderNumber?: string;
   user?: User | { name: string; email: string };
   items?: CartItem[];
-  products?: { product: Product; quantity: number; price: number }[];
+  products?: { product: Product; quantity: number; price: number; variant?: { id?: string; name?: string; sku?: string } }[];
+  coupon?: string;
   subtotal?: number;
   shipping?: number;
   tax?: number;

@@ -2,16 +2,18 @@ import React from 'react';
 import ProductCard from '@/components/ui/ProductCard';
 import AIBadge from '@/components/ui/AIBadge';
 import { useAIRecommendation } from '@/hooks/useAIRecommendation';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
+import { Product } from '@/types';
 import { Sparkles, Eye, Flame, Layers } from 'lucide-react';
 
-export default function AIPicksForYou() {
+export default function AIPicksForYou({ products }: { products?: Product[] }) {
+  const { products: catalogProducts } = useCatalog();
   const {
     recommendedForYou,
     completeTheLook,
     becauseYouViewed,
     trendingForStyle,
-  } = useAIRecommendation(fashionProducts);
+  } = useAIRecommendation(products ?? catalogProducts);
 
   return (
     <div className="space-y-12 py-8">

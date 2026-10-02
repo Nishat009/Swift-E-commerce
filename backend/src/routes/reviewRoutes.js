@@ -5,7 +5,8 @@ const {
   getProductReviews,
   updateReview,
   deleteReview,
-  getAllReviews
+  getAllReviews,
+  markReviewHelpful
 } = require('../controllers/reviewController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -20,6 +21,7 @@ router.get('/', protect, authorize('admin'), getAllReviews);
 
 // Protected routes to submit/edit reviews
 router.post('/', protect, reviewRules, validate, createReview);
+router.post('/:id/helpful', protect, markReviewHelpful);
 router.put('/:id', protect, reviewRules, validate, updateReview);
 router.delete('/:id', protect, deleteReview);
 

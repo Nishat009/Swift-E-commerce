@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AccountLayout from '@/components/layout/AccountLayout';
+import AdminOnly from '@/components/admin/AdminOnly';
 import { productService } from '@/services/productService';
 import Loading from '@/components/ui/Loading';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -31,7 +32,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 
-export default function ProductDetailPage() {
+function ProductDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const productId = params?.id as string;
@@ -58,7 +59,7 @@ export default function ProductDetailPage() {
         router.push('/dashboard/products');
       }
     } catch (err: any) {
-      toast.error('Failed to load product details.');
+      toast.error(err?.message || 'Failed to load product details.');
       router.push('/dashboard/products');
     } finally {
       setLoading(false);
@@ -73,8 +74,8 @@ export default function ProductDetailPage() {
         toast.success('Product duplicated successfully!');
         router.push(`/dashboard/products/${dup.id}/edit`);
       }
-    } catch (err) {
-      toast.error('Failed to duplicate product.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to duplicate product.');
     }
   };
 
@@ -85,8 +86,8 @@ export default function ProductDetailPage() {
       await productService.updateProduct(product.id, { status: newStatus });
       toast.success(`Product status updated to ${newStatus}.`);
       loadProduct();
-    } catch (err) {
-      toast.error('Failed to update status.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update status.');
     }
   };
 
@@ -94,11 +95,11 @@ export default function ProductDetailPage() {
     if (!product) return;
     try {
       await productService.deleteProduct(product.id);
-      toast.success('Product deleted.');
+      toast.success('Product removed from the store (archived).');
       setIsDeleteModalOpen(false);
       router.push('/dashboard/products');
-    } catch (err) {
-      toast.error('Failed to delete product.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete product.');
     }
   };
 
@@ -450,5 +451,13 @@ export default function ProductDetailPage() {
 
       </div>
     </AccountLayout>
+  );
+}
+
+export default function ProductDetailPage() {
+  return (
+    <AdminOnly>
+      <ProductDetailPageContent />
+    </AdminOnly>
   );
 }

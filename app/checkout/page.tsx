@@ -42,14 +42,51 @@ export default function CheckoutPage() {
     zipCode: '',
     country: '',
   });
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardName: '',
-  });
+  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [enabledMethods, setEnabledMethods] = useState<{ cod: boolean; bkash: boolean; card: boolean }>({ cod: true, bkash: false, card: false });
+
+  useEffect(() => {
+    apiClient
+      .get('/payments/methods')
+      .then((res) => {
+        const m = res.data?.data?.methods;
+        if (m) setEnabledMethods({ cod: true, bkash: Boolean(m.bkash), card: Boolean(m.card) });
+      })
+      .catch(() => {});
+  }, []);
+
+  const paymentOptions = [
+    { id: 'card', label: 'Credit / Debit Card', hint: 'Pay securely with Stripe', enabled: enabledMethods.card },
+    { id: 'bkash', label: 'bKash', hint: 'Pay with your bKash wallet', enabled: enabledMethods.bkash },
+    { id: 'cod', label: 'Cash on Delivery', hint: 'Pay when your order arrives', enabled: true },
+  ].filter((o) => o.enabled);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [placedOrderNumber, setPlacedOrderNumber] = useState('');
+  const [selectedSavedId, setSelectedSavedId] = useState<string>('');
+
+  const savedAddresses = (user?.addresses || []) as (Address & { _id?: string; id?: string })[];
+
+  const applySavedAddress = (addr: Address & { _id?: string; id?: string }) => {
+    setSelectedSavedId(String(addr._id || addr.id || ''));
+    setAddress({
+      street: addr.street || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      zipCode: addr.zipCode || '',
+      country: addr.country || '',
+    });
+    setErrors({});
+  };
+
+  // Prefill the shipping form with the user's default saved address
+  useEffect(() => {
+    if (savedAddresses.length > 0 && !selectedSavedId && !address.street) {
+      const def = savedAddresses.find((a) => a.isDefault) || savedAddresses[0];
+      applySavedAddress(def);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; isFixed?: boolean } | null>(null);
@@ -82,9 +119,14 @@ export default function CheckoutPage() {
           sessionStorage.setItem('applied_coupon', coupon.code);
         }
       } else {
+        setAppliedCoupon(null);
         setCouponMessage('Invalid coupon code');
       }
     } catch (err: any) {
+      setAppliedCoupon(null);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('applied_coupon');
+      }
       setCouponMessage(err.response?.data?.message || 'Invalid or expired coupon code');
     } finally {
       setCouponLoading(false);
@@ -114,11 +156,8 @@ export default function CheckoutPage() {
 
   const validatePayment = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (paymentMethod === 'card') {
-      if (!cardDetails.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
-      if (!cardDetails.expiryDate.trim()) newErrors.expiryDate = 'Expiry date is required';
-      if (!cardDetails.cvv.trim()) newErrors.cvv = 'CVV is required';
-      if (!cardDetails.cardName.trim()) newErrors.cardName = 'Cardholder name is required';
+    if (!paymentOptions.some((o) => o.id === paymentMethod)) {
+      newErrors.form = 'Please choose an available payment method';
     }
 
     setErrors(newErrors);
@@ -134,7 +173,9 @@ export default function CheckoutPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     if (validatePayment()) {
+      setSubmitting(true);
       try {
         const response = await apiClient.post('/orders', {
           products: items.map((item) => ({
@@ -151,12 +192,37 @@ export default function CheckoutPage() {
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem('applied_coupon');
           }
-          await clearCart();
+          const createdOrder = response.data.data;
+          setPlacedOrderNumber(createdOrder?.orderNumber || '');
+          await clearCart().catch(() => {});
+
+          if (paymentMethod === 'bkash' || paymentMethod === 'card') {
+            // Online payment: hand over to the gateway (verified server-side on return)
+            try {
+              const pay = await apiClient.post(`/payments/orders/${createdOrder.id}/initiate`, { method: paymentMethod });
+              const url = pay.data?.data?.redirectUrl;
+              if (pay.data?.success && url) {
+                window.location.href = url;
+                return;
+              }
+              throw new Error(pay.data?.message || 'Could not start payment');
+            } catch (payErr: any) {
+              // The order exists; the customer can retry from the orders page
+              router.push('/orders?payment=failed&order=' + createdOrder.id);
+              return;
+            }
+          }
           setStep('confirmation');
         }
       } catch (err: any) {
         console.error('Checkout error:', err);
-        setErrors({ form: err.response?.data?.message || 'Failed to place order. Please try again.' });
+        const details = err.response?.data?.errors;
+        const detailMsg = details && typeof details === 'object'
+          ? Object.values(details).filter((v) => typeof v === 'string').join(', ')
+          : '';
+        setErrors({ form: detailMsg || err.response?.data?.message || 'Failed to place order. Please try again.' });
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -255,6 +321,11 @@ export default function CheckoutPage() {
           <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
             Thank you for your purchase. Your order has been placed successfully and is currently being processed.
           </p>
+          {placedOrderNumber && (
+            <p className="text-sm font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b] mb-8">
+              Order #{placedOrderNumber}
+            </p>
+          )}
           <div className="flex gap-4 justify-center">
             <Button 
               onClick={() => router.push('/products')} 
@@ -284,6 +355,29 @@ export default function CheckoutPage() {
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Address</h2>
                 </div>
                 <div className="space-y-4">
+                  {savedAddresses.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Use a saved address
+                      </label>
+                      <select
+                        value={selectedSavedId}
+                        onChange={(e) => {
+                          const found = savedAddresses.find((a) => String(a._id || a.id) === e.target.value);
+                          if (found) applySavedAddress(found);
+                          else setSelectedSavedId('');
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">Enter a new address</option>
+                        {savedAddresses.map((a) => (
+                          <option key={String(a._id || a.id)} value={String(a._id || a.id)}>
+                            {a.street}, {a.city}{a.isDefault ? ' (default)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <Input
                     label="Street Address"
                     value={address.street}
@@ -349,62 +443,40 @@ export default function CheckoutPage() {
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Method</h2>
                 </div>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Payment Method
-                    </label>
-                    <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="card">Credit/Debit Card</option>
-                      <option value="paypal">PayPal</option>
-                      <option value="cod">Cash on Delivery</option>
-                    </select>
+                  <div className="space-y-3">
+                    {paymentOptions.map((o) => (
+                      <label
+                        key={o.id}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-colors ${
+                          paymentMethod === o.id
+                            ? 'border-[#8b6f47] bg-[#8b6f47]/5'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-[#8b6f47]/50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={o.id}
+                          checked={paymentMethod === o.id}
+                          onChange={() => setPaymentMethod(o.id)}
+                          className="accent-[#8b6f47]"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-gray-900 dark:text-white">{o.label}</span>
+                          <span className="block text-xs text-gray-500 dark:text-gray-400">{o.hint}</span>
+                        </span>
+                      </label>
+                    ))}
+                    {paymentMethod !== 'cod' && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        You will be redirected to a secure payment page to complete your payment.
+                      </p>
+                    )}
                   </div>
 
-                  {paymentMethod === 'card' && (
-                    <>
-                      <Input
-                        label="Cardholder Name"
-                        value={cardDetails.cardName}
-                        onChange={(e) => setCardDetails({ ...cardDetails, cardName: e.target.value })}
-                        error={errors.cardName}
-                        required
-                      />
-                      <Input
-                        label="Card Number"
-                        value={cardDetails.cardNumber}
-                        onChange={(e) => setCardDetails({ ...cardDetails, cardNumber: e.target.value })}
-                        error={errors.cardNumber}
-                        placeholder="1234 5678 9012 3456"
-                        required
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input
-                          label="Expiry Date"
-                          value={cardDetails.expiryDate}
-                          onChange={(e) => setCardDetails({ ...cardDetails, expiryDate: e.target.value })}
-                          error={errors.expiryDate}
-                          placeholder="MM/YY"
-                          required
-                        />
-                        <Input
-                          label="CVV"
-                          value={cardDetails.cvv}
-                          onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
-                          error={errors.cvv}
-                          placeholder="123"
-                          required
-                        />
-                      </div>
-                    </>
-                  )}
-
                   <div className="flex gap-4 pt-2">
-                    <Button type="submit" size="lg" className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full">
-                      Place Order
+                    <Button type="submit" size="lg" loading={submitting} className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full">
+                      {paymentMethod === 'cod' ? 'Place Order' : 'Place Order & Pay'}
                     </Button>
                     <Button
                       type="button"

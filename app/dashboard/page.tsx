@@ -23,6 +23,7 @@ export default function DashboardOverviewPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const cartItems = useCartStore((state) => state.items);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function DashboardOverviewPage() {
 
   const loadDashboardStats = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [ordersRes, wishlistRes] = await Promise.all([
         apiClient.get('/orders'),
@@ -38,13 +40,14 @@ export default function DashboardOverviewPage() {
       ]);
 
       if (ordersRes.data?.success) {
-        setOrders(ordersRes.data.data);
+        setOrders(Array.isArray(ordersRes.data.data) ? ordersRes.data.data : []);
       }
       if (wishlistRes.data?.success) {
-        setWishlistCount(wishlistRes.data.data.length);
+        setWishlistCount(Array.isArray(wishlistRes.data.data) ? wishlistRes.data.data.length : 0);
       }
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -73,12 +76,12 @@ export default function DashboardOverviewPage() {
               Welcome back, {user?.name}!
             </h2>
             <p className="text-xs text-white/80 max-w-md">
-              Here is what is happening with your account today. Check your order statuses or search for new draws.
+              Here is what is happening with your account today. Check your order statuses or browse new arrivals.
             </p>
           </div>
           <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl text-center z-10">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-white/60">Loyalty Level</span>
-            <span className="font-serif font-bold text-sm">Platinum Member (Est. {memberYear})</span>
+            <span className="block text-[9px] font-black uppercase tracking-widest text-white/60">Member Since</span>
+            <span className="font-serif font-bold text-sm">{memberYear}</span>
           </div>
         </div>
 
@@ -89,6 +92,11 @@ export default function DashboardOverviewPage() {
           </h3>
           {loading ? (
             <StatsSkeleton />
+          ) : loadError ? (
+            <div className="text-center py-6 text-sm text-text-muted space-y-3">
+              <p>We could not load your account activity.</p>
+              <button onClick={loadDashboardStats} className="text-xs font-bold border border-gray-200 dark:border-gray-700 rounded-full px-5 py-1.5">Try again</button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {stats.map((stat, idx) => {
@@ -134,7 +142,7 @@ export default function DashboardOverviewPage() {
             <div className="space-y-4">
               <OrderSkeleton />
             </div>
-          ) : recentOrders.length === 0 ? (
+          ) : loadError ? null : recentOrders.length === 0 ? (
             <div className="bg-[#faf9f6] dark:bg-gray-850 rounded-3xl border border-gray-150/30 dark:border-gray-800/80 p-8">
               <EmptyState
                 icon={Package}
@@ -153,6 +161,9 @@ export default function DashboardOverviewPage() {
                   : 0;
 
                 const statusStyles = {
+                  Confirmed: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+                  Packed: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
+                  Returned: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
                   Delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
                   Shipped: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
                   Processing: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',

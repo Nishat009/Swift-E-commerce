@@ -25,6 +25,11 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const enterpriseRoutes = require('./routes/enterpriseRoutes');
 const currencyRoutes = require('./routes/currencyRoutes');
 const languageRoutes = require('./routes/languageRoutes');
+const heroRoutes = require('./routes/heroRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const contactRoutes = require('./routes/contactRoutes');
+const { metricsMiddleware } = require('./utils/metrics');
 
 const app = express();
 
@@ -63,8 +68,16 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
+// 3b. Request metrics (admin monitoring tab)
+app.use(metricsMiddleware);
+
 // 4. Body parser and Cookie parser
-app.use(express.json());
+// Keep the raw body for the Stripe webhook signature check
+app.use(express.json({
+  verify: (req, res, buf) => {
+    if (req.originalUrl && req.originalUrl.startsWith('/api/payments/stripe/webhook')) req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -95,6 +108,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/languages', languageRoutes);
+app.use('/api/hero', heroRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/contact', contactRoutes);
 
 // 8. Swagger documentation endpoint
 setupSwagger(app);

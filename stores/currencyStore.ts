@@ -18,11 +18,9 @@ interface CurrencyState {
   format: (amount: number) => string;
 }
 
+// Base currency only; every other currency/rate comes from the database via /currencies
 const defaultCurrencies: CurrencyInfo[] = [
   { code: 'USD', symbol: '$', rate: 1.0 },
-  { code: 'EUR', symbol: '€', rate: 0.92 },
-  { code: 'GBP', symbol: '£', rate: 0.78 },
-  { code: 'BDT', symbol: '৳', rate: 118.0 },
 ];
 
 export const useCurrencyStore = create<CurrencyState>()(
@@ -60,8 +58,8 @@ export const useCurrencyStore = create<CurrencyState>()(
             }
           }
         } catch (error) {
-          console.warn('Failed to load dynamic currencies, using defaults:', error);
-          set({ availableCurrencies: defaultCurrencies });
+          // Keep whatever was last loaded from the server (persisted); do not invent rates
+          console.warn('Failed to load currencies from server:', error);
         }
       },
       format: (amount: number) => {

@@ -16,8 +16,8 @@ AuditTrailSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {
     ret.id = ret._id.toString();
-    delete _id;
-    delete __v;
+    delete ret._id;
+    delete ret.__v;
     return ret;
   }
 });

@@ -122,13 +122,13 @@ function RegisterFormContent() {
           {/* Heading Text Content */}
           <div className="relative z-10 mt-24 md:mt-auto space-y-4">
             <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-black leading-[1.1] tracking-tight uppercase">
-              YOUR NEXT<br />ADVENTURE<br />AWAITS!
+              JOIN<br />SWIFTCART<br />TODAY
             </h1>
             <p className="text-xs sm:text-sm text-gray-200/90 max-w-sm leading-relaxed font-light">
               Create your account to unlock premium avatar fitting room, explore custom prize drawings, and fast-track checkout options.
             </p>
             <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
-              Your journey starts here.
+              Fashion and home, all in one place.
             </p>
           </div>
         </div>
@@ -253,10 +253,7 @@ function RegisterFormContent() {
                   className="h-4 w-4 mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500/30 dark:bg-gray-900 dark:border-gray-800"
                 />
                 <label htmlFor="agreeTerms" className="text-[11px] text-gray-500 dark:text-gray-400 font-medium cursor-pointer">
-                  I agree to the{' '}
-                  <Link href="#" onClick={(e) => { e.preventDefault(); toast.info('Terms and Conditions simulated.'); }} className="text-emerald-700 hover:text-emerald-800 font-bold hover:underline dark:text-emerald-500">
-                    Terms & Conditions
-                  </Link>
+                  I agree to the <Link href="/terms" target="_blank" className="underline font-bold">Terms & Conditions</Link> of this store.
                 </label>
               </div>
               {errors.agreeTerms && <p className="text-[10px] text-red-505 font-bold">{errors.agreeTerms}</p>}

@@ -14,6 +14,9 @@ const couponRules = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage('Discount amount must be a positive number'),
+  body('minSpend').optional().isFloat({ min: 0 }).withMessage('Minimum spend must be 0 or more'),
+  body('usageLimit').optional().isInt({ min: 0 }).withMessage('Usage limit must be a whole number (0 = unlimited)'),
+  body('perUserLimit').optional().isInt({ min: 0 }).withMessage('Per-user limit must be a whole number (0 = unlimited)'),
   body('expiry')
     .notEmpty()
     .withMessage('Expiry date is required')

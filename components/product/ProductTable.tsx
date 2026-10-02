@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Product } from '@/types';
 import { productService, GetProductsParams } from '@/services/productService';
+import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -93,8 +94,31 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
   const [importJsonText, setImportJsonText] = useState('');
 
   // Options lists for filter dropdowns
-  const categoriesList = ['Clothing', 'Top', 'Bottom', 'Dresses', 'Outerwear', 'Footwear', 'Accessories', 'Sofa', 'Chair', 'Table'];
-  const brandsList = ['SwiftCart Signature', 'FurniturePro', 'WoodCraft', 'MarbleHome', 'AuraWear', 'NordicStyle', 'UrbanDenim'];
+  // (loaded from the database, never hard-coded)
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
+  const [brandsList, setBrandsList] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          apiClient.get('/categories'),
+          apiClient.get('/products', { params: { all: true, limit: 500 } }),
+        ]);
+        if (cancelled) return;
+        setCategoriesList((catRes.data?.data || []).map((c: any) => c.name));
+        const brands = new Set<string>();
+        (prodRes.data?.products || []).forEach((p: any) => p.brand && brands.add(p.brand));
+        setBrandsList(Array.from(brands).sort((a, b) => a.localeCompare(b)));
+      } catch {
+        // filter lists stay empty; the product list itself reports its own errors
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     loadProducts();
@@ -137,8 +161,8 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       setTotal(res.total);
       setTotalPages(res.totalPages);
       setSummary(res.summary);
-    } catch (err) {
-      toast.error('Failed to load products list.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to load products list.');
     } finally {
       setLoading(false);
     }
@@ -202,7 +226,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       loadProducts();
       if (onProductChange) onProductChange();
     } catch (err: any) {
-      toast.error('Bulk operation failed.');
+      toast.error(err?.message || 'Bulk operation failed.');
     }
   };
 
@@ -214,8 +238,8 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
         loadProducts();
         if (onProductChange) onProductChange();
       }
-    } catch (err) {
-      toast.error('Failed to duplicate product.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to duplicate product.');
     }
   };
 
@@ -226,8 +250,8 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       toast.success(`Product "${p.title}" is now ${newStatus}.`);
       loadProducts();
       if (onProductChange) onProductChange();
-    } catch (err) {
-      toast.error('Failed to update status.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update status.');
     }
   };
 
@@ -240,13 +264,13 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
     if (!deleteTargetId) return;
     try {
       await productService.deleteProduct(deleteTargetId);
-      toast.success('Product deleted successfully.');
+      toast.success('Product removed from the store (archived, past orders keep their history).');
       setIsDeleteModalOpen(false);
       setDeleteTargetId(null);
       loadProducts();
       if (onProductChange) onProductChange();
-    } catch (err) {
-      toast.error('Failed to delete product.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete product.');
     }
   };
 
@@ -255,16 +279,22 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
     toast.success('Exporting product catalog...');
   };
 
-  const handleImportSubmit = () => {
+  const handleImportSubmit = async () => {
     if (!importJsonText.trim()) {
       toast.error('Please paste valid JSON product array.');
       return;
     }
     try {
-      const imported = productService.importProducts(importJsonText);
-      toast.success(`Successfully imported ${imported.length} product records.`);
-      setIsImportModalOpen(false);
-      setImportJsonText('');
+      const result = await productService.importProducts(importJsonText);
+      if (result.failed.length > 0) {
+        toast.error(`Imported ${result.created}, failed ${result.failed.length}: ${result.failed[0].title} - ${result.failed[0].message}`);
+      } else {
+        toast.success(`Successfully imported ${result.created} product records.`);
+      }
+      if (result.created > 0) {
+        setIsImportModalOpen(false);
+        setImportJsonText('');
+      }
       loadProducts();
       if (onProductChange) onProductChange();
     } catch (err: any) {
@@ -717,7 +747,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <img
-                            src={p.thumbnail || p.images?.[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=100&q=80'}
+                            src={p.thumbnail || p.images?.[0] || ''}
                             alt={p.title}
                             className="w-11 h-11 rounded-xl object-cover border border-gray-200/60 dark:border-gray-800 shrink-0"
                           />
@@ -729,7 +759,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                               {p.title || p.name}
                             </Link>
                             <p className="text-[10px] text-text-muted truncate mt-0.5">
-                              {p.brand || 'SwiftCart Signature'}
+                              {p.brand || '-'}
                             </p>
                           </div>
                         </div>

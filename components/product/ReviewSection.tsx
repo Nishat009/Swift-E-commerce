@@ -8,6 +8,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { ThumbsUp, CheckCircle, MessageSquarePlus, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import apiClient from '@/lib/apiClient';
+import { useToast } from '@/context/ToastContext';
 
 export interface ReviewSectionProps {
   productId: string | number;
@@ -33,32 +35,29 @@ export default function ReviewSection({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [helpfulCounts, setHelpfulCounts] = useState<Record<string, number>>({});
+  const toast = useToast();
 
-  const distribution = ratingDistribution || {
-    5: Math.round(reviewCount * 0.7),
-    4: Math.round(reviewCount * 0.2),
-    3: Math.round(reviewCount * 0.07),
-    2: Math.round(reviewCount * 0.02),
-    1: Math.round(reviewCount * 0.01),
-  };
+  // Distribution is computed from the real reviews loaded from the database
+  const distribution = reviews.reduce(
+    (acc, r) => {
+      const key = Math.min(5, Math.max(1, Math.round(r.rating))) as 1 | 2 | 3 | 4 | 5;
+      acc[key] += 1;
+      return acc;
+    },
+    { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as RatingDistribution
+  );
 
-  const handleHelpfulClick = (reviewId: string) => {
-    if (typeof window === 'undefined') return;
-    const votedStored = localStorage.getItem('voted-helpful-reviews') || '[]';
-    let votedList: string[] = [];
+  const handleHelpfulClick = async (reviewId: string) => {
     try {
-      votedList = JSON.parse(votedStored);
-    } catch {
-      votedList = [];
+      await apiClient.post('/reviews/' + reviewId + '/helpful');
+      setHelpfulCounts((prev) => ({
+        ...prev,
+        [reviewId]: (prev[reviewId] || 0) + 1,
+      }));
+    } catch (err: any) {
+      const status = err?.response?.status;
+      toast.info(status === 401 ? 'Please log in to vote on reviews.' : err?.response?.data?.message || 'Could not record your vote.');
     }
-    if (votedList.includes(reviewId)) {
-      return; // Already upvoted in session
-    }
-    localStorage.setItem('voted-helpful-reviews', JSON.stringify([...votedList, reviewId]));
-    setHelpfulCounts((prev) => ({
-      ...prev,
-      [reviewId]: (prev[reviewId] || 0) + 1,
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -314,7 +313,7 @@ export default function ReviewSection({
                     {rev.userAvatar ? (
                       <Image src={rev.userAvatar} alt={rev.userName} fill className="object-cover" />
                     ) : (
-                      rev.userName.charAt(0).toUpperCase()
+                      (rev.userName || '?').charAt(0).toUpperCase()
                     )}
                   </div>
                   <div>
@@ -328,7 +327,7 @@ export default function ReviewSection({
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-text-muted">{rev.date}</span>
+                    <span className="text-[10px] text-text-muted">{rev.date ? new Date(rev.date).toLocaleDateString() : ''}</span>
                   </div>
                 </div>
 

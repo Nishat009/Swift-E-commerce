@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Ticket, Award, RefreshCw, ChevronLeft, Calendar, FileText, X, Printer, Filter, Trophy, Clock, Hash, CreditCard, CheckCircle } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
+import { useToast } from '@/context/ToastContext';
 
 interface Campaign {
   id: string;
@@ -37,6 +38,7 @@ export default function MyTicketsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTicketInvoice, setSelectedTicketInvoice] = useState<TicketRecord | null>(null);
   const [activeFilter, setActiveFilter] = useState<TicketFilter>('all');
+  const toast = useToast();
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -44,7 +46,7 @@ export default function MyTicketsPage() {
     try {
       const res = await apiClient.get('/campaigns/my-tickets');
       if (res.data?.success) {
-        setTickets(res.data.data);
+        setTickets(Array.isArray(res.data.data) ? res.data.data : []);
       } else {
         setError('Failed to fetch ticket entries.');
       }
@@ -57,6 +59,13 @@ export default function MyTicketsPage() {
   };
 
   useEffect(() => {
+    // Result of a ticket payment (verified server-side before tickets are issued)
+    if (typeof window !== 'undefined') {
+      const result = new URLSearchParams(window.location.search).get('payment');
+      if (result === 'success') toast.success('Payment confirmed. Your tickets are ready!');
+      else if (result === 'failed') toast.error('Payment was not completed. No tickets were issued.');
+      if (result) window.history.replaceState({}, '', '/campaigns/my-tickets');
+    }
     fetchTickets();
   }, []);
 
@@ -230,7 +239,7 @@ export default function MyTicketsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <CreditCard className="w-3 h-3" />
-                          {t.paymentMethod || 'Wallet'}
+                          {t.paymentMethod || 'Online'}
                         </span>
                       </div>
                     </div>
@@ -292,7 +301,7 @@ export default function MyTicketsPage() {
                     { label: 'Purchased Item', value: selectedTicketInvoice.campaign?.productTitle },
                     { label: 'Ticket Serial', value: selectedTicketInvoice.ticketNumber, highlight: true },
                     { label: 'Purchase Date', value: new Date(selectedTicketInvoice.createdAt).toLocaleString() },
-                    { label: 'Payment Method', value: (selectedTicketInvoice.paymentMethod || 'simulated_wallet').toUpperCase() },
+                    { label: 'Payment Method', value: (selectedTicketInvoice.paymentMethod || 'online').toUpperCase() },
                   ].map((row, i) => (
                     <div key={i} className="flex justify-between items-center">
                       <span className="text-gray-400">{row.label}:</span>
@@ -313,7 +322,7 @@ export default function MyTicketsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="font-bold text-gray-800 dark:text-white">Amount Charged:</span>
                   <span className="font-serif font-black text-lg text-[#8b6f47] dark:text-[#c9a96b]">
-                    ${(selectedTicketInvoice.purchaseAmount || selectedTicketInvoice.campaign?.productPrice || 15).toFixed(2)}
+                    ${(selectedTicketInvoice.purchaseAmount || selectedTicketInvoice.campaign?.productPrice || 0).toFixed(2)}
                   </span>
                 </div>
 

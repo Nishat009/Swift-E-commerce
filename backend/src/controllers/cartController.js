@@ -1,6 +1,9 @@
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/response');
+const { unitPrice, normalizeVariant } = require('../utils/pricing');
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Helper to find product by ObjectId, numeric ID, SKU, or slug
 const findProductFlexible = async (id) => {
@@ -18,7 +21,7 @@ const findProductFlexible = async (id) => {
       { sku: idStr },
       { SKU: idStr },
       { barcode: idStr },
-      { title: new RegExp(`^${idStr.replace(/-/g, ' ')}$`, 'i') }
+      { title: new RegExp(`^${escapeRegex(idStr.replace(/-/g, ' '))}$`, 'i') }
     ]
   });
   if (prod) return prod;
@@ -64,10 +67,8 @@ const recalculateCart = async (cart) => {
 
   cart.products.forEach((item) => {
     if (item.product) {
-      const price = item.product.price;
-      const discount = item.product.discountPercentage || 0;
-      const finalPrice = price * (1 - discount / 100);
-      subtotal += finalPrice * item.quantity;
+      // Price is always computed server-side (product price + selected variant)
+      subtotal += unitPrice(item.product, item.variant).price * item.quantity;
     }
   });
 
@@ -124,7 +125,9 @@ const addToCart = async (req, res, next) => {
       cart.products.push({
         product: product._id,
         quantity: Number(quantity),
-        variant: typeof variant === 'object' && variant ? variant : { id: variantId }
+        variant: typeof variant === 'object' && variant
+          ? { ...normalizeVariant(product, variant), id: variantId }
+          : { id: variantId }
       });
     }
 

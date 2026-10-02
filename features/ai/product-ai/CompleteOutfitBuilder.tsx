@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Product } from '@/types';
 import { aiService } from '@/services/aiService';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
 import { useCartStore } from '@/stores/cartStore';
 import { useAvatarStore } from '@/stores/avatarStore';
 import { Sparkles, ShoppingBag, Layers, Plus, Check } from 'lucide-react';
@@ -17,9 +17,11 @@ export default function CompleteOutfitBuilder({ baseProduct }: CompleteOutfitBui
   const addItem = useCartStore((state) => state.addItem);
   const tryOnItem = useAvatarStore((state) => state.tryOnItem);
 
+  const { products: fashionProducts } = useCatalog();
+
   const outfit = useMemo(() => {
     return aiService.generateCompleteOutfit(baseProduct, fashionProducts);
-  }, [baseProduct]);
+  }, [baseProduct, fashionProducts]);
 
   const items = useMemo(() => {
     return [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter(Boolean) as Product[];

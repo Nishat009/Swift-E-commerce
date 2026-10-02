@@ -4,7 +4,7 @@ import { aiService } from '@/services/aiService';
 import { useAIStore } from '@/stores/aiStore';
 import { useAvatarStore } from '@/stores/avatarStore';
 import { useCartStore } from '@/stores/cartStore';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { loadCatalog } from '@/hooks/useCatalog';
 import { StylistMessage } from '@/types/ai';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
@@ -56,7 +56,8 @@ export default function FloatingAIStylist() {
     setIsTyping(true);
 
     try {
-      const responseMsg = await aiService.queryAIStylist(text, userProfile, fashionProducts);
+      const catalog = await loadCatalog();
+      const responseMsg = await aiService.queryAIStylist(text, userProfile, catalog);
       setMessages((prev) => [...prev, responseMsg]);
     } catch {
       setMessages((prev) => [

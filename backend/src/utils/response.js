@@ -5,13 +5,14 @@
  * @param {Object|Array} data - Data to send in response
  * @param {number} statusCode - HTTP status code
  */
-const sendSuccess = (res, message, data = {}, statusCode = 200) => {
+const sendSuccess = (res, message, data = {}, statusCode = 200, meta = null) => {
   return res.status(200).json({
     success: true,
     code: 200,
     status: 200,
     message,
     data,
+    ...(meta && typeof meta === 'object' ? meta : {}),
   });
 };
 

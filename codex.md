@@ -11,3 +11,8 @@ Disable Fast Mode when speed isn’t necessary, if that option appears in your s
 Avoid running several Codex tasks simultaneously.
 Use the lowest practical token usage. Inspect only files relevant to this task. Do not scan the entire repository, browse the web, use sub-agents, or run the complete test suite unless necessary. Use medium or low reasoning. Make focused changes and keep explanations concise.
 Most suitable setup for your Angular/React work: Terra + Medium reasoning, switching to Luna + Low for routine UI changes. That should feel much more like a usable paid plan.
+
+no build
+
+run the project for frontend and backend both part
+if possible use the low cost token model first and if anywhere necessary use the strong one

@@ -9,8 +9,8 @@ const ProductSchema = new mongoose.Schema(
     barcode: { type: String, default: '' },
     description: { type: String, required: true },
     shortDescription: { type: String, default: '' },
-    category: { type: String, required: true },
-    subcategory: { type: String, default: '' },
+    category: { type: String, required: true, trim: true, lowercase: true },
+    subcategory: { type: String, default: '', trim: true, lowercase: true },
     brand: { type: String, required: true, trim: true },
     tags: [{ type: String }],
     
@@ -147,7 +147,7 @@ const ProductSchema = new mongoose.Schema(
     bundles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
 
     // Social & Rating Metrics
-    rating: { type: Number, default: 4.5, min: 0, max: 5 },
+    rating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
     soldCount: { type: Number, default: 0 },

@@ -6,7 +6,7 @@ import ProductCard from '@/components/ui/ProductCard';
 import Image from 'next/image';
 import { fetchProducts } from '@/lib/api';
 import { Product } from '@/types';
-import { mockProducts } from '@/data/mockData';
+import { useCatalog } from '@/hooks/useCatalog';
 import { normalizeProduct } from '@/utils/productUtils';
 import { LoadingSkeleton } from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
@@ -43,7 +43,7 @@ function ProductsPageContent() {
   const searchParams = useSearchParams();
 
   // All catalog products (normalized for fallback & live facet count calculation)
-  const allCatalogProducts = useMemo(() => mockProducts.map(normalizeProduct), []);
+  const { products: allCatalogProducts } = useCatalog();
 
   // Filter State initialized from URL query params
   const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || 'all');
@@ -51,7 +51,7 @@ function ProductsPageContent() {
   const [searchInput, setSearchInput] = useState<string>(searchParams.get('search') || '');
   const [priceRange, setPriceRange] = useState<[number, number]>([
     Number(searchParams.get('minPrice')) || 0,
-    Number(searchParams.get('maxPrice')) || 2000,
+    Number(searchParams.get('maxPrice')) || 5000,
   ]);
   const [sortBy, setSortBy] = useState<SortOption>((searchParams.get('sort') as SortOption) || 'default');
   const [selectedColors, setSelectedColors] = useState<string[]>(
@@ -175,7 +175,7 @@ function ProductsPageContent() {
     if (selectedCategory && selectedCategory !== 'all') params.set('category', selectedCategory);
     if (searchQuery) params.set('search', searchQuery);
     if (priceRange[0] > 0) params.set('minPrice', String(priceRange[0]));
-    if (priceRange[1] < 2000) params.set('maxPrice', String(priceRange[1]));
+    if (priceRange[1] < 5000) params.set('maxPrice', String(priceRange[1]));
     if (sortBy !== 'default') params.set('sort', sortBy);
     if (selectedColors.length > 0) params.set('color', selectedColors.join(','));
     if (selectedSizes.length > 0) params.set('size', selectedSizes.join(','));
@@ -290,18 +290,12 @@ function ProductsPageContent() {
       if (sortBy !== 'default') apiParams.sortBy = sortBy;
       if (selectedColors.length > 0) apiParams.color = selectedColors.join(',');
       if (selectedSizes.length > 0) apiParams.size = selectedSizes.join(',');
+      if (selectedTags.length > 0) apiParams.tag = selectedTags.join(',');
+      if (selectedBrands.length > 0) apiParams.brand = selectedBrands.join(',');
 
       const res = await fetchProducts(apiParams);
       if (res && res.products && Array.isArray(res.products)) {
-        let fetched = res.products.map(normalizeProduct);
-
-        // Further client-side filtering for tags & brands if requested
-        if (selectedTags.length > 0) {
-          fetched = fetched.filter((p) => selectedTags.some((t) => p.tags?.includes(t)));
-        }
-        if (selectedBrands.length > 0) {
-          fetched = fetched.filter((p) => selectedBrands.includes(p.brand));
-        }
+        const fetched = res.products.map(normalizeProduct);
 
         setProducts(fetched);
         setTotalProducts(res.total || fetched.length);
@@ -310,122 +304,11 @@ function ProductsPageContent() {
         throw new Error('Invalid product payload structure');
       }
     } catch (err) {
-      console.warn('Backend API connection failed, executing client-side filtering fallback:', err);
-      // Client-side fallback filter logic on mock catalog
-      let filtered = [...allCatalogProducts];
-
-      let activeQuery = searchQuery;
-      let matchedSuggestion: string | null = null;
-      let originalQueryToKeep: string | null = null;
-
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase().trim();
-        // Check matches
-        const directMatches = filtered.some((p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.tags?.some((t) => t.toLowerCase().includes(q))
-        );
-
-        if (!directMatches) {
-          const candidates = new Set<string>();
-          filtered.forEach((p) => {
-            candidates.add(p.category.toLowerCase());
-            candidates.add(p.brand.toLowerCase());
-            p.title.split(' ').forEach((w) => {
-              const clean = w.toLowerCase().replace(/[^a-z0-9]/g, '');
-              if (clean.length > 2) candidates.add(clean);
-            });
-            p.tags?.forEach((t) => candidates.add(t.toLowerCase()));
-          });
-
-          let minDistance = 999;
-          let closestWord = '';
-
-          candidates.forEach((word) => {
-            const dist = getLevenshteinDistance(q, word);
-            if (dist < minDistance && dist <= 2) {
-              minDistance = dist;
-              closestWord = word;
-            }
-          });
-
-          if (closestWord) {
-            matchedSuggestion = closestWord;
-            originalQueryToKeep = searchQuery;
-            activeQuery = closestWord;
-          }
-        }
-      }
-
-      setTypoSuggestion(matchedSuggestion);
-      setOriginalSearchQuery(originalQueryToKeep);
-
-      if (selectedCategory !== 'all') {
-        filtered = filtered.filter((p) => p.category.toLowerCase() === selectedCategory.toLowerCase());
-      }
-      if (activeQuery) {
-        const q = activeQuery.toLowerCase();
-        filtered = filtered.filter(
-          (p) =>
-            p.title.toLowerCase().includes(q) ||
-            p.brand.toLowerCase().includes(q) ||
-            p.description.toLowerCase().includes(q) ||
-            p.tags?.some((t) => t.toLowerCase().includes(q))
-        );
-      }
-      filtered = filtered.filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
-
-      if (selectedColors.length > 0) {
-        filtered = filtered.filter((p) =>
-          selectedColors.some((c) => {
-            const specColor = p.specifications?.Color || '';
-            const specColorName = p.specifications?.ColorName || '';
-            const hasVariantColor = p.variants?.some((v) =>
-              v.options.some((opt) => opt.value.toLowerCase() === c.toLowerCase())
-            );
-            return specColor.toLowerCase().includes(c.toLowerCase()) || specColorName.toLowerCase().includes(c.toLowerCase()) || hasVariantColor;
-          })
-        );
-      }
-
-      if (selectedSizes.length > 0) {
-        filtered = filtered.filter((p) =>
-          selectedSizes.some((s) => {
-            const specSizes = p.specifications?.Sizes || '';
-            const hasVariantSize = p.variants?.some((v) =>
-              v.options.some((opt) => opt.value.toUpperCase() === s.toUpperCase())
-            );
-            return specSizes.toUpperCase().includes(s.toUpperCase()) || hasVariantSize;
-          })
-        );
-      }
-
-      if (selectedTags.length > 0) {
-        filtered = filtered.filter((p) => selectedTags.some((t) => p.tags?.includes(t)));
-      }
-
-      if (selectedBrands.length > 0) {
-        filtered = filtered.filter((p) => selectedBrands.includes(p.brand));
-      }
-
-      // Sorting
-      if (sortBy === 'price-asc') {
-        filtered.sort((a, b) => a.price - b.price);
-      } else if (sortBy === 'price-desc') {
-        filtered.sort((a, b) => b.price - a.price);
-      } else if (sortBy === 'rating') {
-        filtered.sort((a, b) => b.rating - a.rating);
-      } else if (sortBy === 'newest') {
-        filtered.sort((a, b) => Number(b.id) - Number(a.id));
-      }
-
-      setTotalProducts(filtered.length);
-      setTotalPages(Math.ceil(filtered.length / productsPerPage) || 1);
-
-      const startIndex = (currentPage - 1) * productsPerPage;
-      setProducts(filtered.slice(startIndex, startIndex + productsPerPage));
+      console.error('Failed to load products:', err);
+      setProducts([]);
+      setTotalProducts(0);
+      setTotalPages(1);
+      setError('We could not load products right now. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -498,7 +381,7 @@ function ProductsPageContent() {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedCategory !== 'all') count++;
-    if (priceRange[0] !== 0 || priceRange[1] !== 2000) count++;
+    if (priceRange[0] !== 0 || priceRange[1] !== 5000) count++;
     if (searchQuery !== '') count++;
     count += selectedColors.length;
     count += selectedSizes.length;
@@ -509,7 +392,7 @@ function ProductsPageContent() {
 
   const clearAllFilters = () => {
     setSelectedCategory('all');
-    setPriceRange([0, 2000]);
+    setPriceRange([0, 5000]);
     setSelectedColors([]);
     setSelectedSizes([]);
     setSelectedTags([]);
@@ -575,15 +458,15 @@ function ProductsPageContent() {
             <div
               className="absolute h-full bg-[#8b6f47] dark:bg-[#c9a96b] rounded-full"
               style={{
-                left: `${(priceRange[0] / 2000) * 100}%`,
-                right: `${100 - (priceRange[1] / 2000) * 100}%`,
+                left: `${(priceRange[0] / 5000) * 100}%`,
+                right: `${100 - (priceRange[1] / 5000) * 100}%`,
               }}
             />
             {/* Min Price Slider Handle */}
             <input
               type="range"
               min="0"
-              max="2000"
+              max="5000"
               step="25"
               value={priceRange[0]}
               aria-label="Minimum Price Filter"
@@ -601,7 +484,7 @@ function ProductsPageContent() {
             <input
               type="range"
               min="0"
-              max="2000"
+              max="5000"
               step="25"
               value={priceRange[1]}
               aria-label="Maximum Price Filter"
@@ -640,7 +523,7 @@ function ProductsPageContent() {
                 max="5000"
                 value={priceRange[1]}
                 onChange={(e) => {
-                  setPriceRange([priceRange[0], parseInt(e.target.value) || 2000]);
+                  setPriceRange([priceRange[0], parseInt(e.target.value) || 5000]);
                   setCurrentPage(1);
                 }}
                 className="w-14 bg-transparent text-center font-mono font-bold outline-none"
@@ -1061,10 +944,10 @@ function ProductsPageContent() {
                 </span>
               )}
 
-              {(priceRange[0] !== 0 || priceRange[1] !== 2000) && (
+              {(priceRange[0] !== 0 || priceRange[1] !== 5000) && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#8b6f47]/10 text-[#8b6f47] dark:text-[#c9a96b] rounded-full text-[10px] font-bold border border-[#8b6f47]/20">
                   <span>Price: ${priceRange[0]} - ${priceRange[1]}</span>
-                  <button onClick={() => setPriceRange([0, 2000])} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                  <button onClick={() => setPriceRange([0, 5000])} className="hover:text-red-500"><X className="w-3 h-3" /></button>
                 </span>
               )}
 
@@ -1118,6 +1001,14 @@ function ProductsPageContent() {
               {[...Array(6)].map((_, i) => (
                 <LoadingSkeleton key={i} />
               ))}
+            </div>
+          ) : error ? (
+            <div className="py-16 bg-white dark:bg-gray-900 rounded-[32px] border border-red-200 dark:border-red-900/40 text-center px-4">
+              <h3 className="text-base font-bold font-serif text-gray-900 dark:text-white">Something went wrong</h3>
+              <p className="text-xs text-text-muted mt-1 mb-4">{error}</p>
+              <Button onClick={() => loadProducts()} className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full text-xs font-bold px-6 border-0">
+                Try again
+              </Button>
             </div>
           ) : products.length === 0 ? (
             <div className="py-16 bg-white dark:bg-gray-900 rounded-[32px] border border-gray-150/40 dark:border-gray-800 text-center px-4">

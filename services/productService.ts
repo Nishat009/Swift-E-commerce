@@ -1,9 +1,6 @@
 import apiClient from '@/lib/apiClient';
-import { mockProducts } from '@/data/mockData';
 import { Product } from '@/types';
 import { normalizeProduct } from '@/utils/productUtils';
-
-const STORAGE_KEY = 'swiftcart_products_dataset_v1';
 
 export interface GetProductsParams {
   search?: string;
@@ -44,36 +41,11 @@ export interface GetProductsResponse {
   };
 }
 
-// Local dataset helper for offline fallback & session persistence
-function getLocalDataset(): Product[] {
-  if (typeof window === 'undefined') {
-    return mockProducts.map(normalizeProduct);
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed: Product[] = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(normalizeProduct);
-      }
-    }
-  } catch (err) {
-    console.error('Failed to parse local product dataset:', err);
-  }
-  const initial = mockProducts.map(normalizeProduct);
-  saveLocalDataset(initial);
-  return initial;
-}
-
-function saveLocalDataset(products: Product[]): void {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-    } catch (err) {
-      console.error('Failed to save product dataset to localStorage:', err);
-    }
-  }
-}
+const errMessage = (err: any, fallback: string): string => {
+  if (err?.response?.data?.message) return err.response.data.message;
+  if (!err?.response) return 'Cannot reach the server. Check that the backend is running and try again.';
+  return err?.message || fallback;
+};
 
 export const productService = {
   /**
@@ -99,24 +71,23 @@ export const productService = {
     let allProducts: Product[] = [];
 
     try {
-      const res = await apiClient.get('/products', {
-        params: { all: true, limit: 200 },
-      });
-      if (res.data?.products && Array.isArray(res.data.products)) {
-        allProducts = res.data.products.map(normalizeProduct);
-        saveLocalDataset(allProducts);
-      } else {
-        throw new Error('Failed to retrieve product records from API');
-      }
+      // Pull the full catalogue (including drafts/archived) page by page; filtering/sorting is done client side
+      const pageSize = 200;
+      let fetchedPage = 1;
+      let pages = 1;
+      do {
+        const res = await apiClient.get('/products', {
+          params: { all: true, limit: pageSize, page: fetchedPage },
+        });
+        if (!res.data?.products || !Array.isArray(res.data.products)) {
+          throw new Error('Unexpected response while loading products');
+        }
+        allProducts.push(...res.data.products.map(normalizeProduct));
+        pages = Number(res.data.pages) || 1;
+        fetchedPage += 1;
+      } while (fetchedPage <= pages);
     } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Failed to fetch products from server';
-      const cached = getLocalDataset();
-      if (cached && cached.length > 0 && (!err.response || err.code === 'ERR_NETWORK')) {
-        console.warn('Network offline, using cached product dataset:', message);
-        allProducts = cached;
-      } else {
-        throw new Error(message);
-      }
+      throw new Error(errMessage(err, 'Failed to fetch products from server'));
     }
 
     // Calculate Summary Stats from complete dataset
@@ -236,13 +207,8 @@ export const productService = {
       }
       return null;
     } catch (err: any) {
-      const message = err.response?.data?.message || err.message || `Failed to fetch product ${id}`;
-      if (!err.response || err.code === 'ERR_NETWORK') {
-        const local = getLocalDataset();
-        const found = local.find((p) => String(p.id) === String(id));
-        if (found) return normalizeProduct(found);
-      }
-      throw new Error(message);
+      if (err?.response?.status === 404) return null;
+      throw new Error(errMessage(err, `Failed to fetch product ${id}`));
     }
   },
 
@@ -250,25 +216,19 @@ export const productService = {
    * Creates a new product and persists it.
    */
   async createProduct(productData: Partial<Product>): Promise<Product> {
-    const newProduct: Product = normalizeProduct({
-      ...productData,
-      id: `prod_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
     try {
-      const res = await apiClient.post('/products', newProduct);
+      const payload: Record<string, any> = { ...productData };
+      delete payload.id;
+      delete payload._id;
+      delete payload.createdAt;
+      delete payload.updatedAt;
+      const res = await apiClient.post('/products', payload);
       if (res.data?.data) {
-        const created = normalizeProduct(res.data.data);
-        const dataset = getLocalDataset();
-        saveLocalDataset([created, ...dataset]);
-        return created;
+        return normalizeProduct(res.data.data);
       }
       throw new Error(res.data?.message || 'Failed to create product');
     } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Error creating product on server';
-      throw new Error(message);
+      throw new Error(errMessage(err, 'Error creating product on server'));
     }
   },
 
@@ -279,19 +239,11 @@ export const productService = {
     try {
       const res = await apiClient.put(`/products/${id}`, productData);
       if (res.data?.data) {
-        const updatedProduct = normalizeProduct(res.data.data);
-        const dataset = getLocalDataset();
-        const index = dataset.findIndex((p) => String(p.id) === String(id));
-        if (index !== -1) {
-          dataset[index] = { ...dataset[index], ...updatedProduct };
-          saveLocalDataset(dataset);
-        }
-        return updatedProduct;
+        return normalizeProduct(res.data.data);
       }
       throw new Error(res.data?.message || 'Failed to update product');
     } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Error updating product on server';
-      throw new Error(message);
+      throw new Error(errMessage(err, 'Error updating product on server'));
     }
   },
 
@@ -301,65 +253,33 @@ export const productService = {
   async deleteProduct(id: string | number): Promise<boolean> {
     try {
       await apiClient.delete(`/products/${id}`);
-      const dataset = getLocalDataset();
-      const filtered = dataset.filter((p) => String(p.id) !== String(id));
-      saveLocalDataset(filtered);
       return true;
     } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Error deleting product on server';
-      throw new Error(message);
+      throw new Error(errMessage(err, 'Error deleting product on server'));
     }
   },
 
   /**
-   * Duplicates an existing product with new ID, generated SKU, draft status, and zero stock.
+   * Duplicates a product on the server (copy is created as a draft with a fresh SKU).
    */
   async duplicateProduct(id: string | number): Promise<Product | null> {
-    const existing = await this.getProductById(id);
-    if (!existing) return null;
-
-    const newSku = `COPY-${existing.sku || existing.SKU || 'SKU'}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    const duplicatePayload: Partial<Product> = {
-      ...existing,
-      id: `prod_dup_${Date.now()}`,
-      title: `${existing.title} (Copy)`,
-      name: `${existing.title} (Copy)`,
-      sku: newSku,
-      SKU: newSku,
-      status: 'draft',
-      stock: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    return this.createProduct(duplicatePayload);
+    try {
+      const res = await apiClient.post(`/products/${id}/duplicate`);
+      return res.data?.data ? normalizeProduct(res.data.data) : null;
+    } catch (err: any) {
+      throw new Error(errMessage(err, 'Error duplicating product on server'));
+    }
   },
 
   /**
-   * Executes bulk actions (delete, publish, archive) on multiple products.
+   * Executes bulk actions (delete = archive, publish, archive) on multiple products.
    */
   async bulkAction(action: 'delete' | 'publish' | 'archive', ids: (string | number)[]): Promise<boolean> {
-    const stringIds = ids.map((id) => String(id));
     try {
-      await apiClient.post('/products/bulk', { productIds: stringIds, action });
-      const dataset = getLocalDataset();
-      let updated: Product[];
-
-      if (action === 'delete') {
-        updated = dataset.filter((p) => !stringIds.includes(String(p.id)));
-      } else {
-        const targetStatus = action === 'publish' ? 'published' : 'archived';
-        updated = dataset.map((p) =>
-          stringIds.includes(String(p.id)) ? { ...p, status: targetStatus, updatedAt: new Date().toISOString() } : p
-        );
-      }
-
-      saveLocalDataset(updated);
+      await apiClient.post('/products/bulk', { productIds: ids.map((id) => String(id)), action });
       return true;
     } catch (err: any) {
-      const message = err.response?.data?.message || err.message || 'Error executing bulk operation on server';
-      throw new Error(message);
+      throw new Error(errMessage(err, 'Error executing bulk operation on server'));
     }
   },
 
@@ -380,17 +300,30 @@ export const productService = {
   },
 
   /**
-   * Imports product records from JSON string.
+   * Imports product records from a JSON array by creating each one on the server.
+   * Returns how many were created and the per-record failures.
    */
-  importProducts(jsonText: string): Product[] {
+  async importProducts(jsonText: string): Promise<{ created: number; failed: { title: string; message: string }[] }> {
     const parsed = JSON.parse(jsonText);
     if (!Array.isArray(parsed)) {
       throw new Error('Import data must be a JSON array of products.');
     }
-    const importedProducts = parsed.map(normalizeProduct);
-    const existing = getLocalDataset();
-    const merged = [...importedProducts, ...existing];
-    saveLocalDataset(merged);
-    return merged;
+    let created = 0;
+    const failed: { title: string; message: string }[] = [];
+    for (const raw of parsed) {
+      try {
+        const item: Record<string, any> = { ...raw };
+        delete item.id;
+        delete item._id;
+        delete item.slug;
+        delete item.createdAt;
+        delete item.updatedAt;
+        await this.createProduct(item);
+        created += 1;
+      } catch (err: any) {
+        failed.push({ title: String(raw?.title || raw?.name || 'Untitled'), message: err.message });
+      }
+    }
+    return { created, failed };
   },
 };

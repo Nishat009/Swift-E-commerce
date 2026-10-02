@@ -7,7 +7,10 @@ const ReviewSchema = new mongoose.Schema(
     userName: { type: String, required: true }, // Cache username for easy display on product details
     rating: { type: Number, required: true, min: 1, max: 5 },
     review: { type: String, required: true, trim: true },
-    verified: { type: Boolean, default: false }
+    verified: { type: Boolean, default: false },
+    images: { type: [String], default: [] },
+    helpfulCount: { type: Number, default: 0 },
+    helpedBy: { type: [mongoose.Schema.Types.ObjectId], default: [], select: false }
   },
   { timestamps: true }
 );
@@ -20,6 +23,7 @@ ReviewSchema.set('toJSON', {
     ret.date = ret.createdAt;  // map createdAt date to date for frontend compatibility
     delete ret._id;
     delete ret.__v;
+    delete ret.helpedBy;
     return ret;
   }
 });

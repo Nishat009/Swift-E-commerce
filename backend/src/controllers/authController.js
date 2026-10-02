@@ -7,6 +7,28 @@ const { generateSecret, verifyTOTP, generateRecoveryCodes } = require('../utils/
 const { getRequiredSecret } = require('../utils/generateTokens');
 const AuthChallenge = require('../models/AuthChallenge');
 const { cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
+const { fire: fireEmail, sendWelcome, sendPasswordReset, sendLoginOtp } = require('../services/emailService');
+
+const devCodesAllowed = () => process.env.ALLOW_DEV_AUTH_CODES === 'true' && process.env.NODE_ENV !== 'production';
+const hashCode = (code) => crypto.createHash('sha256').update(String(code).toUpperCase().trim()).digest('hex');
+
+// Checks a TOTP or single-use recovery code. Returns { ok, recoveryHash } (does not consume the recovery code).
+const checkSecondFactorCode = (user, rawCode) => {
+  const code = typeof rawCode === 'string' ? rawCode.trim() : '';
+  if (/^\d{6}$/.test(code)) {
+    return { ok: verifyTOTP(code, user.twoFactorSecret), recoveryHash: null };
+  }
+  if (/^[A-Za-z0-9]{8}$/.test(code)) {
+    const h = hashCode(code);
+    if ((user.twoFactorRecoveryCodes || []).includes(h)) return { ok: true, recoveryHash: h };
+  }
+  return { ok: false, recoveryHash: null };
+};
+
+const newRecoveryCodes = () => {
+  const plain = generateRecoveryCodes(8, 8);
+  return { plain, hashed: plain.map(hashCode) };
+};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -32,6 +54,7 @@ const register = async (req, res, next) => {
 
     // Store refresh token in HttpOnly cookie
     res.cookie('refreshToken', refreshToken, cookieOptions(true));
+    fireEmail(sendWelcome(user));
 
     return sendSuccess(res, 'User registered successfully', {
       user: {
@@ -124,11 +147,11 @@ const logout = async (req, res, next) => {
 // @access  Private
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+password');
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
-    return sendSuccess(res, 'User profile retrieved successfully', { user });
+    return sendSuccess(res, 'User profile retrieved successfully', { user: { ...user.toJSON(), hasPassword: Boolean(user.password) } });
   } catch (error) {
     next(error);
   }
@@ -155,13 +178,17 @@ const updateProfile = async (req, res, next) => {
       user.email = req.body.email;
     }
 
+    const passwordUser = await User.findById(req.user.id).select('+password');
+    const hasPassword = Boolean(passwordUser && passwordUser.password);
     if (req.body.password) {
-      if (!req.body.currentPassword) {
-        return sendError(res, 'Current password is required to set a new password', 400);
-      }
-      const passwordUser = await User.findById(req.user.id).select('+password');
-      if (!passwordUser || !(await passwordUser.matchPassword(req.body.currentPassword))) {
-        return sendError(res, 'Current password is incorrect', 401);
+      // Google-only accounts have no password yet, so they can set one without a current password.
+      if (hasPassword) {
+        if (!req.body.currentPassword) {
+          return sendError(res, 'Current password is required to set a new password', 400);
+        }
+        if (!(await passwordUser.matchPassword(req.body.currentPassword))) {
+          return sendError(res, 'Current password is incorrect', 401);
+        }
       }
       user.password = req.body.password;
     }
@@ -186,7 +213,7 @@ const updateProfile = async (req, res, next) => {
         if (req.body.country !== undefined) {
           defaultAddress.country = req.body.country;
         }
-      } else {
+      } else if (req.body.address && req.body.city && req.body.state && req.body.zipCode) {
         user.addresses.push({
           street: req.body.address || '',
           city: req.body.city || '',
@@ -210,7 +237,8 @@ const updateProfile = async (req, res, next) => {
         role: updatedUser.role,
         addresses: updatedUser.addresses,
         twoFactorEnabled: updatedUser.twoFactorEnabled,
-        googleConnected: Boolean(updatedUser.googleId)
+        googleConnected: Boolean(updatedUser.googleId),
+        hasPassword: hasPassword || Boolean(req.body.password)
       }
     });
   } catch (error) {
@@ -261,7 +289,7 @@ const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ email });
-    const genericMessage = 'If an account exists for that email, password reset instructions have been generated.';
+    const genericMessage = 'If an account exists for that email, password reset instructions have been sent.';
     if (!user) return sendSuccess(res, genericMessage);
 
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -269,7 +297,9 @@ const forgotPassword = async (req, res, next) => {
     user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    return sendSuccess(res, genericMessage, process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_CODES === 'true' ? { resetToken } : {});
+    fireEmail(sendPasswordReset(user, resetToken));
+
+    return sendSuccess(res, genericMessage, devCodesAllowed() ? { resetToken } : {});
   } catch (error) {
     next(error);
   }
@@ -313,6 +343,9 @@ const setup2FA = async (req, res, next) => {
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
+    if (user.twoFactorEnabled) {
+      return sendError(res, 'Two-Factor Authentication is already enabled. Disable it first to set it up again.', 400);
+    }
 
     const secret = generateSecret();
     user.twoFactorSecret = secret;
@@ -335,24 +368,64 @@ const setup2FA = async (req, res, next) => {
 const verifyAndEnable2FA = async (req, res, next) => {
   const { code } = req.body;
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+twoFactorSecret +twoFactorRecoveryCodes');
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
+    if (user.twoFactorEnabled) {
+      return sendError(res, 'Two-Factor Authentication is already enabled', 400);
+    }
+    if (!user.twoFactorSecret) {
+      return sendError(res, 'Start 2FA setup first', 400);
+    }
 
-    const isValid = verifyTOTP(code, user.twoFactorSecret);
+    const isValid = verifyTOTP(String(code || ''), user.twoFactorSecret);
     if (!isValid) {
       return sendError(res, 'Invalid verification code', 400);
     }
 
     user.twoFactorEnabled = true;
-    const recoveryCodes = generateRecoveryCodes(8, 8);
-    user.twoFactorRecoveryCodes = recoveryCodes;
+    const { plain, hashed } = newRecoveryCodes();
+    user.twoFactorRecoveryCodes = hashed;
     await user.save();
 
     return sendSuccess(res, 'Two-Factor Authentication enabled successfully', {
-      recoveryCodes
+      recoveryCodes: plain
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Re-authenticates a sensitive 2FA change: password (if the account has one) AND a valid TOTP/recovery code.
+const reauthForTwoFactorChange = async (req, res) => {
+  const { code, currentPassword } = req.body;
+  const user = await User.findById(req.user.id).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
+  if (!user) { sendError(res, 'User not found', 404); return null; }
+  if (!user.twoFactorEnabled) { sendError(res, 'Two-Factor Authentication is not enabled', 400); return null; }
+  if (user.password && !(typeof currentPassword === 'string' && await user.matchPassword(currentPassword))) {
+    sendError(res, 'Current password is incorrect', 401);
+    return null;
+  }
+  const check = checkSecondFactorCode(user, code);
+  if (!check.ok) {
+    sendError(res, 'A valid authenticator code or recovery code is required', 401);
+    return null;
+  }
+  return user;
+};
+
+// @desc    Regenerate recovery codes (requires password + current code)
+// @route   POST /api/auth/2fa/recovery-codes
+// @access  Private
+const regenerateRecoveryCodes = async (req, res, next) => {
+  try {
+    const user = await reauthForTwoFactorChange(req, res);
+    if (!user) return;
+    const { plain, hashed } = newRecoveryCodes();
+    user.twoFactorRecoveryCodes = hashed;
+    await user.save();
+    return sendSuccess(res, 'New recovery codes generated. Old codes no longer work.', { recoveryCodes: plain });
   } catch (error) {
     next(error);
   }
@@ -363,17 +436,8 @@ const verifyAndEnable2FA = async (req, res, next) => {
 // @access  Private
 const disable2FA = async (req, res, next) => {
   try {
-    const { code, currentPassword } = req.body;
-    const user = await User.findById(req.user.id).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
-    if (!user) {
-      return sendError(res, 'User not found', 404);
-    }
-
-    const passwordValid = currentPassword && await user.matchPassword(currentPassword);
-    const totpValid = code && verifyTOTP(String(code), user.twoFactorSecret);
-    if (!passwordValid && !totpValid) {
-      return sendError(res, 'Current password or a valid authenticator code is required', 401);
-    }
+    const user = await reauthForTwoFactorChange(req, res);
+    if (!user) return;
 
     user.twoFactorEnabled = false;
     user.twoFactorSecret = '';
@@ -409,21 +473,9 @@ const verify2FA = async (req, res, next) => {
       return sendError(res, 'Please sign in again.', 401);
     }
 
-    let isVerified = false;
-    let isRecoveryUsed = false;
-
-    if (/^\d{6}$/.test(code)) {
-      isVerified = verifyTOTP(code, user.twoFactorSecret);
-    }
-
-    if (!isVerified) {
-      const cleanCode = code.toUpperCase().trim();
-      const codeIndex = user.twoFactorRecoveryCodes.indexOf(cleanCode);
-      if (codeIndex !== -1) {
-        isVerified = true;
-        isRecoveryUsed = true;
-      }
-    }
+    const check = checkSecondFactorCode(user, code);
+    const isVerified = check.ok;
+    const isRecoveryUsed = Boolean(check.recoveryHash);
 
     if (!isVerified) {
       return sendError(res, 'Invalid verification code or recovery code', 400);
@@ -434,8 +486,8 @@ const verify2FA = async (req, res, next) => {
     clearChallenge(res, 'two-factor');
     if (isRecoveryUsed) {
       const used = await User.updateOne(
-        { _id: user._id, twoFactorRecoveryCodes: code.toUpperCase().trim() },
-        { $pull: { twoFactorRecoveryCodes: code.toUpperCase().trim() } },
+        { _id: user._id, twoFactorRecoveryCodes: check.recoveryHash },
+        { $pull: { twoFactorRecoveryCodes: check.recoveryHash } },
       );
       if (!used.modifiedCount) return sendError(res, 'Recovery code has already been used.', 400);
     }
@@ -471,7 +523,7 @@ const requestOTP = async (req, res, next) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts +otpRequestedAt');
-    const genericMessage = 'If an eligible account exists, an OTP has been generated.';
+    const genericMessage = 'If an eligible account exists, an OTP has been sent to its email.';
     if (!user) return sendSuccess(res, genericMessage);
 
     if (user.role !== 'customer') {
@@ -489,8 +541,10 @@ const requestOTP = async (req, res, next) => {
     user.otpRequestedAt = new Date();
     await user.save();
 
+    fireEmail(sendLoginOtp(user, otp));
+
     const data = {};
-    if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_CODES === 'true') {
+    if (devCodesAllowed()) {
       data.developmentCode = otp;
     }
     return sendSuccess(res, genericMessage, data);
@@ -656,6 +710,7 @@ module.exports = {
   setup2FA,
   verifyAndEnable2FA,
   disable2FA,
+  regenerateRecoveryCodes,
   verify2FA,
   requestOTP,
   verifyOTP,

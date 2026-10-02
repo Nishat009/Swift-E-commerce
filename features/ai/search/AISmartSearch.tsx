@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, X, TrendingUp, Filter } from 'lucide-react';
 import { aiService } from '@/services/aiService';
 import { useAIStore } from '@/stores/aiStore';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
 import { SemanticSearchResult } from '@/types/ai';
 import ProductCard from '@/components/ui/ProductCard';
 import AIBadge from '@/components/ui/AIBadge';
@@ -13,6 +13,7 @@ interface AISmartSearchProps {
 
 export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
   const { addSearchHistory } = useAIStore();
+  const { products: fashionProducts } = useCatalog();
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState<SemanticSearchResult | null>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -32,7 +33,7 @@ export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [query, onResultsFound]);
+  }, [query, onResultsFound, fashionProducts]);
 
   const handleSelectQuery = (q: string) => {
     setQuery(q);

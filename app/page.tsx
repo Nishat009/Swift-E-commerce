@@ -26,6 +26,8 @@ export default function Home() {
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [showRunwayVideo, setShowRunwayVideo] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterMessage, setNewsletterMessage] = useState('');
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, 50]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
@@ -34,26 +36,26 @@ export default function Home() {
     const loadData = async () => {
       try {
         const [allProductsRes, catsRes] = await Promise.all([
-          fetchProducts({ limit: 50 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 50 })),
+          fetchProducts({ limit: 100 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 100 })),
           apiClient.get('/categories').catch(() => ({ data: { success: false, data: [] } }))
         ]);
 
         const prods = allProductsRes?.products || [];
         if (prods.length > 0) {
           setCatalogProducts(prods);
-          setFeaturedProducts(prods.slice(0, 8));
-          setNewArrivals(prods.filter(p => p.tags?.includes('New') || Number(p.id) > 200).slice(0, 8).length > 0 ? prods.filter(p => p.tags?.includes('New') || Number(p.id) > 200).slice(0, 8) : prods.slice(0, 8));
+          setFeaturedProducts(prods.filter(p => p.featured).slice(0, 8));
+          setNewArrivals(prods.filter(p => p.newArrival).slice(0, 8));
           
           const best = prods
-            .filter(p => p.rating >= 4.5)
+            .filter(p => p.bestSeller)
             .slice(0, 8);
-          setBestsellers(best.length > 0 ? best : prods.slice(0, 8));
+          setBestsellers(best);
 
           const deals = prods
             .filter(p => p.discountPercentage > 0)
             .sort((a, b) => b.discountPercentage - a.discountPercentage)
             .slice(0, 3);
-          setBestDeals(deals.length > 0 ? deals : prods.slice(0, 3));
+          setBestDeals(deals);
 
           // Derive all system categories from catalog products
           const categoryMap = new Map();
@@ -68,8 +70,9 @@ export default function Home() {
             }
           });
           const derivedCats = Array.from(categoryMap.values());
-          if (catsRes.data?.success && catsRes.data.data?.length > 0) {
-            setDynamicCategories(catsRes.data.data);
+          const apiCategories = catsRes.data?.data;
+          if (catsRes.data?.success && Array.isArray(apiCategories) && apiCategories.some((category: any) => typeof category === 'object' && category?.name && category?.slug)) {
+            setDynamicCategories(apiCategories.filter((category: any) => typeof category === 'object' && category?.name && category?.slug));
           } else {
             setDynamicCategories(derivedCats);
           }
@@ -104,7 +107,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="classic-home min-h-screen bg-background">
       <CinematicFashionHero />
 
       {/* AI Feature Highlight Banner: AI Virtual Dressing Room */}
@@ -290,9 +293,9 @@ export default function Home() {
             <AnimatePresence mode="popLayout">
               {(
                 activeTab === 'new'
-                  ? (catalogProducts.filter(p => p.tags?.includes('New') || Number(p.id) > 500).slice(0, 9))
+                  ? (catalogProducts.filter(p => p.newArrival).slice(0, 9))
                   : activeTab === 'bestseller'
-                  ? (catalogProducts.filter(p => p.rating >= 4.8 || p.tags?.includes('Bestseller')).slice(0, 9))
+                  ? (catalogProducts.filter(p => p.bestSeller).slice(0, 9))
                   : activeTab === 'tops'
                   ? (catalogProducts.filter(p => p.category === 'top').slice(0, 9))
                   : activeTab === 'dresses'
@@ -325,7 +328,7 @@ export default function Home() {
           <div className="text-center mt-12 sm:mt-16 pt-8 border-t border-zinc-150 dark:border-zinc-900">
             <Link href="/products">
               <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-zinc-950 hover:bg-[#8b6f47] dark:bg-white dark:hover:bg-[#c9a96b] text-white dark:text-zinc-950 dark:hover:text-zinc-950 text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md">
-                Explore Full Catalog ({catalogProducts.length || '67'} Pieces) <ArrowRight className="w-4 h-4" />
+                Explore Full Catalog{catalogProducts.length > 0 ? ` (${catalogProducts.length} Pieces)` : ''} <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
           </div>
@@ -343,7 +346,7 @@ export default function Home() {
 
       {/* 4. AI Recommendations Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AIPicksForYou />
+        <AIPicksForYou products={catalogProducts} />
       </div>
 
       {/* 5. Big Zara / Nike Style Runway Editorial Banner */}
@@ -601,9 +604,21 @@ export default function Home() {
             <p className="font-elegant text-lg sm:text-xl text-[#6b6b6b] dark:text-gray-400 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
               Be the first to discover new arrivals, exclusive offers, and special collections
             </p>
-            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={async event => {
+              event.preventDefault();
+              try {
+                const response = await apiClient.post('/newsletter/subscribe', { email: newsletterEmail });
+                setNewsletterMessage(response.data?.message || 'Subscribed successfully.');
+                setNewsletterEmail('');
+              } catch {
+                setNewsletterMessage('Subscription failed. Please try again.');
+              }
+            }}>
               <input
                 type="email"
+                required
+                value={newsletterEmail}
+                onChange={event => setNewsletterEmail(event.target.value)}
                 placeholder="Enter your email address"
                 className="flex-1 px-6 py-4 rounded-lg bg-white dark:bg-gray-900 border-2 border-[#e8e0d6] dark:border-gray-800 text-[#2c2c2c] dark:text-[#f5f1eb] placeholder-[#9b9b9b] focus:outline-none focus:border-[#8b6f47] dark:focus:border-[#c9a96b] transition-colors font-medium"
               />
@@ -615,6 +630,7 @@ export default function Home() {
                 Subscribe
               </Button>
             </form>
+            {newsletterMessage && <p className="mt-4 text-sm text-[#74323b]" role="status">{newsletterMessage}</p>}
           </motion.div>
         </div>
       </motion.section>

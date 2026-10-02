@@ -5,7 +5,15 @@
   content: ''; position: absolute; inset: 0; z-index: 40; pointer-events: none;
   background: #17110f; opacity: 0; transition: opacity 1s ease-in-out;
 }
-.fashion-stage.is-leaving::after { opacity: 1; }
+.fashion-stage.is-leaving::after { opacity: .55; }
+.fashion-story { z-index: 1; margin-bottom: -3rem; }
+.fashion-story::after {
+  content: ''; position: absolute; z-index: 45; pointer-events: none;
+  left: 0; right: 0; bottom: 0; height: 8rem;
+  background: linear-gradient(to bottom, transparent, #f6f0e9 92%);
+}
+.dark .fashion-story::after { background: linear-gradient(to bottom, transparent, #241715 92%); }
+.classic-home > .fashion-story + section { padding-top: 5rem; }
 .fashion-dust {
   background-image:
     radial-gradient(circle, #f1d5aa 0 1.5px, transparent 2px),
@@ -38,7 +46,7 @@
 }
 .fashion-fabric-detail,
 .fashion-ribbon {
-  background-image: url('/hero-atelier-fabric.webp');
+  background-image: var(--hero-image, url('/hero-atelier-fabric.webp'));
   background-size: cover;
 }
 .fashion-fabric-detail {
@@ -71,7 +79,7 @@
   animation: fashion-fragment-flight 1.9s cubic-bezier(.18,.75,.28,1) calc(.72s + var(--fragment-delay)) both;
   will-change: transform, opacity;
 }
-.fashion-fragment:nth-child(3n) { background-image: url('/hero-atelier-fabric.webp'); background-size: cover; }
+.fashion-fragment:nth-child(3n) { background-image: var(--hero-image, url('/hero-atelier-fabric.webp')); background-size: cover; }
 .fashion-fragment-thread {
   width: 2px; height: calc(var(--fragment-size) * 4);
   background: linear-gradient(#fff3dc, #ac7953);
@@ -84,7 +92,7 @@
   animation: fashion-stitch-fall 5s ease-in-out forwards;
 }
 .fashion-model {
-  background: url('/hero-atelier-desktop.webp') right top / auto 100% no-repeat;
+  background: var(--hero-image, url('/hero-atelier-desktop.webp')) right top / auto 100% no-repeat;
   mask-image: linear-gradient(90deg, transparent 0, #000 22%);
   clip-path: circle(0 at 65% 49%);
   opacity: 0;
@@ -101,6 +109,77 @@
 .fashion-final-copy { opacity: 0; animation: fashion-final-in 5s ease-out forwards; }
 .fashion-final-copy:focus-within { opacity: 1 !important; }
 .fashion-counter { opacity: 0; animation: fashion-final-in 5s ease-out forwards; }
+
+/* Each collection has its own image reveal, while sharing the same carousel controls. */
+.fashion-stage--runway .fashion-model {
+  background-size: cover;
+  background-position: center;
+  mask-image: none;
+  clip-path: none;
+  animation: fashion-runway-reveal 5s cubic-bezier(.2,.7,.2,1) both;
+}
+.fashion-runway-light {
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(108deg, transparent 29%, #f1d9af70 49%, transparent 69%);
+  mix-blend-mode: screen;
+  animation: fashion-runway-light 3.6s ease-in-out .3s both;
+}
+.fashion-runway-curtain {
+  z-index: 3;
+  width: 51%;
+  background: linear-gradient(90deg, #21100f, #512a2c 72%, #160d0d);
+  box-shadow: 0 0 70px #100809bb;
+}
+.fashion-runway-curtain--left { animation: fashion-curtain-left 2.8s cubic-bezier(.66,0,.18,1) .5s both; }
+.fashion-runway-curtain--right { animation: fashion-curtain-right 2.8s cubic-bezier(.66,0,.18,1) .5s both; }
+.fashion-stage--runway .fashion-opening { animation: fashion-runway-title 3.1s ease-in-out both; }
+.fashion-stage--runway .fashion-final-copy { animation: fashion-runway-copy 4.3s ease-out both; }
+.fashion-stage--runway .fashion-in { animation-delay: 3.15s; }
+.fashion-stage--runway .fashion-scrim { animation: fashion-variant-scrim 3.9s ease-out both; }
+
+.fashion-stage--editorial .fashion-model {
+  background-size: cover;
+  background-position: center;
+  mask-image: none;
+  clip-path: none;
+  animation: fashion-editorial-settle 4.5s ease-out both;
+}
+.fashion-editorial-strips { z-index: 3; display: flex; pointer-events: none; }
+.fashion-editorial-strip {
+  flex: 1;
+  height: 100%;
+  background-image: var(--hero-image);
+  background-size: 500% 100%;
+  background-position: calc(var(--strip-index) * 25%) center;
+  transform-origin: center;
+  animation: fashion-editorial-strip 3.3s cubic-bezier(.2,.7,.2,1) calc(.2s + var(--strip-index) * .18s) both;
+}
+.fashion-stage--editorial .fashion-opening { animation: fashion-editorial-title 2.8s ease-in-out both; }
+.fashion-stage--editorial .fashion-final-copy { animation: fashion-editorial-copy 4.1s ease-out both; }
+.fashion-stage--editorial .fashion-in { animation-delay: 2.9s; }
+.fashion-stage--editorial .fashion-scrim { animation: fashion-variant-scrim 3.8s ease-out both; }
+
+@keyframes fashion-runway-reveal {
+  0%, 28% { opacity: .2; transform: scale(1.22); filter: blur(16px) brightness(.45); }
+  75% { opacity: 1; transform: scale(1.04); filter: blur(0) brightness(.9); }
+  100% { opacity: 1; transform: scale(1); filter: none; }
+}
+@keyframes fashion-curtain-left { 0%, 22% { transform: translateX(0); } 100% { transform: translateX(-105%); } }
+@keyframes fashion-curtain-right { 0%, 22% { transform: translateX(0); } 100% { transform: translateX(105%); } }
+@keyframes fashion-runway-light { 0%, 25% { opacity: 0; transform: translateX(-90%); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateX(90%); } }
+@keyframes fashion-runway-title { 0%, 44% { opacity: 1; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.1); } }
+@keyframes fashion-runway-copy { 0%, 68% { opacity: 0; transform: translateX(-30px); } 100% { opacity: 1; transform: none; } }
+@keyframes fashion-editorial-strip {
+  0% { opacity: 0; transform: translateY(85%) scale(1.18); filter: blur(15px); }
+  58% { opacity: 1; transform: translateY(0) scale(1.02); filter: blur(0); }
+  82% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(0) scale(1); }
+}
+@keyframes fashion-editorial-settle { 0%, 43% { opacity: 0; transform: scale(1.14); } 85% { opacity: 1; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes fashion-editorial-title { 0%, 42% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-22px); } }
+@keyframes fashion-editorial-copy { 0%, 66% { opacity: 0; transform: translateY(32px); } 100% { opacity: 1; transform: none; } }
+@keyframes fashion-variant-scrim { 0%, 55% { opacity: 0; } 100% { opacity: 1; } }
 
 @keyframes fashion-light {
   0% { opacity: .2; transform: scale(.7); }
@@ -161,12 +240,15 @@
 }
 
 @media (max-width: 767px) {
-  .fashion-model { background-size: cover; mask-image: none; background-image: url('/hero-atelier-portrait.webp'); background-position: 52% center; }
+  .fashion-model { background-size: cover; mask-image: none; background-image: var(--hero-mobile-image, url('/hero-atelier-portrait.webp')); background-position: 52% center; }
   .fashion-fabric-detail { background-position: 58% center; }
   .fashion-ribbon { left: 38%; width: 52vw; height: 67vh; }
   .fashion-fragment { left: 50%; top: 44%; }
   .fashion-stitch { left: 50%; }
   .fashion-scrim { background: linear-gradient(0deg, #17110ff7 0%, #17110f9c 38%, transparent 80%); }
+  .fashion-stage--runway .fashion-model, .fashion-stage--editorial .fashion-model { background-image: var(--hero-mobile-image); background-position: center; }
+  .fashion-stage--editorial .fashion-model { background-size: auto 90%; background-position: 74% center; }
+  .fashion-editorial-strip { background-image: var(--hero-mobile-image); }
 }
 @media (prefers-reduced-motion: reduce) {
   .fashion-stage *, .fashion-stage *::before, .fashion-stage *::after { animation: none !important; transition: none !important; }
@@ -174,9 +256,29 @@
   .fashion-dust, .fashion-spotlight, .fashion-fabric-detail, .fashion-ribbon, .fashion-fragments, .fashion-stitch, .fashion-opening { display: none; }
   .fashion-model { opacity: 1; clip-path: none; transform: none; }
   .fashion-scrim, .fashion-final-copy, .fashion-counter { opacity: 1; transform: none; }
+  .fashion-runway-curtain, .fashion-runway-light, .fashion-editorial-strips { display: none; }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Editorial palette shared by the sections below the landing hero. */
+.classic-home { --background: #f6f0e9; }
+.classic-home > section:not(.fashion-story),
+.classic-home > .max-w-7xl { border-color: #cdb9a9; }
+.classic-home > section:nth-of-type(even):not(.bg-black) { background-color: #f2e5d9; }
+.classic-home > section:nth-of-type(odd):not(.fashion-story):not(.bg-black) { background-color: #f8f2eb; }
+.classic-home > section:not(.fashion-story):not(.bg-black) .font-serif { color: #3c211c; }
+.classic-home > section .text-\[\#8b6f47\] { color: #7e2e3d; }
+.classic-home > section .bg-\[\#8b6f47\] { background-color: #74323b; }
+.classic-home > section .hover\:bg-\[\#6b5435\]:hover { background-color: #54232c; }
+.classic-home > section .border-\[\#e8e0d6\] { border-color: #c9ac9a; }
+.classic-home > section .bg-\[\#f5f1eb\] { background-color: #ecddd1; }
+.classic-home > section .bg-\[\#FAF8F5\]\/80 { background-color: rgb(250 240 232 / .86); }
+.classic-home > section .text-\[\#6b6b6b\] { color: #654b44; }
+.classic-home > section .bg-white { background-color: #fff9f3; }
+.dark .classic-home > section:nth-of-type(even):not(.bg-black),
+.dark .classic-home > section:nth-of-type(odd):not(.fashion-story):not(.bg-black) { background-color: #241715; }
+.dark .classic-home > section:not(.fashion-story):not(.bg-black) .font-serif { color: #f4e8dd; }
 
 :root {
   --background: #faf9f6;

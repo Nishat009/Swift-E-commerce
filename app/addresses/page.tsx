@@ -90,6 +90,18 @@ export default function AddressesPage() {
     }
   };
 
+  const handleSetDefault = async (addr: Address & { _id?: string; id?: string }) => {
+    try {
+      const res = await apiClient.put('/auth/addresses/' + (addr._id || addr.id), { isDefault: true });
+      if (res.data?.success) {
+        toast.success('Default address updated.');
+        await refreshUser();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update default address.');
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deletingAddressId) return;
     setSubmitting(true);
@@ -182,6 +194,17 @@ export default function AddressesPage() {
                     Edit
                   </Button>
                   {!addr.isDefault && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSetDefault(addr)}
+                      className="rounded-full text-[10px] font-black px-3.5 flex items-center gap-1"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Make Default
+                    </Button>
+                  )}
+                  {(
                     <Button
                       size="sm"
                       onClick={() => {

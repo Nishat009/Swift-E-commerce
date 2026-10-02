@@ -1,5 +1,6 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 const { sendSuccess, sendError } = require('../utils/response');
 
 // Helper to update product ratings and review count
@@ -7,7 +8,11 @@ const updateProductRating = async (productId) => {
   const reviews = await Review.find({ product: productId });
   const totalReviews = reviews.length;
   
-  let rating = 4.5; // default fallback
+  let rating = 0;
+  const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  reviews.forEach((r) => {
+    ratingDistribution[r.rating] = (ratingDistribution[r.rating] || 0) + 1;
+  });
   if (totalReviews > 0) {
     const sum = reviews.reduce((acc, item) => acc + item.rating, 0);
     rating = Number((sum / totalReviews).toFixed(1));
@@ -16,7 +21,8 @@ const updateProductRating = async (productId) => {
   await Product.findByIdAndUpdate(productId, {
     rating,
     totalReviews,
-    reviewCount: totalReviews
+    reviewCount: totalReviews,
+    ratingDistribution
   });
 };
 
@@ -25,6 +31,9 @@ const updateProductRating = async (productId) => {
 // @access  Private
 const createReview = async (req, res, next) => {
   const { product, rating, review } = req.body;
+  const images = Array.isArray(req.body.images)
+    ? req.body.images.filter((u) => typeof u === 'string' && /^https?:[/][/]/i.test(u)).slice(0, 5)
+    : [];
 
   try {
     const dbProduct = await Product.findById(product);
@@ -42,19 +51,48 @@ const createReview = async (req, res, next) => {
       return sendError(res, 'You have already reviewed this product', 400);
     }
 
+    // Verified only when this user really bought the product in a non-cancelled order
+    const hasPurchased = await Order.exists({
+      user: req.user.id,
+      'products.product': product,
+      orderStatus: { $nin: ['Cancelled', 'Returned'] }
+    });
+
     const newReview = await Review.create({
       product,
       user: req.user.id,
       userName: req.user.name,
       rating: Number(rating),
       review,
-      verified: true // Assume verified because they are logged in and bought or can review
+      images,
+      verified: Boolean(hasPurchased)
     });
 
     // Update Product average ratings and count
     await updateProductRating(product);
 
     return sendSuccess(res, 'Review submitted successfully', newReview, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Mark a review as helpful (one vote per user)
+// @route   POST /api/reviews/:id/helpful
+// @access  Private
+const markReviewHelpful = async (req, res, next) => {
+  try {
+    const updated = await Review.findOneAndUpdate(
+      { _id: req.params.id, helpedBy: { $ne: req.user.id } },
+      { $addToSet: { helpedBy: req.user.id }, $inc: { helpfulCount: 1 } },
+      { new: true }
+    );
+    if (!updated) {
+      const existing = await Review.findById(req.params.id);
+      if (!existing) return sendError(res, 'Review not found', 404);
+      return sendError(res, 'You already marked this review as helpful', 400);
+    }
+    return sendSuccess(res, 'Thanks for your feedback', { helpfulCount: updated.helpfulCount });
   } catch (error) {
     next(error);
   }
@@ -153,6 +191,7 @@ const getAllReviews = async (req, res, next) => {
 };
 
 module.exports = {
+  markReviewHelpful,
   createReview,
   getProductReviews,
   updateReview,

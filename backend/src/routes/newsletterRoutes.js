@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Newsletter = require('../models/Newsletter');
+const { fire: fireEmail, sendNewsletterConfirmation } = require('../services/emailService');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
@@ -8,7 +9,7 @@ const { authorize } = require('../middleware/roleMiddleware');
 // @route   POST /api/newsletter/subscribe
 // @access  Public
 router.post('/subscribe', async (req, res, next) => {
-  const { email } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   if (!email) {
     return res.status(400).json({ success: false, message: 'Email address is required' });
   }
@@ -20,10 +21,14 @@ router.post('/subscribe', async (req, res, next) => {
     }
 
     await Newsletter.create({ email });
+    fireEmail(sendNewsletterConfirmation(email));
     return res.status(201).json({ success: true, message: 'Successfully subscribed to our newsletter!' });
   } catch (err) {
     if (err.name === 'ValidationError') {
-      return res.status(400).json({ success: false, message: err.message });
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+    }
+    if (err.code === 11000) {
+      return res.status(200).json({ success: true, message: 'You are already subscribed to our newsletter!' });
     }
     next(err);
   }

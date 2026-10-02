@@ -13,21 +13,26 @@ import { Sparkles, MessageSquare, Award, Shirt, Sliders, ChevronRight, Bot } fro
 import Link from 'next/link';
 
 import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
 import { Product } from '@/types';
 
 function DressingRoomContent() {
   const searchParams = useSearchParams();
   const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
   const [shopTab, setShopTab] = useState<'closet' | 'stylist'>('closet');
-  const [selectedSpotlightProduct, setSelectedSpotlightProduct] = useState<Product>(fashionProducts[0]);
+  const { products: allCatalog, loading: catalogLoading, error: catalogError } = useCatalog();
+  // Dressing room works with items that have a Layer spec (fall back to whole catalog if none)
+  const layered = allCatalog.filter((p) => p.specifications && (p.specifications as any)['Layer']);
+  const fashionProducts: Product[] = layered.length > 0 ? layered : allCatalog;
+  const [pickedProduct, setSelectedSpotlightProduct] = useState<Product | null>(null);
+  const selectedSpotlightProduct: Product | null = pickedProduct || fashionProducts[0] || null;
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     const productId = searchParams?.get('product');
     const category = searchParams?.get('category');
-    if (productId) {
-      const match = fashionProducts.find((p) => String(p.id) === String(productId));
+    if (productId && allCatalog.length > 0) {
+      const match = allCatalog.find((p) => String(p.id) === String(productId));
       if (match) {
         setSelectedSpotlightProduct(match);
         if (category && category !== 'all') {
@@ -35,7 +40,7 @@ function DressingRoomContent() {
         }
       }
     }
-  }, [searchParams]);
+  }, [searchParams, allCatalog]);
 
   const filteredSpotlightProducts = activeCategoryFilter === 'all'
     ? fashionProducts
@@ -211,7 +216,7 @@ function DressingRoomContent() {
             {/* Category Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-zinc-900 p-1.5 rounded-2xl border border-stone-200/60 dark:border-zinc-800">
               {[
-                { label: 'All Pieces (30)', key: 'all' },
+                { label: `All Pieces (${fashionProducts.length})`, key: 'all' },
                 { label: 'Tops & Shirts', key: 'top' },
                 { label: 'Dresses', key: 'dress' },
                 { label: 'Outerwear', key: 'jacket' },
@@ -237,11 +242,17 @@ function DressingRoomContent() {
 
           {/* Main Interactive Stage */}
           <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-stone-200/80 dark:border-zinc-800 shadow-md">
-            <DressRoomViewer
-              product={selectedSpotlightProduct}
-              onProductChange={(p) => setSelectedSpotlightProduct(p)}
-              showDetails={true}
-            />
+            {selectedSpotlightProduct ? (
+              <DressRoomViewer
+                product={selectedSpotlightProduct}
+                onProductChange={(p) => setSelectedSpotlightProduct(p)}
+                showDetails={true}
+              />
+            ) : (
+              <p className="text-center text-sm text-zinc-500 py-16">
+                {catalogLoading ? 'Loading products...' : catalogError || 'No products available right now.'}
+              </p>
+            )}
           </div>
 
           {/* Outfit Carousel / Rack Selector */}
@@ -257,7 +268,7 @@ function DressingRoomContent() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
               {filteredSpotlightProducts.map((p) => {
-                const isSelected = selectedSpotlightProduct.id === p.id;
+                const isSelected = selectedSpotlightProduct?.id === p.id;
                 const hasModel = Boolean(p.modelWearingImage);
                 return (
                   <button

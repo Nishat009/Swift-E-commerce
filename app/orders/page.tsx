@@ -18,13 +18,16 @@ import {
   Clock,
   ShieldCheck,
   TrendingUp,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 
 export default function OrdersHistoryPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const toast = useToast();
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   
   // Modals / Cancel states
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
@@ -34,18 +37,45 @@ export default function OrdersHistoryPage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Result of an online payment (the server already verified it with the gateway)
+    if (typeof window !== 'undefined') {
+      const q = new URLSearchParams(window.location.search);
+      const result = q.get('payment');
+      if (result === 'success') toast.success('Payment received. Thank you!');
+      else if (result === 'failed') toast.error('Payment was not completed. You can retry with "Pay now".');
+      if (result) window.history.replaceState({}, '', '/orders');
+    }
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handlePayNow = async (order: Order) => {
+    setPayingOrderId(order.id);
+    try {
+      const res = await apiClient.post(`/payments/orders/${order.id}/initiate`);
+      const url = res.data?.data?.redirectUrl;
+      if (res.data?.success && url) {
+        window.location.href = url;
+        return;
+      }
+      toast.error(res.data?.message || 'Could not start the payment.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not start the payment.');
+    }
+    setPayingOrderId(null);
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const response = await apiClient.get('/orders');
       if (response.data?.success) {
-        setOrders(response.data.data);
+        setOrders(Array.isArray(response.data.data) ? response.data.data : []);
       }
     } catch (err: any) {
       console.error('Error fetching orders:', err);
+      setLoadError(true);
       toast.error('Failed to load order history.');
     } finally {
       setLoading(false);
@@ -70,28 +100,67 @@ export default function OrdersHistoryPage() {
     }
   };
 
-  // Generate a mock PDF download
+  const escapeHtml = (value: unknown) =>
+    String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+
+  // Open a printable invoice built from the real order data (use "Save as PDF" in the print dialog)
   const handleDownloadInvoice = (order: Order) => {
-    toast.info(`Generating invoice PDF for Order #${order.orderNumber || order.id.slice(-8).toUpperCase()}...`);
-    setTimeout(() => {
-      const number = order.orderNumber || order.id.slice(-8).toUpperCase();
-      const docHtml = `
-        SwiftCart E-commerce Platform Invoice
-        Order Number: #${number}
-        Date: ${new Date(order.createdAt).toLocaleDateString()}
-        Total Paid: $${order.total.toFixed(2)}
-        Payment Method: ${order.paymentMethod.toUpperCase()}
-      `;
-      const blob = new Blob([docHtml], { type: 'text/plain' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `Invoice_${number}.txt`;
-      link.click();
-      toast.success('Invoice downloaded successfully!');
-    }, 1500);
+    const number = order.orderNumber || order.id.slice(-8).toUpperCase();
+    const money = (n: number | undefined) => '$' + Number(n || 0).toFixed(2);
+    const discount = Math.max(0, Number(((order.subtotal || 0) + (order.shipping || 0) + (order.tax || 0) - order.total).toFixed(2)));
+    const addr = order.shippingAddress;
+    const rows = (order.products || [])
+      .map((item) => {
+        const variant = (item as any).variant?.name || (item as any).variant?.sku || '';
+        return '<tr><td>' + escapeHtml(item.product?.title || 'Item no longer available') +
+          (variant ? '<br><small>' + escapeHtml(variant) + '</small>' : '') +
+          '</td><td class="r">' + item.quantity + '</td><td class="r">' + money(item.price) +
+          '</td><td class="r">' + money(item.quantity * item.price) + '</td></tr>';
+      })
+      .join('');
+    const html = '<!doctype html><html><head><meta charset="utf-8"><title>Invoice ' + escapeHtml(number) + '</title><style>' +
+      'body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:40px;font-size:13px}h1{font-size:24px;margin:0}' +
+      '.top{display:flex;justify-content:space-between;border-bottom:2px solid #8b6f47;padding-bottom:16px;margin-bottom:24px}' +
+      'table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}' +
+      '.r{text-align:right}.tot{margin-left:auto;width:260px;margin-top:16px}.tot div{display:flex;justify-content:space-between;padding:3px 0}' +
+      '.grand{font-weight:bold;font-size:15px;border-top:2px solid #222;margin-top:6px;padding-top:6px!important}small{color:#666}' +
+      '</style></head><body><div class="top"><div><h1>SwiftCart</h1><div>Invoice</div></div><div class="r"><div><b>Order #' + escapeHtml(number) +
+      '</b></div><div>Date: ' + escapeHtml(new Date(order.createdAt).toLocaleDateString()) +
+      '</div><div>Status: ' + escapeHtml(order.orderStatus || 'Pending') +
+      '</div></div></div><div><b>Ship to</b><br>' +
+      (addr ? escapeHtml(addr.street) + '<br>' + escapeHtml(addr.city) + ', ' + escapeHtml(addr.state) + ' ' + escapeHtml(addr.zipCode) + '<br>' + escapeHtml(addr.country) : 'N/A') +
+      '</div><div style="margin-top:12px"><b>Payment</b>: ' + escapeHtml(String(order.paymentMethod || '').toUpperCase()) +
+      ' (' + escapeHtml(order.paymentStatus || 'Pending') + ')</div>' +
+      '<table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<div class="tot"><div><span>Subtotal</span><span>' + money(order.subtotal) + '</span></div>' +
+      (discount > 0 ? '<div><span>Discount' + (order.coupon ? ' (' + escapeHtml(order.coupon) + ')' : '') + '</span><span>-' + money(discount) + '</span></div>' : '') +
+      '<div><span>Tax</span><span>' + money(order.tax) + '</span></div><div><span>Shipping</span><span>' + money(order.shipping) + '</span></div>' +
+      '<div class="grand"><span>Total</span><span>' + money(order.total) + '</span></div></div>' +
+      '<p style="margin-top:40px;color:#666">Thank you for shopping with SwiftCart.</p></body></html>';
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) {
+      toast.error('Please allow pop-ups to view your invoice.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 300);
   };
 
+  const paymentStyles: Record<string, string> = {
+    Paid: 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900/30 dark:text-green-400',
+    Failed: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400',
+    Pending: 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/20 dark:border-yellow-900/30 dark:text-yellow-400',
+  };
+  const methodLabels: Record<string, string> = { cod: 'Cash on Delivery', bkash: 'bKash', card: 'Card' };
+
   const statusStyles = {
+    Confirmed: 'bg-indigo-150 border-indigo-200 text-indigo-700 dark:bg-indigo-950/20 dark:border-indigo-900/30 dark:text-indigo-400',
+    Packed: 'bg-cyan-150 border-cyan-200 text-cyan-700 dark:bg-cyan-950/20 dark:border-cyan-900/30 dark:text-cyan-400',
+    Returned: 'bg-orange-150 border-orange-200 text-orange-700 dark:bg-orange-950/20 dark:border-orange-900/30 dark:text-orange-400',
     Delivered: 'bg-green-150 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900/30 dark:text-green-400',
     Shipped: 'bg-blue-150 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900/30 dark:text-blue-400',
     Processing: 'bg-purple-150 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-900/30 dark:text-purple-400',
@@ -119,6 +188,11 @@ export default function OrdersHistoryPage() {
             <OrderSkeleton />
             <OrderSkeleton />
           </div>
+        ) : loadError ? (
+          <div className="text-center py-12 space-y-4">
+            <p className="text-sm text-text-muted">We could not load your orders right now.</p>
+            <Button onClick={fetchOrders} variant="outline" className="rounded-full text-xs font-bold px-6">Try again</Button>
+          </div>
         ) : orders.length === 0 ? (
           <EmptyState
             icon={Package}
@@ -134,11 +208,18 @@ export default function OrdersHistoryPage() {
               const isExpanded = expandedOrderId === order.id;
               const formattedDate = new Date(order.createdAt).toLocaleDateString();
               const itemsCount = order.products ? order.products.reduce((acc, p) => acc + p.quantity, 0) : 0;
-              const isCancellable = status === 'Pending' || status === 'Confirmed' || status === 'Processing';
+              const paymentStatus = order.paymentStatus || 'Pending';
+              const needsPayment =
+                (order.paymentMethod === 'bkash' || order.paymentMethod === 'card') &&
+                paymentStatus !== 'Paid' &&
+                !['Cancelled', 'Returned'].includes(status);
+              const isCancellable = ['Pending', 'Processing', 'Confirmed', 'Packed'].includes(status);
 
-              // Timeline milestones
-              const steps = ['Pending', 'Processing', 'Shipped', 'Delivered'];
-              const currentStepIndex = steps.indexOf(status);
+              // Timeline milestones (backend enum: Pending, Processing, Confirmed, Packed, Shipped, Delivered, Cancelled, Returned)
+              const steps = ['Pending', 'Processing', 'Packed', 'Shipped', 'Delivered'];
+              const stepIndexByStatus: Record<string, number> = { Pending: 0, Processing: 1, Confirmed: 1, Packed: 2, Shipped: 3, Delivered: 4 };
+              const currentStepIndex = stepIndexByStatus[status] ?? 0;
+              const orderDiscount = Math.max(0, Number(((order.subtotal || 0) + (order.shipping || 0) + (order.tax || 0) - order.total).toFixed(2)));
 
               return (
                 <div
@@ -155,6 +236,9 @@ export default function OrdersHistoryPage() {
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${statusStyles[status as keyof typeof statusStyles] || 'bg-gray-100 text-gray-800'}`}>
                           {status}
                         </span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${paymentStyles[paymentStatus] || paymentStyles.Pending}`}>
+                          {paymentStatus === 'Paid' ? 'Paid' : paymentStatus === 'Failed' ? 'Payment failed' : 'Payment pending'}
+                        </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-4 text-[10px] text-text-muted">
                         <div className="flex items-center gap-1">
@@ -165,6 +249,8 @@ export default function OrdersHistoryPage() {
                         <span>{itemsCount} item{itemsCount > 1 ? 's' : ''}</span>
                         <span>•</span>
                         <span className="font-bold text-gray-900 dark:text-white">Total: ${order.total.toFixed(2)}</span>
+                        <span>•</span>
+                        <span>{methodLabels[order.paymentMethod] || order.paymentMethod}</span>
                       </div>
                     </div>
 
@@ -187,6 +273,17 @@ export default function OrdersHistoryPage() {
                         <FileText className="w-3.5 h-3.5" />
                         Invoice
                       </Button>
+                      {needsPayment && (
+                        <Button
+                          size="sm"
+                          onClick={() => handlePayNow(order)}
+                          disabled={payingOrderId === order.id}
+                          className="bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full text-[10px] font-black px-4 flex items-center gap-1.5"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          {payingOrderId === order.id ? 'Redirecting...' : 'Pay now'}
+                        </Button>
+                      )}
                       {isCancellable && (
                         <Button
                           size="sm"
@@ -204,7 +301,7 @@ export default function OrdersHistoryPage() {
                   {isExpanded && (
                     <div className="p-6 space-y-6 border-t border-gray-100 dark:border-gray-800 animate-slide-down">
                       {/* Live Tracking Timeline */}
-                      {status !== 'Cancelled' && (
+                      {status !== 'Cancelled' && status !== 'Returned' && (
                         <div className="space-y-4 max-w-xl mx-auto py-2">
                           <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center mb-6">Delivery Progress</h5>
                           <div className="flex items-center justify-between relative">
@@ -250,12 +347,17 @@ export default function OrdersHistoryPage() {
                             <div key={idx} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
                               <div className="flex items-center gap-3">
                                 <div className="relative w-12 h-12 bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden border">
-                                  <img src={item.product?.thumbnail} alt={item.product?.title} className="object-cover w-full h-full" />
+                                  {(item.product?.thumbnail || item.product?.image) && (
+                                    <img src={item.product?.thumbnail || item.product?.image} alt={item.product?.title || ''} className="object-cover w-full h-full" />
+                                  )}
                                 </div>
                                 <div>
                                   <h6 className="text-xs font-bold text-gray-950 dark:text-white">
-                                    {item.product?.title}
+                                    {item.product?.title || 'Item no longer available'}
                                   </h6>
+                                  {((item as any).variant?.name || (item as any).variant?.sku) && (
+                                    <p className="text-[10px] text-text-muted">{(item as any).variant?.name || (item as any).variant?.sku}</p>
+                                  )}
                                   <p className="text-[10px] text-text-muted mt-0.5">
                                     Qty: {item.quantity} × ${item.price.toFixed(2)}
                                   </p>
@@ -286,11 +388,17 @@ export default function OrdersHistoryPage() {
                         <div className="bg-gray-50/50 dark:bg-gray-850/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800/50 space-y-1.5">
                           <div className="flex justify-between">
                             <span>Subtotal:</span>
-                            <span className="font-semibold text-gray-900 dark:text-white">${(order.subtotal || (order.total * 0.9)).toFixed(2)}</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">${(order.subtotal || 0).toFixed(2)}</span>
                           </div>
+                          {orderDiscount > 0 && (
+                            <div className="flex justify-between text-emerald-600">
+                              <span>Discount{order.coupon ? ' (' + order.coupon + ')' : ''}:</span>
+                              <span className="font-semibold">-${orderDiscount.toFixed(2)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
-                            <span>Tax (10%):</span>
-                            <span className="font-semibold text-gray-900 dark:text-white">${(order.tax || (order.total * 0.09)).toFixed(2)}</span>
+                            <span>Tax:</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">${(order.tax || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span>Shipping fee:</span>

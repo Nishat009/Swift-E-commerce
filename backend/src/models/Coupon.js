@@ -6,6 +6,10 @@ const CouponSchema = new mongoose.Schema(
     percentage: { type: Number, min: 0, max: 100, default: 0 },
     amount: { type: Number, min: 0, default: 0 },
     expiry: { type: Date, required: true },
+    minSpend: { type: Number, min: 0, default: 0 },       // minimum cart subtotal (0 = none)
+    usageLimit: { type: Number, min: 0, default: 0 },     // total redemptions allowed (0 = unlimited)
+    perUserLimit: { type: Number, min: 0, default: 0 },   // redemptions per customer (0 = unlimited)
+    usedCount: { type: Number, min: 0, default: 0 },
     active: { type: Boolean, default: true }
   },
   { timestamps: true }

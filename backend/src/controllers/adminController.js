@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const Wishlist = require('../models/Wishlist');
 const { sendSuccess } = require('../utils/response');
+const { logActivity, logAudit } = require('../utils/activityLog');
 
 // @desc    Get Admin Dashboard Statistics
 // @route   GET /api/admin/dashboard
@@ -143,8 +144,12 @@ const updateUserRole = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    if (user.id === req.user.id && role !== 'admin') {
+      return res.status(400).json({ success: false, message: 'You cannot remove your own admin role' });
+    }
     user.role = role;
     await user.save();
+    await logActivity(req, 'User Role Changed', `${user.email} is now "${role}"`);
     return sendSuccess(res, 'User role updated successfully', user);
   } catch (error) {
     next(error);
@@ -157,7 +162,18 @@ const deleteUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    if (user.id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+    }
+    if (user.role === 'admin') {
+      return res.status(400).json({ success: false, message: 'Demote this admin to customer before deleting the account' });
+    }
+    await Promise.all([
+      Cart.deleteMany({ user: user._id }),
+      Wishlist.deleteMany({ user: user._id })
+    ]);
     await user.deleteOne();
+    await logActivity(req, 'User Deleted', `Deleted account ${user.email}`);
     return sendSuccess(res, 'User deleted successfully');
   } catch (error) {
     next(error);

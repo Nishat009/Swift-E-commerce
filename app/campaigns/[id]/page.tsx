@@ -5,10 +5,9 @@ import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Ticket, ChevronLeft, CreditCard, RefreshCw, CheckCircle, Smartphone, Shield, ArrowRight, Clock, FileText, ChevronDown, ChevronUp, Users, Zap } from 'lucide-react';
+import { Gift, Ticket, ChevronLeft, CreditCard, RefreshCw, Shield, ArrowRight, Clock, FileText, ChevronDown, ChevronUp, Users, Zap } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { useToast } from '@/context/ToastContext';
 
 interface Campaign {
@@ -33,7 +32,7 @@ interface Campaign {
   linkedProducts?: any[];
 }
 
-type PaymentMethod = 'bkash' | 'nagad' | 'card';
+type PaymentMethod = 'bkash' | 'card';
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
@@ -62,7 +61,8 @@ export default function CampaignDetailsPage() {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
-    const targetDate = campaign?.drawDate ? new Date(campaign.drawDate).getTime() : Date.now() + 2 * 86400000 + 14 * 3600000;
+    if (!campaign?.drawDate) return;
+    const targetDate = new Date(campaign.drawDate).getTime();
 
     const timer = setInterval(() => {
       const diff = targetDate - Date.now();
@@ -82,19 +82,23 @@ export default function CampaignDetailsPage() {
   }, [campaign?.drawDate]);
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bkash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [isPaying, setIsPaying] = useState(false);
-  const [payStep, setPayStep] = useState<'details' | 'otp' | 'success'>('details');
+  const [enabledMethods, setEnabledMethods] = useState<{ bkash: boolean; card: boolean }>({ bkash: false, card: false });
 
-  // Input states
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [createdTickets, setCreatedTickets] = useState<any[]>([]);
+  useEffect(() => {
+    apiClient
+      .get('/payments/methods')
+      .then((res) => {
+        const m = res.data?.data?.methods;
+        if (m) {
+          const next = { bkash: Boolean(m.bkash), card: Boolean(m.card) };
+          setEnabledMethods(next);
+          setPaymentMethod(next.card ? 'card' : 'bkash');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchCampaign = async () => {
     setLoading(true);
@@ -141,61 +145,28 @@ export default function CampaignDetailsPage() {
     );
   }
 
+  const anyMethodEnabled = enabledMethods.bkash || enabledMethods.card;
+
   const handleCheckoutClick = () => {
-    setFormErrors({});
-    setPayStep('details');
     setIsPaymentModalOpen(true);
   };
 
-  const handleDetailsSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors: Record<string, string> = {};
-
-    if (paymentMethod === 'bkash' || paymentMethod === 'nagad') {
-      if (!mobileNumber.trim()) {
-        errors.mobileNumber = 'Mobile number is required';
-      } else if (!/^(?:\+88|88)?(01[3-9]\d{8})$/.test(mobileNumber.trim())) {
-        errors.mobileNumber = 'Provide a valid mobile wallet number';
-      }
-    } else {
-      if (!cardName.trim()) errors.cardName = 'Name on card is required';
-      if (!cardNumber.trim()) errors.cardNumber = 'Card number is required';
-      if (!cardExpiry.trim()) errors.cardExpiry = 'Expiry date (MM/YY) is required';
-      if (!cardCvv.trim()) errors.cardCvv = 'CVV is required';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-    setPayStep('otp');
-  };
-
-  const handleOtpVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim()) {
-      setFormErrors({ otpCode: 'OTP Code is required' });
-      return;
-    }
-
+  // Reserves the tickets server-side and redirects to the gateway. Tickets are issued only
+  // after the server verifies the payment, so there is nothing to confirm in the browser.
+  const handlePay = async () => {
     setIsPaying(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
       const res = await apiClient.post(`/campaigns/${campaignId}/buy`, { quantity, paymentMethod });
-      if (res.data?.success) {
-        setCreatedTickets(res.data.data.tickets || []);
-        setCampaign(res.data.data.campaign);
-        setPayStep('success');
-        toast.success('Successfully entered draw and purchased product!');
-      } else {
-        toast.error(res.data?.message || 'Payment simulation failed.');
+      const url = res.data?.data?.redirectUrl;
+      if (res.data?.success && url) {
+        window.location.href = url;
+        return;
       }
+      toast.error(res.data?.message || 'Could not start the payment.');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Unauthorized: Please log in to join lucky draws!');
-      setIsPaymentModalOpen(false);
-    } finally {
-      setIsPaying(false);
+      toast.error(err.response?.data?.message || 'Could not start the payment. Please log in and try again.');
     }
+    setIsPaying(false);
   };
 
   const percentSold = Math.min(100, Math.round((campaign.ticketsSold / campaign.ticketLimit) * 100));
@@ -299,7 +270,8 @@ export default function CampaignDetailsPage() {
               </div>
             </div>
 
-            {/* Countdown */}
+            {/* Countdown (only when the admin scheduled a draw date) */}
+            {campaign.drawDate && campaign.status !== 'completed' && (
             <div className="mt-6 p-4 bg-gradient-to-r from-[#8b6f47]/5 to-[#c9a96b]/5 rounded-2xl border border-[#8b6f47]/10">
               <div className="flex items-center gap-2 mb-3">
                 <Clock className="w-4 h-4 text-[#8b6f47] dark:text-[#c9a96b] animate-pulse" />
@@ -316,6 +288,7 @@ export default function CampaignDetailsPage() {
                 <CountdownUnit value={timeLeft.seconds} label="Seconds" />
               </div>
             </div>
+            )}
           </div>
 
           {/* Terms & Rules */}
@@ -430,99 +403,42 @@ export default function CampaignDetailsPage() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[28px] w-full max-w-md overflow-hidden shadow-2xl relative"
             >
-              {payStep !== 'success' && (
-                <button onClick={() => setIsPaymentModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 text-gray-400 hover:text-gray-700 rounded-full z-10">✕</button>
-              )}
+              <button onClick={() => setIsPaymentModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 text-gray-400 hover:text-gray-700 rounded-full z-10">✕</button>
 
-              {payStep !== 'success' && (
-                <div className="bg-gradient-to-r from-[#8b6f47]/10 to-[#c9a96b]/10 p-5 border-b border-gray-100 dark:border-gray-800 text-center space-y-1">
-                  <Gift className="w-8 h-8 text-[#8b6f47] mx-auto" />
-                  <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-white">Simulated Payment Gateway</h3>
-                  <p className="text-[10px] text-gray-400">Complete mock transaction of ${(campaign.productPrice * quantity).toFixed(2)} to secure ticket entries</p>
-                </div>
-              )}
+              <div className="bg-gradient-to-r from-[#8b6f47]/10 to-[#c9a96b]/10 p-5 border-b border-gray-100 dark:border-gray-800 text-center space-y-1">
+                <Gift className="w-8 h-8 text-[#8b6f47] mx-auto" />
+                <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-white">Secure Checkout</h3>
+                <p className="text-[10px] text-gray-400">Pay ${(campaign.productPrice * quantity).toFixed(2)} for {quantity} ticket(s). Tickets are issued once your payment is confirmed.</p>
+              </div>
 
-              {/* Details Step */}
-              {payStep === 'details' && (
-                <form onSubmit={handleDetailsSubmit} className="p-6 space-y-5">
-                  <div className="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-950 p-1.5 rounded-xl border dark:border-gray-800">
-                    {([['bkash', 'bKash', 'bg-pink-600'], ['nagad', 'Nagad', 'bg-orange-600'], ['card', 'Card', 'bg-zinc-800']] as const).map(([method, label, bg]) => (
-                      <button key={method} type="button" onClick={() => { setPaymentMethod(method); setFormErrors({}); }}
-                        className={`text-xs py-1.5 font-bold rounded-lg transition-all ${paymentMethod === method ? `${bg} text-white shadow-sm` : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-                      >{label}</button>
-                    ))}
-                  </div>
-
-                  {(paymentMethod === 'bkash' || paymentMethod === 'nagad') ? (
-                    <div className="space-y-3.5">
-                      <div className="p-3 bg-blue-50/40 dark:bg-blue-950/10 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
-                        <Smartphone className="w-5 h-5 text-[#8b6f47]" />
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">Simulating {paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} Mobile Wallet</span>
-                      </div>
-                      <Input label="Account Mobile Number" placeholder="e.g. 01712345678" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} error={formErrors.mobileNumber} required className="text-xs" />
+              <div className="p-6 space-y-5">
+                {anyMethodEnabled ? (
+                  <>
+                    <div className={`grid gap-2 bg-gray-50 dark:bg-gray-950 p-1.5 rounded-xl border dark:border-gray-800 ${enabledMethods.bkash && enabledMethods.card ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      {([['card', 'Card', 'bg-zinc-800'], ['bkash', 'bKash', 'bg-pink-600']] as const)
+                        .filter(([method]) => enabledMethods[method])
+                        .map(([method, label, bg]) => (
+                          <button key={method} type="button" onClick={() => setPaymentMethod(method)}
+                            className={`text-xs py-1.5 font-bold rounded-lg transition-all ${paymentMethod === method ? `${bg} text-white shadow-sm` : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                          >{label}</button>
+                        ))}
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <Input label="Cardholder Name" placeholder="Master Admin" value={cardName} onChange={(e) => setCardName(e.target.value)} error={formErrors.cardName} required className="text-xs" />
-                      <Input label="Card Number" placeholder="4242 4242 4242 4242" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} error={formErrors.cardNumber} required className="text-xs" />
-                      <div className="grid grid-cols-2 gap-3">
-                        <Input label="Expiry Date" placeholder="MM/YY" value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} error={formErrors.cardExpiry} required className="text-xs" />
-                        <Input label="CVV" placeholder="123" value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} error={formErrors.cardCvv} required className="text-xs" />
-                      </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800 flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-[#8b6f47]" />
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
+                        You will be redirected to {paymentMethod === 'bkash' ? 'bKash' : 'a secure card payment page'} to complete the payment. Tickets are held for 30 minutes.
+                      </span>
                     </div>
-                  )}
-
-                  <Button type="submit" className="w-full text-xs font-bold py-2.5 rounded-full mt-4">Proceed to Verification</Button>
-                </form>
-              )}
-
-              {/* OTP Step */}
-              {payStep === 'otp' && (
-                <form onSubmit={handleOtpVerify} className="p-6 space-y-4">
-                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-400 text-[10px] rounded-xl border border-yellow-200 dark:border-yellow-800/30">
-                    <strong>Payment Security OTP</strong>: A simulated 6-digit passcode has been generated. Use the mock code <strong>1234</strong> to proceed.
-                  </div>
-                  <Input label="Verification OTP Code" placeholder="Enter 1234" value={otpCode} onChange={(e) => setOtpCode(e.target.value)} error={formErrors.otpCode} required className="text-xs text-center tracking-widest font-mono font-bold" />
-                  <Button type="submit" disabled={isPaying} className="w-full text-xs font-bold py-2.5 rounded-full mt-2 flex items-center justify-center gap-1.5">
-                    {isPaying ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Authorizing Payment...</>) : 'Confirm & Purchase'}
-                  </Button>
-                </form>
-              )}
-
-              {/* Success Step */}
-              {payStep === 'success' && (
-                <div className="p-8 text-center space-y-6">
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
-                    <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center mx-auto text-green-500">
-                      <CheckCircle className="w-10 h-10" />
-                    </div>
-                  </motion.div>
-
-                  <div className="space-y-2">
-                    <h3 className="font-serif text-2xl font-extrabold text-gray-900 dark:text-white">Transaction Success!</h3>
-                    <p className="text-xs text-gray-400">You purchased {quantity} {campaign.productTitle} item(s) and earned {quantity} draw entries.</p>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 dark:bg-gray-950 rounded-[20px] border dark:border-gray-800 space-y-2 max-h-[160px] overflow-y-auto">
-                    <span className="block text-[8px] text-gray-400 font-black uppercase tracking-wider text-left border-b pb-1 mb-2 dark:border-gray-800">Your Lucky Draw Tickets</span>
-                    {createdTickets.map((t, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-xs">
-                        <span className="text-gray-400">Entry #{idx + 1}</span>
-                        <span className="font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b] bg-white dark:bg-gray-900 px-2 py-0.5 rounded border dark:border-gray-800">{t.ticketNumber}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <Link href="/campaigns/my-tickets" className="flex-1">
-                      <Button className="w-full text-xs font-bold py-2.5 rounded-full bg-[#8b6f47] text-white border-0">View My Tickets</Button>
-                    </Link>
-                    <button onClick={() => { setIsPaymentModalOpen(false); setQuantity(1); }} className="flex-1 text-xs font-bold py-2.5 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300">
-                      Close
-                    </button>
-                  </div>
-                </div>
-              )}
+                    <Button onClick={handlePay} disabled={isPaying} className="w-full text-xs font-bold py-2.5 rounded-full flex items-center justify-center gap-1.5">
+                      {isPaying ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Redirecting...</>) : 'Pay & Get Entry Tickets'}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                    Online payments are not available right now, so tickets cannot be purchased. Please check back soon.
+                  </p>
+                )}
+              </div>
             </motion.div>
           </div>
         )}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import apiClient, { setAccessToken } from '@/lib/apiClient';
 import { User } from '@/types';
 import { useCartStore } from '@/stores/cartStore';
+import { useWishlistStore } from '@/stores/wishlistStore';
 import { isAxiosError } from 'axios';
 
 interface AuthContextType {
@@ -249,6 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       // Clear local cart storage
       useCartStore.setState({ items: [] });
+      useWishlistStore.getState().reset();
       setLoading(false);
       router.push('/auth/login');
     }
@@ -266,7 +268,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     country?: string,
     currentPassword?: string
   ) => {
-    setLoading(true);
     setError(null);
     try {
       const payload: any = { name, email, phone, address, city, state, zipCode, country };
@@ -286,8 +287,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const msg = err.response?.data?.message || err.message || 'Failed to update profile.';
       setError(msg);
       throw new Error(msg);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -336,7 +335,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiClient.post('/auth/request-otp', { email });
       if (response.data?.success) {
         return {
-          testOtp: response.data.data?.testOtp
+          testOtp: (response.data.data?.developmentCode || response.data.data?.testOtp) as string | undefined
         };
       } else {
         throw new Error(response.data?.message || 'Failed to request OTP');

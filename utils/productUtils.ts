@@ -43,41 +43,12 @@ export function deriveProductTags(product: Partial<Product>): ProductTag[] {
 export function normalizeProduct(raw: Partial<Product>): Product {
   const stock = raw.stock ?? 0;
   const price = raw.price ?? 0;
-  const rating = raw.rating ?? 4.5;
-  const reviews: ProductReview[] = raw.reviews || [
-    {
-      id: `rev-${raw.id || '1'}-1`,
-      userId: 'usr-101',
-      userName: 'Sophia Martinez',
-      userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-      rating: 5,
-      comment: 'Absolutely love the quality! Fits perfectly and looks even better in person.',
-      date: '2026-06-15',
-      verified: true,
-      helpfulCount: 12,
-    },
-    {
-      id: `rev-${raw.id || '1'}-2`,
-      userId: 'usr-102',
-      userName: 'David Chen',
-      userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-      rating: 4,
-      comment: 'Great craftsmanship and fast shipping. Highly recommend!',
-      date: '2026-06-02',
-      verified: true,
-      helpfulCount: 5,
-    },
-  ];
+  const rating = raw.rating ?? 0;
+  const reviews: ProductReview[] = raw.reviews || [];
 
-  const reviewCount = raw.reviewCount ?? reviews.length;
+  const reviewCount = raw.reviewCount ?? (raw as any).totalReviews ?? reviews.length;
 
-  const defaultRatingDistribution: RatingDistribution = raw.ratingDistribution || {
-    5: Math.round(reviewCount * 0.7),
-    4: Math.round(reviewCount * 0.2),
-    3: Math.round(reviewCount * 0.07),
-    2: Math.round(reviewCount * 0.02),
-    1: Math.round(reviewCount * 0.01),
-  };
+  const defaultRatingDistribution: RatingDistribution = raw.ratingDistribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
   const defaultShippingInfo: ShippingInfo = raw.shippingInfo || {
     estimate: 'Standard Delivery (2 - 4 Business Days)',
@@ -99,7 +70,7 @@ export function normalizeProduct(raw: Partial<Product>): Product {
     rating,
     stock,
     totalStock: raw.totalStock ?? calculateTotalStock(raw),
-    brand: raw.brand || 'SwiftCart Signature',
+    brand: raw.brand || '',
     category: raw.category || 'General',
     thumbnail: raw.thumbnail || images[0],
     productImage: raw.productImage || raw.thumbnail || images[0],

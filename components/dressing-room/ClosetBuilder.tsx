@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { fetchProducts } from '@/lib/api';
+import React, { useState } from 'react';
 import { Product } from '@/types';
 import { WornItems } from '@/types/dressingRoom';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
 import { useAvatarStore } from '@/stores/avatarStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Search, SlidersHorizontal, Check, RefreshCw, X, Eye, Sparkles } from 'lucide-react';
@@ -19,8 +18,7 @@ export default function ClosetBuilder({ onProductSelect }: ClosetBuilderProps) {
   const { wornItems, tryOnItem, takeOffItem, avatar } = useAvatarStore();
   const addItem = useCartStore((state) => state.addItem);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { products: catalog, loading, error: catalogError } = useCatalog();
   const [selectedCategory, setSelectedCategory] = useState<string>('top');
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<'all' | 'match'>('match');
@@ -43,41 +41,12 @@ export default function ClosetBuilder({ onProductSelect }: ClosetBuilderProps) {
     { id: 'jewelry', label: 'Jewelry' },
   ];
 
-  useEffect(() => {
-    loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      // Load products from backend (fallback to fashion Catalog data offline)
-      const response = await fetchProducts({ limit: 100 });
-      let allProducts = response.products || [];
-
-      // Filter to dressing room compatible items
-      const compatibilityKeys = ['top', 'pants', 'dress', 'jacket', 'shoes', 'hat', 'bag', 'glasses', 'jewelry'];
-      const vdrProducts = allProducts.filter((p) =>
-        compatibilityKeys.includes(p.category.toLowerCase()) || 
-        (p.specifications && p.specifications['Layer'])
-      );
-
-      // Merge with premium frontend-only fashion Catalog data if not present
-      const merged = [...vdrProducts];
-      fashionProducts.forEach((fp) => {
-        if (!merged.some((m) => String(m.id) === String(fp.id))) {
-          merged.push(fp);
-        }
-      });
-
-      setProducts(merged);
-    } catch (err) {
-      console.warn('Failed to load online products, loading default fashion Catalog:', err);
-      setProducts(fashionProducts);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Live DB catalog, filtered to dressing room compatible items
+  const compatibilityKeys = ['top', 'pants', 'dress', 'jacket', 'shoes', 'hat', 'bag', 'glasses', 'jewelry'];
+  const products: Product[] = catalog.filter((p) =>
+    compatibilityKeys.includes((p.category || '').toLowerCase()) ||
+    (p.specifications && p.specifications['Layer'])
+  );
 
   const isWorn = (product: Product): boolean => {
     const category = (getSpec(product, 'Layer') || product.category).toLowerCase() as keyof WornItems;
@@ -222,7 +191,7 @@ export default function ClosetBuilder({ onProductSelect }: ClosetBuilderProps) {
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
-              <p className="text-gray-400 text-xs">No matching products found in this closet rack.</p>
+              <p className="text-gray-400 text-xs">{catalogError || 'No matching products found in this closet rack.'}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">

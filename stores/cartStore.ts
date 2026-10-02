@@ -191,18 +191,17 @@ export const useCartStore = create<CartStore>()(
         const guestItems = get().items;
         if (guestItems.length === 0 || !getAccessToken()) return;
         try {
-          await Promise.all(
-            guestItems.map((item) =>
-              apiClient.post('/cart', {
-                productId: item.product.id,
-                quantity: item.quantity,
-                variant: item.selectedVariant,
-              }).catch((err) => {
-                console.warn(`Could not sync item ${item.product.id} to cart:`, err);
-                return null;
-              })
-            )
-          );
+          // Sequential: the server saves the whole cart document, so parallel writes can overwrite each other
+          for (const item of guestItems) {
+            await apiClient.post('/cart', {
+              productId: item.product.id,
+              quantity: item.quantity,
+              variant: item.selectedVariant,
+            }).catch((err) => {
+              console.warn(`Could not sync item ${item.product.id} to cart:`, err);
+              return null;
+            });
+          }
           const response = await apiClient.get('/cart').catch(() => null);
           if (response?.data?.success && Array.isArray(response.data.data?.products)) {
             const backendItems = (response.data.data.products as BackendCartProduct[])

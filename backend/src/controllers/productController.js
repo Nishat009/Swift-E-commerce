@@ -1,5 +1,9 @@
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/response');
+const { logActivity, logAudit } = require('../utils/activityLog');
+const { snapshotForAlerts, sendProductAlerts } = require('../services/productAlertService');
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // @desc    Get all products with search, filter, pagination, sorting
 // @route   GET /api/products
@@ -36,11 +40,14 @@ const getProducts = async (req, res, next) => {
 
     const query = {};
     if (all !== 'true') {
+      // Public storefront: only live, published, publicly visible products
       query.active = true;
+      query.status = 'published';
+      query.visibility = 'public';
     }
 
     // Status Filter (for admin table vs public view)
-    if (status && status !== 'all') {
+    if (all === 'true' && status && status !== 'all') {
       query.status = status;
     }
 
@@ -66,7 +73,7 @@ const getProducts = async (req, res, next) => {
 
     // Full-Text Search (Title, Brand, Category, SKU, Barcode, Tags, Description)
     if (search) {
-      const searchRegex = new RegExp(search, 'i');
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
       query.$or = [
         { title: searchRegex },
         { brand: searchRegex },
@@ -89,7 +96,14 @@ const getProducts = async (req, res, next) => {
 
     // Brand Filter
     if (brand) {
-      query.brand = brand;
+      const brands = String(brand).split(',').map(b => b.trim()).filter(Boolean);
+      if (brands.length) query.brand = brands.length > 1 ? { $in: brands } : brands[0];
+    }
+
+    // Tag Filter (comma separated, matches any)
+    if (req.query.tag) {
+      const tagList = String(req.query.tag).split(',').map(t => t.trim()).filter(Boolean);
+      if (tagList.length) query.tags = { $in: tagList };
     }
 
     // Rating Filter
@@ -106,7 +120,7 @@ const getProducts = async (req, res, next) => {
     // Size Filter
     if (size) {
       const sizes = size.split(',').map(s => s.trim());
-      const regexes = sizes.map(s => new RegExp(`\\b${s}\\b`, 'i'));
+      const regexes = sizes.map(s => new RegExp(`\\b${escapeRegex(s)}\\b`, 'i'));
       query['specifications.Sizes'] = { $in: regexes };
     }
 
@@ -189,7 +203,7 @@ const getProductById = async (req, res, next) => {
           { sku: id },
           { SKU: id },
           { barcode: id },
-          { title: new RegExp(`^${id.replace(/-/g, ' ')}$`, 'i') }
+          { title: new RegExp(`^${escapeRegex(id.replace(/-/g, ' '))}$`, 'i') }
         ]
       }).populate('relatedProducts').populate('bundles');
     }
@@ -251,6 +265,7 @@ const createProduct = async (req, res, next) => {
       productData.sku = 'SKU-' + Math.floor(100000 + Math.random() * 900000);
     }
     const product = await Product.create(productData);
+    await logActivity(req, 'Product Created', `Created product "${product.title}" (${product.sku})`);
     return sendSuccess(res, 'Product created successfully', product, 201);
   } catch (error) {
     next(error);
@@ -268,10 +283,30 @@ const updateProduct = async (req, res, next) => {
       return sendError(res, 'Product not found', 404);
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true
+    // Use set + save so schema hooks (stockStatus, SKU sync, discounts) run on update
+    const payload = { ...req.body };
+    delete payload._id;
+    delete payload.id;
+    delete payload.createdAt;
+    delete payload.updatedAt;
+    const tracked = ['title', 'price', 'stock', 'status', 'category', 'brand', 'visibility', 'active', 'featured'];
+    const before = {};
+    tracked.forEach((k) => { before[k] = product.get(k); });
+    const alertSnapshot = snapshotForAlerts(product);
+    product.set(payload);
+    const updatedProduct = await product.save();
+    // Wishlist customers get a price-drop / restock notification
+    await sendProductAlerts(alertSnapshot, updatedProduct);
+    const prevState = {};
+    const nextState = {};
+    tracked.forEach((k) => {
+      const now = updatedProduct.get(k);
+      if (String(before[k]) !== String(now)) { prevState[k] = before[k]; nextState[k] = now; }
     });
+    if (Object.keys(nextState).length) {
+      await logAudit(req, 'Product', updatedProduct._id, `Updated ${Object.keys(nextState).join(', ')}`, prevState, nextState);
+    }
+    await logActivity(req, 'Product Updated', `Updated product "${updatedProduct.title}"`);
 
     return sendSuccess(res, 'Product updated successfully', updatedProduct);
   } catch (error) {
@@ -296,11 +331,13 @@ const duplicateProduct = async (req, res, next) => {
     delete sourceProduct.updatedAt;
 
     sourceProduct.title = `${sourceProduct.title} (Copy)`;
-    sourceProduct.slug = `${sourceProduct.slug}-copy-${Date.now()}`;
+    sourceProduct.slug = `${sourceProduct.slug || 'product'}-copy-${Date.now()}`;
     sourceProduct.sku = `SKU-${Math.floor(100000 + Math.random() * 900000)}`;
     sourceProduct.status = 'draft';
+    delete sourceProduct.SKU;
 
     const duplicated = await Product.create(sourceProduct);
+    await logActivity(req, 'Product Duplicated', `Duplicated "${duplicated.title}"`);
     return sendSuccess(res, 'Product duplicated successfully', duplicated, 201);
   } catch (error) {
     next(error);
@@ -319,12 +356,15 @@ const bulkActionProducts = async (req, res, next) => {
   try {
     if (action === 'delete') {
       await Product.updateMany({ _id: { $in: productIds } }, { active: false, status: 'archived' });
+      await logActivity(req, 'Product Bulk Archive', `Removed ${productIds.length} products from the store`);
       return sendSuccess(res, `Bulk deleted ${productIds.length} products successfully`);
     } else if (action === 'publish') {
       await Product.updateMany({ _id: { $in: productIds } }, { status: 'published', active: true });
+      await logActivity(req, 'Product Bulk Publish', `Published ${productIds.length} products`);
       return sendSuccess(res, `Bulk published ${productIds.length} products successfully`);
     } else if (action === 'archive') {
       await Product.updateMany({ _id: { $in: productIds } }, { status: 'archived' });
+      await logActivity(req, 'Product Bulk Archive', `Archived ${productIds.length} products`);
       return sendSuccess(res, `Bulk archived ${productIds.length} products successfully`);
     } else {
       return sendError(res, 'Invalid bulk action specified', 400);
@@ -348,6 +388,7 @@ const deleteProduct = async (req, res, next) => {
     product.active = false;
     product.status = 'archived';
     await product.save();
+    await logActivity(req, 'Product Removed', `Removed "${product.title}" from the store (archived)`);
 
     return sendSuccess(res, 'Product deleted (deactivated) successfully');
   } catch (error) {

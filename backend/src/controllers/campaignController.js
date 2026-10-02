@@ -1,15 +1,20 @@
 const Campaign = require('../models/Campaign');
 const Ticket = require('../models/Ticket');
+const TicketPurchase = require('../models/TicketPurchase');
+const payments = require('../services/paymentService');
 const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
 const AuditTrail = require('../models/AuditTrail');
 const { sendSuccess, sendError } = require('../utils/response');
+const { logAudit } = require('../utils/activityLog');
+const crypto = require('crypto');
 
 // @desc    Get all campaigns
 // @route   GET /api/campaigns
 // @access  Public
 const getCampaigns = async (req, res, next) => {
   try {
+    await payments.expireStalePurchases();
     const { status, visibility, page = 1, limit = 20 } = req.query;
     const query = {};
     if (status) {
@@ -45,6 +50,7 @@ const getCampaigns = async (req, res, next) => {
 // @access  Public
 const getCampaignById = async (req, res, next) => {
   try {
+    await payments.expireStalePurchases();
     const campaign = await Campaign.findById(req.params.id)
       .populate('winnerUser', 'name avatar')
       .populate('linkedProducts', 'title price thumbnail description stock');
@@ -59,14 +65,29 @@ const getCampaignById = async (req, res, next) => {
   }
 };
 
-// @desc    Purchase tickets/products & generate tickets
+// @desc    Start a ticket purchase: reserves tickets and returns a payment redirect.
+//          Tickets are created only after the gateway payment is verified server-side.
 // @route   POST /api/campaigns/:id/buy
 // @access  Private
 const purchaseTicket = async (req, res, next) => {
+  let purchase = null;
   try {
     const campaignId = req.params.id;
     const { quantity, paymentMethod } = req.body;
-    const qty = parseInt(quantity, 10) || 1;
+    const qty = Number(quantity);
+
+    if (!Number.isInteger(qty) || qty < 1) {
+      return sendError(res, 'Quantity must be a whole number of at least 1', 400);
+    }
+    if (!payments.isOnlineMethod(paymentMethod)) {
+      return sendError(res, 'Choose bKash or Card to buy tickets (cash on delivery is not available)', 400);
+    }
+    if (!payments.isMethodEnabled(paymentMethod)) {
+      return sendError(res, 'This payment method is currently unavailable', 400);
+    }
+
+    // Free tickets held by abandoned payments
+    await payments.expireStalePurchases();
 
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) {
@@ -77,85 +98,70 @@ const purchaseTicket = async (req, res, next) => {
       return sendError(res, 'This campaign is no longer active', 400);
     }
 
-    // Check max tickets per user
-    const userTicketCount = await Ticket.countDocuments({ user: req.user.id, campaign: campaignId });
+    // Max tickets per user: issued tickets plus tickets held by in-flight payments
+    const [issued, held] = await Promise.all([
+      Ticket.countDocuments({ user: req.user.id, campaign: campaignId }),
+      TicketPurchase.aggregate([
+        { $match: { user: req.user._id, campaign: campaign._id, status: { $in: ['pending', 'fulfilling'] } } },
+        { $group: { _id: null, qty: { $sum: '$quantity' } } }
+      ])
+    ]);
+    const userTicketCount = issued + (held[0] ? held[0].qty : 0);
     if (userTicketCount + qty > campaign.maxTicketsPerUser) {
       return sendError(res, `You can hold a maximum of ${campaign.maxTicketsPerUser} tickets for this campaign. You currently have ${userTicketCount}.`, 400);
     }
 
-    // Atomic concurrency-safe ticket pool decrement
-    const updatedCampaign = await Campaign.findOneAndUpdate(
+    // Atomic reservation so concurrent buyers can never oversell the pool
+    const reserved = await Campaign.findOneAndUpdate(
       {
         _id: campaignId,
         status: 'active',
         $expr: { $lte: [{ $add: ['$ticketsSold', qty] }, '$ticketLimit'] }
       },
-      {
-        $inc: { ticketsSold: qty }
-      },
+      { $inc: { ticketsSold: qty } },
       { new: true }
     );
-
-    if (!updatedCampaign) {
+    if (!reserved) {
       return sendError(res, 'Insufficient tickets available or campaign is no longer active', 400);
     }
 
-    // Generate Tickets with rollback capability
-    const generatedTickets = [];
     try {
-      for (let i = 0; i < qty; i++) {
-        const uniqueSuffix = `${campaignId.substring(18, 24).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
-        const ticketNumber = `SWIFT-TKT-${uniqueSuffix}`;
-
-        const ticket = await Ticket.create({
-          ticketNumber,
-          user: req.user.id,
-          campaign: campaignId,
-          purchaseAmount: campaign.productPrice,
-          paymentMethod: paymentMethod || 'simulated_wallet',
-          status: 'active'
-        });
-        generatedTickets.push(ticket);
-      }
-
-      // Check if pool is exhausted
-      if (updatedCampaign.ticketsSold >= updatedCampaign.ticketLimit) {
-        updatedCampaign.status = 'sold-out';
-        await updatedCampaign.save();
-      }
-
-      // Create user notification
-      await Notification.create({
+      purchase = await TicketPurchase.create({
         user: req.user.id,
-        title: 'Tickets Earned! 🎟️',
-        message: `You earned ${qty} ticket(s) for the "${campaign.title}" campaign. Good luck in the draw!`,
-        type: 'campaign_purchase',
-        relatedCampaign: campaignId
+        campaign: campaignId,
+        quantity: qty,
+        unitPrice: campaign.productPrice,
+        amount: Number((campaign.productPrice * qty).toFixed(2)),
+        paymentMethod,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + payments.PURCHASE_HOLD_MINUTES * 60 * 1000)
       });
 
-      // Audit and activity records
-      await ActivityLog.create({
-        user: req.user.id,
-        action: 'PURCHASE_CAMPAIGN_TICKET',
-        details: `Purchased ${qty} ticket(s) for campaign "${campaign.title}" (Payment: ${paymentMethod || 'simulated_wallet'})`
+      const session = await payments.startGatewayPayment({
+        method: paymentMethod,
+        amountUsd: purchase.amount,
+        invoiceNumber: `TKT-${purchase.id}`,
+        name: `${campaign.title} - ${qty} ticket(s)`,
+        reference: purchase.id,
+        email: req.user.email
       });
+      purchase.paymentSessionId = session.sessionId;
+      await purchase.save();
 
-      await AuditTrail.create({
-        entityType: 'Campaign',
-        entityId: campaignId,
-        changedBy: req.user.id,
-        changeSummary: `User purchased ${qty} ticket(s)`,
-        newState: { ticketsSold: updatedCampaign.ticketsSold, status: updatedCampaign.status }
+      return sendSuccess(res, 'Payment started. Tickets are issued once the payment is confirmed.', {
+        redirectUrl: session.redirectUrl,
+        purchaseId: purchase.id,
+        method: paymentMethod
       });
-
-      return sendSuccess(res, `Successfully purchased ${qty} products & earned entry tickets`, {
-        tickets: generatedTickets,
-        campaign: updatedCampaign
-      });
-    } catch (ticketError) {
-      // Rollback ticket count on failure
-      await Campaign.findByIdAndUpdate(campaignId, { $inc: { ticketsSold: -qty } });
-      throw ticketError;
+    } catch (startError) {
+      // Release the reservation if the payment could not be started
+      if (purchase) {
+        await payments.releasePurchase(purchase._id, 'failed');
+      } else {
+        await Campaign.findByIdAndUpdate(campaignId, { $inc: { ticketsSold: -qty } });
+      }
+      console.error('[payments] ticket purchase start failed:', startError.message);
+      return sendError(res, `Could not start the payment: ${startError.message}`, 502);
     }
   } catch (error) {
     next(error);
@@ -344,8 +350,21 @@ const updateCampaignStatus = async (req, res, next) => {
       return sendError(res, 'Campaign not found', 404);
     }
 
+    const previousStatus = campaign.status;
+    if (previousStatus === 'completed' && status !== 'completed') {
+      return sendError(res, 'A completed campaign (draw already conducted) cannot be reopened', 400);
+    }
     campaign.status = status;
     await campaign.save();
+
+    if (previousStatus !== status) {
+      await ActivityLog.create({
+        adminUser: req.user.id,
+        action: 'UPDATE_CAMPAIGN_STATUS',
+        details: `Campaign "${campaign.title}" status: ${previousStatus} -> ${status}`
+      });
+      await logAudit(req, 'Campaign', campaign._id, `Status changed: ${previousStatus} -> ${status}`, { status: previousStatus }, { status });
+    }
 
     return sendSuccess(res, `Campaign status updated to "${status}"`, campaign);
   } catch (error) {
@@ -457,49 +476,74 @@ const getCampaignTickets = async (req, res, next) => {
 // @route   POST /api/campaigns/admin/:id/draw
 // @access  Private/Admin
 const drawCampaignWinner = async (req, res, next) => {
+  let claimed = null;
+  let previousStatus = null;
   try {
+    await payments.expireStalePurchases();
+
     const campaign = await Campaign.findById(req.params.id);
     if (!campaign) {
       return sendError(res, 'Campaign not found', 404);
     }
-
     if (campaign.status === 'completed') {
       return sendError(res, 'Draw has already been conducted for this campaign', 400);
     }
+    if (!['active', 'sold-out', 'paused'].includes(campaign.status)) {
+      return sendError(res, `Cannot draw a campaign that is "${campaign.status}"`, 400);
+    }
 
-    // Retrieve all entries
-    const tickets = await Ticket.find({ campaign: campaign._id });
+    // Payments still in flight could add tickets right after the draw: make admin wait
+    const inFlight = await TicketPurchase.countDocuments({
+      campaign: campaign._id,
+      status: { $in: ['pending', 'fulfilling'] }
+    });
+    if (inFlight > 0) {
+      return sendError(res, `${inFlight} ticket payment(s) are still being processed. Try again once they finish or expire.`, 409);
+    }
+
+    // Tickets exist only after a verified payment, so every ticket here is paid for
+    const tickets = await Ticket.find({ campaign: campaign._id, status: 'active' });
     if (tickets.length === 0) {
       return sendError(res, 'Cannot draw winner: No tickets purchased for this campaign', 400);
     }
 
     const previousState = campaign.toObject();
+    previousStatus = campaign.status;
 
-    // Select random ticket
-    const randomIndex = Math.floor(Math.random() * tickets.length);
-    const winningTicket = tickets[randomIndex];
+    // Claim the draw atomically so two admins (or a double click) can never draw twice
+    claimed = await Campaign.findOneAndUpdate(
+      { _id: campaign._id, status: previousStatus },
+      { status: 'completed' },
+      { new: true }
+    );
+    if (!claimed) {
+      return sendError(res, 'Draw has already been conducted for this campaign', 409);
+    }
 
-    // Update statuses
+    // Cryptographically secure pick: every ticket has the same chance
+    const winningTicket = tickets[crypto.randomInt(tickets.length)];
+
     winningTicket.status = 'won';
     await winningTicket.save();
-
-    // Mark other tickets as lost
     await Ticket.updateMany(
       { campaign: campaign._id, _id: { $ne: winningTicket._id } },
       { status: 'lost' }
     );
 
-    // Update campaign details
-    campaign.status = 'completed';
-    campaign.winnerUser = winningTicket.user;
-    campaign.winnerTicket = winningTicket.ticketNumber;
-    campaign.winnerVideoUrl = `https://www.w3schools.com/html/mov_bbb.mp4`;
-    await campaign.save();
+    claimed.winnerUser = winningTicket.user;
+    claimed.winnerTicket = winningTicket.ticketNumber;
+    // Winner video is optional: the admin may attach a real draw recording
+    if (req.body && typeof req.body.winnerVideoUrl === 'string' && req.body.winnerVideoUrl.trim()) {
+      claimed.winnerVideoUrl = req.body.winnerVideoUrl.trim();
+    }
+    claimed.delivery = { status: 'pending' };
+    await claimed.save();
+    claimed = null; // draw fully applied: nothing to roll back
 
     const fullyPopulatedCampaign = await Campaign.findById(campaign._id)
       .populate('winnerUser', 'name email');
 
-    // Create notifications for winner
+    // Notify the winner
     await Notification.create({
       user: winningTicket.user,
       title: '🏆 Congratulations! You Won!',
@@ -508,37 +552,37 @@ const drawCampaignWinner = async (req, res, next) => {
       relatedCampaign: campaign._id
     });
 
-    // Create notifications for all participants (except winner)
-    const otherTickets = await Ticket.find({
+    // Notify every other participant once (a user may hold many tickets)
+    const otherUsers = await Ticket.find({
       campaign: campaign._id,
       _id: { $ne: winningTicket._id }
     }).distinct('user');
 
-    const notificationDocs = otherTickets.map(userId => ({
-      user: userId,
-      title: 'Draw Completed 🎲',
-      message: `The draw for "${campaign.title}" has been completed. Unfortunately, your ticket was not selected this time. Better luck next time!`,
-      type: 'draw_result',
-      relatedCampaign: campaign._id
-    }));
+    const notificationDocs = otherUsers
+      .filter((userId) => String(userId) !== String(winningTicket.user))
+      .map((userId) => ({
+        user: userId,
+        title: 'Draw Completed 🎲',
+        message: `The draw for "${campaign.title}" has been completed. Unfortunately, your ticket was not selected this time. Better luck next time!`,
+        type: 'draw_result',
+        relatedCampaign: campaign._id
+      }));
 
     if (notificationDocs.length > 0) {
       await Notification.insertMany(notificationDocs);
     }
 
-    // Record enterprise activity log
     await ActivityLog.create({
       adminUser: req.user.id,
       action: 'CONDUCT_DRAW',
-      details: `Conducted random draw for campaign "${campaign.title}". Selected winning ticket "${winningTicket.ticketNumber}".`
+      details: `Conducted random draw for campaign "${campaign.title}" among ${tickets.length} ticket(s). Selected winning ticket "${winningTicket.ticketNumber}".`
     });
 
-    // Record enterprise audit trail
     await AuditTrail.create({
       entityType: 'Campaign',
       entityId: campaign._id,
       changedBy: req.user.id,
-      changeSummary: 'Conducted lucky draw and declared winner',
+      changeSummary: `Conducted lucky draw (${tickets.length} tickets) and declared winner ${winningTicket.ticketNumber}`,
       previousState,
       newState: fullyPopulatedCampaign.toObject()
     });
@@ -547,6 +591,84 @@ const drawCampaignWinner = async (req, res, next) => {
       campaign: fullyPopulatedCampaign,
       winningTicket
     });
+  } catch (error) {
+    // The draw was claimed but failed before it was applied: reopen the campaign
+    if (claimed && previousStatus) {
+      await Campaign.updateOne({ _id: claimed._id, status: 'completed', winnerUser: null }, { status: previousStatus });
+      await Ticket.updateMany({ campaign: claimed._id }, { status: 'active' });
+    }
+    next(error);
+  }
+};
+
+// @desc    Record prize delivery progress / proof for the winner
+// @route   PUT /api/campaigns/admin/:id/delivery
+// @access  Private/Admin
+const updateDeliveryProof = async (req, res, next) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return sendError(res, 'Campaign not found', 404);
+    }
+    if (campaign.status !== 'completed' || !campaign.winnerUser) {
+      return sendError(res, 'Delivery can only be recorded after the draw has picked a winner', 400);
+    }
+
+    const { status, courier, trackingNumber, proofImage, note } = req.body;
+    const validStatuses = ['pending', 'shipped', 'delivered'];
+    if (status !== undefined && !validStatuses.includes(status)) {
+      return sendError(res, `Invalid delivery status. Must be one of: ${validStatuses.join(', ')}`, 400);
+    }
+
+    const d = campaign.delivery ? campaign.delivery.toObject() : {};
+    const nextStatus = status !== undefined ? status : d.status || 'pending';
+    const nextProof = proofImage !== undefined ? String(proofImage).trim() : d.proofImage || '';
+    if (nextStatus === 'delivered' && !nextProof) {
+      return sendError(res, 'A proof image (photo of handover / signed receipt) is required to mark the prize as delivered', 400);
+    }
+
+    const merged = {
+      status: nextStatus,
+      courier: courier !== undefined ? String(courier).trim() : d.courier || '',
+      trackingNumber: trackingNumber !== undefined ? String(trackingNumber).trim() : d.trackingNumber || '',
+      proofImage: nextProof,
+      note: note !== undefined ? String(note).trim() : d.note || '',
+      shippedAt: d.shippedAt || null,
+      deliveredAt: d.deliveredAt || null,
+      updatedBy: req.user.id
+    };
+    if (nextStatus === 'shipped' && !merged.shippedAt) merged.shippedAt = new Date();
+    if (nextStatus === 'delivered') {
+      if (!merged.shippedAt) merged.shippedAt = new Date();
+      if (!merged.deliveredAt) merged.deliveredAt = new Date();
+    }
+    campaign.delivery = merged;
+    await campaign.save();
+
+    if ((d.status || 'pending') !== nextStatus) {
+      const text = nextStatus === 'delivered'
+        ? `Your prize "${campaign.prizeName}" has been delivered. Proof of delivery is now on the winners page.`
+        : nextStatus === 'shipped'
+          ? `Your prize "${campaign.prizeName}" is on its way${merged.trackingNumber ? ` (tracking: ${merged.trackingNumber})` : ''}.`
+          : `Your prize "${campaign.prizeName}" is being prepared for delivery.`;
+      await Notification.create({
+        user: campaign.winnerUser,
+        title: 'Prize delivery update',
+        message: text,
+        type: 'delivery_update',
+        relatedCampaign: campaign._id
+      });
+    }
+
+    await ActivityLog.create({
+      adminUser: req.user.id,
+      action: 'UPDATE_PRIZE_DELIVERY',
+      details: `Prize delivery for "${campaign.title}": ${d.status || 'pending'} -> ${nextStatus}`
+    });
+    await logAudit(req, 'Campaign', campaign._id, `Prize delivery ${nextStatus}`, { delivery: d }, { delivery: campaign.delivery.toObject() });
+
+    const updated = await Campaign.findById(campaign._id).populate('winnerUser', 'name email');
+    return sendSuccess(res, 'Prize delivery updated', updated);
   } catch (error) {
     next(error);
   }
@@ -563,5 +685,6 @@ module.exports = {
   updateCampaignStatus,
   getCampaignAnalytics,
   getCampaignTickets,
-  drawCampaignWinner
+  drawCampaignWinner,
+  updateDeliveryProof
 };

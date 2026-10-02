@@ -45,6 +45,14 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const addrFields = [formData.address, formData.city, formData.state, formData.zipCode].map((v) => v.trim());
+    if (addrFields.some(Boolean) && !addrFields.every(Boolean)) {
+      const msg = 'Please fill in street, city, state and zip code to save an address (or clear all four).';
+      setErrorMsg(msg);
+      toast.error(msg);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -118,9 +126,6 @@ export default function ProfilePage() {
                 <p className="text-xs text-text-muted mt-0.5 truncate">
                   {user.email}
                 </p>
-                <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 rounded-full text-[9px] font-black uppercase tracking-wider">
-                  Verified Account
-                </div>
               </div>
             </div>
 

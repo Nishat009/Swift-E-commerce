@@ -1,5 +1,7 @@
 const Coupon = require('../models/Coupon');
 const { sendSuccess, sendError } = require('../utils/response');
+const { logActivity, logAudit } = require('../utils/activityLog');
+const { CouponError, evaluateCoupon } = require('./../services/couponService');
 
 // @desc    Get all coupons (Admin)
 // @route   GET /api/coupons
@@ -19,22 +21,12 @@ const getCoupons = async (req, res, next) => {
 const getCouponByCode = async (req, res, next) => {
   const { code } = req.params;
   try {
-    const coupon = await Coupon.findOne({ code: code.toUpperCase() });
-    if (!coupon) {
-      return sendError(res, 'Coupon code invalid or not found', 404);
-    }
-
-    if (!coupon.active) {
-      return sendError(res, 'Coupon is inactive', 400);
-    }
-
-    const now = new Date();
-    if (coupon.expiry < now) {
-      return sendError(res, 'Coupon has expired', 400);
-    }
-
-    return sendSuccess(res, 'Coupon code validated successfully', coupon);
+    // Optional ?subtotal= lets the cart check minimum spend and preview the discount
+    const subtotal = req.query.subtotal !== undefined ? Number(req.query.subtotal) : undefined;
+    const { coupon, discount } = await evaluateCoupon(code, req.user.id, Number.isFinite(subtotal) ? subtotal : undefined);
+    return sendSuccess(res, 'Coupon code validated successfully', { ...coupon.toJSON(), discount });
   } catch (error) {
+    if (error instanceof CouponError) return sendError(res, error.message, error.status);
     next(error);
   }
 };
@@ -43,7 +35,7 @@ const getCouponByCode = async (req, res, next) => {
 // @route   POST /api/coupons
 // @access  Private/Admin
 const createCoupon = async (req, res, next) => {
-  const { code, percentage, amount, expiry } = req.body;
+  const { code, percentage, amount, expiry, active, minSpend, usageLimit, perUserLimit } = req.body;
   try {
     const couponExists = await Coupon.findOne({ code: code.toUpperCase() });
     if (couponExists) {
@@ -54,9 +46,14 @@ const createCoupon = async (req, res, next) => {
       code: code.toUpperCase(),
       percentage,
       amount,
-      expiry
+      expiry,
+      minSpend,
+      usageLimit,
+      perUserLimit,
+      active: active !== undefined ? !!active : true
     });
 
+    await logActivity(req, 'Coupon Created', `Created coupon ${coupon.code}`);
     return sendSuccess(res, 'Coupon created successfully', coupon, 201);
   } catch (error) {
     next(error);
@@ -74,11 +71,13 @@ const updateCoupon = async (req, res, next) => {
       return sendError(res, 'Coupon not found', 404);
     }
 
-    const updatedCoupon = await Coupon.findByIdAndUpdate(id, req.body, {
+    const { usedCount, ...changes } = req.body; // usage counter is server-managed
+    const updatedCoupon = await Coupon.findByIdAndUpdate(id, changes, {
       new: true,
       runValidators: true
     });
 
+    await logActivity(req, 'Coupon Updated', `Updated coupon ${updatedCoupon.code}`);
     return sendSuccess(res, 'Coupon updated successfully', updatedCoupon);
   } catch (error) {
     next(error);
@@ -97,6 +96,7 @@ const deleteCoupon = async (req, res, next) => {
     }
 
     await Coupon.findByIdAndDelete(id);
+    await logActivity(req, 'Coupon Deleted', `Deleted coupon ${coupon.code}`);
     return sendSuccess(res, 'Coupon deleted successfully');
   } catch (error) {
     next(error);

@@ -39,7 +39,7 @@ const addToWishlist = async (req, res, next) => {
     if (!product) {
       // Fallback search by title or string match if catalog was seeded with mock items
       product = await Product.findOne({
-        $or: [{ title: new RegExp(String(productId), 'i') }]
+        $or: [{ slug: String(productId) }, { sku: String(productId) }]
       });
     }
 
