@@ -7,6 +7,8 @@ import { Mail, Lock, Eye, EyeOff, ShoppingBag, ShieldCheck, Smartphone, Camera, 
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
+import DemoLoginButtons from '@/components/auth/DemoLoginButtons';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -28,8 +30,9 @@ function LoginFormContent() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.includes('/auth/')) {
-        router.push(redirectUrl);
+      const safePath = safeRedirectPath(redirectUrl);
+      if (safePath) {
+        router.push(safePath);
       } else if (user.role === 'admin') {
         router.push('/admin');
       } else {
@@ -145,14 +148,17 @@ function LoginFormContent() {
       setFailedAttempts(0);
     } catch (error: any) {
       console.error('Login error:', error);
-      const nextFailCount = failedAttempts + 1;
+      // The server is the source of truth for lockouts (429 + retryAfter seconds)
+      const serverLocked = error.status === 429;
+      const nextFailCount = serverLocked ? 3 : failedAttempts + 1;
       setFailedAttempts(nextFailCount);
 
       if (nextFailCount >= 3) {
+        const seconds = serverLocked && error.retryAfter ? error.retryAfter : 30;
         setIsLocked(true);
-        setCooldown(30);
-        toast.error('Too many failed attempts. Login is locked for 30 seconds.');
-        
+        setCooldown(seconds);
+        toast.error(serverLocked ? error.message : `Too many failed attempts. Login is locked for ${seconds} seconds.`);
+
         const interval = setInterval(() => {
           setCooldown((prev) => {
             if (prev <= 1) {
@@ -393,7 +399,7 @@ function LoginFormContent() {
                   </h2>
                   {isLocked ? (
                     <div className="mt-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold animate-pulse">
-                      â›” Access Temporarily Suspended. Cooldown: {cooldown}s
+                      ⛔ Access Temporarily Suspended. Cooldown: {cooldown}s
                     </div>
                   ) : (
                     <p className="text-xs text-gray-455 mt-2">
@@ -469,7 +475,7 @@ function LoginFormContent() {
                           disabled={isLocked}
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                          placeholder="••••••••"
                           required
                           className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10 disabled:opacity-50"
                         />
@@ -565,7 +571,7 @@ function LoginFormContent() {
 
                         {testOtpNotice && (
                           <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold leading-normal">
-                            ðŸ’¡ {testOtpNotice}
+                            💡 {testOtpNotice}
                           </div>
                         )}
 
@@ -615,6 +621,7 @@ function LoginFormContent() {
                 {/* Google Sign-in */}
                 <div className="space-y-4">
                   <GoogleSignIn rememberMe={formData.rememberMe} disabled={loading || isLocked} />
+                  <DemoLoginButtons disabled={loading} />
 
                   {/* Bottom text */}
                   <div className="text-center pt-2">
@@ -689,13 +696,13 @@ function LoginFormContent() {
                   </div>
                   <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Enter Token & New Password</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Paste the reset code from the email we sent to <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span>.
+                    Paste the reset code from the email we sent{forgotEmail ? <> to <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span></> : ' you'}.
                   </p>
                 </div>
 
                 {forgotTestNotice && (
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
-                    ðŸ’¡ {forgotTestNotice}
+                    💡 {forgotTestNotice}
                   </div>
                 )}
 
@@ -767,7 +774,7 @@ function LoginFormContent() {
                     onClick={() => setForgotStep('request')}
                     className="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold"
                   >
-                    â† Back to email input
+                    ← Back to email input
                   </button>
                 </div>
               </form>

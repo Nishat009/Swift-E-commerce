@@ -8,6 +8,7 @@ import { Sparkles, ShoppingBag, Layers, Plus, Check } from 'lucide-react';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import AIBadge from '@/components/ui/AIBadge';
+import { useToast } from '@/context/ToastContext';
 
 interface CompleteOutfitBuilderProps {
   baseProduct: Product;
@@ -16,6 +17,7 @@ interface CompleteOutfitBuilderProps {
 export default function CompleteOutfitBuilder({ baseProduct }: CompleteOutfitBuilderProps) {
   const addItem = useCartStore((state) => state.addItem);
   const tryOnItem = useAvatarStore((state) => state.tryOnItem);
+  const toast = useToast();
 
   const { products: fashionProducts } = useCatalog();
 
@@ -27,8 +29,18 @@ export default function CompleteOutfitBuilder({ baseProduct }: CompleteOutfitBui
     return [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter(Boolean) as Product[];
   }, [outfit]);
 
-  const handleAddAllToCart = () => {
-    items.forEach((item) => addItem(item, 1));
+  const handleAddAllToCart = async () => {
+    const available = items.filter((item) => item.stock > 0);
+    if (available.length !== items.length) {
+      toast.error('Some pieces in this look are out of stock.');
+      return;
+    }
+    try {
+      for (const item of available) await addItem(item, 1);
+      toast.success('Outfit pieces added to cart.');
+    } catch {
+      toast.error('Could not add every piece. Please check your cart.');
+    }
   };
 
   return (
@@ -44,7 +56,7 @@ export default function CompleteOutfitBuilder({ baseProduct }: CompleteOutfitBui
             Create Complete Look
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            AI matched these complementary items for a total styled outfit.
+            Complementary pieces selected from the current catalog.
           </p>
         </div>
 

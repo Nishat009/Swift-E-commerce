@@ -39,8 +39,8 @@ export default function SettingsPage() {
       toast.error('Please enter your current password.');
       return;
     }
-    if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters long.');
+    if (!passwordData.newPassword || passwordData.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters long.');
       return;
     }
     if (passwordData.newPassword !== passwordData.confirmPassword) {

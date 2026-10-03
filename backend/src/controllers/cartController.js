@@ -1,7 +1,12 @@
+const mongoose = require('mongoose');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/response');
 const { unitPrice, normalizeVariant } = require('../utils/pricing');
+
+// Only live products can be added to a cart
+const LIVE = { active: true, status: 'published', visibility: 'public' };
+const MAX_LINE_QTY = 50;
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -10,12 +15,13 @@ const findProductFlexible = async (id) => {
   if (!id) return null;
   const idStr = String(id);
   if (idStr.match(/^[0-9a-fA-F]{24}$/)) {
-    const prod = await Product.findById(idStr);
+    const prod = await Product.findOne({ _id: idStr, ...LIVE });
     if (prod) return prod;
   }
 
   // Check slug, SKU, or exact title
   let prod = await Product.findOne({
+    ...LIVE,
     $or: [
       { slug: idStr },
       { sku: idStr },
@@ -51,30 +57,60 @@ const findProductFlexible = async (id) => {
       303: 'Retro Oval Acetate Sunglasses',
     };
     if (catalogTitleMap[numId]) {
-      prod = await Product.findOne({ title: catalogTitleMap[numId] });
+      prod = await Product.findOne({ ...LIVE, title: catalogTitleMap[numId] });
       if (prod) return prod;
     }
   }
   return null;
 };
 
-// Helper to recalculate cart subtotal
-const recalculateCart = async (cart) => {
-  let subtotal = 0;
-  
-  // Populate products to get prices
-  await cart.populate('products.product');
-
-  cart.products.forEach((item) => {
-    if (item.product) {
-      // Price is always computed server-side (product price + selected variant)
-      subtotal += unitPrice(item.product, item.variant).price * item.quantity;
-    }
-  });
-
-  cart.subtotal = Number(subtotal.toFixed(2));
-  return cart.save();
+// Whole number between 1 and MAX_LINE_QTY, else null
+const parseQuantity = (value) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= MAX_LINE_QTY ? n : null;
 };
+
+const variantIdOf = (variant) => (variant && typeof variant === 'object' ? String(variant.id || '') : (typeof variant === 'string' ? variant : ''));
+
+const sameLine = (item, productId, variantId) =>
+  item.product && item.product.toString() === productId && (item.variant?.id || '') === variantId;
+
+// How many of this product / variant can be held. Variant options with their own stock limit it further.
+const availableFor = (product, variant) => {
+  const { optionStock } = unitPrice(product, variant);
+  return optionStock === null ? product.stock : Math.min(product.stock, optionStock);
+};
+
+const recalculate = async (cart) => {
+  await cart.populate('products.product');
+  // Drop lines whose product was deleted
+  cart.products = cart.products.filter((item) => item.product);
+  const subtotal = cart.products.reduce((sum, item) => sum + unitPrice(item.product, item.variant).price * item.quantity, 0);
+  cart.subtotal = Number(subtotal.toFixed(2));
+};
+
+// Load, change and save the cart; concurrent writes (two tabs, guest sync) retry instead of failing
+const mutateCart = async (userId, change) => {
+  for (let attempt = 0; ; attempt++) {
+    const cart = (await Cart.findOne({ user: userId })) || new Cart({ user: userId, products: [], subtotal: 0 });
+    const problem = await change(cart);
+    if (problem) return { problem };
+    await recalculate(cart);
+    try {
+      cart.depopulate('products.product');
+      await cart.save();
+      await cart.populate('products.product');
+      return { cart };
+    } catch (err) {
+      const retryable = err.name === 'VersionError' || err.code === 11000;
+      if (!retryable || attempt >= 3) throw err;
+    }
+  }
+};
+
+const respond = (res, message, result) => (result.problem
+  ? sendError(res, result.problem.message, result.problem.status || 400)
+  : sendSuccess(res, message, result.cart));
 
 // @desc    Get user cart
 // @route   GET /api/cart
@@ -83,7 +119,11 @@ const getCart = async (req, res, next) => {
   try {
     let cart = await Cart.findOne({ user: req.user.id }).populate('products.product');
     if (!cart) {
-      cart = await Cart.create({ user: req.user.id, products: [], subtotal: 0 });
+      cart = await Cart.findOneAndUpdate(
+        { user: req.user.id },
+        { $setOnInsert: { products: [], subtotal: 0 } },
+        { upsert: true, new: true }
+      );
     }
     return sendSuccess(res, 'Cart retrieved successfully', cart);
   } catch (error) {
@@ -91,131 +131,134 @@ const getCart = async (req, res, next) => {
   }
 };
 
+// Add a quantity to a line, never beyond what is in stock
+const addLine = (cart, product, variant, quantity) => {
+  const variantId = variantIdOf(variant);
+  const productId = product._id.toString();
+  const existing = cart.products.find((item) => sameLine(item, productId, variantId));
+  const wanted = (existing ? existing.quantity : 0) + quantity;
+  const available = availableFor(product, variant);
+  if (wanted > available) {
+    const already = existing ? ` (you already have ${existing.quantity} in your cart)` : '';
+    return { message: `Only ${available} of ${product.title} available${already}.` };
+  }
+  if (wanted > MAX_LINE_QTY) return { message: `You can order at most ${MAX_LINE_QTY} of one item.` };
+  if (existing) {
+    existing.quantity = wanted;
+  } else {
+    cart.products.push({
+      product: product._id,
+      quantity,
+      variant: variant && typeof variant === 'object' ? { ...normalizeVariant(product, variant), id: variantId } : { id: variantId },
+    });
+  }
+  return null;
+};
+
 // @desc    Add product to cart
 // @route   POST /api/cart
 // @access  Private
 const addToCart = async (req, res, next) => {
-  const { productId, quantity = 1, variant } = req.body;
-
+  const { productId, variant } = req.body;
   try {
+    const quantity = parseQuantity(req.body.quantity ?? 1);
+    if (!quantity) return sendError(res, `Quantity must be a whole number between 1 and ${MAX_LINE_QTY}.`, 400);
+
     const product = await findProductFlexible(productId);
-    if (!product) {
-      return sendError(res, 'Product not found', 404);
-    }
+    if (!product) return sendError(res, 'Product not found', 404);
 
-    if (product.stock < quantity) {
-      return sendError(res, `Insufficient stock. Only ${product.stock} items available.`, 400);
-    }
-
-    let cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) {
-      cart = await Cart.create({ user: req.user.id, products: [], subtotal: 0 });
-    }
-
-    const variantId = variant?.id || (typeof variant === 'string' ? variant : '');
-    const itemIndex = cart.products.findIndex((item) => {
-      const sameProd = item.product && item.product.toString() === product._id.toString();
-      const itemVariantId = item.variant?.id || '';
-      return sameProd && itemVariantId === variantId;
-    });
-
-    if (itemIndex > -1) {
-      cart.products[itemIndex].quantity += Number(quantity);
-    } else {
-      cart.products.push({
-        product: product._id,
-        quantity: Number(quantity),
-        variant: typeof variant === 'object' && variant
-          ? { ...normalizeVariant(product, variant), id: variantId }
-          : { id: variantId }
-      });
-    }
-
-    await recalculateCart(cart);
-    // Populate before returning
-    await cart.populate('products.product');
-
-    return sendSuccess(res, 'Product added to cart successfully', cart);
+    const result = await mutateCart(req.user.id, (cart) => addLine(cart, product, variant, quantity));
+    return respond(res, 'Product added to cart successfully', result);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Update cart item quantity
+// @desc    Merge a guest cart after login. Idempotent: each line becomes max(server, guest) quantity,
+//          so syncing the same browser cart twice never doubles it.
+// @route   POST /api/cart/merge
+// @access  Private
+const mergeCart = async (req, res, next) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items.slice(0, 100) : null;
+    if (!items) return sendError(res, 'items must be an array', 400);
+
+    const resolved = [];
+    const skipped = [];
+    for (const item of items) {
+      const quantity = parseQuantity(item?.quantity);
+      const product = quantity ? await findProductFlexible(item.productId) : null;
+      if (product) resolved.push({ product, quantity, variant: item.variant });
+      else skipped.push(String(item?.productId || ''));
+    }
+
+    const result = await mutateCart(req.user.id, (cart) => {
+      for (const { product, quantity, variant } of resolved) {
+        const variantId = variantIdOf(variant);
+        const existing = cart.products.find((line) => sameLine(line, product._id.toString(), variantId));
+        const target = Math.min(Math.max(existing ? existing.quantity : 0, quantity), availableFor(product, variant), MAX_LINE_QTY);
+        if (target < 1) { skipped.push(product.id); continue; }
+        if (existing) existing.quantity = target;
+        else addLine(cart, product, variant, target);
+      }
+      return null;
+    });
+    const message = skipped.length ? 'Cart merged. Some items are no longer available.' : 'Cart merged';
+    return sendSuccess(res, message, result.cart, 200, { skipped });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update cart item quantity (0 removes the line)
 // @route   PUT /api/cart
 // @access  Private
 const updateCartItem = async (req, res, next) => {
-  const { productId, quantity, variantId = '' } = req.body;
-
-  if (quantity <= 0) {
-    req.body.productId = productId;
-    return removeFromCart(req, res, next);
-  }
-
+  const { productId, variantId = '' } = req.body;
   try {
+    const raw = Number(req.body.quantity);
+    if (raw === 0) return removeFromCart(req, res, next);
+    const quantity = parseQuantity(raw);
+    if (!quantity) return sendError(res, `Quantity must be a whole number between 0 and ${MAX_LINE_QTY}.`, 400);
+
     const product = await findProductFlexible(productId);
-    if (!product) {
-      return sendError(res, 'Product not found', 404);
-    }
+    if (!product) return sendError(res, 'Product not found', 404);
 
-    if (product.stock < quantity) {
-      return sendError(res, `Insufficient stock. Only ${product.stock} items available.`, 400);
-    }
-
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) {
-      return sendError(res, 'Cart not found', 404);
-    }
-
-    const itemIndex = cart.products.findIndex((item) => {
-      const sameProd = item.product && item.product.toString() === product._id.toString();
-      const itemVarId = item.variant?.id || '';
-      return variantId ? (sameProd && itemVarId === variantId) : sameProd;
+    const result = await mutateCart(req.user.id, (cart) => {
+      const pid = product._id.toString();
+      const line = cart.products.find((item) => (variantId ? sameLine(item, pid, String(variantId)) : item.product?.toString() === pid));
+      if (!line) return { message: 'Product not found in cart', status: 404 };
+      const available = availableFor(product, line.variant);
+      if (quantity > available) return { message: `Only ${available} of ${product.title} available.` };
+      line.quantity = quantity;
+      return null;
     });
-
-    if (itemIndex > -1) {
-      cart.products[itemIndex].quantity = Number(quantity);
-      await recalculateCart(cart);
-      await cart.populate('products.product');
-      return sendSuccess(res, 'Cart updated successfully', cart);
-    } else {
-      return sendError(res, 'Product not found in cart', 404);
-    }
+    return respond(res, 'Cart updated successfully', result);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Remove product from cart
+// @desc    Remove product from cart (one variant when variantId is given)
 // @route   DELETE /api/cart/:productId
 // @access  Private
 const removeFromCart = async (req, res, next) => {
   const productId = req.params.productId || req.body.productId;
-  const variantId = req.query.variantId || req.body.variantId || '';
+  const variantId = String(req.query.variantId || req.body.variantId || '');
 
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) {
-      return sendError(res, 'Cart not found', 404);
-    }
-
-    const product = await findProductFlexible(productId);
+    // An ObjectId is matched directly so unpublished products can still be removed
+    const product = mongoose.isValidObjectId(String(productId)) ? null : await findProductFlexible(productId);
     const targetIdStr = product ? product._id.toString() : String(productId);
 
-    cart.products = cart.products.filter((item) => {
-      if (!item.product) return false;
-      const sameProd = item.product.toString() === targetIdStr;
-      if (!sameProd) return true;
-      if (variantId) {
-        return (item.variant?.id || '') !== variantId;
-      }
-      return false;
+    const result = await mutateCart(req.user.id, (cart) => {
+      cart.products = cart.products.filter((item) => {
+        if (!item.product || item.product.toString() !== targetIdStr) return true;
+        return variantId ? (item.variant?.id || '') !== variantId : false;
+      });
+      return null;
     });
-
-    await recalculateCart(cart);
-    await cart.populate('products.product');
-
-    return sendSuccess(res, 'Product removed from cart successfully', cart);
+    return respond(res, 'Product removed from cart successfully', result);
   } catch (error) {
     next(error);
   }
@@ -226,12 +269,7 @@ const removeFromCart = async (req, res, next) => {
 // @access  Private
 const clearCart = async (req, res, next) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (cart) {
-      cart.products = [];
-      cart.subtotal = 0;
-      await cart.save();
-    }
+    const cart = await Cart.findOneAndUpdate({ user: req.user.id }, { $set: { products: [], subtotal: 0 } }, { new: true });
     return sendSuccess(res, 'Cart cleared successfully', cart);
   } catch (error) {
     next(error);
@@ -241,6 +279,7 @@ const clearCart = async (req, res, next) => {
 module.exports = {
   getCart,
   addToCart,
+  mergeCart,
   updateCartItem,
   removeFromCart,
   clearCart,

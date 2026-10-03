@@ -87,9 +87,9 @@ async function googleSignIn(overrides = {}, extra = {}) {
 test('Google configuration and origin are required', async () => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   delete process.env.GOOGLE_CLIENT_ID;
-  assert.equal((await request('/auth/google/challenge')).status, 422);
+  assert.equal((await request('/auth/google/challenge')).status, 503);
   process.env.GOOGLE_CLIENT_ID = clientId;
-  assert.equal((await request('/auth/google/challenge', { origin: '' })).status, 422);
+  assert.equal((await request('/auth/google/challenge', { origin: '' })).status, 403);
 });
 
 test('local password reset token can be used once', async () => {
@@ -97,14 +97,14 @@ test('local password reset token can be used once', async () => {
   try {
     const email = `reset-${Date.now()}@example.com`;
     const registered = await request('/auth/register', { body: { name: 'Reset User', email, password: 'OriginalPass123!' } });
-    assert.equal(registered.status, 200, JSON.stringify(registered.data));
+    assert.equal(registered.status, 201, JSON.stringify(registered.data));
     const requested = await request('/auth/forgot-password', { body: { email } });
     assert.equal(requested.status, 200);
     const token = requested.data.data.resetToken;
     assert.equal(typeof token, 'string');
     const reset = await request('/auth/reset-password', { body: { token, newPassword: 'ChangedPass123!' } });
     assert.equal(reset.status, 200, JSON.stringify(reset.data));
-    assert.equal((await request('/auth/reset-password', { body: { token, newPassword: 'AgainPass123!' } })).status, 422);
+    assert.equal((await request('/auth/reset-password', { body: { token, newPassword: 'AgainPass123!' } })).status, 400);
     assert.equal((await request('/auth/login', { body: { email, password: 'ChangedPass123!' } })).status, 200);
   } finally {
     delete process.env.ALLOW_DEV_AUTH_CODES;
@@ -137,8 +137,8 @@ test('new Google customer receives existing app session; profile, cart, refresh 
   const logout = await request('/auth/logout', { cookie: cookieFor(refresh, 'refreshToken') });
   assert.equal(logout.status, 200);
   assert.match(logout.cookies.join(';'), /refreshToken=;/);
-  assert.equal((await request('/auth/profile', { method: 'GET' })).status, 422);
-  assert.equal((await request('/auth/refresh')).status, 422);
+  assert.equal((await request('/auth/profile', { method: 'GET' })).status, 401);
+  assert.equal((await request('/auth/refresh')).status, 401);
 });
 
 test('returning Google identity reuses the user by sub, even when provider email changes', async () => {
@@ -161,36 +161,36 @@ test('rejects forged signatures, wrong audience/issuer, expired tokens, bad nonc
     { sub: '' },
   ]) {
     const response = await googleSignIn(overrides);
-    assert.equal(response.status, 422, JSON.stringify(overrides));
+    assert.equal(response.status, 401, JSON.stringify(overrides));
     assert.equal(cookieFor(response, 'refreshToken'), undefined);
   }
   const c = await challenge();
   const response = await request('/auth/google', { cookie: c.cookie, body: { credential: credential(c.nonce, {}, wrongKeys.privateKey) } });
-  assert.equal(response.status, 422);
+  assert.equal(response.status, 401);
 });
 
 test('nonce is bound to browser cookie, expires, and cannot be replayed', async () => {
   const c = await challenge();
   const body = { credential: credential(c.nonce) };
-  assert.equal((await request('/auth/google', { body })).status, 422);
+  assert.equal((await request('/auth/google', { body })).status, 401);
   assert.equal((await request('/auth/google', { body, cookie: c.cookie })).status, 200);
-  assert.equal((await request('/auth/google', { body, cookie: c.cookie })).status, 422);
+  assert.equal((await request('/auth/google', { body, cookie: c.cookie })).status, 401);
   const expired = await challenge();
   await AuthChallenge.updateOne({ nonce: expired.nonce }, { expiresAt: new Date(Date.now() - 1000) });
-  assert.equal((await request('/auth/google', { cookie: expired.cookie, body: { credential: credential(expired.nonce) } })).status, 422);
+  assert.equal((await request('/auth/google', { cookie: expired.cookie, body: { credential: credential(expired.nonce) } })).status, 401);
 });
 
 test('existing email cannot be taken over; authenticated linking preserves account ID and role', async () => {
   const existing = await User.create({ name: 'Existing Admin', email: 'existing@gmail.com', password: 'existing-pass-123', role: 'admin' });
   const claims = { sub: 'google-existing', email: existing.email };
   const rejected = await googleSignIn(claims);
-  assert.equal(rejected.status, 422);
+  assert.equal(rejected.status, 409);
   assert.equal((await User.findById(existing.id)).googleId, undefined);
   const login = await request('/auth/login', { body: { email: existing.email, password: 'existing-pass-123' } });
   assert.equal(login.status, 200);
   const c = await challenge();
   const body = { credential: credential(c.nonce, claims) };
-  assert.equal((await request('/auth/google/link', { cookie: c.cookie, body })).status, 422);
+  assert.equal((await request('/auth/google/link', { cookie: c.cookie, body })).status, 401);
   const linked = await request('/auth/google/link', { cookie: c.cookie, body, token: login.data.data.accessToken });
   assert.equal(linked.status, 200);
   const googleLogin = await googleSignIn(claims);
@@ -201,22 +201,22 @@ test('existing email cannot be taken over; authenticated linking preserves accou
 
 test('2FA requires first-factor challenge, checks code, consumes recovery once, and blocks replay', async () => {
   const user = await User.findOneAndUpdate({ googleId: 'google-customer' }, {
-    twoFactorEnabled: true, twoFactorSecret: 'JBSWY3DPEHPK3PXP', twoFactorRecoveryCodes: ['ABCDEFGH'],
+    twoFactorEnabled: true, twoFactorSecret: 'JBSWY3DPEHPK3PXP', twoFactorRecoveryCodes: [crypto.createHash('sha256').update('ABCDEFGH').digest('hex')],
   }, { new: true });
   const body = { userId: user.id, code: 'ABCDEFGH' };
-  assert.equal((await request('/auth/verify-2fa', { body })).status, 422);
+  assert.equal((await request('/auth/verify-2fa', { body })).status, 401);
   const first = await googleSignIn({}, { rememberMe: true });
   assert.equal(first.status, 200);
   assert.equal(first.data.data.require2FA, true);
   assert.equal(first.data.data.accessToken, undefined);
   assert.equal(cookieFor(first, 'refreshToken'), undefined);
   const cookie = cookieFor(first, 'twoFactorChallenge');
-  assert.equal((await request('/auth/verify-2fa', { cookie, body: { ...body, code: 'ZZZZZZZZ' } })).status, 422);
+  assert.equal((await request('/auth/verify-2fa', { cookie, body: { ...body, code: 'ZZZZZZZZ' } })).status, 400);
   const second = await request('/auth/verify-2fa', { cookie, body: { ...body, rememberMe: false } });
   assert.equal(second.status, 200);
   assert.ok(second.data.data.accessToken);
   assert.match(second.cookies.join(';'), /Max-Age=604800/);
   assert.equal(second.data.data.recoveryUsed, true);
   assert.equal((await User.findById(user.id).select('+twoFactorRecoveryCodes')).twoFactorRecoveryCodes.length, 0);
-  assert.equal((await request('/auth/verify-2fa', { cookie, body })).status, 422);
+  assert.equal((await request('/auth/verify-2fa', { cookie, body })).status, 401);
 });

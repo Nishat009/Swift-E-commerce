@@ -9,7 +9,9 @@
     "test:auth": "node --test tests/google-auth.test.js",
     "test:draw": "node --test tests/draw-flow.test.js",
     "seed": "node scripts/seed.js",
-    "seed:admin": "node scripts/seedAdmin.js"
+    "seed:admin": "node scripts/seedAdmin.js",
+    "test": "node --test tests/google-auth.test.js tests/draw-flow.test.js tests/security.test.js tests/order-flow.test.js tests/features.test.js",
+    "test:security": "node --test tests/security.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -27,6 +29,7 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^9.1.1",
+    "sharp": "^0.34.5",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
   },

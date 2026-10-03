@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Coupon = require('../models/Coupon');
 const Order = require('../models/Order');
 
@@ -37,17 +38,35 @@ const evaluateCoupon = async (code, userId, subtotal) => {
   return { coupon, discount };
 };
 
-// Atomically take one use. Returns false if the limit was reached meanwhile.
-const redeemCoupon = async (coupon) => {
-  const filter = { _id: coupon._id };
-  if (coupon.usageLimit > 0) filter.$expr = { $lt: ['$usedCount', '$usageLimit'] };
-  const updated = await Coupon.findOneAndUpdate(filter, { $inc: { usedCount: 1 } }, { new: true });
-  return Boolean(updated);
+const userUses = (userId) => ({
+  $size: { $filter: { input: { $ifNull: ['$usedBy', []] }, cond: { $eq: ['$this', new mongoose.Types.ObjectId(String(userId))] } } },
+});
+
+// Atomically take one use (total and per-user limits). Returns false if a limit was reached meanwhile.
+const redeemCoupon = async (coupon, userId) => {
+  const limits = [];
+  if (coupon.usageLimit > 0) limits.push({ $lt: ['$usedCount', '$usageLimit'] });
+  if (coupon.perUserLimit > 0 && userId) limits.push({ $lt: [userUses(userId), '$perUserLimit'] });
+  const filter = { _id: coupon._id, ...(limits.length ? { $expr: { $and: limits } } : {}) };
+  const update = { $inc: { usedCount: 1 }, ...(userId ? { $push: { usedBy: userId } } : {}) };
+  return Boolean(await Coupon.findOneAndUpdate(filter, update));
 };
 
-const releaseCouponUse = async (code) => {
+// Give one use back; removes a single usedBy entry for that user.
+const releaseCouponUse = async (code, userId) => {
   if (!code) return;
-  await Coupon.updateOne({ code: String(code).toUpperCase(), usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
+  const set = { usedCount: { $max: [0, { $subtract: ['$usedCount', 1] }] } };
+  if (userId) {
+    const list = { $ifNull: ['$usedBy', []] };
+    const idx = { $indexOfArray: [list, new mongoose.Types.ObjectId(String(userId))] };
+    set.usedBy = {
+      $cond: [
+        { $lt: [idx, 0] }, list,
+        { $concatArrays: [{ $slice: [list, idx] }, { $slice: [list, { $add: [idx, 1] }, { $max: [1, { $size: list }] }] }] },
+      ],
+    };
+  }
+  await Coupon.updateOne({ code: String(code).toUpperCase() }, [{ $set: set }]);
 };
 
 module.exports = { CouponError, evaluateCoupon, redeemCoupon, releaseCouponUse };

@@ -26,8 +26,25 @@ const checkSecondFactorCode = (user, rawCode) => {
 };
 
 const newRecoveryCodes = () => {
-  const plain = generateRecoveryCodes(8, 8);
+  const plain = generateRecoveryCodes(10, 8);
   return { plain, hashed: plain.map(hashCode) };
+};
+
+// FR-2.6: after LOGIN_MAX_FAILURES wrong passwords in a row the account is locked briefly.
+const LOGIN_MAX_FAILURES = 3;
+const LOGIN_LOCK_MS = 30 * 1000;
+const recordFailedLogin = async (userId) => {
+  const updated = await User.findOneAndUpdate(
+    { _id: userId },
+    { $inc: { failedLoginAttempts: 1 } },
+    { new: true, projection: { failedLoginAttempts: 1 } }
+  );
+  if (updated && updated.failedLoginAttempts >= LOGIN_MAX_FAILURES) {
+    await User.updateOne(
+      { _id: userId },
+      { $set: { failedLoginAttempts: 0, lockUntil: new Date(Date.now() + LOGIN_LOCK_MS) } }
+    );
+  }
 };
 
 // @desc    Register a new user
@@ -50,7 +67,7 @@ const register = async (req, res, next) => {
     });
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, true);
 
     // Store refresh token in HttpOnly cookie
     res.cookie('refreshToken', refreshToken, cookieOptions(true));
@@ -81,10 +98,16 @@ const login = async (req, res, next) => {
   const { email, password, rememberMe } = req.body;
 
   try {
-    const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
+    const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes +lockUntil');
+    if (user && user.lockUntil && user.lockUntil > new Date()) {
+      const seconds = Math.ceil((user.lockUntil - Date.now()) / 1000);
+      return sendError(res, `Too many failed attempts. Try again in ${seconds} seconds.`, 429, { retryAfter: seconds });
+    }
     if (!user || !(await user.matchPassword(password))) {
+      if (user) await recordFailedLogin(user._id);
       return sendError(res, 'Invalid email or password', 401);
     }
+    await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: 1 } });
 
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
@@ -92,7 +115,7 @@ const login = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, !!rememberMe);
 
     // Store refresh token in HttpOnly cookie
     // Only set maxAge when "Remember Me" is checked; otherwise use a session cookie
@@ -170,7 +193,13 @@ const updateProfile = async (req, res, next) => {
     user.name = req.body.name || user.name;
     user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
 
+    const passwordUser = await User.findById(req.user.id).select('+password');
+    const hasPassword = Boolean(passwordUser && passwordUser.password);
+
     if (req.body.email && req.body.email !== user.email) {
+      if (hasPassword && !(await passwordUser.matchPassword(req.body.currentPassword))) {
+        return sendError(res, 'Enter your current password to change your email address', 401);
+      }
       const emailExists = await User.findOne({ email: req.body.email });
       if (emailExists) {
         return sendError(res, 'Email already in use', 400);
@@ -178,8 +207,7 @@ const updateProfile = async (req, res, next) => {
       user.email = req.body.email;
     }
 
-    const passwordUser = await User.findById(req.user.id).select('+password');
-    const hasPassword = Boolean(passwordUser && passwordUser.password);
+    let passwordChanged = false;
     if (req.body.password) {
       // Google-only accounts have no password yet, so they can set one without a current password.
       if (hasPassword) {
@@ -191,6 +219,7 @@ const updateProfile = async (req, res, next) => {
         }
       }
       user.password = req.body.password;
+      passwordChanged = true;
     }
 
     // Address updates
@@ -227,7 +256,16 @@ const updateProfile = async (req, res, next) => {
 
     const updatedUser = await user.save();
 
+    // A new password signs out other devices; this one gets fresh tokens to stay signed in
+    let accessToken;
+    if (passwordChanged) {
+      const remember = Boolean(jwt.decode(req.cookies?.refreshToken || '')?.rm);
+      res.cookie('refreshToken', generateRefreshToken(updatedUser, remember), cookieOptions(remember));
+      accessToken = generateAccessToken(updatedUser);
+    }
+
     return sendSuccess(res, 'User profile updated successfully', {
+      ...(accessToken ? { accessToken } : {}),
       user: {
         id: updatedUser.id,
         name: updatedUser.name,
@@ -260,21 +298,17 @@ const refreshToken = async (req, res, next) => {
     const decoded = jwt.verify(token, getRequiredSecret('JWT_REFRESH_SECRET'));
     const user = await User.findById(decoded.id);
 
-    if (!user) {
+    // Unknown user, or the password changed after this session started
+    if (!user || (decoded.v || 0) !== (user.tokenVersion || 0)) {
+      res.clearCookie('refreshToken', cookieOptions());
       return sendError(res, 'Invalid refresh token', 401);
     }
 
     const accessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user);
+    const newRefreshToken = generateRefreshToken(user, decoded.rm);
 
-    // Update cookie with the refreshed token too
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    };
-    res.cookie('refreshToken', newRefreshToken, cookieOptions);
+    // Same lifetime as the original sign-in: persistent only when "remember me" was ticked
+    res.cookie('refreshToken', newRefreshToken, cookieOptions(Boolean(decoded.rm)));
 
     return sendSuccess(res, 'Access token refreshed successfully', { accessToken });
   } catch (error) {
@@ -493,7 +527,7 @@ const verify2FA = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, challenge.rememberMe);
 
     res.cookie('refreshToken', refreshToken, cookieOptions(challenge.rememberMe));
 
@@ -526,9 +560,7 @@ const requestOTP = async (req, res, next) => {
     const genericMessage = 'If an eligible account exists, an OTP has been sent to its email.';
     if (!user) return sendSuccess(res, genericMessage);
 
-    if (user.role !== 'customer') {
-      return sendError(res, 'OTP Login is only available for customers', 403);
-    }
+    if (user.role !== 'customer') return sendSuccess(res, genericMessage);
 
     if (user.otpRequestedAt && Date.now() - user.otpRequestedAt.getTime() < 60 * 1000) {
       return sendError(res, 'Please wait one minute before requesting another OTP', 429);
@@ -561,7 +593,7 @@ const verifyOTP = async (req, res, next) => {
   try {
     const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts');
     if (!user) {
-      return sendError(res, 'User not found', 404);
+      return sendError(res, 'Invalid OTP code', 400);
     }
 
     if ((user.otpAttempts || 0) >= 5) {
@@ -589,7 +621,7 @@ const verifyOTP = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, !!rememberMe);
 
     res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
 

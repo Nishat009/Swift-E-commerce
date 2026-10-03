@@ -1,10 +1,17 @@
-import React, { useMemo } from 'react';
-import { aiService } from '@/services/aiService';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, TrendingUp, AlertTriangle, ArrowRight, Lightbulb } from 'lucide-react';
+import apiClient from '@/lib/apiClient';
+import { SalesAdvisorInsight } from '@/types/ai';
 
 export default function AISalesAdvisor() {
-  const insights = useMemo(() => {
-    return aiService.getAdminSalesAdvisorInsights();
+  const [insights, setInsights] = useState<SalesAdvisorInsight[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    apiClient.get('/admin/insights').then(({ data }) => {
+      if (active) setInsights(data?.data || []);
+    }).catch(() => { if (active) setError('Could not load sales insights.'); });
+    return () => { active = false; };
   }, []);
 
   return (
@@ -13,14 +20,16 @@ export default function AISalesAdvisor() {
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-amber-500" />
-            AI Business Advisor & Inventory Intelligence
+            Sales & Inventory Insights
           </h3>
           <p className="text-xs text-gray-500">
-            Predictive sales analytics and automated cross-sell strategies.
+            Inventory and sales observations calculated from store orders and products.
           </p>
         </div>
       </div>
 
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {!error && insights.length === 0 && <p className="text-xs text-gray-500">No sales insights yet.</p>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {insights.map((insight) => (
           <div
@@ -51,7 +60,7 @@ export default function AISalesAdvisor() {
 
             <div className="bg-amber-500/10 dark:bg-amber-500/5 p-3 rounded-xl border border-amber-500/20 text-xs">
               <p className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1 mb-1">
-                <ArrowRight className="w-3.5 h-3.5" /> AI Action Tip:
+                <ArrowRight className="w-3.5 h-3.5" /> Action tip:
               </p>
               <p className="text-[11px] text-gray-700 dark:text-gray-300">
                 {insight.actionRecommendation}

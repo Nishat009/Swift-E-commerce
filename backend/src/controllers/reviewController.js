@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
@@ -48,7 +49,7 @@ const createReview = async (req, res, next) => {
     });
 
     if (alreadyReviewed) {
-      return sendError(res, 'You have already reviewed this product', 400);
+      return sendError(res, 'You have already reviewed this product', 409);
     }
 
     // Verified only when this user really bought the product in a non-cancelled order
@@ -73,6 +74,8 @@ const createReview = async (req, res, next) => {
 
     return sendSuccess(res, 'Review submitted successfully', newReview, 201);
   } catch (error) {
+    // A double submit races past the check above; the unique index catches it
+    if (error.code === 11000) return sendError(res, 'You have already reviewed this product', 409);
     next(error);
   }
 };
@@ -104,11 +107,21 @@ const markReviewHelpful = async (req, res, next) => {
 const getProductReviews = async (req, res, next) => {
   const { productId } = req.params;
   try {
-    const reviews = await Review.find({ product: productId })
-      .populate('user', 'name avatar')
-      .sort({ createdAt: -1 });
+    if (!mongoose.isValidObjectId(productId)) return sendError(res, 'Product not found', 404);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const [reviews, total] = await Promise.all([
+      Review.find({ product: productId })
+        .populate('user', 'name avatar')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Review.countDocuments({ product: productId }),
+    ]);
 
-    return sendSuccess(res, 'Reviews retrieved successfully', reviews);
+    return sendSuccess(res, 'Reviews retrieved successfully', reviews, 200, {
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     next(error);
   }
@@ -133,6 +146,9 @@ const updateReview = async (req, res, next) => {
 
     dbReview.rating = rating !== undefined ? Number(rating) : dbReview.rating;
     dbReview.review = review || dbReview.review;
+    if (Array.isArray(req.body.images)) {
+      dbReview.images = req.body.images.filter((u) => typeof u === 'string' && /^https?:[/][/]/i.test(u)).slice(0, 5);
+    }
 
     await dbReview.save();
     

@@ -5,6 +5,7 @@ const Cart = require('../models/Cart');
 const Wishlist = require('../models/Wishlist');
 const { sendSuccess } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
+const { isDemoAccount } = require('./demoAuthController');
 
 // @desc    Get Admin Dashboard Statistics
 // @route   GET /api/admin/dashboard
@@ -144,11 +145,16 @@ const updateUserRole = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    if (isDemoAccount(user)) {
+      return res.status(403).json({ success: false, message: 'Demo accounts cannot be changed' });
+    }
     if (user.id === req.user.id && role !== 'admin') {
       return res.status(400).json({ success: false, message: 'You cannot remove your own admin role' });
     }
+    const previousRole = user.role;
     user.role = role;
     await user.save();
+    await logAudit(req, 'User', user._id, `Role of ${user.email}: ${previousRole} -> ${role}`, { role: previousRole }, { role });
     await logActivity(req, 'User Role Changed', `${user.email} is now "${role}"`);
     return sendSuccess(res, 'User role updated successfully', user);
   } catch (error) {
@@ -162,6 +168,9 @@ const deleteUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    if (isDemoAccount(user)) {
+      return res.status(403).json({ success: false, message: 'Demo accounts cannot be deleted' });
+    }
     if (user.id === req.user.id) {
       return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
     }
@@ -173,6 +182,7 @@ const deleteUser = async (req, res, next) => {
       Wishlist.deleteMany({ user: user._id })
     ]);
     await user.deleteOne();
+    await logAudit(req, 'User', user._id, `Deleted account ${user.email}`, { email: user.email, name: user.name, role: user.role }, { deleted: true });
     await logActivity(req, 'User Deleted', `Deleted account ${user.email}`);
     return sendSuccess(res, 'User deleted successfully');
   } catch (error) {

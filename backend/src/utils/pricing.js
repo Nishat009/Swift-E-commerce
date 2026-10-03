@@ -22,11 +22,26 @@ const matchOption = (group, key) =>
   );
 
 // Resolve a client variant against the product. Unknown options are ignored (never trusted).
+// Which field identifies an option in the database (used for atomic stock updates)
+const optionIdentity = (opt) => {
+  for (const field of ['id', 'value', 'name']) {
+    if (opt[field] !== undefined && opt[field] !== null && opt[field] !== '') return { field, value: String(opt[field]) };
+  }
+  return null;
+};
+
 const resolveVariant = (product, variant) => {
   const groups = product.variants || [];
   const resolved = {};
   let delta = 0;
   let optionStock = null;
+  // Options / combination that carry their own stock count, so orders can reserve them
+  const stockTargets = [];
+  const trackOption = (g, opt) => {
+    if (typeof opt.stock !== 'number') return;
+    const identity = optionIdentity(opt);
+    if (identity) stockTargets.push({ kind: 'option', group: g.name, ...identity });
+  };
 
   selectedOptionKeys(variant).forEach(({ group, key }) => {
     const g = groups.find((x) => x.name === group || x.id === group);
@@ -35,6 +50,7 @@ const resolveVariant = (product, variant) => {
     resolved[g.name] = opt.id || opt.value || opt.name;
     delta += Number(opt.priceDelta) || 0;
     if (typeof opt.stock === 'number') optionStock = optionStock === null ? opt.stock : Math.min(optionStock, opt.stock);
+    trackOption(g, opt);
   });
 
   // A single option id/sku can also be sent (older clients): look it up across groups
@@ -45,6 +61,7 @@ const resolveVariant = (product, variant) => {
         resolved[g.name] = opt.id;
         delta += Number(opt.priceDelta) || 0;
         if (typeof opt.stock === 'number') optionStock = opt.stock;
+        trackOption(g, opt);
         break;
       }
     }
@@ -60,11 +77,18 @@ const resolveVariant = (product, variant) => {
     );
     if (combo && combo.status !== 'inactive' && Number(combo.price) > 0) {
       combinationPrice = Number(combo.price);
-      if (typeof combo.stock === 'number') optionStock = combo.stock;
+      if (typeof combo.stock === 'number') {
+        optionStock = combo.stock;
+        if (combo.id) {
+          // The combination's own stock replaces the per-option counts
+          stockTargets.length = 0;
+          stockTargets.push({ kind: 'combination', id: String(combo.id) });
+        }
+      }
     }
   }
 
-  return { options: resolved, delta, combinationPrice, optionStock };
+  return { options: resolved, delta, combinationPrice, optionStock, stockTargets };
 };
 
 // Final unit price (after product-level discount) for a product + client variant.
@@ -74,7 +98,8 @@ const unitPrice = (product, variant) => {
   return {
     price: Number(Math.max(0, discounted(base, product.discountPercentage)).toFixed(2)),
     options: r.options,
-    optionStock: r.optionStock
+    optionStock: r.optionStock,
+    stockTargets: r.stockTargets
   };
 };
 

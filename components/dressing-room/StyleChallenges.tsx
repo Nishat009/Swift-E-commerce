@@ -3,6 +3,8 @@ import { useAvatarStore } from '@/stores/avatarStore';
 import { Award, CheckCircle, ShieldAlert, CircleCheck, Play, HelpCircle } from 'lucide-react';
 import Button from '../ui/Button';
 import { Product } from '@/types';
+import apiClient from '@/lib/apiClient';
+import { useAuth } from '@/context/AuthContext';
 
 interface Challenge {
   id: string;
@@ -16,7 +18,8 @@ interface Challenge {
 }
 
 export default function StyleChallenges() {
-  const { wornItems, points, unlockedBadges, completeChallenge, avatar } = useAvatarStore();
+  const { wornItems, points, unlockedBadges, avatar } = useAvatarStore();
+  const { user } = useAuth();
 
   const challenges: Challenge[] = [
     {
@@ -67,7 +70,11 @@ export default function StyleChallenges() {
     return (product.specifications as any)[key] || '';
   };
 
-  const handleVerifyChallenge = (challenge: Challenge) => {
+  const handleVerifyChallenge = async (challenge: Challenge) => {
+    if (!user) {
+      alert('Sign in to earn and save challenge points.');
+      return;
+    }
     const items = Object.values(wornItems).filter(Boolean) as Product[];
     
     // 1. Verify required layers are worn
@@ -100,9 +107,16 @@ export default function StyleChallenges() {
       return;
     }
 
-    // Success! Complete
-    completeChallenge(challenge.id, challenge.rewardBadge.id, challenge.points);
-    alert(`Congratulations! You completed "${challenge.title}"! Unlocked Badge: ${challenge.rewardBadge.icon} ${challenge.rewardBadge.name} and earned +${challenge.points} style points.`);
+    try {
+      const response = await apiClient.post(`/wardrobe/challenges/${challenge.id}/complete`, { wornItems });
+      useAvatarStore.setState({
+        points: response.data.data.points,
+        unlockedBadges: response.data.data.unlockedBadges,
+      });
+      alert(`Congratulations! You completed "${challenge.title}" and earned +${challenge.points} style points.`);
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Could not verify this challenge. Please try again.');
+    }
   };
 
   return (

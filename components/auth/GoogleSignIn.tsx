@@ -46,12 +46,15 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     async function prepare() {
       try {
         const response = await apiClient.post('/auth/google/challenge');
+        const clientId = response.data?.data?.clientId;
+        const nonce = response.data?.data?.nonce;
+        if (!clientId || !nonce) throw new Error('Google sign-in configuration could not be loaded.');
         if (!active) return;
         const identity = await loadGoogleIdentity();
         if (!active || !element) return;
         identity.initialize({
-          client_id: response.data.data.clientId,
-          nonce: response.data.data.nonce,
+          client_id: clientId,
+          nonce,
           auto_select: false,
           ux_mode: 'popup',
           callback: async ({ credential }) => {
@@ -99,9 +102,11 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
         identity.renderButton(element, {
           type: 'standard', theme: 'outline', size: 'large', shape: 'pill',
           text: mode === 'signup' ? 'signup_with' : mode === 'link' ? 'continue_with' : 'signin_with',
-          width: Math.min(element.clientWidth || 320, 400),
+          // English labels, and never wider than the form column on small phones
+          locale: 'en',
+          width: Math.max(200, Math.min(element.clientWidth || element.parentElement?.clientWidth || 280, 400)),
         });
-        setStatus('ready');
+        if (active) setStatus('ready');
       } catch (err) {
         if (active) {
           setError(errorMessage(err));

@@ -6,19 +6,20 @@ const { sendSuccess, sendError } = require('../utils/response');
 // @access  Private
 const getNotifications = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
 
     const notifications = await Notification.find({ user: req.user.id })
       .populate('relatedCampaign', 'title prizeName status')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit);
 
     const total = await Notification.countDocuments({ user: req.user.id });
 
     return sendSuccess(res, 'Notifications retrieved', notifications, 200, {
-      pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) }
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     });
   } catch (error) {
     next(error);

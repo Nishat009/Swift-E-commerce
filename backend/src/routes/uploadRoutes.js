@@ -22,7 +22,7 @@ router.post('/', protect, authorize('admin'), (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Choose an image to upload.' });
     }
     const uploaded = await uploadToCloudinary(req.file, 'swiftcart/products');
-    const origin = `${req.protocol}://${req.get('host')}`;
+    const origin = (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
     const url = uploaded.startsWith('/') ? `${origin}${uploaded}` : uploaded;
     res.status(201).json({ success: true, message: 'Image uploaded', data: { url } });
   } catch (error) {

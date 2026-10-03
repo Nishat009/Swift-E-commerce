@@ -8,6 +8,10 @@ const AuditTrail = require('../models/AuditTrail');
 const { sendSuccess, sendError } = require('../utils/response');
 const { logAudit } = require('../utils/activityLog');
 const crypto = require('crypto');
+const { isAdmin } = require('../middleware/authMiddleware');
+
+// Statuses a storefront visitor may see; drafts and archived campaigns are admin-only
+const PUBLIC_STATUSES = ['active', 'paused', 'sold-out', 'completed'];
 
 // @desc    Get all campaigns
 // @route   GET /api/campaigns
@@ -15,30 +19,31 @@ const crypto = require('crypto');
 const getCampaigns = async (req, res, next) => {
   try {
     await payments.expireStalePurchases();
-    const { status, visibility, page = 1, limit = 20 } = req.query;
+    const { status, visibility } = req.query;
+    const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const query = {};
-    if (status) {
-      query.status = status;
-    }
-    // Default to public visibility unless admin explicitly specifies
-    if (visibility) {
-      query.visibility = visibility;
-    } else if (!req.user || req.user.role !== 'admin') {
+    if (isAdmin(req)) {
+      if (status) query.status = status;
+      if (visibility) query.visibility = visibility;
+    } else {
+      // Private campaigns are unlisted (reachable by direct link only)
       query.visibility = 'public';
+      query.status = PUBLIC_STATUSES.includes(status) ? status : { $in: PUBLIC_STATUSES };
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
     const campaigns = await Campaign.find(query)
       .populate('winnerUser', 'name avatar')
       .populate('linkedProducts', 'title price thumbnail')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNum);
 
     const total = await Campaign.countDocuments(query);
 
     return sendSuccess(res, 'Campaigns retrieved successfully', campaigns, 200, {
-      pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) }
+      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) }
     });
   } catch (error) {
     next(error);
@@ -55,7 +60,7 @@ const getCampaignById = async (req, res, next) => {
       .populate('winnerUser', 'name avatar')
       .populate('linkedProducts', 'title price thumbnail description stock');
 
-    if (!campaign) {
+    if (!campaign || (!isAdmin(req) && !PUBLIC_STATUSES.includes(campaign.status))) {
       return sendError(res, 'Campaign not found', 404);
     }
 
@@ -97,6 +102,9 @@ const purchaseTicket = async (req, res, next) => {
     if (campaign.status !== 'active') {
       return sendError(res, 'This campaign is no longer active', 400);
     }
+    if (campaign.drawDate && campaign.drawDate <= new Date()) {
+      return sendError(res, 'Ticket sales have closed for this campaign', 400);
+    }
 
     // Max tickets per user: issued tickets plus tickets held by in-flight payments
     const [issued, held] = await Promise.all([
@@ -137,6 +145,20 @@ const purchaseTicket = async (req, res, next) => {
         expiresAt: new Date(Date.now() + payments.PURCHASE_HOLD_MINUTES * 60 * 1000)
       });
 
+      // Re-check the per-user cap now that this hold is recorded: two parallel requests
+      // can both pass the first check, but only one of them survives this one.
+      const [issuedNow, heldNow] = await Promise.all([
+        Ticket.countDocuments({ user: req.user.id, campaign: campaignId }),
+        TicketPurchase.aggregate([
+          { $match: { user: req.user._id, campaign: campaign._id, status: { $in: ['pending', 'fulfilling'] } } },
+          { $group: { _id: null, qty: { $sum: '$quantity' } } }
+        ])
+      ]);
+      if (issuedNow + (heldNow[0] ? heldNow[0].qty : 0) > campaign.maxTicketsPerUser) {
+        await payments.releasePurchase(purchase._id, 'failed');
+        return sendError(res, `You can hold a maximum of ${campaign.maxTicketsPerUser} tickets for this campaign.`, 400);
+      }
+
       const session = await payments.startGatewayPayment({
         method: paymentMethod,
         amountUsd: purchase.amount,
@@ -161,7 +183,7 @@ const purchaseTicket = async (req, res, next) => {
         await Campaign.findByIdAndUpdate(campaignId, { $inc: { ticketsSold: -qty } });
       }
       console.error('[payments] ticket purchase start failed:', startError.message);
-      return sendError(res, `Could not start the payment: ${startError.message}`, 502);
+      return sendError(res, 'Could not start the payment. Please try again in a moment.', 502);
     }
   } catch (error) {
     next(error);
@@ -194,9 +216,10 @@ const getMyTickets = async (req, res, next) => {
 // @access  Public
 const getWinners = async (req, res, next) => {
   try {
-    const winners = await Campaign.find({ status: 'completed' })
+    const winners = await Campaign.find({ status: 'completed', visibility: 'public' })
       .populate('winnerUser', 'name avatar')
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .limit(Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50)));
 
     return sendSuccess(res, 'Winners gallery retrieved successfully', winners);
   } catch (error) {
@@ -284,6 +307,13 @@ const updateCampaign = async (req, res, next) => {
     }
 
     const previousState = campaign.toObject();
+
+    if (req.body.status !== undefined && req.body.status !== campaign.status && campaign.status === 'completed') {
+      return sendError(res, 'A completed campaign (draw already conducted) cannot be reopened', 400);
+    }
+    if (req.body.ticketLimit !== undefined && Number(req.body.ticketLimit) < campaign.ticketsSold) {
+      return sendError(res, `Ticket limit cannot be lower than the ${campaign.ticketsSold} tickets already sold`, 400);
+    }
 
     const allowedFields = [
       'title', 'description', 'terms', 'bannerImage',

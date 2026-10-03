@@ -3,6 +3,9 @@ const { sendSuccess, sendError } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
 const { CouponError, evaluateCoupon } = require('./../services/couponService');
 
+const EDITABLE = ['code', 'percentage', 'amount', 'expiry', 'minSpend', 'usageLimit', 'perUserLimit', 'active'];
+const couponState = (c) => Object.fromEntries(EDITABLE.map((f) => [f, c[f]]));
+
 // @desc    Get all coupons (Admin)
 // @route   GET /api/coupons
 // @access  Private/Admin
@@ -24,7 +27,15 @@ const getCouponByCode = async (req, res, next) => {
     // Optional ?subtotal= lets the cart check minimum spend and preview the discount
     const subtotal = req.query.subtotal !== undefined ? Number(req.query.subtotal) : undefined;
     const { coupon, discount } = await evaluateCoupon(code, req.user.id, Number.isFinite(subtotal) ? subtotal : undefined);
-    return sendSuccess(res, 'Coupon code validated successfully', { ...coupon.toJSON(), discount });
+    return sendSuccess(res, 'Coupon code validated successfully', {
+      id: coupon.id,
+      code: coupon.code,
+      percentage: coupon.percentage,
+      amount: coupon.amount,
+      minSpend: coupon.minSpend,
+      expiry: coupon.expiry,
+      discount,
+    });
   } catch (error) {
     if (error instanceof CouponError) return sendError(res, error.message, error.status);
     next(error);
@@ -53,6 +64,7 @@ const createCoupon = async (req, res, next) => {
       active: active !== undefined ? !!active : true
     });
 
+    await logAudit(req, 'Coupon', coupon._id, `Created coupon ${coupon.code}`, {}, couponState(coupon));
     await logActivity(req, 'Coupon Created', `Created coupon ${coupon.code}`);
     return sendSuccess(res, 'Coupon created successfully', coupon, 201);
   } catch (error) {
@@ -71,12 +83,20 @@ const updateCoupon = async (req, res, next) => {
       return sendError(res, 'Coupon not found', 404);
     }
 
-    const { usedCount, ...changes } = req.body; // usage counter is server-managed
+    // Only editable settings; usage counters are server-managed
+    const changes = {};
+    EDITABLE.forEach((field) => { if (req.body[field] !== undefined) changes[field] = req.body[field]; });
+    if (changes.code) changes.code = String(changes.code).toUpperCase();
+    if (changes.code && changes.code !== coupon.code && await Coupon.exists({ code: changes.code })) {
+      return sendError(res, 'Coupon code already exists', 409);
+    }
+    const previous = couponState(coupon);
     const updatedCoupon = await Coupon.findByIdAndUpdate(id, changes, {
       new: true,
       runValidators: true
     });
 
+    await logAudit(req, 'Coupon', updatedCoupon._id, `Updated coupon ${updatedCoupon.code}`, previous, couponState(updatedCoupon));
     await logActivity(req, 'Coupon Updated', `Updated coupon ${updatedCoupon.code}`);
     return sendSuccess(res, 'Coupon updated successfully', updatedCoupon);
   } catch (error) {
@@ -96,6 +116,7 @@ const deleteCoupon = async (req, res, next) => {
     }
 
     await Coupon.findByIdAndDelete(id);
+    await logAudit(req, 'Coupon', coupon._id, `Deleted coupon ${coupon.code}`, couponState(coupon), { deleted: true });
     await logActivity(req, 'Coupon Deleted', `Deleted coupon ${coupon.code}`);
     return sendSuccess(res, 'Coupon deleted successfully');
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Loading from '@/components/ui/Loading';
@@ -32,9 +32,12 @@ export default function AccountLayout({ children, activeTabName }: AccountLayout
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // A deliberate logout must not remember this page for whoever signs in next
+  const loggingOut = useRef(false);
+
   useEffect(() => {
     if (!loading && !user) {
-      router.push(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
+      router.push(loggingOut.current ? '/auth/login' : `/auth/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [user, loading, router, pathname]);
 
@@ -57,6 +60,7 @@ export default function AccountLayout({ children, activeTabName }: AccountLayout
 
   const handleLogoutConfirm = async () => {
     setIsLogoutModalOpen(false);
+    loggingOut.current = true;
     await logout();
   };
 

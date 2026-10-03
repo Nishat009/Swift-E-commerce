@@ -1,16 +1,19 @@
 import axios from 'axios';
 
 let accessToken: string | null = null;
-let refreshSubscribers: ((token: string) => void)[] = [];
+type RefreshSubscriber = { resolve: (token: string) => void; reject: (error: unknown) => void };
+let refreshSubscribers: RefreshSubscriber[] = [];
 let isRefreshing = false;
 
 const onRefreshed = (token: string) => {
-  refreshSubscribers.forEach((callback) => callback(token));
+  refreshSubscribers.forEach((s) => s.resolve(token));
   refreshSubscribers = [];
 };
 
-const addRefreshSubscriber = (callback: (token: string) => void) => {
-  refreshSubscribers.push(callback);
+// A failed refresh must fail the queued requests too, or the pages waiting on them spin forever
+const onRefreshFailed = (error: unknown) => {
+  refreshSubscribers.forEach((s) => s.reject(error));
+  refreshSubscribers = [];
 };
 
 export const setAccessToken = (token: string | null) => {
@@ -66,6 +69,10 @@ apiClient.interceptors.response.use(
         originalRequest.url?.includes('/auth/register') ||
         originalRequest.url?.includes('/auth/google') ||
         originalRequest.url?.includes('/auth/verify-2fa') ||
+        originalRequest.url?.includes('/auth/request-otp') ||
+        originalRequest.url?.includes('/auth/verify-otp') ||
+        originalRequest.url?.includes('/auth/forgot-password') ||
+        originalRequest.url?.includes('/auth/reset-password') ||
         originalRequest.url?.includes('/auth/refresh') ||
         originalRequest.url?.includes('/auth/logout')
       ) {
@@ -75,7 +82,7 @@ apiClient.interceptors.response.use(
       // Check if we have any cached credentials (if not, it's a guest user -> do not refresh)
       let hasCredentials = false;
       if (typeof window !== 'undefined') {
-        hasCredentials = !!(localStorage.getItem('accessToken') || localStorage.getItem('refreshToken'));
+        hasCredentials = !!(localStorage.getItem('accessToken') || localStorage.getItem('refreshToken') || localStorage.getItem('rememberMe'));
       }
       
       if (!hasCredentials) {
@@ -83,10 +90,13 @@ apiClient.interceptors.response.use(
       }
 
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          addRefreshSubscriber((token) => {
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
-            resolve(apiClient(originalRequest));
+        return new Promise((resolve, reject) => {
+          refreshSubscribers.push({
+            resolve: (token) => {
+              originalRequest.headers['Authorization'] = `Bearer ${token}`;
+              resolve(apiClient(originalRequest));
+            },
+            reject,
           });
         });
       }
@@ -126,11 +136,14 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
+        onRefreshFailed(refreshError);
         setAccessToken(null);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           console.warn('Session expired. Please log in again.');
+          // AuthContext listens and signs the user out of the UI (pages then redirect to login)
+          window.dispatchEvent(new Event('auth:session-expired'));
         }
         return Promise.reject(refreshError);
       }

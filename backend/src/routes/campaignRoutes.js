@@ -14,11 +14,11 @@ const {
   drawCampaignWinner,
   updateDeliveryProof
 } = require('../controllers/campaignController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
 // Public routes
-router.get('/', getCampaigns);
+router.get('/', optionalAuth, getCampaigns);
 router.get('/winners', getWinners);
 
 // Protected user routes
@@ -34,7 +34,7 @@ router.post('/admin/:id/draw', protect, authorize('admin'), drawCampaignWinner);
 router.put('/admin/:id/delivery', protect, authorize('admin'), updateDeliveryProof);
 
 // Parameterized routes (must come after static / sub-path routes)
-router.get('/:id', getCampaignById);
+router.get('/:id', optionalAuth, getCampaignById);
 router.post('/:id/buy', protect, purchaseTicket);
 
 module.exports = router;

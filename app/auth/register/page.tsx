@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
@@ -18,8 +19,9 @@ function RegisterFormContent() {
   // Auto-redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.includes('/auth/')) {
-        router.push(redirectUrl);
+      const safePath = safeRedirectPath(redirectUrl);
+      if (safePath) {
+        router.push(safePath);
       } else if (user.role === 'admin') {
         router.push('/admin');
       } else {
@@ -66,7 +68,7 @@ function RegisterFormContent() {
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.password.trim()) newErrors.password = 'Password is required';
-    if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }

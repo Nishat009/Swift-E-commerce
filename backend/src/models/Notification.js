@@ -12,10 +12,13 @@ const NotificationSchema = new mongoose.Schema(
     },
     relatedCampaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', default: null },
     relatedProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
+    relatedOrder: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
     isRead: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
+
+NotificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
 
 NotificationSchema.set('toJSON', {
   virtuals: true,

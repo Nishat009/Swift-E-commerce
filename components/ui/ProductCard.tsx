@@ -220,7 +220,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full aspect-[4/5] min-h-[440px] sm:aspect-[3/4] sm:min-h-0 rounded-2xl overflow-hidden group shadow-sm hover:shadow-xl bg-stone-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between"
+        className="relative w-full aspect-[4/5] min-h-[440px] sm:aspect-[3/4] sm:min-h-[440px] rounded-2xl overflow-hidden group shadow-sm hover:shadow-xl bg-stone-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between"
       >
         {/* 1. Full-Length Editorial Visual */}
         <Link href={`/product/${product.id}`} className="absolute inset-0 block w-full h-full cursor-pointer z-0">
@@ -239,15 +239,15 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 via-45% to-transparent pointer-events-none z-10 transition-opacity duration-300" />
 
         {/* 3. Top Badges & Actions Strip */}
-        <div className="relative z-20 flex items-center justify-between p-4 sm:p-5 pointer-events-none">
+        <div className="relative z-20 flex items-start justify-between gap-2 p-4 sm:p-5 pointer-events-none">
           {/* Top Left: Discount / Drop Pill */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
             {product.discountPercentage > 0 ? (
-              <span className="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
+              <span className="inline-block whitespace-nowrap text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
                 -{product.discountPercentage}% OFF
               </span>
             ) : (
-              <span className="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
+              <span className="inline-block whitespace-nowrap text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
                 PIECE {index + 1 < 10 ? `0${index + 1}` : index + 1}
               </span>
             )}
@@ -259,13 +259,13 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
           </div>
 
           {/* Top Right: Tag & Glass Action Cluster */}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <span className="inline-block text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.08em] text-white/95 bg-[#3a3a3a]/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 shadow-md">
+          <div className="flex min-w-0 items-center gap-1.5 pointer-events-auto">
+            <span className="hidden min-w-0 max-w-20 truncate whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.08em] text-white/95 bg-[#3a3a3a]/80 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/15 shadow-md min-[360px]:inline-block sm:max-w-24 lg:max-w-28">
               {product.category.toUpperCase()}
             </span>
 
             {/* Quick Action Icons */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1">
               <button
                 onClick={handleWishlistToggle}
                 disabled={wishlistLoading}
@@ -291,16 +291,16 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         </div>
 
         {/* 4. Bottom Editorial Outfit Caption Overlay */}
-        <div className="relative z-20 p-5 sm:p-6 pb-6 text-white space-y-2 transform transition-transform duration-300">
+        <div className="relative z-20 min-w-0 p-4 sm:p-5 pb-5 text-white space-y-2 transform transition-transform duration-300">
           
           {/* Brand & Material Subhead */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#dfb76c]">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="max-w-[45%] shrink-0 truncate text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#dfb76c]">
                 {product.brand || 'Swift Atelier'}
               </span>
               <span className="text-zinc-400 text-xs">•</span>
-              <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-zinc-300 line-clamp-1">
+              <span className="min-w-0 truncate text-[10px] sm:text-[11px] font-medium tracking-wide text-zinc-300">
                 {materialTag}
               </span>
             </div>
@@ -327,7 +327,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
 
           {/* Product Title */}
           <Link href={`/product/${product.id}`}>
-            <h3 className="font-serif text-xl sm:text-[22px] font-bold leading-[1.2] text-white drop-shadow-sm group-hover:text-[#dfb76c] transition-colors line-clamp-2">
+            <h3 className="min-h-[2.4em] font-serif text-xl sm:text-[22px] font-bold leading-[1.2] text-white drop-shadow-sm group-hover:text-[#dfb76c] transition-colors line-clamp-2 break-words">
               <HighlightText text={product.title} query={searchQuery} />
             </h3>
           </Link>
@@ -338,8 +338,8 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
           </p>
 
           {/* Pricing, Rating & View Look Action Row */}
-          <div className="flex items-center justify-between mt-3 pt-1">
-            <div className="flex items-baseline gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 mt-3 pt-1">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <span className="text-base sm:text-lg font-black text-[#dfb76c] tracking-tight font-sans">
                 {formatPrice(discountedPrice)}
               </span>
@@ -349,7 +349,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
                 </span>
               )}
               {hasReviews && (
-                <div className="flex items-center gap-1 text-[11px] text-amber-300 ml-2 font-mono">
+                <div className="flex items-center gap-1 text-[11px] text-amber-300 font-mono">
                   <Star className="w-3 h-3 fill-amber-300 text-amber-300" />
                   <span>{product.rating.toFixed(1)}</span>
                 </div>
@@ -359,7 +359,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
             <Link
               href={`/product/${product.id}`}
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold uppercase tracking-wider bg-white hover:bg-stone-100 text-zinc-900 px-4 py-2 rounded-full transition-all cursor-pointer shadow-lg active:scale-95"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px] sm:text-xs font-extrabold uppercase tracking-wider bg-white hover:bg-stone-100 text-zinc-900 px-3 py-2 rounded-full transition-all cursor-pointer shadow-lg active:scale-95"
             >
               <Eye className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.2} />
               <span>VIEW</span>
@@ -367,11 +367,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
           </div>
 
           {/* Shopping actions remain available on touch and keyboard. */}
-          <div className="flex flex-wrap items-center gap-2 pt-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-1.5 pt-3">
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}
-              className="flex-1 min-w-[110px] text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-[#8b6f47] hover:bg-[#725a38] disabled:opacity-50 text-white py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
+              className="min-w-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wide bg-[#8b6f47] hover:bg-[#725a38] disabled:opacity-50 text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
               <span className="whitespace-nowrap">{product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}</span>
@@ -380,9 +380,9 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
             <Link
               href={`/dressing-room?product=${product.id}&category=${product.category || 'all'}`}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 min-w-[110px]"
+              className="min-w-0"
             >
-              <span className="w-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wider bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-3 rounded-full flex items-center justify-center gap-1.5 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
+              <span className="w-full min-w-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wide bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
                 <Sparkles className="w-3.5 h-3.5 text-[#dfb76c] shrink-0" /> <span className="whitespace-nowrap">3D Try On</span>
               </span>
             </Link>

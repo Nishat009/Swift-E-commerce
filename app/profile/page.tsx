@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Changing the sign-in email needs the current password
+  const [currentPassword, setCurrentPassword] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -25,6 +27,7 @@ export default function ProfilePage() {
     state: '',
     zipCode: '',
   });
+  const emailChanged = Boolean(user && formData.email.trim().toLowerCase() !== (user.email || '').toLowerCase());
 
   // Populate data when user object changes
   useEffect(() => {
@@ -64,8 +67,11 @@ export default function ProfilePage() {
         formData.address,
         formData.city,
         formData.state,
-        formData.zipCode
+        formData.zipCode,
+        undefined,
+        emailChanged ? currentPassword : undefined
       );
+      setCurrentPassword('');
       toast.success('Your profile was updated successfully.');
       setIsEditing(false);
     } catch (err: any) {
@@ -156,6 +162,17 @@ export default function ProfilePage() {
                 required
                 className="rounded-2xl"
               />
+              {isEditing && emailChanged && (
+                <Input
+                  label="Current Password (to change email)"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={submitting}
+                  autoComplete="current-password"
+                  className="rounded-2xl"
+                />
+              )}
               <Input
                 label="Phone Number"
                 type="tel"

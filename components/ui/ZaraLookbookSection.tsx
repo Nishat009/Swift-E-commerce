@@ -10,6 +10,8 @@ import Modal from './Modal';
 import { useCartStore } from '@/stores/cartStore';
 import { useToast } from '@/context/ToastContext';
 import { useCurrencyStore } from '@/stores/currencyStore';
+import { useCatalog } from '@/hooks/useCatalog';
+import { Product } from '@/types';
 
 interface LookItem {
   id: string;
@@ -136,6 +138,7 @@ export default function ZaraLookbookSection() {
   const [hoveredLookId, setHoveredLookId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const addItem = useCartStore((state) => state.addItem);
+  const { products: catalog } = useCatalog();
   const toast = useToast();
   const { symbol: currencySymbol, rate: currencyRate } = useCurrencyStore();
 
@@ -148,6 +151,26 @@ export default function ZaraLookbookSection() {
     ? LOOKBOOK_ITEMS
     : LOOKBOOK_ITEMS.filter((look) => look.category === selectedCategory);
 
+  const resolveLookProducts = (look: LookItem): Product[] | null => {
+    const selected: Product[] = [];
+    for (const piece of look.items) {
+      const words = piece.name.toLowerCase().split(/\W+/).filter((word) => word.length > 3);
+      const match = catalog.find((product) =>
+        !selected.some((item) => String(item.id) === String(product.id)) &&
+        product.stock > 0 && product.category.toLowerCase() === piece.category.toLowerCase() &&
+        words.some((word) => product.title.toLowerCase().includes(word))
+      );
+      if (!match) return null;
+      selected.push(match);
+    }
+    return selected;
+  };
+
+  const lookPrice = (look: LookItem) => {
+    const products = resolveLookProducts(look);
+    return products ? products.reduce((total, product) => total + product.price * (1 - (product.discountPercentage || 0) / 100), 0) : null;
+  };
+
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
       const scrollAmount = direction === 'left' ? -420 : 420;
@@ -157,24 +180,13 @@ export default function ZaraLookbookSection() {
 
   const handleAddLookToCart = async (look: LookItem) => {
     try {
-      // Add first primary item of the look
-      await addItem({
-        id: Number(look.id.replace('look-', '')) + 500,
-        title: look.title,
-        price: look.price,
-        description: look.description,
-        thumbnail: look.image,
-        images: [look.image],
-        category: look.targetCategory,
-        rating: 4.9,
-        stock: 20,
-        brand: 'Swift Atelier',
-        discountPercentage: 0,
-      } as any);
-      toast.success(`Added full look "${look.title}" to cart!`);
+      const selected = resolveLookProducts(look);
+      if (!selected) throw new Error('One or more pieces in this look are unavailable. Browse similar products instead.');
+      for (const product of selected) await addItem(product, 1);
+      toast.success(`Added ${selected.length} pieces from "${look.title}" to cart.`);
       setActiveLook(null);
-    } catch (e) {
-      toast.error('Failed to add look to cart.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add look to cart.');
     }
   };
 
@@ -294,7 +306,7 @@ export default function ZaraLookbookSection() {
 
                   <div className="flex items-center justify-between mt-4 pt-1">
                     <span className="text-base sm:text-lg font-black text-[#dfb76c] tracking-tight font-sans">
-                      {formatPrice(look.price)}
+                      {lookPrice(look) === null ? 'Explore look' : formatPrice(lookPrice(look)!)}
                     </span>
                     
                     <button
@@ -405,11 +417,11 @@ export default function ZaraLookbookSection() {
                             {idx + 1}
                           </span>
                           <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                            {item.name}
+                            {resolveLookProducts(activeLook)?.[idx]?.title || item.name}
                           </span>
                         </div>
                         <span className="font-mono text-xs font-bold text-zinc-900 dark:text-white">
-                          {formatPrice(item.price)}
+                          {resolveLookProducts(activeLook)?.[idx] ? formatPrice(resolveLookProducts(activeLook)![idx].price) : 'Unavailable'}
                         </span>
                       </div>
                     ))}
@@ -422,7 +434,7 @@ export default function ZaraLookbookSection() {
                     Complete Ensemble Total
                   </span>
                   <span className="font-mono text-xl font-black text-[#8b6f47] dark:text-[#c9a96b]">
-                    {formatPrice(activeLook.price)}
+                    {lookPrice(activeLook) === null ? 'Check availability' : formatPrice(lookPrice(activeLook)!)}
                   </span>
                 </div>
               </div>
@@ -431,6 +443,7 @@ export default function ZaraLookbookSection() {
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-3">
                 <Button
                   onClick={() => handleAddLookToCart(activeLook)}
+                  disabled={!resolveLookProducts(activeLook)}
                   className="flex-1 w-full bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold py-3.5 px-4 sm:px-6 text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md border-0 whitespace-nowrap cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4 shrink-0" />

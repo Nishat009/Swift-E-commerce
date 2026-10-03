@@ -60,6 +60,7 @@ const createCategory = async (req, res, next) => {
     }
 
     const category = await Category.create({ name, image, featured });
+    await logAudit(req, 'Category', category._id, `Created category "${category.name}"`, {}, { name: category.name, image: category.image, featured: category.featured });
     await logActivity(req, 'Category Created', `Created category "${category.name}"`);
     return sendSuccess(res, 'Category created successfully', category, 201);
   } catch (error) {
@@ -79,6 +80,7 @@ const updateCategory = async (req, res, next) => {
     }
 
     const oldName = category.name;
+    const previous = { name: category.name, image: category.image, featured: category.featured };
     const { name, image, featured } = req.body;
     if (name !== undefined) category.name = String(name).trim();
     if (image !== undefined) category.image = image;
@@ -95,6 +97,8 @@ const updateCategory = async (req, res, next) => {
         { category: updatedCategory.name.toLowerCase() }
       );
     }
+    await logAudit(req, 'Category', updatedCategory._id, `Updated category "${oldName}"`, previous,
+      { name: updatedCategory.name, image: updatedCategory.image, featured: updatedCategory.featured });
     await logActivity(req, 'Category Updated', `Updated category "${oldName}" -> "${updatedCategory.name}"`);
     return sendSuccess(res, 'Category updated successfully', updatedCategory);
   } catch (error) {
@@ -119,6 +123,7 @@ const deleteCategory = async (req, res, next) => {
     }
 
     await Category.findByIdAndDelete(id);
+    await logAudit(req, 'Category', category._id, `Deleted category "${category.name}"`, { name: category.name, image: category.image }, { deleted: true });
     await logActivity(req, 'Category Deleted', `Deleted category "${category.name}"`);
     return sendSuccess(res, 'Category deleted successfully');
   } catch (error) {

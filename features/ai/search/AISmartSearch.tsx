@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, X, TrendingUp, Filter } from 'lucide-react';
 import { aiService } from '@/services/aiService';
 import { useAIStore } from '@/stores/aiStore';
-import { useCatalog } from '@/hooks/useCatalog';
 import { SemanticSearchResult } from '@/types/ai';
+import { fetchProducts } from '@/lib/api';
+import { normalizeProduct } from '@/utils/productUtils';
 import ProductCard from '@/components/ui/ProductCard';
 import AIBadge from '@/components/ui/AIBadge';
 
@@ -13,27 +14,34 @@ interface AISmartSearchProps {
 
 export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
   const { addSearchHistory } = useAIStore();
-  const { products: fashionProducts } = useCatalog();
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState<SemanticSearchResult | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
       if (!query.trim()) {
         setSearchResult(null);
         return;
       }
-
-      const parsed = aiService.parseSemanticSearch(query, fashionProducts);
-      setSearchResult(parsed);
-      if (onResultsFound) {
-        onResultsFound(parsed);
+      const parsed = aiService.parseSemanticSearch(query, []);
+      try {
+        const response = await fetchProducts({
+          limit: 24,
+          search: parsed.parsedIntent.category || parsed.parsedIntent.color || query.trim(),
+          priceMax: parsed.parsedIntent.maxBudget,
+        });
+        if (!active) return;
+        const result = { ...parsed, matchedProducts: response.products.map(normalizeProduct) };
+        setSearchResult(result);
+        onResultsFound?.(result);
+      } catch {
+        if (active) setSearchResult({ ...parsed, matchedProducts: [] });
       }
     }, 250);
-
-    return () => clearTimeout(timer);
-  }, [query, onResultsFound, fashionProducts]);
+    return () => { active = false; clearTimeout(timer); };
+  }, [query, onResultsFound]);
 
   const handleSelectQuery = (q: string) => {
     setQuery(q);
@@ -72,7 +80,7 @@ export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
         <div className="flex flex-wrap items-center gap-2 px-2 text-xs">
           <span className="font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-1">
             <Filter className="w-3 h-3 text-amber-500" />
-            AI Parsed Intent:
+            Search filters:
           </span>
 
           {searchResult.parsedIntent.category && (
@@ -104,7 +112,7 @@ export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
           <div>
             <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-              Trending AI Fashion Searches
+              Suggested Fashion Searches
             </h4>
             <div className="flex flex-wrap gap-2">
               {[
@@ -131,7 +139,7 @@ export default function AISmartSearch({ onResultsFound }: AISmartSearchProps) {
         <div className="space-y-4 pt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <AIBadge type="recommended" label="AI Semantic Matches" />
+              <AIBadge type="recommended" label="Catalog Matches" />
               <span>({searchResult.matchedProducts.length} Items)</span>
             </h3>
           </div>

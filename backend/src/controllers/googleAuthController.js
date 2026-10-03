@@ -71,6 +71,10 @@ const verifyGoogleCredential = async (req, res, next) => {
   }
 };
 
+const DEFAULT_AVATAR = User.schema.path('avatar').defaultValue;
+const isProviderOrDefaultAvatar = (avatar) =>
+  !avatar || avatar === DEFAULT_AVATAR || /^https:\/\/[^/]*googleusercontent\.com\//.test(avatar);
+
 const googleLogin = async (req, res, next) => {
   try {
     const identity = req.googleIdentity;
@@ -87,6 +91,9 @@ const googleLogin = async (req, res, next) => {
         avatar: identity.avatar,
         role: 'customer',
       });
+    } else if (identity.avatar && identity.avatar !== user.avatar && isProviderOrDefaultAvatar(user.avatar)) {
+      // FR-2.5: keep the Google photo in sync, but never replace a picture the customer uploaded
+      user = await User.findByIdAndUpdate(user._id, { avatar: identity.avatar }, { new: true });
     }
     if (user.twoFactorEnabled) return await requestSecondFactor(req, res, user, req.body.rememberMe === true);
     return sendSession(res, user, req.body.rememberMe === true, 'Signed in with Google');

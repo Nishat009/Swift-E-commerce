@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { Minus, Plus, Trash2, ShoppingBag, Gift, ArrowRight, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useOrderQuote } from '@/hooks/useOrderQuote';
 
 interface SavedItem {
   product: any;
@@ -40,6 +41,7 @@ export default function CartPage() {
   // Coupon/Promo states
   const [couponCode, setCouponCode] = useState('');
   const [activeCoupon, setActiveCoupon] = useState<{ code: string; discount: number; isFixed: boolean } | null>(null);
+  const { quote, error: quoteError } = useOrderQuote(items, activeCoupon?.code);
   
 
   // Remove confirmation modal states
@@ -115,21 +117,23 @@ export default function CartPage() {
   };
 
   // Calculations & Auto-Applied Promotions Rules Engine
-  const subtotal = getTotalPrice();
+  const subtotal = quote?.subtotal ?? getTotalPrice();
   
   // Same pricing rules the server applies when the order is placed
   const couponDiscount = activeCoupon
     ? Math.min(subtotal, activeCoupon.isFixed ? activeCoupon.discount : subtotal * activeCoupon.discount)
     : 0;
-  const discountAmount = couponDiscount;
+  const discountAmount = quote?.discount ?? couponDiscount;
+  // $30 off orders of $300+ (same rule as the server)
+  const promoDiscount = quote?.promoDiscount ?? (subtotal >= 300 ? Math.min(30, Math.max(0, subtotal - discountAmount)) : 0);
 
-  const taxedSubtotal = Math.max(0, subtotal - discountAmount);
-  const tax = taxedSubtotal * 0.1; // 10% tax
+  const taxedSubtotal = Math.max(0, subtotal - discountAmount - promoDiscount);
+  const tax = quote?.tax ?? taxedSubtotal * 0.1; // Guest estimate; signed-in quote comes from API.
 
-  // Free shipping over $100, otherwise flat $10
-  const shippingFee = subtotal > 100 ? 0 : 10;
+  // Free shipping on orders of $100+, otherwise flat $10
+  const shippingFee = quote?.shipping ?? (subtotal >= 100 ? 0 : 10);
 
-  const total = taxedSubtotal + tax + shippingFee;
+  const total = quote?.total ?? taxedSubtotal + tax + shippingFee;
 
   if (items.length === 0 && savedItems.length === 0) {
     return (
@@ -328,10 +332,16 @@ export default function CartPage() {
                 <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(subtotal)}</span>
               </div>
               
-              {activeCoupon && couponDiscount > 0 && (
+              {activeCoupon && discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
                   <span>Discount ({activeCoupon.code}):</span>
-                  <span>-{formatPrice(couponDiscount)}</span>
+                  <span>-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>Promotion ($300+):</span>
+                  <span>-{formatPrice(promoDiscount)}</span>
                 </div>
               )}
               
@@ -349,6 +359,7 @@ export default function CartPage() {
                 <span>Grand Total:</span>
                 <span className="text-[#8b6f47] dark:text-[#c9a96b]">{formatPrice(total)}</span>
               </div>
+              {quoteError && <p className="text-xs text-red-600">{quoteError} The displayed amount is an estimate.</p>}
             </div>
 
             {/* Promo Code input */}

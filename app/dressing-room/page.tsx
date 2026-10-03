@@ -15,8 +15,12 @@ import Link from 'next/link';
 import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
 import { useCatalog } from '@/hooks/useCatalog';
 import { Product } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { useAvatarStore } from '@/stores/avatarStore';
+import apiClient from '@/lib/apiClient';
 
 function DressingRoomContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
   const [shopTab, setShopTab] = useState<'closet' | 'stylist'>('closet');
@@ -27,6 +31,38 @@ function DressingRoomContent() {
   const [pickedProduct, setSelectedSpotlightProduct] = useState<Product | null>(null);
   const selectedSpotlightProduct: Product | null = pickedProduct || fashionProducts[0] || null;
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    apiClient.get('/wardrobe').then(({ data }) => {
+      if (!active || !data?.data) return;
+      const wardrobe = data.data;
+      useAvatarStore.setState({
+        avatar: { ...useAvatarStore.getState().avatar, ...wardrobe.avatar },
+        wornItems: wardrobe.wornItems || {},
+        savedAvatars: wardrobe.savedAvatars || [],
+        points: wardrobe.points ?? 100,
+        unlockedBadges: wardrobe.unlockedBadges || ['first_avatar'],
+      });
+      unsubscribe = useAvatarStore.subscribe((state, previous) => {
+        if (state.avatar === previous.avatar && state.wornItems === previous.wornItems && state.savedAvatars === previous.savedAvatars) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          void apiClient.put('/wardrobe', {
+            avatar: state.avatar, wornItems: state.wornItems, savedAvatars: state.savedAvatars,
+          }).catch(() => {});
+        }, 600);
+      });
+    }).catch(() => {});
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+      unsubscribe?.();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const productId = searchParams?.get('product');
@@ -196,6 +232,41 @@ function DressingRoomContent() {
         </div>
         ====================================================================================
         */}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
+              {([
+                ['customizer', 'Avatar', Sliders],
+                ['challenges', 'Rewards', Award],
+                ['chat', 'Chat', MessageSquare],
+                ['aistudio', 'Scenes', Bot],
+              ] as const).map(([key, label, Icon]) => (
+                <button key={key} onClick={() => setSidebarTab(key)}
+                  className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold sm:flex-row sm:justify-center ${sidebarTab === key ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>
+                  <Icon className="h-4 w-4 shrink-0" /> <span>{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="min-h-[420px]">
+              {sidebarTab === 'customizer' && <AvatarControls />}
+              {sidebarTab === 'challenges' && <StyleChallenges />}
+              {sidebarTab === 'chat' && <ChatAssistant />}
+              {sidebarTab === 'aistudio' && <AIStudio />}
+            </div>
+          </div>
+          <div className="lg:col-span-4 min-h-[500px]"><AvatarViewer /></div>
+          <div className="lg:col-span-4 space-y-4">
+            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
+              <button onClick={() => setShopTab('closet')} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === 'closet' ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>Closet</button>
+              <button onClick={() => setShopTab('stylist')} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === 'stylist' ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>Style Feedback</button>
+            </div>
+            <div className="min-h-[420px]">
+              {shopTab === 'closet' && <ClosetBuilder onProductSelect={setSelectedSpotlightProduct} />}
+              {shopTab === 'stylist' && <SmartStylist />}
+            </div>
+          </div>
+        </div>
 
         {/* SECTION 2: DRESS ROOM DEDICATED SPOTLIGHT VIEWER */}
         <div className="pt-8 border-t border-stone-200/70 dark:border-zinc-800 space-y-6">

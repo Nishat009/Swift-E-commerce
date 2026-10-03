@@ -14,6 +14,7 @@ import ActivityLogsAdmin from '@/components/admin/ActivityLogsAdmin';
 import MonitoringAdmin from '@/components/admin/MonitoringAdmin';
 import ReportsAdmin from '@/components/admin/ReportsAdmin';
 import ContactMessages, { useContactUnread } from '@/components/admin/ContactMessages';
+import ChatMessages from '@/components/admin/ChatMessages';
 import OrderDetailModal, { ORDER_STATUSES } from '@/components/admin/OrderDetailModal';
 import { errMsg } from '@/components/admin/adminUtils';
 import ProductTable from '@/components/product/ProductTable';
@@ -283,7 +284,7 @@ export default function AdminDashboardPage() {
         }
             } else if (adminTab === 'campaigns') {
         const [campRes, analyticsRes] = await Promise.all([
-          apiClient.get('/campaigns'),
+          apiClient.get('/campaigns', { params: { limit: 100 } }),
           apiClient.get('/campaigns/admin/analytics').catch(() => ({ data: { success: false } }))
         ]);
         if (campRes.data?.success) {
@@ -875,10 +876,10 @@ export default function AdminDashboardPage() {
                     <div>
                       <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-                        AI Commerce Platform Suite
+                        Commerce Insights & Asset Tools
                       </h2>
                       <p className="text-xs text-gray-500">
-                        Manage automated AI product descriptions, studio image enhancers, review sentiment intelligence, and sales advisors.
+                        Create product copy and image presets, and review live store analytics.
                       </p>
                     </div>
                   </div>
@@ -982,7 +983,12 @@ export default function AdminDashboardPage() {
               {adminTab === 'logs' && <ActivityLogsAdmin />}
               {adminTab === 'monitoring' && <MonitoringAdmin />}
               {adminTab === 'reports' && <ReportsAdmin />}
-              {adminTab === 'messages' && <ContactMessages onUnreadChange={setContactUnread} />}
+              {adminTab === 'messages' && (
+                <div className="space-y-8">
+                  <ContactMessages onUnreadChange={setContactUnread} />
+                  <ChatMessages />
+                </div>
+              )}
 
               {/* 3. MANAGE ORDERS VIEW */}
               {adminTab === 'orders' && (
@@ -1046,7 +1052,8 @@ export default function AdminDashboardPage() {
                             <td className="p-3">
                               <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
                                 o.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' :
-                                o.paymentStatus === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                o.paymentStatus === 'Failed' || o.paymentStatus === 'Refund Needed' ? 'bg-red-100 text-red-700' :
+                                o.paymentStatus === 'Refunded' ? 'bg-gray-100 text-gray-700' : 'bg-amber-100 text-amber-700'
                               }`}>
                                 {o.paymentStatus || 'Pending'}
                               </span>

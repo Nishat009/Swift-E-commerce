@@ -281,7 +281,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
 
   const handleImportSubmit = async () => {
     if (!importJsonText.trim()) {
-      toast.error('Please paste valid JSON product array.');
+      toast.error('Please paste a JSON array or CSV text.');
       return;
     }
     try {
@@ -298,7 +298,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       loadProducts();
       if (onProductChange) onProductChange();
     } catch (err: any) {
-      toast.error(err.message || 'Import failed. Check JSON format.');
+      toast.error(err.message || 'Import failed. Check the JSON / CSV format.');
     }
   };
 
@@ -991,7 +991,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       >
         <div className="space-y-4">
           <p className="text-xs text-text-muted">
-            Paste product JSON data array to bulk import into your store catalog.
+            Paste a JSON array or CSV (first row = field names, e.g. title,description,category,brand,price,stock,images). Separate multiple images or tags with "|". Products without a status are imported as drafts.
           </p>
           <textarea
             rows={8}

@@ -1,4 +1,4 @@
-// NOTE: this API answers every error with HTTP 422 and every success with 200 (utils/response.js).
+// NOTE: errors use real HTTP status codes (400 bad request, 401, 403, 404, 409 conflict).
 // End-to-end check of the lucky-draw flow using the MOCK payment gateway.
 // Runs against a throwaway database (swiftcart_test), never your real data.
 //   node --test tests/draw-flow.test.js
@@ -103,10 +103,10 @@ test('paid purchase issues tickets, failed purchase releases the hold', async ()
 test('per-user ticket cap and pool limit are enforced', async () => {
   const c = await makeCampaign({ ticketLimit: 3, maxTicketsPerUser: 2 });
   const over = await buy('alice', c.id, 3);
-  assert.equal(over.start.status, 422);
+  assert.equal(over.start.status, 400);
   await buy('alice', c.id, 2);
   const bobTooMany = await buy('bob', c.id, 2);
-  assert.equal(bobTooMany.start.status, 422, 'only 1 ticket left in the pool');
+  assert.equal(bobTooMany.start.status, 400, 'only 1 ticket left in the pool');
   await buy('bob', c.id, 1);
   const state = await api('GET', `/api/campaigns/${c.id}`);
   assert.equal(state.json.data.status, 'sold-out');
@@ -115,13 +115,13 @@ test('per-user ticket cap and pool limit are enforced', async () => {
 test('draw: blocked without tickets, picks one winner, cannot be repeated', async () => {
   const c = await makeCampaign();
   const empty = await api('POST', `/api/campaigns/admin/${c.id}/draw`, tokens.admin);
-  assert.equal(empty.status, 422);
+  assert.equal(empty.status, 400);
 
   await buy('alice', c.id, 2);
   await buy('bob', c.id, 1);
 
   const nonAdmin = await api('POST', `/api/campaigns/admin/${c.id}/draw`, tokens.alice);
-  assert.equal(nonAdmin.status, 422);
+  assert.equal(nonAdmin.status, 403);
 
   // Two simultaneous draws: exactly one may succeed
   const [d1, d2] = await Promise.all([
@@ -141,7 +141,7 @@ test('draw: blocked without tickets, picks one winner, cannot be repeated', asyn
   assert.ok(camp.winnerUser && camp.winnerTicket);
 
   const again = await api('POST', `/api/campaigns/admin/${c.id}/draw`, tokens.admin);
-  assert.equal(again.status, 422);
+  assert.equal(again.status, 400);
 
   // Winner + every other participant got exactly one notification
   const Notification = require('../src/models/Notification');
@@ -161,18 +161,18 @@ test('draw is blocked while a ticket payment is still in flight', async () => {
   const start = await api('POST', `/api/campaigns/${c.id}/buy`, tokens.bob, { quantity: 1, paymentMethod: 'bkash' });
   assert.equal(start.status, 200); // started, not paid yet
   const blocked = await api('POST', `/api/campaigns/admin/${c.id}/draw`, tokens.admin);
-  assert.equal(blocked.status, 422);
+  assert.equal(blocked.status, 409);
 });
 
 test('winner delivery proof: needs proof image to mark delivered, notifies winner, is audited', async () => {
   const c = await makeCampaign();
   await buy('alice', c.id, 1);
   const notDrawn = await api('PUT', `/api/campaigns/admin/${c.id}/delivery`, tokens.admin, { status: 'shipped' });
-  assert.equal(notDrawn.status, 422);
+  assert.equal(notDrawn.status, 400);
 
   await api('POST', `/api/campaigns/admin/${c.id}/draw`, tokens.admin);
   const noProof = await api('PUT', `/api/campaigns/admin/${c.id}/delivery`, tokens.admin, { status: 'delivered' });
-  assert.equal(noProof.status, 422);
+  assert.equal(noProof.status, 400);
 
   const shipped = await api('PUT', `/api/campaigns/admin/${c.id}/delivery`, tokens.admin, { status: 'shipped', courier: 'Pathao', trackingNumber: 'PT123' });
   assert.equal(shipped.status, 200);
@@ -200,7 +200,7 @@ test('campaign status change is audited and a completed campaign cannot be reope
   await buy('alice', c.id, 1);
   await api('POST', `/api/campaigns/admin/${c.id}/draw`, tokens.admin);
   const reopen = await api('PUT', `/api/campaigns/admin/${c.id}/status`, tokens.admin, { status: 'active' });
-  assert.equal(reopen.status, 422);
+  assert.equal(reopen.status, 400);
 });
 
 test('coupon: minimum spend, usage limit, per-user limit and release on cancel', async () => {
@@ -222,7 +222,7 @@ test('coupon: minimum spend, usage limit, per-user limit and release on cancel',
 
   // below min spend ($100 < $150)
   const low = await place('alice', [{ product: p.id, quantity: 1 }], 'SAVE10');
-  assert.equal(low.status, 422);
+  assert.equal(low.status, 400);
   assert.match(low.json.message, /Minimum spend/);
 
   // validate endpoint also checks min spend
@@ -236,7 +236,7 @@ test('coupon: minimum spend, usage limit, per-user limit and release on cancel',
 
   // usage limit (1) is used up
   const used = await place('bob', [{ product: p.id, quantity: 2 }], 'SAVE10');
-  assert.equal(used.status, 422);
+  assert.equal(used.status, 400);
   assert.match(used.json.message, /usage limit/);
 
   // cancelling frees the use
@@ -247,7 +247,7 @@ test('coupon: minimum spend, usage limit, per-user limit and release on cancel',
 
   // unknown code is rejected instead of silently ignored
   const bogus = await place('bob', [{ product: p.id, quantity: 1 }], 'NOPE');
-  assert.equal(bogus.status, 422);
+  assert.equal(bogus.status, 404);
 
   // ---- variant price is computed on the server, client "price" is ignored ----
   const xl = await place('bob', [{ product: p.id, quantity: 1, variant: { id: 'sz-xl', price: 1, attributes: { Size: { id: 'sz-xl', priceDelta: 0 } } } }]);

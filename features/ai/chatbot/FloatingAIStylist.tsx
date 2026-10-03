@@ -1,31 +1,70 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, MessageSquare, X, Send, Bot, User, ShoppingBag, ArrowRight, RefreshCw } from 'lucide-react';
-import { aiService } from '@/services/aiService';
-import { useAIStore } from '@/stores/aiStore';
+import { Sparkles, X, Send, Bot, ShoppingBag, RefreshCw } from 'lucide-react';
 import { useAvatarStore } from '@/stores/avatarStore';
 import { useCartStore } from '@/stores/cartStore';
-import { loadCatalog } from '@/hooks/useCatalog';
 import { StylistMessage } from '@/types/ai';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
+import apiClient from '@/lib/apiClient';
+import { useAuth } from '@/context/AuthContext';
+
+const welcomeMessage: StylistMessage = {
+  id: 'welcome_1',
+  sender: 'assistant',
+  text: "Hello! I am your Swift Style Assistant. Tell me your budget, occasion, or style vibe and I'll find available pieces from our catalog.",
+  timestamp: '',
+};
 
 export default function FloatingAIStylist() {
-  const { userProfile } = useAIStore();
+  const { user } = useAuth();
   const { tryOnItem } = useAvatarStore();
   const addItem = useCartStore((state) => state.addItem);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<StylistMessage[]>([
-    {
-      id: 'welcome_1',
-      sender: 'assistant',
-      text: "Hello! I am your Swift AI Stylist. Tell me your budget, occasion, or style vibe (e.g., 'Wedding outfit under 5000 taka' or 'Suggest office outfit') and I'll curate complete look recommendations!",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+  const [messages, setMessages] = useState<StylistMessage[]>([welcomeMessage]);
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef('');
+
+  useEffect(() => {
+    const existingSession = localStorage.getItem('swiftcart_chat_session');
+    sessionIdRef.current = existingSession || crypto.randomUUID();
+    if (!existingSession) localStorage.setItem('swiftcart_chat_session', sessionIdRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (user) return;
+    const conversation = messages.filter((message) => message.id !== welcomeMessage.id).slice(-30);
+    if (conversation.length) localStorage.setItem('swiftcart_chat_history', JSON.stringify(conversation));
+  }, [messages, user]);
+
+  useEffect(() => {
+    if (!user) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('swiftcart_chat_history') || '[]');
+        setMessages(Array.isArray(saved) ? [welcomeMessage, ...saved.slice(-30)] : [welcomeMessage]);
+      } catch {
+        setMessages([welcomeMessage]);
+      }
+      return;
+    }
+    let active = true;
+    apiClient.get('/chat/mine').then(({ data }) => {
+      if (!active || !Array.isArray(data?.data)) return;
+      const history: StylistMessage[] = data.data.flatMap((entry: {
+        id: string; message: string; assistantReply: string; suggestedProducts?: StylistMessage['suggestedProducts']; createdAt: string;
+      }) => {
+        const timestamp = new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return [
+          { id: `${entry.id}-user`, sender: 'user' as const, text: entry.message, timestamp },
+          { id: `${entry.id}-assistant`, sender: 'assistant' as const, text: entry.assistantReply, timestamp, suggestedProducts: entry.suggestedProducts },
+        ];
+      });
+      setMessages([welcomeMessage, ...history.slice(-30)]);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [user?.id]);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +81,7 @@ export default function FloatingAIStylist() {
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputVal).trim();
-    if (!text) return;
+    if (!text || isTyping) return;
 
     const userMsg: StylistMessage = {
       id: Math.random().toString(),
@@ -56,19 +95,23 @@ export default function FloatingAIStylist() {
     setIsTyping(true);
 
     try {
-      const catalog = await loadCatalog();
-      const responseMsg = await aiService.queryAIStylist(text, userProfile, catalog);
+      const response = await apiClient.post('/chat', { sessionId: sessionIdRef.current, message: text });
+      const reply = response.data?.data?.reply;
+      if (!reply?.text) throw new Error('The assistant did not return a reply.');
+      const responseMsg: StylistMessage = {
+        id: crypto.randomUUID(), sender: 'assistant', text: reply.text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestedProducts: reply.products,
+      };
       setMessages((prev) => [...prev, responseMsg]);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
+      const fallback: StylistMessage = {
           id: Math.random().toString(),
           sender: 'assistant',
-          text: "I encountered a minor glitch finding matching items, but try checking our Trending collection!",
+          text: 'The assistant is unavailable right now. Your message was not sent; please try again.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
+      };
+      setMessages((prev) => [...prev, fallback]);
     } finally {
       setIsTyping(false);
     }
@@ -87,7 +130,7 @@ export default function FloatingAIStylist() {
           className="group flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs px-4 py-3.5 rounded-full shadow-2xl hover:shadow-amber-500/25 transition-all transform hover:scale-105"
         >
           <Sparkles className="w-4 h-4 animate-spin" style={{ animationDuration: '4s' }} />
-          <span>Swift AI Stylist</span>
+          <span>Swift Style Assistant</span>
         </button>
       )}
 
@@ -101,10 +144,10 @@ export default function FloatingAIStylist() {
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-sm font-bold leading-tight">Swift AI Stylist</h3>
+                <h3 className="text-sm font-bold leading-tight">Swift Style Assistant</h3>
                 <p className="text-[10px] text-amber-100 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Personal Fashion AI Active
+                  Live Catalog Recommendations
                 </p>
               </div>
             </div>
@@ -223,7 +266,7 @@ export default function FloatingAIStylist() {
             {isTyping && (
               <div className="flex gap-2 items-center text-gray-400 text-xs">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" />
-                <span>AI Stylist is thinking...</span>
+                <span>Finding available pieces...</span>
               </div>
             )}
             <div ref={chatEndRef} />
@@ -233,15 +276,17 @@ export default function FloatingAIStylist() {
           <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex gap-2">
             <input
               type="text"
-              placeholder="Ask AI Stylist (e.g. Black shirt under 2000)..."
+              placeholder="Ask for styles (e.g. black shirt under $20)..."
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              disabled={isTyping}
               className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-amber-500"
             />
             <button
               onClick={() => handleSend()}
-              className="bg-amber-600 hover:bg-amber-700 text-white p-2 rounded-xl transition-all shrink-0"
+              disabled={isTyping || !inputVal.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white p-2 rounded-xl transition-all shrink-0 disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
             </button>

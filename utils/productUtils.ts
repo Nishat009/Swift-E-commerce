@@ -59,7 +59,9 @@ export function normalizeProduct(raw: Partial<Product>): Product {
 
   const images = raw.images && raw.images.length > 0 ? raw.images : [raw.thumbnail || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=600&fit=crop'];
 
+  // Keep every field the API sent (sku, slug, status, visibility, ...) and fill in safe defaults on top
   const normalized: Product = {
+    ...(raw as Product),
     id: raw.id ?? 'unknown-id',
     title: raw.title || 'Untitled Product',
     description: raw.description || '',

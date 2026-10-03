@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
+const { expireUnpaidOrders } = require('../services/orderLifecycle');
 const TicketPurchase = require('../models/TicketPurchase');
 const { sendSuccess, sendError } = require('../utils/response');
 const payments = require('../services/paymentService');
@@ -13,21 +15,24 @@ const getMethods = (req, res) => sendSuccess(res, 'Payment methods retrieved', p
 // @access  Private (order owner)
 const initiateOrderPayment = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.orderId);
+    // Orders whose payment window has passed are cancelled first, so they cannot be paid late
+    await expireUnpaidOrders();
+    const order = mongoose.isValidObjectId(req.params.orderId) ? await Order.findById(req.params.orderId) : null;
     if (!order || order.user.toString() !== req.user.id) {
       return sendError(res, 'Order not found', 404);
     }
     if (['Cancelled', 'Returned'].includes(order.orderStatus)) {
       return sendError(res, 'This order is cancelled and cannot be paid', 400);
     }
-    if (order.paymentStatus === 'Paid') {
+    if (!['Pending', 'Failed'].includes(order.paymentStatus)) {
       return sendError(res, 'This order is already paid', 400);
     }
 
-    const method = (req.body && req.body.method) || order.paymentMethod;
-    if (!payments.isOnlineMethod(method)) {
+    if (!payments.isOnlineMethod(order.paymentMethod)) {
       return sendError(res, 'This order uses cash on delivery; no online payment is needed', 400);
     }
+    // bKash and card can be swapped, but a cash-on-delivery order stays cash on delivery
+    const method = (req.body && payments.isOnlineMethod(req.body.method)) ? req.body.method : order.paymentMethod;
     if (!payments.isMethodEnabled(method)) {
       return sendError(res, 'This payment method is currently unavailable', 400);
     }
@@ -44,20 +49,24 @@ const initiateOrderPayment = async (req, res, next) => {
     order.paymentMethod = method;
     order.paymentGateway = method === 'bkash' ? 'bkash' : 'stripe';
     order.paymentSessionId = session.sessionId;
-    order.paymentStatus = 'Pending';
+    order.paymentSessionIds = [...(order.paymentSessionIds || []), session.sessionId].slice(-10);
+    if (order.paymentStatus === 'Failed') order.paymentStatus = 'Pending';
     await order.save();
 
     return sendSuccess(res, 'Payment started', { redirectUrl: session.redirectUrl, method });
   } catch (error) {
     console.error('[payments] initiate failed:', error.message);
-    return sendError(res, `Could not start the payment: ${error.message}`, 502);
+    return sendError(res, 'Could not start the payment. Please try again in a moment.', 502);
   }
 };
 
 // Find what a gateway session belongs to (an order or a ticket purchase)
 const resolveTarget = async (gateway, sessionId) => {
   if (!sessionId) return null;
-  const order = await Order.findOne({ paymentGateway: gateway, paymentSessionId: sessionId });
+  const order = await Order.findOne({
+    paymentGateway: gateway,
+    $or: [{ paymentSessionId: sessionId }, { paymentSessionIds: sessionId }]
+  });
   if (order) return { kind: 'order', doc: order };
   const purchase = await TicketPurchase.findOne({
     paymentMethod: gateway === 'bkash' ? 'bkash' : 'card',

@@ -180,9 +180,11 @@ export function useContactUnread(enabled: boolean): [number, (n: number) => void
   const [count, setCount] = useState(0);
   useEffect(() => {
     if (!enabled) return;
-    apiClient
-      .get('/contact', { params: { status: 'unread' } })
-      .then((res) => setCount(res.data?.unreadCount ?? 0))
+    Promise.all([
+      apiClient.get('/contact', { params: { status: 'unread' } }),
+      apiClient.get('/chat', { params: { status: 'unread' } }),
+    ])
+      .then(([contact, chat]) => setCount((contact.data?.unreadCount ?? 0) + (chat.data?.unreadCount ?? 0)))
       .catch(() => {});
   }, [enabled]);
   return [count, setCount];

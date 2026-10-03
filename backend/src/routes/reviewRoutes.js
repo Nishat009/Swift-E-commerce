@@ -11,7 +11,7 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
-const { reviewRules } = require('../validations/reviewValidation');
+const { reviewRules, reviewUpdateRules } = require('../validations/reviewValidation');
 
 // Public route to view product reviews
 router.get('/product/:productId', getProductReviews);
@@ -22,7 +22,7 @@ router.get('/', protect, authorize('admin'), getAllReviews);
 // Protected routes to submit/edit reviews
 router.post('/', protect, reviewRules, validate, createReview);
 router.post('/:id/helpful', protect, markReviewHelpful);
-router.put('/:id', protect, reviewRules, validate, updateReview);
+router.put('/:id', protect, reviewUpdateRules, validate, updateReview);
 router.delete('/:id', protect, deleteReview);
 
 module.exports = router;

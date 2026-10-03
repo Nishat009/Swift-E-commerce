@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import Loading from '@/components/ui/Loading';
 
 import apiClient from '@/lib/apiClient';
+import { useOrderQuote } from '@/hooks/useOrderQuote';
 
 type Step = 'address' | 'payment' | 'confirmation';
 
@@ -19,7 +20,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const items = useCartStore((state) => state.items);
-  const getTotalPrice = useCartStore((state) => state.getTotalPrice);
   const clearCart = useCartStore((state) => state.clearCart);
   const { symbol: currencySymbol, rate: currencyRate } = useCurrencyStore();
   
@@ -133,14 +133,13 @@ export default function CheckoutPage() {
     }
   };
 
-  const subtotal = getTotalPrice();
-  const discountAmount = appliedCoupon
-    ? (appliedCoupon.isFixed ? appliedCoupon.discount : subtotal * appliedCoupon.discount)
-    : 0;
-  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-  const tax = discountedSubtotal * 0.1;
-  const shipping = subtotal > 100 ? 0 : 10;
-  const total = discountedSubtotal + tax + shipping;
+  const { quote, error: quoteError, loading: quoteLoading } = useOrderQuote(items, appliedCoupon?.code);
+  const subtotal = quote?.subtotal ?? 0;
+  const discountAmount = quote?.discount ?? 0;
+  const promoDiscount = quote?.promoDiscount ?? 0;
+  const tax = quote?.tax ?? 0;
+  const shipping = quote?.shipping ?? 0;
+  const total = quote?.total ?? 0;
 
   const validateAddress = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -174,6 +173,10 @@ export default function CheckoutPage() {
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    if (!quote || quoteLoading || quoteError) {
+      setErrors({ form: quoteError || 'Please wait while we confirm your order total.' });
+      return;
+    }
     if (validatePayment()) {
       setSubmitting(true);
       try {
@@ -475,7 +478,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="flex gap-4 pt-2">
-                    <Button type="submit" size="lg" loading={submitting} className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full">
+                    <Button type="submit" size="lg" loading={submitting || quoteLoading} disabled={!quote || !!quoteError} className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full">
                       {paymentMethod === 'cod' ? 'Place Order' : 'Place Order & Pay'}
                     </Button>
                     <Button
@@ -510,6 +513,7 @@ export default function CheckoutPage() {
                 ))}
               </div>
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
+                {quoteError && <p className="text-xs text-red-600">{quoteError}</p>}
                 <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
                   <span>Subtotal</span>
                   <span className="font-mono font-medium">{formatPrice(subtotal)}</span>
@@ -518,6 +522,12 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-emerald-600 dark:text-emerald-400 text-sm font-medium">
                     <span>Discount ({appliedCoupon?.code})</span>
                     <span className="font-mono">-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
+                {promoDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+                    <span>Promotion ($300+)</span>
+                    <span className="font-mono">-{formatPrice(promoDiscount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
@@ -555,7 +565,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-3 border-t border-gray-200 dark:border-gray-700">
                   <span>Total</span>
-                  <span className="font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b]">{formatPrice(total)}</span>
+                  <span className="font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b]">{quoteLoading ? 'Checking…' : formatPrice(total)}</span>
                 </div>
               </div>
             </div>

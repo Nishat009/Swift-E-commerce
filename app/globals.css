@@ -329,6 +329,16 @@
   --color-gray-505: #a6a6a6;
   --color-gray-850: #1c1a17;
   --color-gray-855: #181715;
+  /* In-between shades used across the UI (without these the classes silently did nothing) */
+  --color-gray-250: #ddd6cc;
+  --color-gray-455: #8a847c;
+  --color-gray-550: #6b655e;
+  --color-gray-650: #4f4a44;
+  --color-gray-750: #36322d;
+  --color-red-150: #fdd8d8;
+  --color-red-505: #e5484d;
+  --color-red-650: #c62a2f;
+  --color-emerald-150: #c4f0dc;
   --font-sans: var(--font-inter);
   --font-serif: var(--font-cormorant);
 }

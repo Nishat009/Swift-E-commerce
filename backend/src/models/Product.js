@@ -218,7 +218,7 @@ ProductSchema.pre('validate', function (next) {
   }
 
   if (this.stock <= 0) {
-    this.stockStatus = 'out_of_stock';
+    this.stockStatus = this.allowBackorders ? 'backorder' : 'out_of_stock';
   } else {
     this.stockStatus = 'in_stock';
   }

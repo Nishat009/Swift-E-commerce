@@ -23,6 +23,7 @@ import ImageGallery from '@/components/product/ImageGallery';
 import VariantSelector from '@/components/product/VariantSelector';
 import ReviewSection from '@/components/product/ReviewSection';
 import MobileStickyCart from '@/components/product/MobileStickyCart';
+import BackInStockForm from '@/components/product/BackInStockForm';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCurrencyStore } from '@/stores/currencyStore';
@@ -628,8 +629,9 @@ export default function ProductDetailPage() {
                   Currently out of stock
                 </span>
                 <p className="text-xs text-text-muted leading-relaxed">
-                  This item is not available right now. Save it to your wishlist so you can find it again easily.
+                  This item is not available right now. Leave your email and we will let you know when it is back.
                 </p>
+                <BackInStockForm productId={String(product.id)} />
               </div>
             )}
 

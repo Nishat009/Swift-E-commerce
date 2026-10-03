@@ -300,30 +300,24 @@ export const productService = {
   },
 
   /**
-   * Imports product records from a JSON array by creating each one on the server.
-   * Returns how many were created and the per-record failures.
+   * Imports products on the server from a JSON array or CSV text (header row + one product per row,
+   * lists like images/tags separated by "|"). Products without a status are created as drafts.
    */
-  async importProducts(jsonText: string): Promise<{ created: number; failed: { title: string; message: string }[] }> {
-    const parsed = JSON.parse(jsonText);
-    if (!Array.isArray(parsed)) {
-      throw new Error('Import data must be a JSON array of products.');
+  async importProducts(text: string): Promise<{ created: number; failed: { row?: number; title: string; message: string }[] }> {
+    const trimmed = text.trim();
+    let body: { products: unknown[] } | { csv: string };
+    if (trimmed.startsWith('[')) {
+      const parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed)) throw new Error('Import data must be a JSON array of products.');
+      body = { products: parsed };
+    } else {
+      body = { csv: trimmed };
     }
-    let created = 0;
-    const failed: { title: string; message: string }[] = [];
-    for (const raw of parsed) {
-      try {
-        const item: Record<string, any> = { ...raw };
-        delete item.id;
-        delete item._id;
-        delete item.slug;
-        delete item.createdAt;
-        delete item.updatedAt;
-        await this.createProduct(item);
-        created += 1;
-      } catch (err: any) {
-        failed.push({ title: String(raw?.title || raw?.name || 'Untitled'), message: err.message });
-      }
+    try {
+      const res = await apiClient.post('/products/import', body);
+      return res.data.data;
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || 'Import failed.');
     }
-    return { created, failed };
   },
 };

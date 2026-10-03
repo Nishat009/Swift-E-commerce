@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import ProductCard from '@/components/ui/ProductCard';
 import Image from 'next/image';
 import { fetchProducts } from '@/lib/api';
+import apiClient from '@/lib/apiClient';
 import { Product } from '@/types';
 import { useCatalog } from '@/hooks/useCatalog';
 import { normalizeProduct } from '@/utils/productUtils';
@@ -76,6 +77,16 @@ function ProductsPageContent() {
   const [typoSuggestion, setTypoSuggestion] = useState<string | null>(null);
   const [originalSearchQuery, setOriginalSearchQuery] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  // Most searched terms from the API, with a fixed list until it answers
+  const [trendingSearches, setTrendingSearches] = useState<string[]>(['Sofa', 'Jacket', 'Chair', 'Denim', 'Sneakers']);
+  useEffect(() => {
+    apiClient.get('/products/search/trending')
+      .then((res) => {
+        const terms: string[] = Array.isArray(res.data?.data) ? res.data.data : [];
+        if (terms.length) setTrendingSearches(terms.slice(0, 6).map((t) => t.charAt(0).toUpperCase() + t.slice(1)));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -777,7 +788,7 @@ function ProductsPageContent() {
                               Trending Searches
                             </span>
                             <div className="flex flex-wrap gap-1.5">
-                              {['Sofa', 'Jacket', 'Chair', 'Denim', 'Sneakers'].map((q, idx) => (
+                              {trendingSearches.map((q, idx) => (
                                 <button
                                   key={idx}
                                   type="button"

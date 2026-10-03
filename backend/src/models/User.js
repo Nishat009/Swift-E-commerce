@@ -30,6 +30,10 @@ const UserSchema = new mongoose.Schema(
     otpRequestedAt: { type: Date, select: false },
     passwordResetToken: { type: String, default: '', select: false },
     passwordResetExpires: { type: Date, select: false },
+    failedLoginAttempts: { type: Number, default: 0, select: false },
+    // Bumped whenever the password changes, which signs out every existing session
+    tokenVersion: { type: Number, default: 0 },
+    lockUntil: { type: Date, select: false },
   },
   { timestamps: true }
 );
@@ -39,6 +43,7 @@ UserSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) {
     return next();
   }
+  if (!this.isNew) this.tokenVersion = (this.tokenVersion || 0) + 1;
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -72,6 +77,9 @@ UserSchema.set('toJSON', {
     delete ret.otpRequestedAt;
     delete ret.passwordResetToken;
     delete ret.passwordResetExpires;
+    delete ret.failedLoginAttempts;
+    delete ret.lockUntil;
+    delete ret.tokenVersion;
     return ret;
   }
 });

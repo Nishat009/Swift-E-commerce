@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAvatarStore } from '@/stores/avatarStore';
-import { useCatalog } from '@/hooks/useCatalog';
-import { pickOutfit } from '@/utils/catalogPicks';
+import apiClient from '@/lib/apiClient';
 import { MessageSquare, Send, Bot, User, Sparkles, Plus, Check } from 'lucide-react';
 import { Product } from '@/types';
 import Image from 'next/image';
@@ -17,7 +16,6 @@ interface Message {
 
 export default function ChatAssistant() {
   const { tryOnItem, wornItems } = useAvatarStore();
-  const { products: catalog, loading: catalogLoading } = useCatalog();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -26,6 +24,7 @@ export default function ChatAssistant() {
     },
   ]);
   const [inputVal, setInputVal] = useState('');
+  const [sending, setSending] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const prompts = [
@@ -46,8 +45,8 @@ export default function ChatAssistant() {
     return (product.specifications as any)[key] || '';
   };
 
-  const handleSendMessage = (text: string) => {
-    if (!text.trim()) return;
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || sending) return;
 
     // Add user message
     const userMsg: Message = {
@@ -59,42 +58,25 @@ export default function ChatAssistant() {
     setMessages((prev) => [...prev, userMsg]);
     setInputVal('');
 
-    // Generate AI response based on keywords
-    setTimeout(() => {
-      let responseText = "Interesting choice! I don't see any matching items in the immediate closet racks, but you can try styling denim jeans with a premium white tee!";
-      let suggestions: Product[] = [];
-
-      const query = text.toLowerCase();
-      if (query.includes('summer') || query.includes('beach') || query.includes('resort')) {
-        responseText = "Perfect! For a summer resort vibe, I suggest going with light, breathable items. Here are some pieces from our store for that classic vacation aesthetic.";
-        suggestions = pickOutfit(catalog, ['summer', 'resort', 'beach', 'casual'], ['top', 'pants', 'glasses']);
-      } else if (query.includes('office') || query.includes('meeting') || query.includes('business') || query.includes('formal') || query.includes('corporate')) {
-        responseText = "Understood. For a sleek professional setting, you want clean structures. I recommend layering a tailored jacket over a crisp shirt and smart trousers.";
-        suggestions = pickOutfit(catalog, ['office', 'smart casual', 'formal', 'business'], ['jacket', 'top', 'pants']);
-      } else if (query.includes('party') || query.includes('evening') || query.includes('cocktail') || query.includes('wedding')) {
-        responseText = "Lovely! For evenings and events, try an elegant dress paired with statement jewelry, or a sharp jacket for an edgy night out.";
-        suggestions = pickOutfit(catalog, ['evening', 'cocktail', 'gala', 'party'], ['dress', 'jewelry', 'jacket']);
-      } else if (query.includes('street') || query.includes('hype') || query.includes('casual')) {
-        responseText = "Got it! Streetwear is all about comfort and utility. I suggest a heavyweight tee paired with relaxed pants and sneakers.";
-        suggestions = pickOutfit(catalog, ['streetwear', 'street', 'casual'], ['top', 'pants', 'shoes']);
+    setSending(true);
+    try {
+      let sessionId = localStorage.getItem('swiftcart_chat_session');
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        localStorage.setItem('swiftcart_chat_session', sessionId);
       }
-
-      if (catalog.length === 0) {
-        responseText = catalogLoading
-          ? 'Our product catalog is still loading, please try again in a moment.'
-          : "I couldn't load the store catalog right now, so I can't suggest items yet. Please try again shortly.";
-        suggestions = [];
-      }
-
-      const aiMsg: Message = {
-        id: Math.random().toString(),
-        sender: 'assistant',
-        text: responseText,
-        suggestedItems: suggestions,
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-    }, 1000);
+      const response = await apiClient.post('/chat', { sessionId, message: text.trim() });
+      const reply = response.data.data.reply;
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(), sender: 'assistant', text: reply.text, suggestedItems: reply.products,
+      }]);
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(), sender: 'assistant', text: 'The assistant is unavailable. Please try again.',
+      }]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const isWorn = (product: Product): boolean => {
@@ -202,7 +184,7 @@ export default function ChatAssistant() {
           />
           <Button
             type="submit"
-            disabled={!inputVal.trim()}
+            disabled={!inputVal.trim() || sending}
             className="bg-[#8b6f47] hover:bg-[#6b5435] text-white p-2 rounded-xl flex items-center justify-center border-0 shrink-0"
           >
             <Send className="w-3.5 h-3.5" />

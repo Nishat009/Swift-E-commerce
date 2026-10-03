@@ -154,6 +154,8 @@ export default function OrdersHistoryPage() {
     Paid: 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900/30 dark:text-green-400',
     Failed: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400',
     Pending: 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/20 dark:border-yellow-900/30 dark:text-yellow-400',
+    'Refund Needed': 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/20 dark:border-orange-900/30 dark:text-orange-400',
+    Refunded: 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-900/40 dark:border-gray-800 dark:text-gray-300',
   };
   const methodLabels: Record<string, string> = { cod: 'Cash on Delivery', bkash: 'bKash', card: 'Card' };
 
@@ -213,7 +215,7 @@ export default function OrdersHistoryPage() {
                 (order.paymentMethod === 'bkash' || order.paymentMethod === 'card') &&
                 paymentStatus !== 'Paid' &&
                 !['Cancelled', 'Returned'].includes(status);
-              const isCancellable = ['Pending', 'Processing', 'Confirmed', 'Packed'].includes(status);
+              const isCancellable = ['Pending', 'Processing', 'Confirmed'].includes(status); // same rule as the server
 
               // Timeline milestones (backend enum: Pending, Processing, Confirmed, Packed, Shipped, Delivered, Cancelled, Returned)
               const steps = ['Pending', 'Processing', 'Packed', 'Shipped', 'Delivered'];
@@ -237,7 +239,7 @@ export default function OrdersHistoryPage() {
                           {status}
                         </span>
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${paymentStyles[paymentStatus] || paymentStyles.Pending}`}>
-                          {paymentStatus === 'Paid' ? 'Paid' : paymentStatus === 'Failed' ? 'Payment failed' : 'Payment pending'}
+                          {paymentStatus === 'Paid' ? 'Paid' : paymentStatus === 'Failed' ? 'Payment failed' : paymentStatus === 'Refund Needed' ? 'Refund pending' : paymentStatus === 'Refunded' ? 'Refunded' : 'Payment pending'}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-4 text-[10px] text-text-muted">

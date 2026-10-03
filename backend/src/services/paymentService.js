@@ -4,6 +4,7 @@ const Campaign = require('../models/Campaign');
 const Ticket = require('../models/Ticket');
 const TicketPurchase = require('../models/TicketPurchase');
 const Notification = require('../models/Notification');
+const emailService = require('./emailService');
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 const BKASH_SANDBOX_URL = 'https://tokenized.sandbox.bka.sh/v1.2.0-beta';
@@ -21,7 +22,7 @@ const isStripeConfigured = () => Boolean(process.env.STRIPE_SECRET_KEY);
 
 // Mock gateway for local development / testing flows (e.g. the lucky draw) without real
 // bKash or Stripe accounts. Never active in production.
-const isMockMode = () => String(process.env.PAYMENT_MOCK).toLowerCase() === 'true' && process.env.NODE_ENV !== 'production';
+const isMockMode = () => String(process.env.PAYMENT_MOCK).toLowerCase() === 'true' && ['development', 'test', undefined, ''].includes(process.env.NODE_ENV);
 const isMockSession = (sessionId) => isMockMode() && /^mock_(bkash|card)_[0-9a-f]{16}$/.test(String(sessionId || ''));
 
 const getEnabledMethods = () => ({
@@ -212,18 +213,28 @@ const notify = async (userId, title, message, extra = {}) => {
 const settleOrderPayment = async (order, { paid, transactionId }) => {
   if (paid) {
     const updated = await Order.findOneAndUpdate(
-      { _id: order._id, paymentStatus: { $ne: 'Paid' }, orderStatus: { $nin: ['Cancelled', 'Returned'] } },
+      { _id: order._id, paymentStatus: { $in: ['Pending', 'Failed'] }, orderStatus: { $nin: ['Cancelled', 'Returned'] } },
       { paymentStatus: 'Paid', paymentTransactionId: transactionId || '', paidAt: new Date() },
       { new: true }
     );
     if (updated) {
-      await notify(order.user, 'Payment received', `Payment for order ${order.orderNumber} was successful. Thank you!`);
+      // A paid online order is confirmed automatically
+      const confirmed = await Order.findOneAndUpdate({ _id: order._id, orderStatus: 'Pending' }, { orderStatus: 'Confirmed' }, { new: true });
+      await notify(order.user, 'Payment received', `Payment for order ${order.orderNumber} was successful. Thank you!`, { type: 'delivery_update', relatedOrder: order._id });
+      if (confirmed) emailService.fire(emailService.emailOrderEvent(confirmed, 'status'));
       return { ok: true };
     }
     const fresh = await Order.findById(order._id);
     if (fresh && fresh.paymentStatus === 'Paid') return { ok: true };
-    // A cancelled order paid late needs a manual refund
-    console.error(`[payments] Order ${order.orderNumber} was paid (${transactionId}) but is ${fresh && fresh.orderStatus}. Manual refund needed.`);
+    // Money arrived for an order that was already cancelled (e.g. the payment window expired)
+    if (fresh && ['Pending', 'Failed'].includes(fresh.paymentStatus)) {
+      await Order.updateOne(
+        { _id: fresh._id, paymentStatus: { $in: ['Pending', 'Failed'] } },
+        { paymentStatus: 'Refund Needed', paymentTransactionId: transactionId || '', paidAt: new Date() }
+      );
+      await notify(order.user, 'Payment will be refunded', `Your payment for order ${order.orderNumber} arrived after the order was cancelled. It will be refunded.`, { type: 'delivery_update', relatedOrder: order._id });
+    }
+    console.error(`[payments] Order ${order.orderNumber} was paid (${transactionId}) but is ${fresh && fresh.orderStatus}. Refund needed.`);
     return { ok: false };
   }
   const failed = await Order.findOneAndUpdate(

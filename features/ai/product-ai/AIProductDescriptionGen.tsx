@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { aiService } from '@/services/aiService';
+import apiClient from '@/lib/apiClient';
 import { AdminAIDescriptionOutput } from '@/types/ai';
 import { Sparkles, Wand2, Check, Copy, FileText } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -16,16 +16,21 @@ export default function AIProductDescriptionGen({ onApplyGenerated }: AIProductD
   const [brand, setBrand] = useState('SwiftCart');
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<AdminAIDescriptionOutput | null>(null);
+  const [error, setError] = useState('');
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
+    setError('');
     try {
-      const output = await aiService.generateAdminProductDetails({ category, material, color, brand });
+      const response = await apiClient.post('/admin/copy-draft', { category, material, color, brand });
+      const output: AdminAIDescriptionOutput = response.data.data;
       setResult(output);
       if (onApplyGenerated) {
         onApplyGenerated(output);
       }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Could not create a copy draft.');
     } finally {
       setIsGenerating(false);
     }
@@ -37,10 +42,10 @@ export default function AIProductDescriptionGen({ onApplyGenerated }: AIProductD
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Wand2 className="w-5 h-5 text-amber-500" />
-            AI Product Description & SEO Generator
+            Product Description & SEO Draft
           </h3>
           <p className="text-xs text-gray-500">
-            Auto-generate titles, SEO copy, highlights, and meta keywords from basic inputs.
+            Prepare an editable copy draft from the product details you enter.
           </p>
         </div>
       </div>
@@ -65,10 +70,12 @@ export default function AIProductDescriptionGen({ onApplyGenerated }: AIProductD
         <div className="col-span-full">
           <Button type="submit" disabled={isGenerating} className="w-full justify-center gap-2 text-xs py-2.5">
             <Sparkles className="w-4 h-4" />
-            {isGenerating ? 'AI is generating copy...' : 'Generate Product Copy & SEO Tags'}
+            {isGenerating ? 'Preparing draft...' : 'Create Product Copy Draft'}
           </Button>
         </div>
       </form>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
 
       {result && (
         <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800 text-xs">

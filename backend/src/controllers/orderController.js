@@ -1,21 +1,30 @@
+const crypto = require('crypto');
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
-const Product = require('../models/Product');
-const Coupon = require('../models/Coupon');
-const { unitPrice, normalizeVariant } = require('../utils/pricing');
-const { CouponError, evaluateCoupon, redeemCoupon, releaseCouponUse } = require('../services/couponService');
 const Cart = require('../models/Cart');
+const { redeemCoupon, releaseCouponUse } = require('../services/couponService');
 const { sendSuccess, sendError } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
-const Notification = require('../models/Notification');
 const payments = require('../services/paymentService');
+const inventory = require('../services/inventory');
 const { emailOrderEvent, fire: fireEmail } = require('../services/emailService');
+const { quoteOrder, publicQuote, QuoteError } = require('../services/orderQuote');
+const {
+  CUSTOMER_CANCELLABLE, CLOSED, canTransition, closeOrder, expireUnpaidOrders, notifyOrderUser,
+} = require('../services/orderLifecycle');
 
-// Best-effort in-app notification for the order owner (never blocks the order flow)
-const notifyOrderUser = async (userId, title, message) => {
+const newOrderNumber = () => `ORD-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+// @desc    Price preview for the cart / checkout (same calculation as createOrder)
+// @route   POST /api/orders/quote
+// @access  Private
+const getOrderQuote = async (req, res, next) => {
   try {
-    await Notification.create({ user: userId, title, message, type: 'system' });
-  } catch (err) {
-    console.error('Order notification failed:', err.message);
+    const quote = await quoteOrder(req.body.products, req.user.id, req.body.couponCode);
+    return sendSuccess(res, 'Order quote calculated', publicQuote(quote));
+  } catch (error) {
+    if (error instanceof QuoteError) return sendError(res, error.message, error.status);
+    next(error);
   }
 };
 
@@ -26,135 +35,74 @@ const createOrder = async (req, res, next) => {
   const { products, shippingAddress, paymentMethod, couponCode } = req.body;
 
   try {
-    if (!['cod', 'bkash', 'card'].includes(paymentMethod) || !payments.isMethodEnabled(paymentMethod)) {
+    if (!payments.isMethodEnabled(paymentMethod)) {
       return sendError(res, 'Selected payment method is not available', 400);
     }
 
-    let subtotal = 0;
-    const orderItems = [];
-
-    // 1. Stock Validation and calculation
-    for (const item of products) {
-      const dbProduct = await Product.findById(item.product);
-      if (!dbProduct || dbProduct.active === false || dbProduct.status === 'archived') {
-        return sendError(res, `Product is no longer available (ID: ${item.product})`, 404);
-      }
-
-      if (dbProduct.stock < item.quantity) {
-        return sendError(
-          res,
-          `Insufficient stock for product '${dbProduct.title}'. Available: ${dbProduct.stock}, Requested: ${item.quantity}`,
-          400
-        );
-      }
-
-      // Price (base + selected variant, minus discount) is computed here, never taken from the client
-      const clientVariant = item.variant || item.selectedVariant || {};
-      const { price: finalPrice } = unitPrice(dbProduct, clientVariant);
-      subtotal += finalPrice * item.quantity;
-
-      orderItems.push({
-        product: dbProduct._id,
-        quantity: item.quantity,
-        price: finalPrice,
-        variant: normalizeVariant(dbProduct, clientVariant)
-      });
-    }
-    subtotal = Number(subtotal.toFixed(2));
-
-    // 2. Coupon validation (min spend, usage limits) - an invalid code rejects the order
-    let couponDiscount = 0;
-    let appliedCoupon = null;
-    if (couponCode) {
-      try {
-        const result = await evaluateCoupon(couponCode, req.user.id, subtotal);
-        appliedCoupon = result.coupon;
-        couponDiscount = result.discount;
-      } catch (err) {
-        if (err instanceof CouponError) return sendError(res, err.message, err.status);
-        throw err;
-      }
+    // 1. Prices, promotions, coupon and stock are all computed server-side
+    let quote;
+    try {
+      quote = await quoteOrder(products, req.user.id, couponCode);
+    } catch (err) {
+      if (err instanceof QuoteError) return sendError(res, err.message, err.status);
+      throw err;
     }
 
-    // 3. Tax and Shipping calculations
-    // Apply coupon discount (min subtotal remains 0)
-    const discountedSubtotal = Math.max(0, subtotal - couponDiscount);
-    const tax = Number((discountedSubtotal * 0.1).toFixed(2)); // 10% tax
-    const shipping = subtotal > 100 ? 0 : 10; // Free shipping over $100, else $10
-    const total = Number((discountedSubtotal + tax + shipping).toFixed(2));
-
-    // 4. Update inventories atomically with rollback protection
-    const decrementedProducts = [];
-    for (const item of orderItems) {
-      const updated = await Product.findOneAndUpdate(
-        { _id: item.product, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity } },
-        { new: true }
-      );
-      if (!updated) {
-        for (const rolled of decrementedProducts) {
-          await Product.findByIdAndUpdate(rolled.id, { $inc: { stock: rolled.quantity } });
-        }
-        return sendError(
-          res,
-          `Stock changed or insufficient for a product in your order. Please review your cart.`,
-          400
-        );
-      }
-      decrementedProducts.push({ id: item.product, quantity: item.quantity });
+    // 2. Reserve stock (product and variant) atomically, all lines or none
+    const reserved = await inventory.reserve(quote.lines);
+    if (!reserved.ok) {
+      return sendError(res, `Stock changed for ${reserved.failedLine.title}. Please review your cart.`, 409);
     }
 
-    // Take one coupon use atomically (another order may have used the last one meanwhile)
-    if (appliedCoupon && !(await redeemCoupon(appliedCoupon))) {
-      for (const rolled of decrementedProducts) {
-        await Product.findByIdAndUpdate(rolled.id, { $inc: { stock: rolled.quantity } });
-      }
-      return sendError(res, 'This coupon has reached its usage limit', 400);
+    // 3. Take one coupon use atomically (total and per-customer limits)
+    const appliedCoupon = quote.couponDoc;
+    if (appliedCoupon && !(await redeemCoupon(appliedCoupon, req.user.id))) {
+      await inventory.release(quote.lines);
+      return sendError(res, 'This coupon has reached its usage limit', 409);
     }
 
     try {
-      // 5. Generate Order Number
-      const orderNumber = `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      // 6. Create Order
-      const order = await Order.create({
-        orderNumber,
+      const orderData = {
         user: req.user.id,
-        products: orderItems,
-        subtotal,
-        shipping,
-        tax,
+        products: quote.lines.map((line) => ({
+          product: line.product,
+          quantity: line.quantity,
+          price: line.unitPrice,
+          variant: line.variant,
+          stockTargets: line.stockTargets,
+        })),
+        subtotal: quote.subtotal,
+        shipping: quote.shipping,
+        tax: quote.tax,
         coupon: appliedCoupon ? appliedCoupon.code : '',
-        discount: couponDiscount,
-        total,
+        discount: quote.discount,
+        promoDiscount: quote.promoDiscount,
+        total: quote.total,
         paymentMethod,
-        paymentStatus: 'Pending', // Default
+        paymentStatus: 'Pending',
         orderStatus: 'Pending',
-        shippingAddress
-      });
+        shippingAddress,
+      };
 
-      // 7. Clear user's Cart
-      const cart = await Cart.findOne({ user: req.user.id });
-      if (cart) {
-        cart.products = [];
-        cart.subtotal = 0;
-        await cart.save();
+      let order;
+      for (let attempt = 0; !order; attempt++) {
+        try {
+          order = await Order.create({ ...orderData, orderNumber: newOrderNumber() });
+        } catch (err) {
+          if (err.code !== 11000 || attempt >= 2) throw err;
+        }
       }
 
+      await Cart.updateOne({ user: req.user.id }, { $set: { products: [], subtotal: 0 } });
+
       await order.populate('products.product');
-      await notifyOrderUser(
-        req.user.id,
-        'Order placed',
-        `Your order ${order.orderNumber} was placed successfully. Total: $${order.total.toFixed(2)}.`
-      );
+      await notifyOrderUser(order, 'Order placed', `Your order ${order.orderNumber} was placed successfully. Total: $${order.total.toFixed(2)}.`);
       fireEmail(emailOrderEvent(order, 'confirmation'));
       return sendSuccess(res, 'Order created successfully', order, 201);
     } catch (orderErr) {
-      // Rollback inventories and the coupon use if order creation failed
-      if (appliedCoupon) await releaseCouponUse(appliedCoupon.code);
-      for (const rolled of decrementedProducts) {
-        await Product.findByIdAndUpdate(rolled.id, { $inc: { stock: rolled.quantity } });
-      }
+      // Give back the stock and coupon use if the order could not be saved
+      if (appliedCoupon) await releaseCouponUse(appliedCoupon.code, req.user.id);
+      await inventory.release(quote.lines);
       throw orderErr;
     }
   } catch (error) {
@@ -167,6 +115,7 @@ const createOrder = async (req, res, next) => {
 // @access  Private
 const getMyOrders = async (req, res, next) => {
   try {
+    await expireUnpaidOrders();
     const orders = await Order.find({ user: req.user.id })
       .populate('products.product')
       .sort({ createdAt: -1 });
@@ -180,15 +129,15 @@ const getMyOrders = async (req, res, next) => {
 // @route   GET /api/orders/:id
 // @access  Private
 const getOrderById = async (req, res, next) => {
-  const { id } = req.params;
   try {
-    const order = await Order.findById(id).populate('products.product').populate('user', 'name email');
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id).populate('products.product').populate('user', 'name email');
     if (!order) {
       return sendError(res, 'Order not found', 404);
     }
 
-    // Check ownership or admin role
-    if (order.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+    const ownerId = order.user?._id ? order.user._id.toString() : String(order.user || '');
+    if (ownerId !== req.user.id && req.user.role !== 'admin') {
       return sendError(res, 'Not authorized to view this order', 403);
     }
 
@@ -202,57 +151,53 @@ const getOrderById = async (req, res, next) => {
 // @route   PUT /api/orders/:id/cancel
 // @access  Private
 const cancelOrder = async (req, res, next) => {
-  const { id } = req.params;
   try {
-    const order = await Order.findById(id);
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id);
     if (!order) {
       return sendError(res, 'Order not found', 404);
     }
 
-    // Check authorization
     if (order.user.toString() !== req.user.id && req.user.role !== 'admin') {
       return sendError(res, 'Not authorized to cancel this order', 403);
     }
 
-    if (order.orderStatus === 'Shipped' || order.orderStatus === 'Delivered') {
-      return sendError(res, 'Shipped or Delivered orders cannot be cancelled', 400);
+    if (!CUSTOMER_CANCELLABLE.includes(order.orderStatus)) {
+      const reason = order.orderStatus === 'Cancelled' ? 'Order is already cancelled' : `An order that is ${order.orderStatus} cannot be cancelled`;
+      return sendError(res, reason, 400);
     }
 
-    if (order.orderStatus === 'Cancelled' || order.orderStatus === 'Returned') {
-      return sendError(res, order.orderStatus === 'Cancelled' ? 'Order is already cancelled' : 'Returned orders cannot be cancelled', 400);
-    }
+    // Atomic: two simultaneous cancels can never give the stock back twice
+    const cancelled = await closeOrder(order, 'Cancelled', CUSTOMER_CANCELLABLE);
+    if (!cancelled) return sendError(res, 'This order was already updated. Please refresh.', 409);
 
-    // Restore stocks
-    for (const item of order.products) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: item.quantity }
-      });
-    }
-
-    order.orderStatus = 'Cancelled';
-    if (order.coupon && !order.couponReleased) {
-      await releaseCouponUse(order.coupon);
-      order.couponReleased = true;
-    }
-    await order.save();
-
-    await notifyOrderUser(order.user, 'Order cancelled', `Your order ${order.orderNumber} has been cancelled.`);
-    fireEmail(emailOrderEvent(order, 'status'));
-    return sendSuccess(res, 'Order cancelled successfully', order);
+    const refundNote = cancelled.paymentStatus === 'Refund Needed' ? ' Your payment will be refunded.' : '';
+    await notifyOrderUser(cancelled, 'Order cancelled', `Your order ${cancelled.orderNumber} has been cancelled.${refundNote}`);
+    if (refundNote) await logActivity(req, 'Refund Needed', `Paid order ${cancelled.orderNumber} was cancelled by the customer and needs a refund`);
+    fireEmail(emailOrderEvent(cancelled, 'status'));
+    return sendSuccess(res, 'Order cancelled successfully', cancelled);
   } catch (error) {
     next(error);
   }
+};
+
+// Manual payment changes an admin may make
+const allowedPaymentChange = (order, next) => {
+  if (next === order.paymentStatus) return null;
+  if (next === 'Paid' && order.paymentMethod === 'cod' && !CLOSED.includes(order.orderStatus)) return null;
+  if (next === 'Refunded' && ['Paid', 'Refund Needed'].includes(order.paymentStatus)) return null;
+  return `Payment status cannot be changed from ${order.paymentStatus} to ${next} manually.`;
 };
 
 // @desc    Update order status (Admin)
 // @route   PUT /api/orders/:id/status
 // @access  Private/Admin
 const updateOrderStatus = async (req, res, next) => {
-  const { id } = req.params;
   const { status, paymentStatus } = req.body;
 
   try {
-    const order = await Order.findById(id);
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id);
     if (!order) {
       return sendError(res, 'Order not found', 404);
     }
@@ -266,52 +211,39 @@ const updateOrderStatus = async (req, res, next) => {
       return sendError(res, `Invalid payment status. Allowed: ${validPayments.join(', ')}`, 400);
     }
 
-    const prevOrderState = { orderStatus: order.orderStatus, paymentStatus: order.paymentStatus };
-    if (status && status !== order.orderStatus) {
-      // Cancelled / Returned orders give their stock back; reopening one takes it again
-      const releasing = ['Cancelled', 'Returned'];
-      const wasReleased = releasing.includes(order.orderStatus);
-      const willRelease = releasing.includes(status);
-      if (!wasReleased && willRelease) {
-        for (const item of order.products) {
-          await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
-        }
-      } else if (wasReleased && !willRelease) {
-        for (const item of order.products) {
-          await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
-        }
-      }
-      // The coupon use follows the order: freed on cancel/return, taken again on reopen
-      if (order.coupon) {
-        if (!wasReleased && willRelease && !order.couponReleased) {
-          await releaseCouponUse(order.coupon);
-          order.couponReleased = true;
-        } else if (wasReleased && !willRelease && order.couponReleased) {
-          await Coupon.updateOne({ code: order.coupon }, { $inc: { usedCount: 1 } });
-          order.couponReleased = false;
-        }
-      }
-      order.orderStatus = status;
-      if (status === 'Delivered' && order.paymentMethod === 'cod' && !paymentStatus) {
-        order.paymentStatus = 'Paid';
-      }
+    const statusChange = status && status !== order.orderStatus;
+    if (statusChange) {
+      const problem = canTransition(order, status);
+      if (problem) return sendError(res, problem, 400);
     }
     if (paymentStatus) {
-      order.paymentStatus = paymentStatus;
+      const problem = allowedPaymentChange(order, paymentStatus);
+      if (problem) return sendError(res, problem, 400);
     }
 
-    await order.save();
-    await logAudit(req, 'Order', order._id, `Order ${order.orderNumber} updated`, prevOrderState, { orderStatus: order.orderStatus, paymentStatus: order.paymentStatus });
-    await logActivity(req, 'Order Updated', `Order ${order.orderNumber}: ${prevOrderState.orderStatus} -> ${order.orderStatus}, payment ${prevOrderState.paymentStatus} -> ${order.paymentStatus}`);
-    if (order.orderStatus !== prevOrderState.orderStatus) {
-      await notifyOrderUser(
-        order.user,
-        'Order update',
-        `Your order ${order.orderNumber} is now: ${order.orderStatus}.`
-      );
+    const prevOrderState = { orderStatus: order.orderStatus, paymentStatus: order.paymentStatus };
+    let updated;
+    if (statusChange && CLOSED.includes(status)) {
+      updated = await closeOrder(order, status, [order.orderStatus]);
+    } else {
+      const set = {};
+      if (statusChange) set.orderStatus = status;
+      if (statusChange && status === 'Delivered' && order.paymentMethod === 'cod' && !paymentStatus) set.paymentStatus = 'Paid';
+      updated = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: set }, { new: true });
     }
-    if (order.orderStatus !== prevOrderState.orderStatus) fireEmail(emailOrderEvent(order, 'status'));
-    return sendSuccess(res, 'Order status updated successfully', order);
+    if (!updated) return sendError(res, 'This order was changed by someone else. Please refresh.', 409);
+    if (paymentStatus && paymentStatus !== updated.paymentStatus) {
+      updated = await Order.findByIdAndUpdate(updated._id, { paymentStatus, ...(paymentStatus === 'Paid' ? { paidAt: new Date() } : {}) }, { new: true });
+    }
+
+    const newState = { orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus };
+    await logAudit(req, 'Order', updated._id, `Order ${updated.orderNumber} updated`, prevOrderState, newState);
+    await logActivity(req, 'Order Updated', `Order ${updated.orderNumber}: ${prevOrderState.orderStatus} -> ${newState.orderStatus}, payment ${prevOrderState.paymentStatus} -> ${newState.paymentStatus}`);
+    if (newState.orderStatus !== prevOrderState.orderStatus) {
+      await notifyOrderUser(updated, 'Order update', `Your order ${updated.orderNumber} is now: ${updated.orderStatus}.`);
+      fireEmail(emailOrderEvent(updated, 'status'));
+    }
+    return sendSuccess(res, 'Order status updated successfully', updated);
   } catch (error) {
     next(error);
   }
@@ -322,8 +254,9 @@ const updateOrderStatus = async (req, res, next) => {
 // @access  Private/Admin
 const getAllOrders = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 500);
+    await expireUnpaidOrders();
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 500);
     const skip = (page - 1) * limit;
 
     const orders = await Order.find()
@@ -344,6 +277,7 @@ const getAllOrders = async (req, res, next) => {
 };
 
 module.exports = {
+  getOrderQuote,
   createOrder,
   getMyOrders,
   getOrderById,

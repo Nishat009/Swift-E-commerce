@@ -450,11 +450,16 @@ export default function AvatarViewer() {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    const avatarUrl = process.env.NEXT_PUBLIC_AVATAR_GLB_URL;
+    if (!avatarUrl) {
+      setLoading(false);
+      setUsingFallback(true);
+      if (fallbackGroupRef.current) fallbackGroupRef.current.visible = true;
+      applyLocalFallbackMannequinStyles();
+      return;
+    }
     setLoading(true);
     setLoadingProgress(0);
-
-    // Use our local backend API proxy to completely bypass browser CORS blocks!
-    const avatarUrl = `/api/avatar?gender=${avatar.gender}`;
 
     const loader = new GLTFLoader();
     

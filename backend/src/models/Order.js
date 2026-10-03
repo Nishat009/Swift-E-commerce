@@ -9,7 +9,9 @@ const OrderItemSchema = new mongoose.Schema({
     name: { type: String, default: '' },
     sku: { type: String, default: '' },
     options: { type: mongoose.Schema.Types.Mixed, default: {} }
-  }
+  },
+  // Variant options / combination whose own stock this line reserved (restored on cancel)
+  stockTargets: { type: [mongoose.Schema.Types.Mixed], default: [] }
 });
 
 const OrderAddressSchema = new mongoose.Schema({
@@ -30,12 +32,15 @@ const OrderSchema = new mongoose.Schema(
     tax: { type: Number, required: true, default: 0 },
     coupon: { type: String, default: '' },
     discount: { type: Number, default: 0 },
+    promoDiscount: { type: Number, default: 0 },
     couponReleased: { type: Boolean, default: false },
     total: { type: Number, required: true },
-    paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed'], default: 'Pending' },
+    paymentStatus: { type: String, enum: ['Pending', 'Paid', 'Failed', 'Refund Needed', 'Refunded'], default: 'Pending' },
     paymentMethod: { type: String, required: true, default: 'card' },
     paymentGateway: { type: String, default: '' },
     paymentSessionId: { type: String, default: '', index: true },
+    // Every gateway session started for this order, so a payment on an older tab still settles
+    paymentSessionIds: { type: [String], default: [], index: true },
     paymentTransactionId: { type: String, default: '' },
     paidAt: { type: Date, default: null },
     orderStatus: {
@@ -58,6 +63,7 @@ OrderSchema.set('toJSON', {
     ret.id = ret._id.toString();
     delete ret._id;
     delete ret.__v;
+    if (Array.isArray(ret.products)) ret.products.forEach((p) => { delete p.stockTargets; });
     return ret;
   }
 });
