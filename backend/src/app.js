@@ -25,9 +25,22 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const enterpriseRoutes = require('./routes/enterpriseRoutes');
 const currencyRoutes = require('./routes/currencyRoutes');
 const languageRoutes = require('./routes/languageRoutes');
+const heroRoutes = require('./routes/heroRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const contactRoutes = require('./routes/contactRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const wardrobeRoutes = require('./routes/wardrobeRoutes');
+const recommendationRoutes = require('./routes/recommendationRoutes');
+const imageAssetRoutes = require('./routes/imageAssetRoutes');
+const { metricsMiddleware } = require('./utils/metrics');
 
 const app = express();
 
+
+// Behind Render/Railway/Vercel-style proxies: use the real client IP for rate limits and logs
+const trustProxy = process.env.TRUST_PROXY ?? (process.env.NODE_ENV === 'production' ? '1' : '');
+if (trustProxy) app.set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
 
 // 1. Security HTTP Headers
 app.use(helmet({
@@ -46,7 +59,7 @@ app.use(cors({
     
     const cleanedOrigin = origin.replace(/\/$/, '');
     
-    if (allowedOrigins.includes(cleanedOrigin) || allowedOrigins.includes('*')) {
+    if (allowedOrigins.includes(cleanedOrigin)) {
       callback(null, true);
     } else {
       console.warn(`[CORS Blocked] Incoming origin: "${origin}" is not in the allowed list:`, allowedOrigins);
@@ -54,7 +67,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -63,16 +76,42 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
+// 3b. Request metrics (admin monitoring tab)
+app.use(metricsMiddleware);
+
 // 4. Body parser and Cookie parser
-app.use(express.json());
+// Keep the raw body for the Stripe webhook signature check
+// 2mb leaves room for bulk product imports (CSV / JSON)
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, res, buf) => {
+    if (req.originalUrl && req.originalUrl.startsWith('/api/payments/stripe/webhook')) req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Query strings are plain text: "a[]=x&a[]=y" becomes "x,y", and operator objects like ?price[$gt]=0 are refused
+app.use((req, res, next) => {
+  for (const [key, value] of Object.entries(req.query)) {
+    if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
+      req.query[key] = value.join(',');
+    } else if (value !== null && typeof value === 'object') {
+      return res.status(400).json({ success: false, code: 400, status: 400, message: `Invalid query parameter "${key}"` });
+    }
+  }
+  next();
+});
+
 // 5. Rate Limiter (protect against brute force attacks)
+// General API limit. A single page load makes 10-20 calls, so this is sized for real browsing;
+// sign-in, OTP and payment routes keep their own much stricter limiters.
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Limit each IP to 300 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  max: Number(process.env.API_RATE_LIMIT) || 2000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests from this IP, please try again in a few minutes' }
 });
 app.use('/api', limiter);
 
@@ -95,9 +134,17 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/languages', languageRoutes);
+app.use('/api/hero', heroRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/wardrobe', wardrobeRoutes);
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/image-assets', imageAssetRoutes);
 
 // 8. Swagger documentation endpoint
-setupSwagger(app);
+if (process.env.NODE_ENV !== 'production') setupSwagger(app);
 
 // Health check route
 app.get('/api/health', (req, res) => {

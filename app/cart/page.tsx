@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { Minus, Plus, Trash2, ShoppingBag, Gift, ArrowRight, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useOrderQuote } from '@/hooks/useOrderQuote';
 
 interface SavedItem {
   product: any;
@@ -39,12 +40,9 @@ export default function CartPage() {
   
   // Coupon/Promo states
   const [couponCode, setCouponCode] = useState('');
-  const [activeCoupon, setActiveCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [activeCoupon, setActiveCoupon] = useState<{ code: string; discount: number; isFixed: boolean } | null>(null);
+  const { quote, error: quoteError } = useOrderQuote(items, activeCoupon?.code);
   
-  // Shipping Estimator states
-  const [shippingZip, setShippingZip] = useState('');
-  const [estimatedShipping, setEstimatedShipping] = useState<number | null>(null);
-  const [isEstimating, setIsEstimating] = useState(false);
 
   // Remove confirmation modal states
   const [removingItemId, setRemovingItemId] = useState<string | number | null>(null);
@@ -90,7 +88,7 @@ export default function CartPage() {
       if (res.data?.success && res.data.data) {
         const coupon = res.data.data;
         const discountVal = coupon.percentage ? coupon.percentage / 100 : (coupon.amount || 0);
-        setActiveCoupon({ code: coupon.code, discount: discountVal });
+        setActiveCoupon({ code: coupon.code, discount: discountVal, isFixed: Boolean(coupon.amount) && !coupon.percentage });
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('applied_coupon', coupon.code);
         }
@@ -102,19 +100,6 @@ export default function CartPage() {
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Invalid or expired coupon code.');
     }
-  };
-
-  const handleEstimateShipping = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!shippingZip.trim()) return;
-    setIsEstimating(true);
-    setTimeout(() => {
-      // Dummy shipping calculation logic
-      const fee = Number(shippingZip) % 2 === 0 ? 5 : 12;
-      setEstimatedShipping(fee);
-      setIsEstimating(false);
-      toast.success(`Shipping estimate calculated: $${fee.toFixed(2)}`);
-    }, 1000);
   };
 
   const handleRemoveConfirm = () => {
@@ -132,28 +117,23 @@ export default function CartPage() {
   };
 
   // Calculations & Auto-Applied Promotions Rules Engine
-  const subtotal = getTotalPrice();
+  const subtotal = quote?.subtotal ?? getTotalPrice();
   
-  // Rule 1: Spend $300, get $30 off automatically
-  const autoPromoDiscount = subtotal >= 300 ? 30 : 0;
-  
-  const couponDiscount = activeCoupon?.code === 'SAVE20' ? subtotal * activeCoupon.discount : 0;
-  const discountAmount = couponDiscount + autoPromoDiscount;
-  
-  const taxedSubtotal = Math.max(0, subtotal - discountAmount);
-  const tax = taxedSubtotal * 0.1; // 10% tax
-  
-  // Rule 2: Free shipping on orders over $150 or by default over $100
-  const isAutoFreeShipping = subtotal >= 100;
-  let shippingFee = isAutoFreeShipping ? 0 : 10;
-  
-  if (activeCoupon?.code === 'FREESHIP') {
-    shippingFee = 0;
-  } else if (estimatedShipping !== null) {
-    shippingFee = isAutoFreeShipping ? 0 : estimatedShipping;
-  }
-  
-  const total = taxedSubtotal + tax + shippingFee;
+  // Same pricing rules the server applies when the order is placed
+  const couponDiscount = activeCoupon
+    ? Math.min(subtotal, activeCoupon.isFixed ? activeCoupon.discount : subtotal * activeCoupon.discount)
+    : 0;
+  const discountAmount = quote?.discount ?? couponDiscount;
+  // $30 off orders of $300+ (same rule as the server)
+  const promoDiscount = quote?.promoDiscount ?? (subtotal >= 300 ? Math.min(30, Math.max(0, subtotal - discountAmount)) : 0);
+
+  const taxedSubtotal = Math.max(0, subtotal - discountAmount - promoDiscount);
+  const tax = quote?.tax ?? taxedSubtotal * 0.1; // Guest estimate; signed-in quote comes from API.
+
+  // Free shipping on orders of $100+, otherwise flat $10
+  const shippingFee = quote?.shipping ?? (subtotal >= 100 ? 0 : 10);
+
+  const total = quote?.total ?? taxedSubtotal + tax + shippingFee;
 
   if (items.length === 0 && savedItems.length === 0) {
     return (
@@ -352,17 +332,16 @@ export default function CartPage() {
                 <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(subtotal)}</span>
               </div>
               
-              {autoPromoDiscount > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                  <span>Spend & Save Auto-Discount:</span>
-                  <span>-{formatPrice(autoPromoDiscount)}</span>
-                </div>
-              )}
-
-              {activeCoupon && couponDiscount > 0 && (
+              {activeCoupon && discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
                   <span>Discount ({activeCoupon.code}):</span>
-                  <span>-{formatPrice(couponDiscount)}</span>
+                  <span>-{formatPrice(discountAmount)}</span>
+                </div>
+              )}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>Promotion ($300+):</span>
+                  <span>-{formatPrice(promoDiscount)}</span>
                 </div>
               )}
               
@@ -371,7 +350,7 @@ export default function CartPage() {
                 <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(tax)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Estimated Shipping:</span>
+                <span>Shipping:</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {shippingFee === 0 ? 'Free' : formatPrice(shippingFee)}
                 </span>
@@ -380,6 +359,7 @@ export default function CartPage() {
                 <span>Grand Total:</span>
                 <span className="text-[#8b6f47] dark:text-[#c9a96b]">{formatPrice(total)}</span>
               </div>
+              {quoteError && <p className="text-xs text-red-600">{quoteError} The displayed amount is an estimate.</p>}
             </div>
 
             {/* Promo Code input */}
@@ -388,7 +368,7 @@ export default function CartPage() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Enter SAVE20 or FREESHIP"
+                  placeholder="Enter coupon code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                   className="flex-1 bg-[#faf9f6] dark:bg-gray-950 border border-gray-250 dark:border-gray-850 px-3 py-1.5 rounded-xl text-xs uppercase"
@@ -398,27 +378,6 @@ export default function CartPage() {
                   className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-xl font-bold px-4 text-[10px] border-0"
                 >
                   Apply
-                </button>
-              </div>
-            </form>
-
-            {/* Shipping Estimator input */}
-            <form onSubmit={handleEstimateShipping} className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-              <span className="block text-[9px] font-black uppercase tracking-wider text-text-muted">Estimate Shipping Cost</span>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Enter Zip Code"
-                  value={shippingZip}
-                  onChange={(e) => setShippingZip(e.target.value.replace(/\D/g, ''))}
-                  className="flex-1 bg-[#faf9f6] dark:bg-gray-950 border border-gray-250 dark:border-gray-850 px-3 py-1.5 rounded-xl text-xs"
-                />
-                <button
-                  type="submit"
-                  disabled={isEstimating}
-                  className="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 rounded-xl font-bold px-4 text-[10px] border-0"
-                >
-                  {isEstimating ? '...' : 'Estimate'}
                 </button>
               </div>
             </form>

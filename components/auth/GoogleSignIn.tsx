@@ -10,16 +10,21 @@ interface Props {
   mode?: 'signin' | 'signup' | 'link';
   rememberMe?: boolean;
   disabled?: boolean;
+  redirectUrl?: string;
 }
+
+// The backend challenge lives 10 minutes; fetch a new one before it expires
+// so a sign-in page left open does not fail with "Google sign-in expired".
+const CHALLENGE_REFRESH_MS = 9 * 60 * 1000;
 
 const errorMessage = (error: unknown) =>
   (isAxiosError(error) && error.response?.data?.message) ||
   (error instanceof Error ? error.message : 'Google sign-in failed. Please try again.');
 
-export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disabled = false }: Props) {
+export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disabled = false, redirectUrl }: Props) {
   const { loginWithGoogle, verify2FA, refreshUser } = useAuth();
   const buttonRef = useRef<HTMLDivElement>(null);
-  const latest = useRef({ loginWithGoogle, rememberMe, refreshUser, disabled });
+  const latest = useRef({ loginWithGoogle, rememberMe, refreshUser, disabled, redirectUrl });
   const [mounted, setMounted] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'busy' | 'error' | 'linked' | 'two-factor'>('loading');
@@ -29,8 +34,8 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
   const [secondFactorRemember, setSecondFactorRemember] = useState(false);
 
   useEffect(() => {
-    latest.current = { loginWithGoogle, rememberMe, refreshUser, disabled };
-  }, [loginWithGoogle, rememberMe, refreshUser, disabled]);
+    latest.current = { loginWithGoogle, rememberMe, refreshUser, disabled, redirectUrl };
+  }, [loginWithGoogle, rememberMe, refreshUser, disabled, redirectUrl]);
 
   // GIS writes an iframe and attributes into its container. Do not let a
   // third-party widget touch markup while React is hydrating it.
@@ -42,20 +47,25 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     if (!mounted) return;
     let active = true;
     let submitting = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const element = buttonRef.current;
     async function prepare() {
       try {
         const response = await apiClient.post('/auth/google/challenge');
+        const clientId = response.data?.data?.clientId;
+        const nonce = response.data?.data?.nonce;
+        if (!clientId || !nonce) throw new Error('Google sign-in configuration could not be loaded.');
         if (!active) return;
         const identity = await loadGoogleIdentity();
         if (!active || !element) return;
         identity.initialize({
-          client_id: response.data.data.clientId,
-          nonce: response.data.data.nonce,
+          client_id: clientId,
+          nonce,
           auto_select: false,
           ux_mode: 'popup',
           callback: async ({ credential }) => {
             if (!active || submitting || latest.current.disabled) return;
+            clearTimeout(refreshTimer);
             if (!credential) {
               setError('Google did not return a valid sign-in credential. Please try again.');
               setStatus('error');
@@ -63,7 +73,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
             }
             submitting = true;
             setStatus('busy');
-              setError('');
+            setError('');
             try {
               if (mode === 'link') {
                 // Linking is a protected action. Revalidate first so an
@@ -78,7 +88,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
                 if (active) setStatus('linked');
               } else {
                 const remember = latest.current.rememberMe;
-                const result = await latest.current.loginWithGoogle(credential, remember);
+                const result = await latest.current.loginWithGoogle(credential, remember, latest.current.redirectUrl);
                 if (active && result?.require2FA) {
                   setUserId(result.userId || '');
                   setSecondFactorRemember(remember);
@@ -99,9 +109,16 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
         identity.renderButton(element, {
           type: 'standard', theme: 'outline', size: 'large', shape: 'pill',
           text: mode === 'signup' ? 'signup_with' : mode === 'link' ? 'continue_with' : 'signin_with',
-          width: Math.min(element.clientWidth || 320, 400),
+          // English labels, and never wider than the form column on small phones
+          locale: 'en',
+          width: Math.max(200, Math.min(element.clientWidth || element.parentElement?.clientWidth || 280, 400)),
         });
-        setStatus('ready');
+        if (active) {
+          setStatus('ready');
+          refreshTimer = setTimeout(() => {
+            if (active && !submitting) setAttempt(value => value + 1);
+          }, CHALLENGE_REFRESH_MS);
+        }
       } catch (err) {
         if (active) {
           setError(errorMessage(err));
@@ -113,6 +130,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     queueMicrotask(() => { if (active) void prepare(); });
     return () => {
       active = false;
+      clearTimeout(refreshTimer);
       element?.replaceChildren();
       window.google?.accounts?.id?.cancel();
     };
@@ -130,7 +148,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     setError('');
     setStatus('busy');
     try {
-      await verify2FA(userId, code.trim(), secondFactorRemember);
+      await verify2FA(userId, code.trim(), secondFactorRemember, latest.current.redirectUrl);
     } catch (err) {
       setError(errorMessage(err));
       setStatus('two-factor');

@@ -10,8 +10,8 @@ const orderRules = [
     .isMongoId()
     .withMessage('Invalid Product ID'),
   body('products.*.quantity')
-    .isInt({ min: 1 })
-    .withMessage('Quantity must be at least 1'),
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Quantity must be between 1 and 50'),
   body('shippingAddress')
     .notEmpty()
     .withMessage('Shipping address is required'),
@@ -36,10 +36,27 @@ const orderRules = [
     .withMessage('Country is required')
     .trim(),
   body('paymentMethod')
-    .notEmpty()
-    .withMessage('Payment method is required')
+    .isIn(['cod', 'bkash', 'card'])
+    .withMessage('Choose cash on delivery, bKash or card'),
+  body('couponCode')
+    .optional({ values: 'falsy' })
+    .isString()
+    .trim()
+    .isLength({ max: 40 })
+];
+
+const quoteRules = [
+  body('products')
+    .isArray({ min: 1, max: 100 })
+    .withMessage('Your cart is empty'),
+  body('couponCode')
+    .optional({ values: 'falsy' })
+    .isString()
+    .trim()
+    .isLength({ max: 40 })
 ];
 
 module.exports = {
   orderRules,
+  quoteRules,
 };

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
@@ -6,19 +8,31 @@ import apiClient from '@/lib/apiClient';
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [submittingNewsletter, setSubmittingNewsletter] = useState(false);
+  const [newsletterStatus, setNewsletterStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [categories, setCategories] = useState<{ name: string; slug: string }[]>([]);
+
+  useEffect(() => {
+    apiClient
+      .get('/categories')
+      .then((res) => {
+        if (Array.isArray(res.data?.data)) setCategories(res.data.data.slice(0, 6));
+      })
+      .catch(() => {});
+  }, []);
 
   const handleNewsletterSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsletterEmail) return;
     setSubmittingNewsletter(true);
+    setNewsletterStatus(null);
     try {
       const res = await apiClient.post('/newsletter/subscribe', { email: newsletterEmail });
       if (res.data?.success) {
-        alert(res.data.message || 'Subscribed successfully!');
+        setNewsletterStatus({ ok: true, text: res.data.message || 'Subscribed successfully!' });
         setNewsletterEmail('');
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to subscribe to newsletter.');
+      setNewsletterStatus({ ok: false, text: err.response?.data?.message || 'Failed to subscribe to newsletter.' });
     } finally {
       setSubmittingNewsletter(false);
     }
@@ -55,6 +69,9 @@ export default function Footer() {
                   Join
                 </button>
               </form>
+              {newsletterStatus && (
+                <p className={'text-xs mt-2 ' + (newsletterStatus.ok ? 'text-emerald-600' : 'text-red-500')}>{newsletterStatus.text}</p>
+              )}
             </div>
           </div>
           <div>
@@ -65,36 +82,47 @@ export default function Footer() {
                   All Products
                 </Link>
               </li>
-              <li>
-                <Link href="/products?category=electronics" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Electronics
-                </Link>
-              </li>
-              <li>
-                <Link href="/products?category=clothing" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Clothing
-                </Link>
-              </li>
+              {categories.map((c) => (
+                <li key={c.slug}>
+                  <Link href={'/products?category=' + encodeURIComponent(c.slug)} className="text-sm text-text-muted hover:text-primary transition-colors">
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-4">Customer Service</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/about" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  About Us
+                <Link href="/orders" className="text-sm text-text-muted hover:text-primary transition-colors">
+                  My Orders
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Contact
+                <Link href="/campaigns" className="text-sm text-text-muted hover:text-primary transition-colors">
+                  Lucky Draws
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  FAQ
+                <Link href="/dressing-room" className="text-sm text-text-muted hover:text-primary transition-colors">
+                  Dressing Room
                 </Link>
               </li>
+              {[
+                { href: '/about', label: 'About Us' },
+                { href: '/contact', label: 'Contact' },
+                { href: '/faq', label: 'FAQ' },
+                { href: '/shipping-returns', label: 'Shipping & Returns' },
+                { href: '/terms', label: 'Terms & Conditions' },
+                { href: '/privacy', label: 'Privacy Policy' },
+              ].map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className="text-sm text-text-muted hover:text-primary transition-colors">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>

@@ -7,11 +7,18 @@ const newsletterSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address']
+    maxlength: 254,
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'Please fill a valid email address']
   },
   subscribedAt: {
     type: Date,
     default: Date.now
+  },
+  // Secret for the one-click unsubscribe link in newsletter emails
+  unsubscribeToken: {
+    type: String,
+    default: () => require('crypto').randomBytes(16).toString('hex'),
+    index: true
   }
 });
 

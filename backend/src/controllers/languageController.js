@@ -35,6 +35,9 @@ const createLanguage = async (req, res, next) => {
       return sendError(res, 'Code, name, and flag fields are required', 400);
     }
 
+    if (isDefault && isActive === false) {
+      return sendError(res, 'The default language must be active', 400);
+    }
     const exists = await Language.findOne({ code: code.toLowerCase() });
     if (exists) {
       return sendError(res, `Language with code "${code}" already exists`, 400);

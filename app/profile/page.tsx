@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Changing the sign-in email needs the current password
+  const [currentPassword, setCurrentPassword] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -25,6 +27,7 @@ export default function ProfilePage() {
     state: '',
     zipCode: '',
   });
+  const emailChanged = Boolean(user && formData.email.trim().toLowerCase() !== (user.email || '').toLowerCase());
 
   // Populate data when user object changes
   useEffect(() => {
@@ -45,6 +48,14 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const addrFields = [formData.address, formData.city, formData.state, formData.zipCode].map((v) => v.trim());
+    if (addrFields.some(Boolean) && !addrFields.every(Boolean)) {
+      const msg = 'Please fill in street, city, state and zip code to save an address (or clear all four).';
+      setErrorMsg(msg);
+      toast.error(msg);
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -56,8 +67,11 @@ export default function ProfilePage() {
         formData.address,
         formData.city,
         formData.state,
-        formData.zipCode
+        formData.zipCode,
+        undefined,
+        emailChanged ? currentPassword : undefined
       );
+      setCurrentPassword('');
       toast.success('Your profile was updated successfully.');
       setIsEditing(false);
     } catch (err: any) {
@@ -118,9 +132,6 @@ export default function ProfilePage() {
                 <p className="text-xs text-text-muted mt-0.5 truncate">
                   {user.email}
                 </p>
-                <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 rounded-full text-[9px] font-black uppercase tracking-wider">
-                  Verified Account
-                </div>
               </div>
             </div>
 
@@ -151,6 +162,17 @@ export default function ProfilePage() {
                 required
                 className="rounded-2xl"
               />
+              {isEditing && emailChanged && (
+                <Input
+                  label="Current Password (to change email)"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={submitting}
+                  autoComplete="current-password"
+                  className="rounded-2xl"
+                />
+              )}
               <Input
                 label="Phone Number"
                 type="tel"

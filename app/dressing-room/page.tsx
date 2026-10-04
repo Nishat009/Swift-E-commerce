@@ -13,21 +13,62 @@ import { Sparkles, MessageSquare, Award, Shirt, Sliders, ChevronRight, Bot } fro
 import Link from 'next/link';
 
 import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
 import { Product } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { useAvatarStore } from '@/stores/avatarStore';
+import apiClient from '@/lib/apiClient';
 
 function DressingRoomContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
   const [shopTab, setShopTab] = useState<'closet' | 'stylist'>('closet');
-  const [selectedSpotlightProduct, setSelectedSpotlightProduct] = useState<Product>(fashionProducts[0]);
+  const { products: allCatalog, loading: catalogLoading, error: catalogError } = useCatalog();
+  // Dressing room works with items that have a Layer spec (fall back to whole catalog if none)
+  const layered = allCatalog.filter((p) => p.specifications && (p.specifications as any)['Layer']);
+  const fashionProducts: Product[] = layered.length > 0 ? layered : allCatalog;
+  const [pickedProduct, setSelectedSpotlightProduct] = useState<Product | null>(null);
+  const selectedSpotlightProduct: Product | null = pickedProduct || fashionProducts[0] || null;
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    apiClient.get('/wardrobe').then(({ data }) => {
+      if (!active || !data?.data) return;
+      const wardrobe = data.data;
+      useAvatarStore.setState({
+        avatar: { ...useAvatarStore.getState().avatar, ...wardrobe.avatar },
+        wornItems: wardrobe.wornItems || {},
+        savedAvatars: wardrobe.savedAvatars || [],
+        points: wardrobe.points ?? 100,
+        unlockedBadges: wardrobe.unlockedBadges || ['first_avatar'],
+      });
+      unsubscribe = useAvatarStore.subscribe((state, previous) => {
+        if (state.avatar === previous.avatar && state.wornItems === previous.wornItems && state.savedAvatars === previous.savedAvatars) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          void apiClient.put('/wardrobe', {
+            avatar: state.avatar, wornItems: state.wornItems, savedAvatars: state.savedAvatars,
+          }).catch(() => {});
+        }, 600);
+      });
+    }).catch(() => {});
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+      unsubscribe?.();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const productId = searchParams?.get('product');
     const category = searchParams?.get('category');
-    if (productId) {
-      const match = fashionProducts.find((p) => String(p.id) === String(productId));
+    if (productId && allCatalog.length > 0) {
+      const match = allCatalog.find((p) => String(p.id) === String(productId));
       if (match) {
         setSelectedSpotlightProduct(match);
         if (category && category !== 'all') {
@@ -35,7 +76,7 @@ function DressingRoomContent() {
         }
       }
     }
-  }, [searchParams]);
+  }, [searchParams, allCatalog]);
 
   const filteredSpotlightProducts = activeCategoryFilter === 'all'
     ? fashionProducts
@@ -192,6 +233,41 @@ function DressingRoomContent() {
         ====================================================================================
         */}
 
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
+              {([
+                ['customizer', 'Avatar', Sliders],
+                ['challenges', 'Rewards', Award],
+                ['chat', 'Chat', MessageSquare],
+                ['aistudio', 'Scenes', Bot],
+              ] as const).map(([key, label, Icon]) => (
+                <button key={key} onClick={() => setSidebarTab(key)}
+                  className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold sm:flex-row sm:justify-center ${sidebarTab === key ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>
+                  <Icon className="h-4 w-4 shrink-0" /> <span>{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="min-h-[420px]">
+              {sidebarTab === 'customizer' && <AvatarControls />}
+              {sidebarTab === 'challenges' && <StyleChallenges />}
+              {sidebarTab === 'chat' && <ChatAssistant />}
+              {sidebarTab === 'aistudio' && <AIStudio />}
+            </div>
+          </div>
+          <div className="lg:col-span-4 min-h-[500px]"><AvatarViewer /></div>
+          <div className="lg:col-span-4 space-y-4">
+            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
+              <button onClick={() => setShopTab('closet')} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === 'closet' ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>Closet</button>
+              <button onClick={() => setShopTab('stylist')} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === 'stylist' ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>Style Feedback</button>
+            </div>
+            <div className="min-h-[420px]">
+              {shopTab === 'closet' && <ClosetBuilder onProductSelect={setSelectedSpotlightProduct} />}
+              {shopTab === 'stylist' && <SmartStylist />}
+            </div>
+          </div>
+        </div>
+
         {/* SECTION 2: DRESS ROOM DEDICATED SPOTLIGHT VIEWER */}
         <div className="pt-8 border-t border-stone-200/70 dark:border-zinc-800 space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -211,7 +287,7 @@ function DressingRoomContent() {
             {/* Category Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-zinc-900 p-1.5 rounded-2xl border border-stone-200/60 dark:border-zinc-800">
               {[
-                { label: 'All Pieces (30)', key: 'all' },
+                { label: `All Pieces (${fashionProducts.length})`, key: 'all' },
                 { label: 'Tops & Shirts', key: 'top' },
                 { label: 'Dresses', key: 'dress' },
                 { label: 'Outerwear', key: 'jacket' },
@@ -237,11 +313,17 @@ function DressingRoomContent() {
 
           {/* Main Interactive Stage */}
           <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-stone-200/80 dark:border-zinc-800 shadow-md">
-            <DressRoomViewer
-              product={selectedSpotlightProduct}
-              onProductChange={(p) => setSelectedSpotlightProduct(p)}
-              showDetails={true}
-            />
+            {selectedSpotlightProduct ? (
+              <DressRoomViewer
+                product={selectedSpotlightProduct}
+                onProductChange={(p) => setSelectedSpotlightProduct(p)}
+                showDetails={true}
+              />
+            ) : (
+              <p className="text-center text-sm text-zinc-500 py-16">
+                {catalogLoading ? 'Loading products...' : catalogError || 'No products available right now.'}
+              </p>
+            )}
           </div>
 
           {/* Outfit Carousel / Rack Selector */}
@@ -257,7 +339,7 @@ function DressingRoomContent() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
               {filteredSpotlightProducts.map((p) => {
-                const isSelected = selectedSpotlightProduct.id === p.id;
+                const isSelected = selectedSpotlightProduct?.id === p.id;
                 const hasModel = Boolean(p.modelWearingImage);
                 return (
                   <button

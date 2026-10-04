@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import apiClient from '@/lib/apiClient';
 import {
   Product,
   ProductVariantGroup,
@@ -70,11 +71,14 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   const [slug, setSlug] = useState(initialData?.slug || '');
   const [sku, setSku] = useState(initialData?.sku || initialData?.SKU || '');
   const [barcode, setBarcode] = useState(initialData?.barcode || '');
-  const [brand, setBrand] = useState(initialData?.brand || 'SwiftCart Signature');
-  const [category, setCategory] = useState(initialData?.category || 'Clothing');
+  const [brand, setBrand] = useState(initialData?.brand || '');
+  const [category, setCategory] = useState(initialData?.category || '');
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadingModel, setUploadingModel] = useState(false);
   const [subcategory, setSubcategory] = useState(initialData?.subcategory || '');
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>(initialData?.tags || ['New Arrival', 'Casual']);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [shortDescription, setShortDescription] = useState(initialData?.shortDescription || '');
   const [description, setDescription] = useState(initialData?.description || '');
 
@@ -90,7 +94,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   const [mediaList, setMediaList] = useState<ProductMedia[]>(
     initialData?.media && initialData.media.length > 0
       ? initialData.media
-      : (initialData?.images || ['https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80']).map((url, idx) => ({
+      : (initialData?.images || []).map((url, idx) => ({
           id: `med-${idx}`,
           url,
           alt: `${initialData?.title || 'Product'} Image ${idx + 1}`,
@@ -105,23 +109,38 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   const [mediaError, setMediaError] = useState('');
 
   // 4. Pricing State
-  const [price, setPrice] = useState<number>(initialData?.price ?? 79);
-  const [originalPrice, setOriginalPrice] = useState<number>(initialData?.originalPrice ?? 99);
-  const [costPrice, setCostPrice] = useState<number>(initialData?.costPrice ?? 35);
+  // Storefront convention: price is the list price and the final price is price * (1 - discountPercentage/100).
+  // The form edits "selling price" (what the shopper pays) and an optional "original price" (list/MSRP).
+  const initialListPrice = initialData?.price ?? 0;
+  const initialDiscountPct = initialData?.discountPercentage ?? 0;
+  const initialIsLegacyPair = (initialData?.originalPrice ?? 0) > initialListPrice;
+  const initialSelling = initialIsLegacyPair
+    ? initialListPrice
+    : initialDiscountPct > 0
+      ? Math.round(initialListPrice * (1 - initialDiscountPct / 100) * 100) / 100
+      : initialListPrice;
+  const initialOriginal = initialIsLegacyPair
+    ? (initialData?.originalPrice ?? 0)
+    : initialDiscountPct > 0
+      ? initialListPrice
+      : 0;
+  const [price, setPrice] = useState<number>(initialSelling);
+  const [originalPrice, setOriginalPrice] = useState<number>(initialOriginal);
+  const [costPrice, setCostPrice] = useState<number>(initialData?.costPrice ?? 0);
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(
     initialData?.pricing?.discountType || 'percentage'
   );
   const [discountValue, setDiscountValue] = useState<number>(
-    initialData?.pricing?.discountValue || (initialData?.discountPercentage ?? 20)
+    initialData?.pricing?.discountValue || (initialData?.discountPercentage ?? 0)
   );
   const [taxRate, setTaxRate] = useState<number>(initialData?.pricing?.taxRate ?? initialData?.tax ?? 5);
   const [currency, setCurrency] = useState<string>(initialData?.pricing?.currency || initialData?.currency || 'USD');
 
   // 5. Inventory State
-  const [stock, setStock] = useState<number>(initialData?.stock ?? 45);
+  const [stock, setStock] = useState<number>(initialData?.stock ?? 0);
   const [reservedStock, setReservedStock] = useState<number>(initialData?.reservedStock ?? 0);
   const [lowStockThreshold, setLowStockThreshold] = useState<number>(initialData?.lowStockThreshold ?? 10);
-  const [warehouse, setWarehouse] = useState<string>(initialData?.warehouse || 'Main Distribution Hub - NY');
+  const [warehouse, setWarehouse] = useState<string>(initialData?.warehouse || '');
   const [trackInventory, setTrackInventory] = useState<boolean>(initialData?.trackInventory ?? true);
   const [allowBackorder, setAllowBackorder] = useState<boolean>(
     initialData?.allowBackorder ?? initialData?.allowBackorders ?? false
@@ -130,31 +149,36 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   const [maxOrderQuantity, setMaxOrderQuantity] = useState<number>(initialData?.maxOrderQuantity ?? 10);
 
   // 6. Variants State
-  const [variantOptionGroups, setVariantOptionGroups] = useState<{ name: string; values: string[] }[]>([
-    { name: 'Color', values: ['Black', 'White', 'Navy'] },
-    { name: 'Size', values: ['S', 'M', 'L', 'XL'] }
-  ]);
+  // Start from the product's real variant groups; a new product starts with none.
+  const initialVariantGroups = (initialData?.variants || []).map((g: any) => ({
+    name: String(g.name),
+    values: (g.options || []).map((o: any) => String(o.value ?? o.name)),
+  }));
+  const [variantOptionGroups, setVariantOptionGroups] = useState<{ name: string; values: string[] }[]>(initialVariantGroups);
   const [variantCombinations, setVariantCombinations] = useState<VariantCombination[]>(
     initialData?.variantCombinations || []
   );
 
   // 7. Attributes State
-  const [attributes, setAttributes] = useState<ProductAttribute[]>(
-    initialData?.attributes || [
-      { name: 'Material', value: '100% Organic Cotton', group: 'Fabric' },
-      { name: 'Fit Type', value: 'Regular Slim Fit', group: 'Apparel' },
-      { name: 'Season', value: 'Summer / All-Year', group: 'Usage' },
-      { name: 'Occasion', value: 'Casual & Semi-Formal', group: 'Style' }
-    ]
-  );
+  // Attributes come from the product's attribute list, else from its stored specifications, else none.
+  const [attributes, setAttributes] = useState<ProductAttribute[]>(() => {
+    if (initialData?.attributes && initialData.attributes.length > 0) return initialData.attributes;
+    const specs = (initialData as any)?.specifications;
+    if (specs && typeof specs === 'object') {
+      return Object.entries(specs)
+        .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+        .map(([name, value]) => ({ name, value: String(value), group: 'General' }));
+    }
+    return [];
+  });
   const [newAttrName, setNewAttrName] = useState('');
   const [newAttrVal, setNewAttrVal] = useState('');
 
   // 8. Shipping State
-  const [weight, setWeight] = useState<number>(initialData?.shippingInfo?.weight ?? initialData?.shipping?.weight ?? 0.75);
-  const [length, setLength] = useState<number>(initialData?.shippingInfo?.dimensions?.length ?? initialData?.shipping?.length ?? 25);
-  const [width, setWidth] = useState<number>(initialData?.shippingInfo?.dimensions?.width ?? initialData?.shipping?.width ?? 18);
-  const [height, setHeight] = useState<number>(initialData?.shippingInfo?.dimensions?.height ?? initialData?.shipping?.height ?? 5);
+  const [weight, setWeight] = useState<number>(initialData?.shippingInfo?.weight ?? initialData?.shipping?.weight ?? 0);
+  const [length, setLength] = useState<number>(initialData?.shippingInfo?.dimensions?.length ?? initialData?.shipping?.length ?? 0);
+  const [width, setWidth] = useState<number>(initialData?.shippingInfo?.dimensions?.width ?? initialData?.shipping?.width ?? 0);
+  const [height, setHeight] = useState<number>(initialData?.shippingInfo?.dimensions?.height ?? initialData?.shipping?.height ?? 0);
   const [shippingClass, setShippingClass] = useState<string>(
     initialData?.shippingInfo?.shippingClass || initialData?.shipping?.shippingClass || 'Standard Express Parcel'
   );
@@ -175,7 +199,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   const [metaTitle, setMetaTitle] = useState<string>(initialData?.seo?.metaTitle || '');
   const [metaDescription, setMetaDescription] = useState<string>(initialData?.seo?.metaDescription || '');
   const [keywordsInput, setKeywordsInput] = useState('');
-  const [keywords, setKeywords] = useState<string[]>(initialData?.seo?.keywords || ['swiftcart', 'fashion', 'premium']);
+  const [keywords, setKeywords] = useState<string[]>(initialData?.seo?.keywords || []);
   const [canonicalUrl, setCanonicalUrl] = useState<string>(initialData?.seo?.canonicalUrl || '');
 
   // Subcategories mapping by Category
@@ -191,6 +215,25 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
     Chair: ['Dining Chair', 'Lounge Chair', 'Ergonomic Office Chair'],
     Table: ['Coffee Table', 'Dining Table', 'Side Table', 'Desk']
   };
+
+  // Categories come from the database (managed in Admin > Categories)
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get('/categories')
+      .then((res) => {
+        if (cancelled) return;
+        const list: any[] = Array.isArray(res.data?.data) ? res.data.data : [];
+        setCategoryOptions(list.map((c) => ({ value: String(c.name).toLowerCase(), label: c.name })));
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Could not load categories from the server.');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto Slug generation from Title (if not manually edited)
   useEffect(() => {
@@ -317,6 +360,68 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   }, [mediaList]);
 
   // Media Handlers
+  const uploadImageFile = async (file: File): Promise<string> => {
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
+      throw new Error('Choose a JPG, PNG, WebP or GIF image.');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image must be under 5 MB.');
+    }
+    const body = new FormData();
+    body.append('image', file);
+    try {
+      const res = await apiClient.post('/uploads', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = res.data?.data?.url;
+      if (!url) throw new Error('Upload succeeded but no image URL was returned.');
+      return url;
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || err?.message || 'Image upload failed.');
+    }
+  };
+
+  const handleUploadMediaFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadingMedia(true);
+    setMediaError('');
+    let next = [...mediaList];
+    try {
+      for (const file of Array.from(files)) {
+        const url = await uploadImageFile(file);
+        next = [
+          ...next,
+          {
+            id: `med_${Date.now()}_${next.length}`,
+            url,
+            alt: `${title || 'Product'} Image ${next.length + 1}`,
+            isPrimary: next.length === 0,
+            type: 'image',
+            sortOrder: next.length,
+          },
+        ];
+      }
+      toast.success('Image uploaded.');
+    } catch (err: any) {
+      setMediaError(err.message);
+    } finally {
+      setMediaList(next);
+      setUploadingMedia(false);
+    }
+  };
+
+  const handleUploadModelImage = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setUploadingModel(true);
+    try {
+      setModelWearingImage(await uploadImageFile(file));
+      toast.success('Model image uploaded.');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUploadingModel(false);
+    }
+  };
+
   const handleAddMediaUrl = () => {
     if (!newImageUrl.trim()) return;
 
@@ -463,10 +568,20 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   };
 
   const submitForm = async (targetStatus: 'draft' | 'published' | 'archived') => {
+    if (mediaList.length === 0) {
+      toast.error('Add at least one product image (upload or URL) before saving.');
+      return;
+    }
+    if (!title.trim() || !category.trim() || !brand.trim() || !description.trim()) {
+      toast.error('Product name, brand, category and description are required.');
+      return;
+    }
     setSubmitting(true);
 
     const imagesArray = mediaList.map((m) => m.url);
-    const primaryUrl = primaryMedia?.url || imagesArray[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80';
+    const primaryUrl = primaryMedia?.url || imagesArray[0];
+    const sellingPrice = Math.max(0, Number(price) || 0);
+    const listPrice = Math.max(sellingPrice, Number(originalPrice) || 0);
 
     const pricingObj: ProductPricing = {
       price: Math.max(0, Number(price) || 0),
@@ -512,7 +627,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
       metaTitle: metaTitle || title,
       metaDescription: metaDescription || shortDescription || description.slice(0, 150),
       keywords,
-      canonicalUrl: canonicalUrl || `https://swiftcart.com/products/${slug}`
+      canonicalUrl: canonicalUrl || ''
     };
 
     const payload: Partial<Product> = {
@@ -537,9 +652,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
       bestSeller,
       bestseller: bestSeller,
 
-      price: Math.max(0, Number(price) || 0),
-      originalPrice: Math.max(0, Number(originalPrice) || 0),
-      salePrice: Math.max(0, Number(price) || 0),
+      // price = list price; salePrice = what the shopper pays; discountPercentage ties them together
+      price: listPrice,
+      originalPrice: listPrice > sellingPrice ? listPrice : 0,
+      salePrice: sellingPrice,
       discountPercentage: calculatedDiscountPercentage,
       costPrice: Math.max(0, Number(costPrice) || 0),
       tax: Number(taxRate) || 0,
@@ -566,7 +682,9 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
       modelWearingImage: modelWearingImage.trim() || null,
       videos: videoUrl ? [videoUrl] : [],
 
-      variants: variantOptionGroups.map((group) => ({
+      variants: JSON.stringify(variantOptionGroups) === JSON.stringify(initialVariantGroups) && initialData?.variants
+        ? initialData.variants // untouched: keep each option's own stock / SKU
+        : variantOptionGroups.map((group) => ({
         id: group.name.toLowerCase(),
         name: group.name,
         options: group.values.map((val, idx) => ({
@@ -586,8 +704,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
       shipping: shippingObj,
 
       seo: seoObj,
-      rating: initialData?.rating ?? 4.8,
-      reviewCount: initialData?.reviewCount ?? 15,
+      // rating / reviewCount are maintained by the reviews system; the form never overwrites them
       updatedAt: new Date().toISOString()
     };
 
@@ -602,7 +719,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
       setIsDirty(false);
       router.push('/dashboard/products');
     } catch (err: any) {
-      toast.error('Failed to save product. Please check form values.');
+      toast.error(err?.message || 'Failed to save product. Please check form values.');
     } finally {
       setSubmitting(false);
     }
@@ -808,16 +925,15 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   }}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
                 >
-                  <option value="Clothing">Clothing</option>
-                  <option value="Top">Top</option>
-                  <option value="Bottom">Bottom</option>
-                  <option value="Dresses">Dresses</option>
-                  <option value="Outerwear">Outerwear</option>
-                  <option value="Footwear">Footwear</option>
-                  <option value="Accessories">Accessories</option>
-                  <option value="Sofa">Sofa</option>
-                  <option value="Chair">Chair</option>
-                  <option value="Table">Table</option>
+                  <option value="">Select category</option>
+                  {category && !categoryOptions.some((o) => o.value === category.toLowerCase()) && (
+                    <option value={category}>{category}</option>
+                  )}
+                  {categoryOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -826,18 +942,19 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Subcategory
                 </label>
-                <select
+                <input
+                  type="text"
+                  list="subcategory-suggestions"
                   value={subcategory}
                   onChange={(e) => setSubcategory(e.target.value)}
+                  placeholder="Optional, e.g. Jeans"
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
-                >
-                  <option value="">Select Subcategory</option>
-                  {(subcategoryOptions[category] || ['General']).map((sub) => (
-                    <option key={sub} value={sub}>
-                      {sub}
-                    </option>
+                />
+                <datalist id="subcategory-suggestions">
+                  {(subcategoryOptions[category.charAt(0).toUpperCase() + category.slice(1)] || []).map((sub) => (
+                    <option key={sub} value={sub} />
                   ))}
-                </select>
+                </datalist>
               </div>
             </div>
 
@@ -954,6 +1071,24 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   <Plus className="w-4 h-4" />
                   <span>Add Image</span>
                 </Button>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#8b6f47] text-[#8b6f47] text-xs font-bold cursor-pointer hover:bg-[#8b6f47]/5">
+                  <Upload className="w-4 h-4" />
+                  {uploadingMedia ? 'Uploading...' : 'Upload from device'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    className="sr-only"
+                    disabled={uploadingMedia}
+                    onChange={(e) => {
+                      void handleUploadMediaFiles(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <span className="text-[11px] text-text-muted">JPG, PNG, WebP or GIF, max 5 MB each</span>
               </div>
               {mediaError && (
                 <p className="text-[11px] text-rose-500 font-medium">{mediaError}</p>
@@ -1097,6 +1232,20 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     placeholder="https://... or /images/dress-room/shirt-model.jpg"
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                   />
+                  <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#8b6f47] text-[#8b6f47] text-xs font-bold cursor-pointer hover:bg-[#8b6f47]/5 whitespace-nowrap">
+                    <Upload className="w-4 h-4" />
+                    {uploadingModel ? 'Uploading...' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      disabled={uploadingModel}
+                      onChange={(e) => {
+                        void handleUploadModelImage(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
                   {modelWearingImage && (
                     <Button
                       type="button"

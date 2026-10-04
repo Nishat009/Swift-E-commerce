@@ -4,6 +4,19 @@ const { test, expect } = require('@playwright/test');
 // cookies and persistence are covered separately by backend/tests/google-auth.test.js.
 const user = { id: 'google-browser-user', name: 'Google Browser User', email: 'browser@gmail.com', role: 'customer', googleConnected: true };
 
+for (const twoFactor of [false, true]) {
+  test(`Google login preserves the return page (2FA: ${twoFactor})`, async ({ page }) => {
+    await installAuthFixtures(page, { twoFactor });
+    await page.goto('/auth/login?redirect=%2Fsettings');
+    await page.getByRole('button', { name: 'Sign in with Google', exact: true }).click();
+    if (twoFactor) {
+      await page.getByLabel('Enter your authenticator or recovery code').fill('123456');
+      await page.getByRole('button', { name: 'Verify and sign in' }).click();
+    }
+    await expect(page).toHaveURL(/\/settings$/);
+  });
+}
+
 async function installAuthFixtures(page, options = {}) {
   const state = { googleRequests: [], secondFactorRequests: [], refreshRequests: 0, cartWrites: 0, loggedIn: false, profileExpired: false, linked: false, ...options };
   await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -56,7 +69,7 @@ async function installAuthFixtures(page, options = {}) {
       expect(request.headers().authorization).toBe('Bearer browser-access');
       state.linked = true;
       data = { user };
-    } else if (path === '/cart') {
+    } else if (path === '/cart' || path === '/cart/merge') {
       if (request.method() === 'POST') state.cartWrites++;
       data = { products: [] };
     } else if (path === '/currencies') {
@@ -86,7 +99,8 @@ test('Google login saves session, syncs guest cart, restores/refreshes on reload
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome back, Google Browser User!' })).toBeVisible();
   expect(state.refreshRequests).toBe(1);
-  await page.getByRole('button', { name: /sign out/i }).first().click();
+  await page.getByRole('button', { name: 'Logout', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
   await expect(page).toHaveURL(/\/auth\/login$/);
   expect(await page.evaluate(() => localStorage.getItem('accessToken'))).toBeNull();
 });
@@ -111,7 +125,7 @@ test('Google login waits for 2FA, displays invalid-code error, and completes ver
   expect(await page.evaluate(() => localStorage.getItem('accessToken'))).toBeNull();
   await page.getByLabel('Enter your authenticator or recovery code').fill('000000');
   await page.getByRole('button', { name: 'Verify and sign in' }).click();
-  await expect(page.getByRole('alert')).toContainText('Invalid verification code');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Invalid verification code');
   await page.getByLabel('Enter your authenticator or recovery code').fill('123456');
   await page.getByRole('button', { name: 'Verify and sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -122,7 +136,7 @@ test('failed Google verification displays error and retry obtains a new usable b
   const state = await installAuthFixtures(page, { rejectGoogle: true });
   await page.goto('/auth/login');
   await page.getByRole('button', { name: 'Sign in with Google', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Google could not verify');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Google could not verify');
   expect(state.refreshRequests).toBe(0);
   state.rejectGoogle = false;
   await page.getByRole('button', { name: 'Try Google again' }).click();
@@ -133,7 +147,7 @@ test('failed Google verification displays error and retry obtains a new usable b
 test('missing Google configuration leaves email login available', async ({ page }) => {
   await installAuthFixtures(page, { unconfigured: true });
   await page.goto('/auth/login');
-  await expect(page.getByRole('alert')).toContainText('Google sign-in is not available yet');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Google sign-in is not available yet');
   await expect(page.locator('input[type="email"]')).toBeEditable();
   await expect(page.locator('input[type="password"]')).toBeEditable();
 });

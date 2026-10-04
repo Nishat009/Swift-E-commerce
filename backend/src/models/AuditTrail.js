@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const AuditTrailSchema = new mongoose.Schema(
   {
-    entityType: { type: String, required: true, enum: ['Campaign', 'Product', 'Order'] },
+    entityType: { type: String, required: true, enum: ['Campaign', 'Product', 'Order', 'User', 'Category', 'Coupon'] },
     entityId: { type: mongoose.Schema.Types.ObjectId, required: true },
     changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     changeSummary: { type: String, required: true },
@@ -16,8 +16,8 @@ AuditTrailSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {
     ret.id = ret._id.toString();
-    delete _id;
-    delete __v;
+    delete ret._id;
+    delete ret.__v;
     return ret;
   }
 });

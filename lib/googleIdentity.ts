@@ -13,6 +13,7 @@ interface GoogleIdentity {
     text: 'signin_with' | 'signup_with' | 'continue_with';
     shape: 'pill';
     width: number;
+    locale?: string;
   }) => void;
   cancel: () => void;
   disableAutoSelect: () => void;

@@ -20,7 +20,10 @@ import {
   ArrowRight,
   LogOut,
   Shield,
-  LayoutDashboard
+  LayoutDashboard,
+  Bell,
+  Package,
+  Ticket
 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
@@ -75,6 +78,38 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [navCategories, setNavCategories] = useState<{ name: string; slug: string; image?: string; featured?: boolean }[]>([]);
+
+  useEffect(() => {
+    apiClient
+      .get('/categories')
+      .then((res) => {
+        if (Array.isArray(res.data?.data)) setNavCategories(res.data.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const markNotificationRead = async (n: Notification) => {
+    if (n.isRead) return;
+    setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await apiClient.put('/notifications/' + n.id + '/read');
+    } catch {
+      fetchNotifications();
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    setNotifications((prev) => prev.map((x) => ({ ...x, isRead: true })));
+    setUnreadCount(0);
+    try {
+      await apiClient.put('/notifications/read-all');
+    } catch {
+      fetchNotifications();
+    }
+  };
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -424,6 +459,28 @@ export default function Navbar() {
                             <LayoutDashboard className="w-4 h-4 text-zinc-500" /> Account Dashboard
                           </Link>
 
+                          <Link
+                            href="/orders"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <Package className="w-4 h-4 text-zinc-500" /> My Orders
+                          </Link>
+                          <Link
+                            href="/campaigns/my-tickets"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <Ticket className="w-4 h-4 text-zinc-500" /> My Draw Tickets
+                          </Link>
+                          <Link
+                            href="/profile"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <User className="w-4 h-4 text-zinc-500" /> Profile
+                          </Link>
+
                           {/* Wishlist Link */}
                           <Link
                             href="/wishlist"
@@ -469,6 +526,80 @@ export default function Navbar() {
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* Notifications Bell */}
+              {user && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotifOpen(!isNotifOpen);
+                      if (!isNotifOpen) fetchNotifications();
+                    }}
+                    className="relative p-1.5 text-gray-800 dark:text-gray-200 hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition-colors cursor-pointer"
+                    title="Notifications"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  {isNotifOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[90]" onClick={() => setIsNotifOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1.5 w-80 max-w-[90vw] bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-[100] text-left overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+                          <span className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">Notifications</span>
+                          {unreadCount > 0 && (
+                            <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline cursor-pointer">
+                              Mark all as read
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-80 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {notifications.length === 0 ? (
+                            <p className="px-4 py-8 text-center text-xs text-zinc-500">You have no notifications yet.</p>
+                          ) : (
+                            notifications.map((n) => {
+                              const content = (
+                                <div className={'px-4 py-3 text-xs hover:bg-stone-50 dark:hover:bg-zinc-800 cursor-pointer ' + (n.isRead ? '' : 'bg-amber-50/60 dark:bg-amber-900/10')}>
+                                  <div className="flex items-start gap-2">
+                                    {!n.isRead && <span className="mt-1 w-2 h-2 rounded-full bg-[#8b6f47] flex-shrink-0" />}
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-zinc-900 dark:text-white">{n.title}</p>
+                                      <p className="text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug">{n.message}</p>
+                                      <p className="text-[10px] text-zinc-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                              return n.relatedCampaign?.id ? (
+                                <Link
+                                  key={n.id}
+                                  href={'/campaigns/' + n.relatedCampaign.id}
+                                  onClick={() => {
+                                    markNotificationRead(n);
+                                    setIsNotifOpen(false);
+                                  }}
+                                >
+                                  {content}
+                                </Link>
+                              ) : (
+                                <div key={n.id} onClick={() => markNotificationRead(n)}>
+                                  {content}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Wishlist Heart Icon */}
               <Link
@@ -590,64 +721,62 @@ export default function Navbar() {
                         >
                           <div className="max-w-[1440px] mx-auto p-8 grid grid-cols-12 gap-8 text-left">
                             
-                            {/* Product & Solutions Links */}
-                            <div className="col-span-3 space-y-4">
+                            {/* Categories (live from the database) */}
+                            <div className="col-span-6 space-y-4">
                               <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                                Product
+                                Shop by Category
                               </span>
-                              <ul className="space-y-2.5 text-xs font-bold text-gray-800 dark:text-gray-200">
-                                <li><Link href="/products?category=Fashion" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Features & Clothing</Link></li>
-                                <li><Link href="/dressing-room" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-[#8b6f47] dark:text-[#c9a96b]" /> 3D Dressing Room</Link></li>
-                                <li><Link href="/campaigns" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Integrations & Draws</Link></li>
-                                <li><Link href="/products?category=Footwear" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Use Cases & Footwear</Link></li>
-                              </ul>
-
-                              <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 pt-4 border-t border-gray-100 dark:border-gray-800">
-                                Solutions
-                              </span>
-                              <ul className="space-y-2 text-xs font-bold text-gray-800 dark:text-gray-200">
-                                <li><Link href="/products?tag=New" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">For Startups</Link></li>
-                                <li><Link href="/products?tag=Bestseller" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">For Scaleups</Link></li>
-                                <li><Link href="/products?category=Luxury" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">For Enterprises</Link></li>
-                                <li><Link href="/products?category=Accessories" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Remote Teams & Accessories</Link></li>
+                              {navCategories.length === 0 ? (
+                                <p className="text-xs text-gray-500">Loading categories...</p>
+                              ) : (
+                                <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs font-bold text-gray-800 dark:text-gray-200">
+                                  {navCategories.map((c) => (
+                                    <li key={c.slug}>
+                                      <Link
+                                        href={'/products?category=' + encodeURIComponent(c.slug)}
+                                        onClick={() => setIsMegaMenuOpen(false)}
+                                        className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition"
+                                      >
+                                        {c.name}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                              <ul className="space-y-2.5 pt-4 border-t border-gray-100 dark:border-gray-800 text-xs font-bold text-gray-800 dark:text-gray-200">
+                                <li><Link href="/dressing-room" onClick={() => setIsMegaMenuOpen(false)} className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-[#8b6f47] dark:text-[#c9a96b]" /> 3D Dressing Room</Link></li>
+                                <li><Link href="/campaigns" onClick={() => setIsMegaMenuOpen(false)} className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Lucky Draws</Link></li>
                               </ul>
                             </div>
 
-                            {/* Resources Column */}
-                            <div className="col-span-3 space-y-4">
-                              <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                                Resources
-                              </span>
-                              <ul className="space-y-2.5 text-xs font-bold text-gray-800 dark:text-gray-200">
-                                <li><Link href="/products" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Blog & Catalog</Link></li>
-                                <li><Link href="/products" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Video Showcase</Link></li>
-                                <li><Link href="/products" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Podcast</Link></li>
-                                <li><Link href="/products" className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition">Newsletter</Link></li>
-                              </ul>
-                            </div>
-
-                            {/* Right Side Clean Featured Photo Card */}
+                            {/* Featured category card (first featured category from the database) */}
                             <div className="col-span-6">
-                              <Link
-                                href="/products?category=Fashion"
-                                onClick={() => setIsMegaMenuOpen(false)}
-                                className="group relative block w-full h-[320px] rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800"
-                              >
-                                <img
-                                  src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=900&h=600&fit=crop"
-                                  alt="Relaxed Cotton Shirt"
-                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex flex-col justify-end p-8 text-white">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Featured Collection</span>
-                                  <h3 className="text-2xl font-serif font-bold text-white mt-1 group-hover:text-amber-200 transition">
-                                    Relaxed Cotton Shirt
-                                  </h3>
-                                  <p className="text-xs text-gray-200 mt-1 flex items-center gap-1">
-                                    Explore Luxury New Arrivals <ArrowRight className="w-3.5 h-3.5" />
-                                  </p>
-                                </div>
-                              </Link>
+                              {(() => {
+                                const feat = navCategories.find((c) => c.featured && c.image) || navCategories.find((c) => c.image);
+                                if (!feat) return null;
+                                return (
+                                  <Link
+                                    href={'/products?category=' + encodeURIComponent(feat.slug)}
+                                    onClick={() => setIsMegaMenuOpen(false)}
+                                    className="group relative block w-full h-[320px] rounded-3xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800"
+                                  >
+                                    <img
+                                      src={feat.image}
+                                      alt={feat.name}
+                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex flex-col justify-end p-8 text-white">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Featured Collection</span>
+                                      <h3 className="text-2xl font-serif font-bold text-white mt-1 group-hover:text-amber-200 transition">
+                                        {feat.name}
+                                      </h3>
+                                      <p className="text-xs text-gray-200 mt-1 flex items-center gap-1">
+                                        Shop {feat.name} <ArrowRight className="w-3.5 h-3.5" />
+                                      </p>
+                                    </div>
+                                  </Link>
+                                );
+                              })()}
                             </div>
                           </div>
                         </motion.div>

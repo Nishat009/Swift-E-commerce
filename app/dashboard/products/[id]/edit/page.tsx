@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AccountLayout from '@/components/layout/AccountLayout';
+import AdminOnly from '@/components/admin/AdminOnly';
 import ProductForm from '@/components/product/ProductForm';
 import { productService } from '@/services/productService';
 import Loading from '@/components/ui/Loading';
 import { Product } from '@/types';
 import { useToast } from '@/context/ToastContext';
 
-export default function EditProductPage() {
+function EditProductPageContent() {
   const params = useParams();
   const router = useRouter();
   const productId = params?.id as string;
@@ -35,7 +36,7 @@ export default function EditProductPage() {
         router.push('/dashboard/products');
       }
     } catch (err: any) {
-      toast.error('Failed to load product details.');
+      toast.error(err?.message || 'Failed to load product details.');
       router.push('/dashboard/products');
     } finally {
       setLoading(false);
@@ -64,5 +65,13 @@ export default function EditProductPage() {
     <AccountLayout activeTabName="/dashboard">
       <ProductForm initialData={product} isEditMode={true} />
     </AccountLayout>
+  );
+}
+
+export default function EditProductPage() {
+  return (
+    <AdminOnly>
+      <EditProductPageContent />
+    </AdminOnly>
   );
 }

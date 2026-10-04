@@ -1,6 +1,5 @@
 import { Product } from '@/types';
 import apiClient from './apiClient';
-import { fashionProducts } from '@/data/fashionCatalog';
 
 export const fetchProducts = async (params?: {
   limit?: number;
@@ -15,89 +14,40 @@ export const fetchProducts = async (params?: {
   tag?: string;
   brand?: string;
 }): Promise<{ products: Product[]; total: number; skip: number; limit: number }> => {
-  try {
-    const response = await apiClient.get('/products', { params });
-    if (response.data && response.data.products) {
-      return {
-        products: response.data.products,
-        total: response.data.total ?? response.data.products.length,
-        skip: response.data.skip ?? 0,
-        limit: response.data.limit ?? response.data.products.length,
-      };
-    }
-  } catch (error) {
-    console.warn('Backend /products failed, falling back to local catalog:', error);
+  const response = await apiClient.get('/products', { params });
+  if (!response.data || !Array.isArray(response.data.products)) {
+    throw new Error('Invalid product response from server');
   }
   return {
-    products: fashionProducts,
-    total: fashionProducts.length,
-    skip: 0,
-    limit: fashionProducts.length,
+    products: response.data.products,
+    total: response.data.total ?? response.data.products.length,
+    skip: response.data.skip ?? 0,
+    limit: response.data.limit ?? response.data.products.length,
   };
 };
 
 export const fetchProductById = async (id: string | number): Promise<Product> => {
-  try {
-    const response = await apiClient.get(`/products/${id}`);
-    if (response.data?.data) {
-      return response.data.data;
-    }
-    if (response.data?.title) {
-      return response.data;
-    }
-  } catch (error) {
-    console.warn(`Product ID ${id} not found on backend API, checking local catalog fallback.`);
+  const response = await apiClient.get(`/products/${id}`);
+  const product = response.data?.data ?? (response.data?.title ? response.data : null);
+  if (!product) {
+    throw new Error(`Product not found with id: ${id}`);
   }
-
-  // Fallback to local catalog by ID or slug/title
-  const found = fashionProducts.find(
-    (p) =>
-      String(p.id) === String(id) ||
-      String(p.title).toLowerCase().replace(/[^a-z0-9]+/g, '-') === String(id).toLowerCase()
-  );
-  if (found) {
-    return found;
-  }
-
-  throw new Error(`Product not found with id: ${id}`);
+  return product;
 };
 
 export const fetchCategories = async (): Promise<string[]> => {
-  try {
-    const response = await apiClient.get('/categories', { params: { format: 'names' } });
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      return response.data.data.map((c: any) => c.slug || c.name || c);
-    }
-  } catch (e) {
-    console.warn('Falling back to local categories');
+  const response = await apiClient.get('/categories', { params: { format: 'names' } });
+  if (Array.isArray(response.data)) {
+    return response.data;
   }
-  return ['top', 'pants', 'dress', 'jacket', 'shoes', 'bag', 'jewelry', 'hat', 'glasses'];
+  if (Array.isArray(response.data?.data)) {
+    return response.data.data.map((c: any) => c.slug || c.name || c);
+  }
+  return [];
 };
 
 export const searchProducts = async (query: string): Promise<{ products: Product[]; total: number }> => {
-  try {
-    const response = await apiClient.get('/products', { params: { search: query } });
-    if (response.data?.products) {
-      return {
-        products: response.data.products,
-        total: response.data.total ?? response.data.products.length,
-      };
-    }
-  } catch (e) {
-    console.warn('Search fallback to local catalog');
-  }
-  const filtered = fashionProducts.filter(
-    (p) =>
-      p.title.toLowerCase().includes(query.toLowerCase()) ||
-      p.category.toLowerCase().includes(query.toLowerCase()) ||
-      p.description?.toLowerCase().includes(query.toLowerCase())
-  );
-  return {
-    products: filtered,
-    total: filtered.length,
-  };
+  const response = await apiClient.get('/products', { params: { search: query } });
+  const products: Product[] = response.data?.products ?? [];
+  return { products, total: response.data?.total ?? products.length };
 };
-

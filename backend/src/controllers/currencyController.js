@@ -22,6 +22,9 @@ const createCurrency = async (req, res, next) => {
     if (!code || !symbol || rate === undefined) {
       return sendError(res, 'Please provide code, symbol and rate', 400);
     }
+    if (!(Number(rate) > 0)) {
+      return sendError(res, 'Exchange rate must be greater than 0', 400);
+    }
 
     const currencyExists = await Currency.findOne({ code: code.toUpperCase() });
     if (currencyExists) {
@@ -58,14 +61,19 @@ const updateCurrency = async (req, res, next) => {
       return sendError(res, 'Currency not found', 404);
     }
 
+    // There is always exactly one default currency, and rates are positive
+    if (rate !== undefined && !(Number(rate) > 0)) {
+      return sendError(res, 'Exchange rate must be greater than 0', 400);
+    }
+    if (isDefault === false && currency.isDefault) {
+      return sendError(res, 'Make another currency the default instead of unsetting this one', 400);
+    }
     if (symbol) currency.symbol = symbol;
-    if (rate !== undefined) currency.rate = rate;
-    
-    if (isDefault !== undefined) {
-      if (isDefault) {
-        await Currency.updateMany({ _id: { $ne: id } }, { isDefault: false });
-      }
-      currency.isDefault = !!isDefault;
+    if (rate !== undefined) currency.rate = Number(rate);
+
+    if (isDefault) {
+      await Currency.updateMany({ _id: { $ne: id } }, { isDefault: false });
+      currency.isDefault = true;
     }
 
     await currency.save();

@@ -7,6 +7,45 @@ const { generateSecret, verifyTOTP, generateRecoveryCodes } = require('../utils/
 const { getRequiredSecret } = require('../utils/generateTokens');
 const AuthChallenge = require('../models/AuthChallenge');
 const { cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
+const { fire: fireEmail, sendWelcome, sendPasswordReset, sendLoginOtp } = require('../services/emailService');
+
+const devCodesAllowed = () => process.env.ALLOW_DEV_AUTH_CODES === 'true' && process.env.NODE_ENV !== 'production';
+const hashCode = (code) => crypto.createHash('sha256').update(String(code).toUpperCase().trim()).digest('hex');
+
+// Checks a TOTP or single-use recovery code. Returns { ok, recoveryHash } (does not consume the recovery code).
+const checkSecondFactorCode = (user, rawCode) => {
+  const code = typeof rawCode === 'string' ? rawCode.trim() : '';
+  if (/^\d{6}$/.test(code)) {
+    return { ok: verifyTOTP(code, user.twoFactorSecret), recoveryHash: null };
+  }
+  if (/^[A-Za-z0-9]{8}$/.test(code)) {
+    const h = hashCode(code);
+    if ((user.twoFactorRecoveryCodes || []).includes(h)) return { ok: true, recoveryHash: h };
+  }
+  return { ok: false, recoveryHash: null };
+};
+
+const newRecoveryCodes = () => {
+  const plain = generateRecoveryCodes(10, 8);
+  return { plain, hashed: plain.map(hashCode) };
+};
+
+// FR-2.6: after LOGIN_MAX_FAILURES wrong passwords in a row the account is locked briefly.
+const LOGIN_MAX_FAILURES = 3;
+const LOGIN_LOCK_MS = 30 * 1000;
+const recordFailedLogin = async (userId) => {
+  const updated = await User.findOneAndUpdate(
+    { _id: userId },
+    { $inc: { failedLoginAttempts: 1 } },
+    { new: true, projection: { failedLoginAttempts: 1 } }
+  );
+  if (updated && updated.failedLoginAttempts >= LOGIN_MAX_FAILURES) {
+    await User.updateOne(
+      { _id: userId },
+      { $set: { failedLoginAttempts: 0, lockUntil: new Date(Date.now() + LOGIN_LOCK_MS) } }
+    );
+  }
+};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -28,10 +67,11 @@ const register = async (req, res, next) => {
     });
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, true);
 
     // Store refresh token in HttpOnly cookie
     res.cookie('refreshToken', refreshToken, cookieOptions(true));
+    fireEmail(sendWelcome(user));
 
     return sendSuccess(res, 'User registered successfully', {
       user: {
@@ -58,10 +98,16 @@ const login = async (req, res, next) => {
   const { email, password, rememberMe } = req.body;
 
   try {
-    const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
+    const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes +lockUntil');
+    if (user && user.lockUntil && user.lockUntil > new Date()) {
+      const seconds = Math.ceil((user.lockUntil - Date.now()) / 1000);
+      return sendError(res, `Too many failed attempts. Try again in ${seconds} seconds.`, 429, { retryAfter: seconds });
+    }
     if (!user || !(await user.matchPassword(password))) {
+      if (user) await recordFailedLogin(user._id);
       return sendError(res, 'Invalid email or password', 401);
     }
+    await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: 1 } });
 
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {
@@ -69,7 +115,7 @@ const login = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, !!rememberMe);
 
     // Store refresh token in HttpOnly cookie
     // Only set maxAge when "Remember Me" is checked; otherwise use a session cookie
@@ -124,11 +170,11 @@ const logout = async (req, res, next) => {
 // @access  Private
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+password');
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
-    return sendSuccess(res, 'User profile retrieved successfully', { user });
+    return sendSuccess(res, 'User profile retrieved successfully', { user: { ...user.toJSON(), hasPassword: Boolean(user.password) } });
   } catch (error) {
     next(error);
   }
@@ -147,7 +193,13 @@ const updateProfile = async (req, res, next) => {
     user.name = req.body.name || user.name;
     user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
 
+    const passwordUser = await User.findById(req.user.id).select('+password');
+    const hasPassword = Boolean(passwordUser && passwordUser.password);
+
     if (req.body.email && req.body.email !== user.email) {
+      if (hasPassword && !(await passwordUser.matchPassword(req.body.currentPassword))) {
+        return sendError(res, 'Enter your current password to change your email address', 401);
+      }
       const emailExists = await User.findOne({ email: req.body.email });
       if (emailExists) {
         return sendError(res, 'Email already in use', 400);
@@ -155,15 +207,19 @@ const updateProfile = async (req, res, next) => {
       user.email = req.body.email;
     }
 
+    let passwordChanged = false;
     if (req.body.password) {
-      if (!req.body.currentPassword) {
-        return sendError(res, 'Current password is required to set a new password', 400);
-      }
-      const passwordUser = await User.findById(req.user.id).select('+password');
-      if (!passwordUser || !(await passwordUser.matchPassword(req.body.currentPassword))) {
-        return sendError(res, 'Current password is incorrect', 401);
+      // Google-only accounts have no password yet, so they can set one without a current password.
+      if (hasPassword) {
+        if (!req.body.currentPassword) {
+          return sendError(res, 'Current password is required to set a new password', 400);
+        }
+        if (!(await passwordUser.matchPassword(req.body.currentPassword))) {
+          return sendError(res, 'Current password is incorrect', 401);
+        }
       }
       user.password = req.body.password;
+      passwordChanged = true;
     }
 
     // Address updates
@@ -186,7 +242,7 @@ const updateProfile = async (req, res, next) => {
         if (req.body.country !== undefined) {
           defaultAddress.country = req.body.country;
         }
-      } else {
+      } else if (req.body.address && req.body.city && req.body.state && req.body.zipCode) {
         user.addresses.push({
           street: req.body.address || '',
           city: req.body.city || '',
@@ -200,7 +256,16 @@ const updateProfile = async (req, res, next) => {
 
     const updatedUser = await user.save();
 
+    // A new password signs out other devices; this one gets fresh tokens to stay signed in
+    let accessToken;
+    if (passwordChanged) {
+      const remember = Boolean(jwt.decode(req.cookies?.refreshToken || '')?.rm);
+      res.cookie('refreshToken', generateRefreshToken(updatedUser, remember), cookieOptions(remember));
+      accessToken = generateAccessToken(updatedUser);
+    }
+
     return sendSuccess(res, 'User profile updated successfully', {
+      ...(accessToken ? { accessToken } : {}),
       user: {
         id: updatedUser.id,
         name: updatedUser.name,
@@ -210,7 +275,8 @@ const updateProfile = async (req, res, next) => {
         role: updatedUser.role,
         addresses: updatedUser.addresses,
         twoFactorEnabled: updatedUser.twoFactorEnabled,
-        googleConnected: Boolean(updatedUser.googleId)
+        googleConnected: Boolean(updatedUser.googleId),
+        hasPassword: hasPassword || Boolean(req.body.password)
       }
     });
   } catch (error) {
@@ -232,21 +298,17 @@ const refreshToken = async (req, res, next) => {
     const decoded = jwt.verify(token, getRequiredSecret('JWT_REFRESH_SECRET'));
     const user = await User.findById(decoded.id);
 
-    if (!user) {
+    // Unknown user, or the password changed after this session started
+    if (!user || (decoded.v || 0) !== (user.tokenVersion || 0)) {
+      res.clearCookie('refreshToken', cookieOptions());
       return sendError(res, 'Invalid refresh token', 401);
     }
 
     const accessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user);
+    const newRefreshToken = generateRefreshToken(user, decoded.rm);
 
-    // Update cookie with the refreshed token too
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    };
-    res.cookie('refreshToken', newRefreshToken, cookieOptions);
+    // Same lifetime as the original sign-in: persistent only when "remember me" was ticked
+    res.cookie('refreshToken', newRefreshToken, cookieOptions(Boolean(decoded.rm)));
 
     return sendSuccess(res, 'Access token refreshed successfully', { accessToken });
   } catch (error) {
@@ -261,7 +323,7 @@ const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ email });
-    const genericMessage = 'If an account exists for that email, password reset instructions have been generated.';
+    const genericMessage = 'If an account exists for that email, password reset instructions have been sent.';
     if (!user) return sendSuccess(res, genericMessage);
 
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -269,7 +331,9 @@ const forgotPassword = async (req, res, next) => {
     user.passwordResetExpires = Date.now() + 15 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    return sendSuccess(res, genericMessage, process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_CODES === 'true' ? { resetToken } : {});
+    fireEmail(sendPasswordReset(user, resetToken));
+
+    return sendSuccess(res, genericMessage, devCodesAllowed() ? { resetToken } : {});
   } catch (error) {
     next(error);
   }
@@ -313,6 +377,9 @@ const setup2FA = async (req, res, next) => {
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
+    if (user.twoFactorEnabled) {
+      return sendError(res, 'Two-Factor Authentication is already enabled. Disable it first to set it up again.', 400);
+    }
 
     const secret = generateSecret();
     user.twoFactorSecret = secret;
@@ -335,24 +402,64 @@ const setup2FA = async (req, res, next) => {
 const verifyAndEnable2FA = async (req, res, next) => {
   const { code } = req.body;
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+twoFactorSecret +twoFactorRecoveryCodes');
     if (!user) {
       return sendError(res, 'User not found', 404);
     }
+    if (user.twoFactorEnabled) {
+      return sendError(res, 'Two-Factor Authentication is already enabled', 400);
+    }
+    if (!user.twoFactorSecret) {
+      return sendError(res, 'Start 2FA setup first', 400);
+    }
 
-    const isValid = verifyTOTP(code, user.twoFactorSecret);
+    const isValid = verifyTOTP(String(code || ''), user.twoFactorSecret);
     if (!isValid) {
       return sendError(res, 'Invalid verification code', 400);
     }
 
     user.twoFactorEnabled = true;
-    const recoveryCodes = generateRecoveryCodes(8, 8);
-    user.twoFactorRecoveryCodes = recoveryCodes;
+    const { plain, hashed } = newRecoveryCodes();
+    user.twoFactorRecoveryCodes = hashed;
     await user.save();
 
     return sendSuccess(res, 'Two-Factor Authentication enabled successfully', {
-      recoveryCodes
+      recoveryCodes: plain
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Re-authenticates a sensitive 2FA change: password (if the account has one) AND a valid TOTP/recovery code.
+const reauthForTwoFactorChange = async (req, res) => {
+  const { code, currentPassword } = req.body;
+  const user = await User.findById(req.user.id).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
+  if (!user) { sendError(res, 'User not found', 404); return null; }
+  if (!user.twoFactorEnabled) { sendError(res, 'Two-Factor Authentication is not enabled', 400); return null; }
+  if (user.password && !(typeof currentPassword === 'string' && await user.matchPassword(currentPassword))) {
+    sendError(res, 'Current password is incorrect', 401);
+    return null;
+  }
+  const check = checkSecondFactorCode(user, code);
+  if (!check.ok) {
+    sendError(res, 'A valid authenticator code or recovery code is required', 401);
+    return null;
+  }
+  return user;
+};
+
+// @desc    Regenerate recovery codes (requires password + current code)
+// @route   POST /api/auth/2fa/recovery-codes
+// @access  Private
+const regenerateRecoveryCodes = async (req, res, next) => {
+  try {
+    const user = await reauthForTwoFactorChange(req, res);
+    if (!user) return;
+    const { plain, hashed } = newRecoveryCodes();
+    user.twoFactorRecoveryCodes = hashed;
+    await user.save();
+    return sendSuccess(res, 'New recovery codes generated. Old codes no longer work.', { recoveryCodes: plain });
   } catch (error) {
     next(error);
   }
@@ -363,17 +470,8 @@ const verifyAndEnable2FA = async (req, res, next) => {
 // @access  Private
 const disable2FA = async (req, res, next) => {
   try {
-    const { code, currentPassword } = req.body;
-    const user = await User.findById(req.user.id).select('+password +twoFactorSecret +twoFactorRecoveryCodes');
-    if (!user) {
-      return sendError(res, 'User not found', 404);
-    }
-
-    const passwordValid = currentPassword && await user.matchPassword(currentPassword);
-    const totpValid = code && verifyTOTP(String(code), user.twoFactorSecret);
-    if (!passwordValid && !totpValid) {
-      return sendError(res, 'Current password or a valid authenticator code is required', 401);
-    }
+    const user = await reauthForTwoFactorChange(req, res);
+    if (!user) return;
 
     user.twoFactorEnabled = false;
     user.twoFactorSecret = '';
@@ -409,21 +507,9 @@ const verify2FA = async (req, res, next) => {
       return sendError(res, 'Please sign in again.', 401);
     }
 
-    let isVerified = false;
-    let isRecoveryUsed = false;
-
-    if (/^\d{6}$/.test(code)) {
-      isVerified = verifyTOTP(code, user.twoFactorSecret);
-    }
-
-    if (!isVerified) {
-      const cleanCode = code.toUpperCase().trim();
-      const codeIndex = user.twoFactorRecoveryCodes.indexOf(cleanCode);
-      if (codeIndex !== -1) {
-        isVerified = true;
-        isRecoveryUsed = true;
-      }
-    }
+    const check = checkSecondFactorCode(user, code);
+    const isVerified = check.ok;
+    const isRecoveryUsed = Boolean(check.recoveryHash);
 
     if (!isVerified) {
       return sendError(res, 'Invalid verification code or recovery code', 400);
@@ -434,14 +520,14 @@ const verify2FA = async (req, res, next) => {
     clearChallenge(res, 'two-factor');
     if (isRecoveryUsed) {
       const used = await User.updateOne(
-        { _id: user._id, twoFactorRecoveryCodes: code.toUpperCase().trim() },
-        { $pull: { twoFactorRecoveryCodes: code.toUpperCase().trim() } },
+        { _id: user._id, twoFactorRecoveryCodes: check.recoveryHash },
+        { $pull: { twoFactorRecoveryCodes: check.recoveryHash } },
       );
       if (!used.modifiedCount) return sendError(res, 'Recovery code has already been used.', 400);
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, challenge.rememberMe);
 
     res.cookie('refreshToken', refreshToken, cookieOptions(challenge.rememberMe));
 
@@ -471,12 +557,10 @@ const requestOTP = async (req, res, next) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts +otpRequestedAt');
-    const genericMessage = 'If an eligible account exists, an OTP has been generated.';
+    const genericMessage = 'If an eligible account exists, an OTP has been sent to its email.';
     if (!user) return sendSuccess(res, genericMessage);
 
-    if (user.role !== 'customer') {
-      return sendError(res, 'OTP Login is only available for customers', 403);
-    }
+    if (user.role !== 'customer') return sendSuccess(res, genericMessage);
 
     if (user.otpRequestedAt && Date.now() - user.otpRequestedAt.getTime() < 60 * 1000) {
       return sendError(res, 'Please wait one minute before requesting another OTP', 429);
@@ -489,8 +573,10 @@ const requestOTP = async (req, res, next) => {
     user.otpRequestedAt = new Date();
     await user.save();
 
+    fireEmail(sendLoginOtp(user, otp));
+
     const data = {};
-    if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_CODES === 'true') {
+    if (devCodesAllowed()) {
       data.developmentCode = otp;
     }
     return sendSuccess(res, genericMessage, data);
@@ -507,7 +593,7 @@ const verifyOTP = async (req, res, next) => {
   try {
     const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts');
     if (!user) {
-      return sendError(res, 'User not found', 404);
+      return sendError(res, 'Invalid OTP code', 400);
     }
 
     if ((user.otpAttempts || 0) >= 5) {
@@ -535,7 +621,7 @@ const verifyOTP = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user, !!rememberMe);
 
     res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
 
@@ -656,6 +742,7 @@ module.exports = {
   setup2FA,
   verifyAndEnable2FA,
   disable2FA,
+  regenerateRecoveryCodes,
   verify2FA,
   requestOTP,
   verifyOTP,

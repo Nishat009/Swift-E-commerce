@@ -47,6 +47,6 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   return NextResponse.json(
     { message: 'Avatar 3D service is temporarily disabled while working on Dress Room product & model features.' },
-    { status: 200 }
+    { status: 503 }
   );
 }

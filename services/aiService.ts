@@ -1,46 +1,13 @@
 import { Product, ProductReview } from '@/types';
 import {
-  AvatarProfile,
   StylistMessage,
   SemanticSearchResult,
   CompleteOutfit,
   UserPersonalizationProfile,
-  AdminAIDescriptionInput,
-  AdminAIDescriptionOutput,
-  AdminAIImageEnhancements,
   ReviewSentimentAnalysis,
-  SalesAdvisorInsight,
 } from '@/types/ai';
 
 class AIService {
-  private cache: Map<string, any> = new Map();
-
-  /**
-   * AI Virtual Try-On generation
-   */
-  async generateVirtualTryOn(
-    avatar: AvatarProfile,
-    photoUrl: string | null,
-    product: Product
-  ): Promise<{ previewUrl: string; angles: string[] }> {
-    const cacheKey = `tryon_${avatar.id}_${photoUrl ? 'photo' : 'avatar'}_${product.id}`;
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
-
-    // Simulate AI synthesis latency safely
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const previewUrl = product.images?.[0] || product.image || '/placeholder-fashion.jpg';
-    const result = {
-      previewUrl,
-      angles: ['Front View', 'Side Profile (Left)', 'Side Profile (Right)', 'Back View'],
-    };
-
-    this.cache.set(cacheKey, result);
-    return result;
-  }
-
   /**
    * AI Fashion Stylist assistant query parser
    */
@@ -246,58 +213,18 @@ class AIService {
   }
 
   /**
-   * Admin: AI Product Description Generator
-   */
-  async generateAdminProductDetails(input: AdminAIDescriptionInput): Promise<AdminAIDescriptionOutput> {
-    await new Promise((resolve) => setTimeout(resolve, 700));
-
-    const colorTitle = input.color ? input.color.charAt(0).toUpperCase() + input.color.slice(1) : 'Classic';
-    const title = `Premium ${colorTitle} ${input.category} by ${input.brand || 'SwiftCart'}`;
-
-    return {
-      title,
-      shortDescription: `Crafted from high-grade ${input.material || 'cotton'}, this ${colorTitle.toLowerCase()} ${input.category.toLowerCase()} offers unmatched comfort and modern elegance for daily and formal wear.`,
-      seoDescription: `Shop the new ${title}. Made with premium ${input.material || 'breathable fabric'}, featuring a modern tailored fit for any occasion. Fast delivery and easy returns.`,
-      highlights: [
-        `Made from 100% premium ${input.material || 'material'}`,
-        'Tailored modern silhouette for maximum comfort',
-        'Durable stitching & vibrant color retention',
-        'Easy machine washable fabric',
-      ],
-      tags: [input.category.toLowerCase(), input.color.toLowerCase(), input.brand.toLowerCase(), 'fashion', 'trend'],
-      metaKeywords: [title.toLowerCase(), `${input.color} ${input.category}`, `buy ${input.category} online`],
-    };
-  }
-
-  /**
-   * Admin: AI Image Enhancement Tool
-   */
-  async enhanceProductImage(imageUrl: string): Promise<AdminAIImageEnhancements> {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    return {
-      original: imageUrl,
-      ecommerceClean: imageUrl,
-      lifestyle: imageUrl,
-      modelWearing: imageUrl,
-      socialBanner: imageUrl,
-      thumbnail: imageUrl,
-    };
-  }
-
-  /**
    * Admin: AI Customer Review Sentiment Analysis
    */
   analyzeReviewsSentiment(reviews: ProductReview[]): ReviewSentimentAnalysis {
     if (!reviews || reviews.length === 0) {
       return {
         totalReviews: 0,
-        positivePercentage: 80,
-        negativePercentage: 10,
-        neutralPercentage: 10,
-        summary: "Customers highlight excellent fabric comfort, though a few note sizing runs slightly snug.",
-        keyPros: ["High fabric quality", "Vibrant color match", "Fast delivery"],
-        keyCons: ["Runs slightly snug on shoulders"],
+        positivePercentage: 0,
+        negativePercentage: 0,
+        neutralPercentage: 0,
+        summary: 'No customer reviews are available yet.',
+        keyPros: [],
+        keyCons: [],
       };
     }
 
@@ -321,45 +248,12 @@ class AIService {
       positivePercentage,
       negativePercentage,
       neutralPercentage,
-      summary: positivePercentage >= 70
-        ? "Overwhelmingly positive! Customers love the material softness and design detail."
-        : "Mixed feedback: Customers admire the style but request more precise sizing guides.",
-      keyPros: ["Superb material quality", "Accurate color representation", "Premium packaging"],
-      keyCons: ["Consider sizing up for a loose fit"],
+      summary: `${pos} positive, ${neu} neutral and ${neg} negative rating${total === 1 ? '' : 's'} across ${total} customer review${total === 1 ? '' : 's'}.`,
+      keyPros: [],
+      keyCons: [],
     };
   }
 
-  /**
-   * Admin: AI Sales & Business Advisor
-   */
-  getAdminSalesAdvisorInsights(): SalesAdvisorInsight[] {
-    return [
-      {
-        id: 'ins_1',
-        type: 'trending',
-        title: 'High Velocity Product Detected',
-        description: 'Black Hoodies & Denim Jackets are selling 42% faster than last month.',
-        actionRecommendation: 'Increase inventory levels by 30% to prevent out-of-stock loss.',
-        impactScore: 'high',
-      },
-      {
-        id: 'ins_2',
-        type: 'cross_sell',
-        title: 'Cross-Sell Bundle Opportunity',
-        description: '78% of customers who purchase Slim Fit Jeans also inspect White Leather Sneakers.',
-        actionRecommendation: 'Enable AI Complete Outfit bundle discounts on jeans product pages.',
-        impactScore: 'high',
-      },
-      {
-        id: 'ins_3',
-        type: 'inventory_warning',
-        title: 'Seasonal Stock Advisory',
-        description: 'Summer Linen Trousers stock level is below 15 units.',
-        actionRecommendation: 'Reorder 50 units before the weekend summer campaign release.',
-        impactScore: 'medium',
-      },
-    ];
-  }
 }
 
 export const aiService = new AIService();

@@ -7,14 +7,18 @@ const NotificationSchema = new mongoose.Schema(
     message: { type: String, required: true, trim: true },
     type: {
       type: String,
-      enum: ['campaign_purchase', 'draw_result', 'campaign_update', 'winner_announcement', 'system'],
+      enum: ['campaign_purchase', 'draw_result', 'campaign_update', 'winner_announcement', 'price_drop', 'restock', 'delivery_update', 'system'],
       default: 'system'
     },
     relatedCampaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign', default: null },
+    relatedProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
+    relatedOrder: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
     isRead: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
+
+NotificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
 
 NotificationSchema.set('toJSON', {
   virtuals: true,

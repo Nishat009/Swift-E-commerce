@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
@@ -18,8 +19,9 @@ function RegisterFormContent() {
   // Auto-redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.includes('/auth/')) {
-        router.push(redirectUrl);
+      const safePath = safeRedirectPath(redirectUrl);
+      if (safePath) {
+        router.push(safePath);
       } else if (user.role === 'admin') {
         router.push('/admin');
       } else {
@@ -66,7 +68,7 @@ function RegisterFormContent() {
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.password.trim()) newErrors.password = 'Password is required';
-    if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
@@ -122,13 +124,13 @@ function RegisterFormContent() {
           {/* Heading Text Content */}
           <div className="relative z-10 mt-24 md:mt-auto space-y-4">
             <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-black leading-[1.1] tracking-tight uppercase">
-              YOUR NEXT<br />ADVENTURE<br />AWAITS!
+              JOIN<br />SWIFTCART<br />TODAY
             </h1>
             <p className="text-xs sm:text-sm text-gray-200/90 max-w-sm leading-relaxed font-light">
               Create your account to unlock premium avatar fitting room, explore custom prize drawings, and fast-track checkout options.
             </p>
             <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
-              Your journey starts here.
+              Fashion and home, all in one place.
             </p>
           </div>
         </div>
@@ -253,10 +255,7 @@ function RegisterFormContent() {
                   className="h-4 w-4 mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500/30 dark:bg-gray-900 dark:border-gray-800"
                 />
                 <label htmlFor="agreeTerms" className="text-[11px] text-gray-500 dark:text-gray-400 font-medium cursor-pointer">
-                  I agree to the{' '}
-                  <Link href="#" onClick={(e) => { e.preventDefault(); toast.info('Terms and Conditions simulated.'); }} className="text-emerald-700 hover:text-emerald-800 font-bold hover:underline dark:text-emerald-500">
-                    Terms & Conditions
-                  </Link>
+                  I agree to the <Link href="/terms" target="_blank" className="underline font-bold">Terms & Conditions</Link> of this store.
                 </label>
               </div>
               {errors.agreeTerms && <p className="text-[10px] text-red-505 font-bold">{errors.agreeTerms}</p>}
@@ -273,7 +272,7 @@ function RegisterFormContent() {
 
             {/* Google Sign-up */}
             <div className="space-y-4">
-              <GoogleSignIn mode="signup" rememberMe={true} disabled={loading || !formData.agreeTerms} />
+              <GoogleSignIn mode="signup" redirectUrl={redirectUrl} rememberMe={true} disabled={loading || !formData.agreeTerms} />
               {!formData.agreeTerms && <p className="text-center text-xs text-gray-500">Accept the Terms &amp; Conditions above to continue with Google.</p>}
 
               {/* Bottom text */}

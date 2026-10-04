@@ -2,16 +2,18 @@ import React from 'react';
 import ProductCard from '@/components/ui/ProductCard';
 import AIBadge from '@/components/ui/AIBadge';
 import { useAIRecommendation } from '@/hooks/useAIRecommendation';
-import { fashionProducts } from '@/data/fashionCatalog';
+import { useCatalog } from '@/hooks/useCatalog';
+import { Product } from '@/types';
 import { Sparkles, Eye, Flame, Layers } from 'lucide-react';
 
-export default function AIPicksForYou() {
+export default function AIPicksForYou({ products }: { products?: Product[] }) {
+  const { products: catalogProducts } = useCatalog();
   const {
     recommendedForYou,
     completeTheLook,
     becauseYouViewed,
     trendingForStyle,
-  } = useAIRecommendation(fashionProducts);
+  } = useAIRecommendation(products ?? catalogProducts);
 
   return (
     <div className="space-y-12 py-8">
@@ -20,11 +22,11 @@ export default function AIPicksForYou() {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <AIBadge type="recommended" label="Curated By AI" />
+              <AIBadge type="recommended" label="Catalog Picks" />
             </div>
             <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-amber-500" />
-              AI Picks For You
+              Picks For You
             </h2>
           </div>
         </div>
@@ -62,7 +64,7 @@ export default function AIPicksForYou() {
           <div className="flex items-center gap-2">
             <Eye className="w-5 h-5 text-indigo-500" />
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-              Because You Viewed Similar Styles
+              More Styles To Explore
             </h3>
           </div>
 

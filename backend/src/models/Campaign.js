@@ -45,7 +45,19 @@ const CampaignSchema = new mongoose.Schema(
     // Winner
     winnerUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     winnerTicket: { type: String, default: null },
-    winnerVideoUrl: { type: String, default: null }
+    winnerVideoUrl: { type: String, default: null },
+
+    // Prize delivery proof (admin fills this in after the draw)
+    delivery: {
+      status: { type: String, enum: ['pending', 'shipped', 'delivered'], default: 'pending' },
+      courier: { type: String, default: '' },
+      trackingNumber: { type: String, default: '' },
+      proofImage: { type: String, default: '' },
+      note: { type: String, default: '' },
+      shippedAt: { type: Date, default: null },
+      deliveredAt: { type: Date, default: null },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
+    }
   },
   { timestamps: true }
 );

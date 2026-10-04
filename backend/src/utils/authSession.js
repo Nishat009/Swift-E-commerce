@@ -6,7 +6,7 @@ const { sendSuccess } = require('./response');
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  sameSite: process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax'),
   path: '/',
   ...(rememberMe ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : {}),
 });
@@ -50,7 +50,7 @@ const publicUser = (user) => ({
 
 const sendSession = (res, user, rememberMe, message = 'Logged in successfully') => {
   res.set('Cache-Control', 'no-store');
-  res.cookie('refreshToken', generateRefreshToken(user), cookieOptions(rememberMe));
+  res.cookie('refreshToken', generateRefreshToken(user, rememberMe), cookieOptions(rememberMe));
   return sendSuccess(res, message, { user: publicUser(user), accessToken: generateAccessToken(user) });
 };
 

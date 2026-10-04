@@ -1,16 +1,27 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { aiService } from '@/services/aiService';
 import { ProductReview } from '@/types';
 import { Sparkles, ThumbsUp, ThumbsDown, MessageSquare, BarChart3 } from 'lucide-react';
+import apiClient from '@/lib/apiClient';
 
 interface AIReviewAnalyzerProps {
   reviews?: ProductReview[];
 }
 
 export default function AIReviewAnalyzer({ reviews = [] }: AIReviewAnalyzerProps) {
-  const analysis = useMemo(() => {
-    return aiService.analyzeReviewsSentiment(reviews);
+  const [liveReviews, setLiveReviews] = useState<ProductReview[]>(reviews);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (reviews.length) return;
+    let active = true;
+    apiClient.get('/reviews').then(({ data }) => {
+      if (active) setLiveReviews(Array.isArray(data?.data) ? data.data : []);
+    }).catch(() => { if (active) setError('Could not load customer reviews.'); });
+    return () => { active = false; };
   }, [reviews]);
+  const analysis = useMemo(() => {
+    return aiService.analyzeReviewsSentiment(liveReviews);
+  }, [liveReviews]);
 
   return (
     <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
@@ -18,14 +29,15 @@ export default function AIReviewAnalyzer({ reviews = [] }: AIReviewAnalyzerProps
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-amber-500" />
-            AI Customer Sentiment & Review Intelligence
+            Customer Rating Overview
           </h3>
           <p className="text-xs text-gray-500">
-            Real-time NLP sentiment analysis computed across customer product reviews.
+            Rating distribution calculated from customer reviews.
           </p>
         </div>
       </div>
 
+      {error && <p className="text-xs text-red-600">{error}</p>}
       {/* Sentiment Stats Progress Bars */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Positive */}
@@ -72,15 +84,15 @@ export default function AIReviewAnalyzer({ reviews = [] }: AIReviewAnalyzerProps
       <div className="bg-gradient-to-r from-amber-500/10 to-purple-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-2">
         <h4 className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
           <Sparkles className="w-4 h-4 text-amber-500" />
-          AI Review Summary:
+          Review Summary:
         </h4>
         <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed italic">
           &quot;{analysis.summary}&quot;
         </p>
       </div>
 
-      {/* Pros & Cons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+      {/* Pros & Cons are shown only when supported by review text. */}
+      {(analysis.keyPros.length > 0 || analysis.keyCons.length > 0) && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
         <div className="bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-500/20 space-y-2">
           <h5 className="font-bold text-emerald-800 dark:text-emerald-300">Top Customer Highlights:</h5>
           <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
@@ -98,7 +110,7 @@ export default function AIReviewAnalyzer({ reviews = [] }: AIReviewAnalyzerProps
             ))}
           </ul>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

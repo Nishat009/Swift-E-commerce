@@ -285,3 +285,40 @@ These are differences between the documents and the code, or likely bugs. They h
 10. **A broken image file:** `public/images/dress-room/raw-indigo-jeans-product.jpg` is not a real image.
 11. **Docs drift:** README mixes ports 5000/5001; order statuses in README omit Confirmed, Packed, Returned; some features in sections 1–4 above (360° spin, CSV import, autosave) were not verified in code.
 12. **Dead code:** the avatar GLB proxy route is commented out.
+
+## A9. Update 2026-10-03 — Done since A8
+Several items in A8 are now fixed or changed: order confirmation emails exist (Nodemailer), real bKash/Stripe gateways are integrated (`backend/PAYMENTS.md`), and a **mock payment gateway** (`PAYMENT_MOCK=true`, development only) lets the lucky draw be tested without real accounts. Also done in this phase:
+- **Lucky draw hardening:** secure random winner pick, one draw only (atomic claim even with two admins), draw blocked while ticket payments are in flight, rollback if a draw fails, no fake winner video.
+- **Coupons:** minimum spend, total usage limit, per-user limit; usage is freed when an order is cancelled or returned; an invalid code now rejects the order.
+- **Server-side variant pricing:** cart and order prices are always calculated by the server from the product and selected variant.
+- **Wishlist alerts:** customers get a notification when a wishlisted product drops in price or comes back in stock.
+- **Winner delivery proof (backend):** `PUT /api/campaigns/admin/:id/delivery` (status, courier, tracking, proof image).
+- **Audit:** campaign create, update, status change, draw and delivery are all recorded.
+- Automated check: `npm run test:draw` in `backend` (uses a throwaway test database).
+
+## A10. Pending work (to do in the next phase)
+**Frontend for features that only have a backend today**
+1. Admin coupon form: fields for minimum spend, usage limit and per-user limit; show "used X of Y" in the coupon list. Cart/checkout should call `GET /api/coupons/:code?subtotal=` and show the real discount and error messages.
+2. Admin lucky-draw page: winner delivery form (status, courier, tracking number, proof image upload, note).
+3. Winners gallery and "My tickets": show delivery status and the proof photo; winner sees delivery updates.
+4. Notification list: show the new notification types `price_drop`, `restock` and `delivery_update`, linking to the product or campaign.
+5. Admin audit view: show the campaign status/delivery audit entries.
+6. Optional: let admin attach a real draw recording (`winnerVideoUrl`) when running the draw.
+
+**Backend gaps**
+7. Restock/price-drop alerts only fire when an admin edits the product. Stock returned by a cancelled order, bulk actions and variant-level stock do not trigger them; no email version yet.
+8. Variant stock is not checked at checkout (only product stock). Variant-level stock decrement is needed.
+9. Refunds: a late payment after a ticket hold expired or after an order was cancelled is only marked `refund_needed` / logged; there is no refund flow.
+10. Real bKash/Stripe accounts and webhook setup must be tested end to end (only the mock gateway has been tested automatically).
+11. The API returns HTTP 200 for every success and 422 for every error (`utils/response.js`), including 401/403/404. Clients cannot tell auth errors from validation errors by status code. Decide whether to keep this.
+12. Remaining items from A8 that were not touched (reviews always "verified", wishlist stored twice, seed script mismatch, broken image file, docs drift, dead code).
+13. Cleanup: `data/mockData.ts` and `data/fashionCatalog.ts` are no longer imported and can be deleted.
+
+**Known bug — Google sign-in does not work (to investigate)**
+14. "Sign in with Google" currently fails. `GOOGLE_CLIENT_ID` is set in `backend/.env`, so the likely causes are on the Google Cloud / environment side. Check in this order:
+   - Authorized JavaScript origins in the OAuth client must contain exactly the URL used in the browser (`http://localhost:3001`, and `http://localhost`); opening the site via `127.0.0.1` or another port will fail.
+   - If the Google app is in Testing mode, the Google account used must be listed under Test users.
+   - `FRONTEND_URL` in `backend/.env` must include the origin being used (the backend checks the request origin, `requireGoogleOrigin`).
+   - The backend must be restarted after changing `.env`; the Client ID must belong to a **Web application** client.
+   - Browser console / network tab: look at `POST /api/auth/google/challenge` and `POST /api/auth/google` responses and the GIS script load (ad blockers or a blocked `accounts.google.com` also break it).
+   - Setup steps are in `docs/google-login.md`; a run of `npm run test:auth` in `backend` checks the server side.

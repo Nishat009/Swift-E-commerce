@@ -191,18 +191,17 @@ export const useCartStore = create<CartStore>()(
         const guestItems = get().items;
         if (guestItems.length === 0 || !getAccessToken()) return;
         try {
-          await Promise.all(
-            guestItems.map((item) =>
-              apiClient.post('/cart', {
-                productId: item.product.id,
-                quantity: item.quantity,
-                variant: item.selectedVariant,
-              }).catch((err) => {
-                console.warn(`Could not sync item ${item.product.id} to cart:`, err);
-                return null;
-              })
-            )
-          );
+          // One idempotent merge: syncing the same browser cart again never doubles quantities
+          await apiClient.post('/cart/merge', {
+            items: guestItems.map((item) => ({
+              productId: item.product.id,
+              quantity: item.quantity,
+              variant: item.selectedVariant,
+            })),
+          }).catch((err) => {
+            console.warn('Could not merge the guest cart:', err);
+            return null;
+          });
           const response = await apiClient.get('/cart').catch(() => null);
           if (response?.data?.success && Array.isArray(response.data.data?.products)) {
             const backendItems = (response.data.data.products as BackendCartProduct[])

@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useAvatarStore } from '@/stores/avatarStore';
-import { Bot, Sparkles, Image as ImageIcon, Sliders, RefreshCw, Send } from 'lucide-react';
+import { Bot, Sparkles, Image as ImageIcon, Sliders, Send } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 
 export default function AIStudio() {
   const { avatar, setAvatarProperty } = useAvatarStore();
   const [promptText, setPromptText] = useState('');
-  const [rendering, setRendering] = useState(false);
-  const [renderStep, setRenderStep] = useState(0);
 
   const scenes = [
     { id: 'studio', label: 'Classic Studio', desc: 'Neutral studio backdrop', icon: '🎨' },
@@ -26,21 +24,7 @@ export default function AIStudio() {
   ] as const;
 
   const handleRenderScene = (sceneId: string) => {
-    setRendering(true);
-    setRenderStep(1);
-
-    // Simulate multi-step AI generation
-    setTimeout(() => {
-      setRenderStep(2);
-      setTimeout(() => {
-        setRenderStep(3);
-        setTimeout(() => {
-          setAvatarProperty('backgroundScene', sceneId);
-          setRendering(false);
-          setRenderStep(0);
-        }, 1200);
-      }, 1000);
-    }, 800);
+    setAvatarProperty('backgroundScene', sceneId);
   };
 
   const handleCustomPromptSubmit = (e: React.FormEvent) => {
@@ -71,12 +55,12 @@ export default function AIStudio() {
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-[#8b6f47] dark:text-[#c9a96b]" />
           <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-            AI Photo Studio
+            Avatar Scene Studio
           </h3>
         </div>
 
         <p className="text-[11px] text-gray-500 leading-relaxed">
-          Create lifestyle shoots instantly. Choose poses and photo scene backdrops to frame your custom consistent avatar character model.
+          Choose a pose and scene backdrop for the 3D avatar preview.
         </p>
 
         {/* Pose Selection */}
@@ -117,7 +101,6 @@ export default function AIStudio() {
               <button
                 key={scene.id}
                 onClick={() => handleRenderScene(scene.id)}
-                disabled={rendering}
                 className={`p-3 rounded-xl border text-left flex flex-col justify-between h-[85px] transition-all relative ${
                   avatar.backgroundScene === scene.id
                     ? 'border-[#8b6f47] bg-[#8b6f47]/5 text-[#8b6f47] dark:border-[#c9a96b] dark:text-[#c9a96b]'
@@ -140,29 +123,11 @@ export default function AIStudio() {
         </div>
       </div>
 
-      {/* Prompt Form & AI Rendering Overlay */}
+      {/* Optional keyword shortcut for the preset scenes. */}
       <div className="border-t border-gray-100 dark:border-gray-800 pt-5 space-y-4">
-        {rendering ? (
-          <div className="bg-[#8b6f47]/5 border border-[#8b6f47]/15 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-3">
-            <RefreshCw className="w-5 h-5 text-[#8b6f47] dark:text-[#c9a96b] animate-spin" />
-            <div className="space-y-1.5">
-              <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                {renderStep === 1 && 'Analyzing outfit coordinates...'}
-                {renderStep === 2 && 'Warping sleeve vectors to pose...'}
-                {renderStep === 3 && 'Synthesizing depth-of-field background...'}
-              </p>
-              <div className="w-32 bg-gray-200 h-1 rounded-full overflow-hidden mx-auto">
-                <div
-                  className="bg-[#8b6f47] dark:bg-[#c9a96b] h-full transition-all duration-1000"
-                  style={{ width: `${(renderStep / 3) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
           <form onSubmit={handleCustomPromptSubmit} className="space-y-2.5">
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              Prompt Generator (Optional)
+              Find a preset scene by keyword
             </label>
             <div className="flex gap-2">
               <Input
@@ -181,7 +146,6 @@ export default function AIStudio() {
               </Button>
             </div>
           </form>
-        )}
 
         {/* Tip text */}
         <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-xl flex gap-2 items-start border border-gray-100/50">

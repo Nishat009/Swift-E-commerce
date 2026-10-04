@@ -1,4 +1,5 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const { assertSafeToSeed } = require('./safety');
 const mongoose = require('mongoose');
 const Campaign = require('../src/models/Campaign');
 const Ticket = require('../src/models/Ticket');
@@ -6,7 +7,7 @@ const User = require('../src/models/User');
 
 const seedCampaigns = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/swiftcart');
+    await mongoose.connect(assertSafeToSeed('seed_campaigns'));
     console.log('MongoDB Connected for Seeding Campaigns...');
 
     // Clear old campaigns & tickets

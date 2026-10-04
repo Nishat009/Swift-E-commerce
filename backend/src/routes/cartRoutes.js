@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getCart,
   addToCart,
+  mergeCart,
   updateCartItem,
   removeFromCart,
   clearCart
@@ -15,6 +16,7 @@ router.get('/', getCart);
 router.post('/', addToCart);
 router.put('/', updateCartItem);
 router.delete('/:productId', removeFromCart);
+router.post('/merge', mergeCart);
 router.post('/clear', clearCart);
 
 module.exports = router;

@@ -7,6 +7,8 @@ import { Mail, Lock, Eye, EyeOff, ShoppingBag, ShieldCheck, Smartphone, Camera, 
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
+import DemoLoginButtons from '@/components/auth/DemoLoginButtons';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -15,11 +17,22 @@ function LoginFormContent() {
   const { user, loading: authLoading, login, verify2FA, requestOTP, verifyOTP, forgotPassword, resetPassword } = useAuth();
   const toast = useToast();
 
+  // Open the reset form pre-filled when arriving from the emailed reset link
+  const resetTokenParam = searchParams?.get('resetToken') || '';
+  useEffect(() => {
+    if (resetTokenParam) {
+      setForgotOtp(resetTokenParam);
+      setForgotStep('reset');
+      setShowForgotModal(true);
+    }
+  }, [resetTokenParam]);
+
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.includes('/auth/')) {
-        router.push(redirectUrl);
+      const safePath = safeRedirectPath(redirectUrl);
+      if (safePath) {
+        router.push(safePath);
       } else if (user.role === 'admin') {
         router.push('/admin');
       } else {
@@ -28,30 +41,6 @@ function LoginFormContent() {
     }
   }, [user, authLoading, router, redirectUrl]);
 
-  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      email: quickEmail,
-      password: quickPass,
-    }));
-    setErrors({});
-    setLoading(true);
-    try {
-      const res = await login(quickEmail, quickPass, true, redirectUrl);
-      if (res && res.require2FA) {
-        setTwoFactorUserId(res.userId || '');
-        setVerificationStep('2fa');
-        toast.info('Two-Factor Authentication code required.');
-      } else {
-        toast.success(`Logged in as ${quickEmail.includes('admin') ? 'Administrator' : 'Test User'}!`);
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Quick login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -159,14 +148,17 @@ function LoginFormContent() {
       setFailedAttempts(0);
     } catch (error: any) {
       console.error('Login error:', error);
-      const nextFailCount = failedAttempts + 1;
+      // The server is the source of truth for lockouts (429 + retryAfter seconds)
+      const serverLocked = error.status === 429;
+      const nextFailCount = serverLocked ? 3 : failedAttempts + 1;
       setFailedAttempts(nextFailCount);
 
       if (nextFailCount >= 3) {
+        const seconds = serverLocked && error.retryAfter ? error.retryAfter : 30;
         setIsLocked(true);
-        setCooldown(30);
-        toast.error('Too many failed attempts. Login is locked for 30 seconds.');
-        
+        setCooldown(seconds);
+        toast.error(serverLocked ? error.message : `Too many failed attempts. Login is locked for ${seconds} seconds.`);
+
         const interval = setInterval(() => {
           setCooldown((prev) => {
             if (prev <= 1) {
@@ -216,9 +208,9 @@ function LoginFormContent() {
     try {
       const res = await requestOTP(formData.email);
       setOtpSent(true);
-      toast.success('OTP sent successfully!');
+      toast.success('If an eligible account exists, a login code has been emailed to you.');
       if (res && res.testOtp) {
-        setTestOtpNotice(`[Test Mode] Your OTP code is: ${res.testOtp}`);
+        setTestOtpNotice(`[Dev mode] Login code: ${res.testOtp}`);
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to request OTP');
@@ -261,9 +253,9 @@ function LoginFormContent() {
     setForgotTestNotice('');
     try {
       const res = await forgotPassword(forgotEmail);
-      toast.success('Reset token generated.');
+      toast.success('If an account exists for that email, we have sent reset instructions. Check your inbox (and spam).');
       if (res && res.testOtp) {
-        setForgotTestNotice(`[Local development] Reset token: ${res.testOtp}`);
+        setForgotTestNotice(`[Dev mode] Reset token: ${res.testOtp}`);
       }
       setForgotStep('reset');
     } catch (err: any) {
@@ -330,13 +322,13 @@ function LoginFormContent() {
           {/* Heading Text Content */}
           <div className="relative z-10 mt-24 md:mt-auto space-y-4">
             <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-black leading-[1.1] tracking-tight uppercase">
-              YOUR NEXT<br />ADVENTURE<br />AWAITS!
+              WELCOME<br />BACK TO<br />SWIFTCART
             </h1>
             <p className="text-xs sm:text-sm text-gray-200/90 max-w-sm leading-relaxed font-light">
-              Log in to unlock exclusive deals, plan your dream escapes, and pick up where you left off. Whether it&apos;s mountains, beaches, or city lights.
+              Log in to track your orders, manage your wishlist, and pick up where you left off.
             </p>
             <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
-              Your journey starts here.
+              Fashion and home, all in one place.
             </p>
           </div>
         </div>
@@ -372,16 +364,8 @@ function LoginFormContent() {
                         onChange={(e) => setTwoFactorCode(e.target.value)}
                         placeholder="000000 or Recovery Code"
                         required
-                        className="w-full pl-4 pr-12 py-3 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-sm font-bold text-center tracking-widest rounded-xl animate-fade-in"
+                        className="w-full px-4 py-3 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-sm font-bold text-center tracking-widest rounded-xl animate-fade-in"
                       />
-                      <button
-                        type="button"
-                        onClick={startWebcam}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-gray-105 dark:bg-gray-800 text-gray-500 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                        title="Scan QR Code / Recovery Code"
-                      >
-                        <Camera className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
 
@@ -415,7 +399,7 @@ function LoginFormContent() {
                   </h2>
                   {isLocked ? (
                     <div className="mt-2.5 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold animate-pulse">
-                      â›” Access Temporarily Suspended. Cooldown: {cooldown}s
+                      ⛔ Access Temporarily Suspended. Cooldown: {cooldown}s
                     </div>
                   ) : (
                     <p className="text-xs text-gray-455 mt-2">
@@ -491,7 +475,7 @@ function LoginFormContent() {
                           disabled={isLocked}
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                          placeholder="••••••••"
                           required
                           className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10 disabled:opacity-50"
                         />
@@ -587,7 +571,7 @@ function LoginFormContent() {
 
                         {testOtpNotice && (
                           <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold leading-normal">
-                            ðŸ’¡ {testOtpNotice}
+                            💡 {testOtpNotice}
                           </div>
                         )}
 
@@ -634,37 +618,10 @@ function LoginFormContent() {
                   </form>
                 )}
 
-                {/* One-Click Demo Logins for Admin & Test User */}
-                <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">
-                    Quick Demo One-Click Logins
-                  </p>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('admin@email.com', '12345678')}
-                      disabled={loading || isLocked}
-                      className="py-2.5 px-3 bg-[#8b6f47]/10 hover:bg-[#8b6f47]/20 border border-[#8b6f47]/30 text-[#8b6f47] dark:text-[#c9a96b] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Admin Login</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('user@email.com', '12345678')}
-                      disabled={loading || isLocked}
-                      className="py-2.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
-                    >
-                      <UserIcon className="w-4 h-4" />
-                      <span>Test User Login</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Google Sign-in */}
                 <div className="space-y-4">
-                  <GoogleSignIn rememberMe={formData.rememberMe} disabled={loading || isLocked} />
+                  <GoogleSignIn redirectUrl={redirectUrl} rememberMe={formData.rememberMe} disabled={loading || isLocked} />
+                  <DemoLoginButtons disabled={loading} />
 
                   {/* Bottom text */}
                   <div className="text-center pt-2">
@@ -703,7 +660,7 @@ function LoginFormContent() {
                   </div>
                   <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Reset Password</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Enter the email address associated with your account and we will generate a secure reset token.
+                    Enter the email address associated with your account and we will email you a secure reset link and code.
                   </p>
                 </div>
 
@@ -726,7 +683,7 @@ function LoginFormContent() {
                   disabled={forgotLoading}
                   className="w-full py-3 bg-[#0a3d4a] hover:bg-[#072a33] text-white font-bold text-xs rounded-xl transition shadow-md disabled:opacity-50 uppercase tracking-wider"
                 >
-                  {forgotLoading ? 'Generating Reset Token...' : 'Generate Reset Token'}
+                  {forgotLoading ? 'Sending...' : 'Email Me a Reset Link'}
                 </button>
               </form>
             )}
@@ -739,13 +696,13 @@ function LoginFormContent() {
                   </div>
                   <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Enter Token & New Password</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Use the reset token for <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span>.
+                    Paste the reset code from the email we sent{forgotEmail ? <> to <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span></> : ' you'}.
                   </p>
                 </div>
 
                 {forgotTestNotice && (
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
-                    ðŸ’¡ {forgotTestNotice}
+                    💡 {forgotTestNotice}
                   </div>
                 )}
 
@@ -757,7 +714,7 @@ function LoginFormContent() {
                     type="text"
                     value={forgotOtp}
                     onChange={(e) => setForgotOtp(e.target.value)}
-                    placeholder="Paste reset token"
+                    placeholder="Paste reset code from email"
                     maxLength={128}
                     required
                     className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-center tracking-widest text-sm font-bold rounded-xl"
@@ -817,7 +774,7 @@ function LoginFormContent() {
                     onClick={() => setForgotStep('request')}
                     className="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold"
                   >
-                    â† Back to email input
+                    ← Back to email input
                   </button>
                 </div>
               </form>
@@ -841,78 +798,6 @@ function LoginFormContent() {
                 </button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* CAMERA QR SCANNER MODAL */}
-      {showScanner && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#121210] border border-gray-200 dark:border-gray-800 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl p-6 text-center space-y-6 relative">
-            
-            <style>{`
-              @keyframes scan-laser {
-                0% { top: 5%; }
-                50% { top: 95%; }
-                100% { top: 5%; }
-              }
-            `}</style>
-            
-            <button onClick={stopWebcam} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="space-y-1 text-center">
-              <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wide">Camera Scanner</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Position the QR or recovery code in front of the lens.</p>
-            </div>
-
-            {/* Viewfinder camera section */}
-            <div className="relative w-full aspect-square max-w-[280px] mx-auto bg-black rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden flex items-center justify-center">
-              {scannerLoading ? (
-                <div className="text-white text-xs animate-pulse font-mono">Initializing camera module...</div>
-              ) : (
-                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-              )}
-
-              {/* Scanning red laser line */}
-              <div className="absolute inset-x-0 h-0.5 bg-red-500 shadow-[0_0_8px_#ef4444] top-0" style={{ animation: 'scan-laser 2.5s ease-in-out infinite' }} />
-
-              {/* Viewfinder corner brackets */}
-              <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-emerald-500" />
-              <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-emerald-500" />
-              <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-emerald-500" />
-              <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-emerald-500" />
-            </div>
-
-            {/* Simulation Helpers */}
-            <div className="space-y-2 text-left">
-              <span className="block text-[9px] uppercase font-black text-gray-400 dark:text-gray-500 tracking-widest text-center">Simulated Auto-Scan Outputs</span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSimulateScan('123456')}
-                  className="py-2 px-3 text-xs bg-gray-55 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 border dark:border-gray-800 rounded-xl font-bold transition text-gray-800 dark:text-gray-200"
-                >
-                  Scan Code &quot;123456&quot;
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateScan('RC-DEMO-CODE')}
-                  className="py-2 px-3 text-xs bg-gray-55 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 border dark:border-gray-800 rounded-xl font-bold transition text-gray-800 dark:text-gray-200"
-                >
-                  Scan Recovery Code
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={stopWebcam}
-              className="w-full py-2.5 bg-gray-55 dark:bg-gray-900 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-xl hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            >
-              Cancel Scan
-            </button>
           </div>
         </div>
       )}

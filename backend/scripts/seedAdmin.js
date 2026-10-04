@@ -1,10 +1,11 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const { assertSafeToSeed } = require('./safety');
 const mongoose = require('mongoose');
 const User = require('../src/models/User');
 
 const seedAdmin = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/swiftcart';
+    const mongoUri = assertSafeToSeed('seedAdmin');
     console.log(`Connecting to MongoDB at: ${mongoUri}`);
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB.');

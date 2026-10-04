@@ -23,7 +23,7 @@ const uploadToCloudinary = async (file, folderName = 'swiftcart') => {
       // Upload to Cloudinary
       const result = await cloudinary.uploader.upload(file.path, {
         folder: folderName,
-        resource_type: 'auto',
+        resource_type: 'image',
       });
 
       // Remove file from local server

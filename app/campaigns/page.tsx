@@ -461,12 +461,14 @@ export default function CampaignsDashboard() {
 
                   {c.winnerVideoUrl && (
                     <div className="pt-2 border-t dark:border-gray-800 flex justify-center">
-                      <button
-                        onClick={() => toast.info('Playing mock winner review video!')}
+                      <a
+                        href={c.winnerVideoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline flex items-center gap-1.5"
                       >
                         <Tv className="w-3.5 h-3.5" /> Watch Winner Review
-                      </button>
+                      </a>
                     </div>
                   )}
                 </div>
