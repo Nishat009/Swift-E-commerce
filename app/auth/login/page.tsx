@@ -620,7 +620,7 @@ function LoginFormContent() {
 
                 {/* Google Sign-in */}
                 <div className="space-y-4">
-                  <GoogleSignIn rememberMe={formData.rememberMe} disabled={loading || isLocked} />
+                  <GoogleSignIn redirectUrl={redirectUrl} rememberMe={formData.rememberMe} disabled={loading || isLocked} />
                   <DemoLoginButtons disabled={loading} />
 
                   {/* Bottom text */}

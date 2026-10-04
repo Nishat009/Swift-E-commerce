@@ -14,7 +14,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string, rememberMe?: boolean, redirectUrl?: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
-  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ require2FA?: boolean; userId?: string } | void>;
+  loginWithGoogle: (credential: string, rememberMe?: boolean, redirectUrl?: string) => Promise<{ require2FA?: boolean; userId?: string } | void>;
   demoLogin: (role: 'customer' | 'admin') => Promise<void>;
   register: (name: string, email: string, password: string, redirectUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -212,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async (credential: string, rememberMe = false) => {
+  const loginWithGoogle = async (credential: string, rememberMe = false, redirectUrl?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -231,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(loggedInUser);
       await useCartStore.getState().syncGuestCart();
       await useCartStore.getState().loadCart();
-      router.push(loggedInUser.role === 'admin' ? '/admin' : '/dashboard');
+      redirectUser(loggedInUser.role, redirectUrl);
     } catch (err: unknown) {
       const message = (isAxiosError(err) && err.response?.data?.message) ||
         (err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');

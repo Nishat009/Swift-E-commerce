@@ -10,16 +10,17 @@ interface Props {
   mode?: 'signin' | 'signup' | 'link';
   rememberMe?: boolean;
   disabled?: boolean;
+  redirectUrl?: string;
 }
 
 const errorMessage = (error: unknown) =>
   (isAxiosError(error) && error.response?.data?.message) ||
   (error instanceof Error ? error.message : 'Google sign-in failed. Please try again.');
 
-export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disabled = false }: Props) {
+export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disabled = false, redirectUrl }: Props) {
   const { loginWithGoogle, verify2FA, refreshUser } = useAuth();
   const buttonRef = useRef<HTMLDivElement>(null);
-  const latest = useRef({ loginWithGoogle, rememberMe, refreshUser, disabled });
+  const latest = useRef({ loginWithGoogle, rememberMe, refreshUser, disabled, redirectUrl });
   const [mounted, setMounted] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'busy' | 'error' | 'linked' | 'two-factor'>('loading');
@@ -29,8 +30,8 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
   const [secondFactorRemember, setSecondFactorRemember] = useState(false);
 
   useEffect(() => {
-    latest.current = { loginWithGoogle, rememberMe, refreshUser, disabled };
-  }, [loginWithGoogle, rememberMe, refreshUser, disabled]);
+    latest.current = { loginWithGoogle, rememberMe, refreshUser, disabled, redirectUrl };
+  }, [loginWithGoogle, rememberMe, refreshUser, disabled, redirectUrl]);
 
   // GIS writes an iframe and attributes into its container. Do not let a
   // third-party widget touch markup while React is hydrating it.
@@ -66,7 +67,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
             }
             submitting = true;
             setStatus('busy');
-              setError('');
+            setError('');
             try {
               if (mode === 'link') {
                 // Linking is a protected action. Revalidate first so an
@@ -81,7 +82,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
                 if (active) setStatus('linked');
               } else {
                 const remember = latest.current.rememberMe;
-                const result = await latest.current.loginWithGoogle(credential, remember);
+                const result = await latest.current.loginWithGoogle(credential, remember, latest.current.redirectUrl);
                 if (active && result?.require2FA) {
                   setUserId(result.userId || '');
                   setSecondFactorRemember(remember);
@@ -135,7 +136,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     setError('');
     setStatus('busy');
     try {
-      await verify2FA(userId, code.trim(), secondFactorRemember);
+      await verify2FA(userId, code.trim(), secondFactorRemember, latest.current.redirectUrl);
     } catch (err) {
       setError(errorMessage(err));
       setStatus('two-factor');

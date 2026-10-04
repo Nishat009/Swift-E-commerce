@@ -272,7 +272,7 @@ function RegisterFormContent() {
 
             {/* Google Sign-up */}
             <div className="space-y-4">
-              <GoogleSignIn mode="signup" rememberMe={true} disabled={loading || !formData.agreeTerms} />
+              <GoogleSignIn mode="signup" redirectUrl={redirectUrl} rememberMe={true} disabled={loading || !formData.agreeTerms} />
               {!formData.agreeTerms && <p className="text-center text-xs text-gray-500">Accept the Terms &amp; Conditions above to continue with Google.</p>}
 
               {/* Bottom text */}
