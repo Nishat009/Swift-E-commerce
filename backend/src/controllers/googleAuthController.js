@@ -50,7 +50,8 @@ const verifyGoogleCredential = async (req, res, next) => {
     try {
       const ticket = await googleClient.verifyIdToken({ idToken: req.body.credential, audience: clientId });
       payload = ticket.getPayload();
-    } catch {
+    } catch (error) {
+      console.warn(`[google-auth] ID token verification failed: ${error.message}`);
       return sendError(res, 'Google could not verify your sign-in. Please try again.', 401);
     }
     if (!payload || payload.nonce !== challenge.nonce || payload.email_verified !== true ||

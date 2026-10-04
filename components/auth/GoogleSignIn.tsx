@@ -13,6 +13,10 @@ interface Props {
   redirectUrl?: string;
 }
 
+// The backend challenge lives 10 minutes; fetch a new one before it expires
+// so a sign-in page left open does not fail with "Google sign-in expired".
+const CHALLENGE_REFRESH_MS = 9 * 60 * 1000;
+
 const errorMessage = (error: unknown) =>
   (isAxiosError(error) && error.response?.data?.message) ||
   (error instanceof Error ? error.message : 'Google sign-in failed. Please try again.');
@@ -43,6 +47,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     if (!mounted) return;
     let active = true;
     let submitting = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const element = buttonRef.current;
     async function prepare() {
       try {
@@ -60,6 +65,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
           ux_mode: 'popup',
           callback: async ({ credential }) => {
             if (!active || submitting || latest.current.disabled) return;
+            clearTimeout(refreshTimer);
             if (!credential) {
               setError('Google did not return a valid sign-in credential. Please try again.');
               setStatus('error');
@@ -107,7 +113,12 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
           locale: 'en',
           width: Math.max(200, Math.min(element.clientWidth || element.parentElement?.clientWidth || 280, 400)),
         });
-        if (active) setStatus('ready');
+        if (active) {
+          setStatus('ready');
+          refreshTimer = setTimeout(() => {
+            if (active && !submitting) setAttempt(value => value + 1);
+          }, CHALLENGE_REFRESH_MS);
+        }
       } catch (err) {
         if (active) {
           setError(errorMessage(err));
@@ -119,6 +130,7 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
     queueMicrotask(() => { if (active) void prepare(); });
     return () => {
       active = false;
+      clearTimeout(refreshTimer);
       element?.replaceChildren();
       window.google?.accounts?.id?.cancel();
     };
