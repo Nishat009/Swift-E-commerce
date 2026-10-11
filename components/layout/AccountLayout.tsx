@@ -49,7 +49,8 @@ export default function AccountLayout({ children, activeTabName }: AccountLayout
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Orders', path: '/orders', icon: Package },
     { name: 'Wishlist', path: '/wishlist', icon: Heart },
-    { name: 'Addresses', path: '/addresses', icon: MapPin },
+    // Saved addresses hidden for admin accounts for now
+    ...(user?.role === 'admin' ? [] : [{ name: 'Addresses', path: '/addresses', icon: MapPin }]),
     { name: 'Profile', path: '/profile', icon: User },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];

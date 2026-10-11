@@ -17,6 +17,9 @@ import {
 } from '@/types';
 import { productService } from '@/services/productService';
 import { useToast } from '@/context/ToastContext';
+import { selectClass } from '@/components/ui/Select';
+import NumberInput from '@/components/ui/NumberInput';
+import PreviewImage from '@/components/ui/PreviewImage';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
@@ -37,7 +40,6 @@ import {
   DollarSign,
   Package,
   Layers,
-  Truck,
   Globe,
   Tag,
   Sliders,
@@ -812,7 +814,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
           
           {/* SECTION 1: Basic Information */}
           <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <FileText className="w-5 h-5 text-[#8b6f47]" />
                 Basic Information
@@ -923,7 +925,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     setCategory(e.target.value);
                     setSubcategory('');
                   }}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                  className={`${selectClass} w-full`}
                 >
                   <option value="">Select category</option>
                   {category && !categoryOptions.some((o) => o.value === category.toLowerCase()) && (
@@ -1038,7 +1040,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
 
           {/* SECTION 2: Media Management */}
           <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-[#8b6f47]" />
                 Media Gallery
@@ -1090,6 +1092,12 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 </label>
                 <span className="text-[11px] text-text-muted">JPG, PNG, WebP or GIF, max 5 MB each</span>
               </div>
+              {newImageUrl.trim() && (
+                <div className="flex items-center gap-3 pt-1">
+                  <PreviewImage src={newImageUrl.trim()} className="w-20 h-20 rounded-xl object-cover border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900" />
+                  <span className="text-[11px] text-text-muted">Preview. Click &quot;Add Image&quot; to put it in the gallery.</span>
+                </div>
+              )}
               {mediaError && (
                 <p className="text-[11px] text-rose-500 font-medium">{mediaError}</p>
               )}
@@ -1108,7 +1116,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     }`}
                   >
                     <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900">
-                      <img
+                      <PreviewImage
                         src={media.url}
                         alt={media.alt || 'Product'}
                         className="w-full h-full object-cover"
@@ -1119,39 +1127,18 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                           Primary Image
                         </span>
                       )}
-
-                      {/* Action buttons overlay */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        {!media.isPrimary && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetPrimaryMedia(idx)}
-                            className="p-1.5 bg-white dark:bg-gray-900 text-[#8b6f47] rounded-lg text-[10px] font-bold shadow-xs hover:scale-105 transition-transform"
-                            title="Set as primary"
-                          >
-                            Set Primary
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMedia(idx)}
-                          className="p-1.5 bg-rose-600 text-white rounded-lg text-[10px] font-bold shadow-xs hover:scale-105 transition-transform"
-                          title="Delete image"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </div>
 
-                    {/* Reordering Controls */}
-                    <div className="flex items-center justify-between text-[10px] text-text-muted px-1">
-                      <span>#{idx + 1}</span>
+                    {/* Always-visible controls (works on touch too) */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-[10px] text-text-muted px-0.5">
+                      <span className="font-bold">#{idx + 1}</span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           disabled={idx === 0}
                           onClick={() => handleMoveMedia(idx, 'up')}
-                          className="p-1 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                          title="Move earlier"
                         >
                           <MoveUp className="w-3 h-3" />
                         </button>
@@ -1159,12 +1146,31 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                           type="button"
                           disabled={idx === mediaList.length - 1}
                           onClick={() => handleMoveMedia(idx, 'down')}
-                          className="p-1 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                          title="Move later"
                         >
                           <MoveDown className="w-3 h-3" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMedia(idx)}
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                          title="Delete image"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
+                    {!media.isPrimary && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimaryMedia(idx)}
+                        className="w-full h-8 rounded-lg border border-[#8b6f47]/50 text-[#8b6f47] text-[10px] font-bold uppercase tracking-wide whitespace-nowrap hover:bg-[#8b6f47]/10 transition-colors"
+                        title="Set as primary"
+                      >
+                        Set Primary
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1299,7 +1305,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
 
           {/* SECTION 3: Pricing */}
           <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-[#8b6f47]" />
                 Pricing Strategy
@@ -1319,12 +1325,11 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
                     $
                   </span>
-                  <input
-                    type="number"
+                  <NumberInput emptyWhenZero placeholder="0.00"
                     min="0"
                     step="0.01"
                     value={price}
-                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                    onValueChange={(n) => setPrice(n || 0)}
                     className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
                   />
                 </div>
@@ -1339,12 +1344,11 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
                     $
                   </span>
-                  <input
-                    type="number"
+                  <NumberInput emptyWhenZero placeholder="0.00"
                     min="0"
                     step="0.01"
                     value={originalPrice}
-                    onChange={(e) => setOriginalPrice(parseFloat(e.target.value) || 0)}
+                    onValueChange={(n) => setOriginalPrice(n || 0)}
                     className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                   />
                 </div>
@@ -1359,12 +1363,11 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
                     $
                   </span>
-                  <input
-                    type="number"
+                  <NumberInput emptyWhenZero placeholder="0.00"
                     min="0"
                     step="0.01"
                     value={costPrice}
-                    onChange={(e) => setCostPrice(parseFloat(e.target.value) || 0)}
+                    onValueChange={(n) => setCostPrice(n || 0)}
                     className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                   />
                 </div>
@@ -1377,12 +1380,11 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Tax Rate (%)
                 </label>
-                <input
-                  type="number"
+                <NumberInput
                   min="0"
                   max="100"
                   value={taxRate}
-                  onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                  onValueChange={(n) => setTaxRate(n || 0)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                 />
               </div>
@@ -1394,7 +1396,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <select
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${selectClass} w-full`}
                 >
                   <option value="percentage">Percentage (%)</option>
                   <option value="fixed">Fixed Amount ($)</option>
@@ -1408,7 +1410,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                  className={`${selectClass} w-full`}
                 >
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
@@ -1461,7 +1463,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
 
           {/* SECTION 4: Inventory Management */}
           <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <Package className="w-5 h-5 text-[#8b6f47]" />
                 Inventory Control
@@ -1491,11 +1493,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Stock Quantity <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="number"
+                <NumberInput integer
                   min="0"
                   value={stock}
-                  onChange={(e) => setStock(parseInt(e.target.value) || 0)}
+                  onValueChange={(n) => setStock(n || 0)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
                 />
               </div>
@@ -1505,11 +1506,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Reserved Stock
                 </label>
-                <input
-                  type="number"
+                <NumberInput integer
                   min="0"
                   value={reservedStock}
-                  onChange={(e) => setReservedStock(parseInt(e.target.value) || 0)}
+                  onValueChange={(n) => setReservedStock(n || 0)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                 />
               </div>
@@ -1519,11 +1519,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Low Stock Threshold
                 </label>
-                <input
-                  type="number"
+                <NumberInput integer
                   min="1"
                   value={lowStockThreshold}
-                  onChange={(e) => setLowStockThreshold(parseInt(e.target.value) || 10)}
+                  onValueChange={(n) => setLowStockThreshold(n || 10)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                 />
               </div>
@@ -1548,11 +1547,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Min Order Qty
                 </label>
-                <input
-                  type="number"
+                <NumberInput integer
                   min="1"
                   value={minOrderQuantity}
-                  onChange={(e) => setMinOrderQuantity(parseInt(e.target.value) || 1)}
+                  onValueChange={(n) => setMinOrderQuantity(n || 1)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                 />
               </div>
@@ -1561,11 +1559,10 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
                   Max Order Qty
                 </label>
-                <input
-                  type="number"
+                <NumberInput integer
                   min="1"
                   value={maxOrderQuantity}
-                  onChange={(e) => setMaxOrderQuantity(parseInt(e.target.value) || 10)}
+                  onValueChange={(n) => setMaxOrderQuantity(n || 10)}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                 />
               </div>
@@ -1597,7 +1594,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
 
           {/* SECTION 5: Variant Foundation */}
           <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
               <div>
                 <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <Sliders className="w-5 h-5 text-[#8b6f47]" />
@@ -1613,7 +1610,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 variant="outline"
                 size="sm"
                 onClick={handleGenerateVariants}
-                className="rounded-xl flex items-center gap-1.5 border-[#8b6f47] text-[#8b6f47] dark:text-[#c9a96b]"
+                className="rounded-xl flex items-center gap-1.5 whitespace-nowrap shrink-0 border-[#8b6f47] text-[#8b6f47] dark:text-[#c9a96b]"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>Generate Combinations</span>
@@ -1650,18 +1647,16 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                           />
                         </td>
                         <td className="py-2.5 px-3">
-                          <input
-                            type="number"
+                          <NumberInput emptyWhenZero placeholder="0.00"
                             value={comb.price}
-                            onChange={(e) => handleUpdateVariantRow(idx, 'price', parseFloat(e.target.value) || 0)}
+                            onValueChange={(n) => handleUpdateVariantRow(idx, 'price', n || 0)}
                             className="w-20 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
                           />
                         </td>
                         <td className="py-2.5 px-3">
-                          <input
-                            type="number"
+                          <NumberInput integer
                             value={comb.stock}
-                            onChange={(e) => handleUpdateVariantRow(idx, 'stock', parseInt(e.target.value) || 0)}
+                            onValueChange={(n) => handleUpdateVariantRow(idx, 'stock', n || 0)}
                             className="w-20 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
                           />
                         </td>
@@ -1669,7 +1664,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                           <select
                             value={comb.status || 'active'}
                             onChange={(e) => handleUpdateVariantRow(idx, 'status', e.target.value as any)}
-                            className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                            className={`${selectClass} w-full`}
                           >
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -1744,90 +1739,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
             </div>
           </div>
 
-          {/* SECTION 7: Shipping Details */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
-            <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <Truck className="w-5 h-5 text-[#8b6f47]" />
-              Shipping & Logistics
-            </h2>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                  Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={weight}
-                  onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                  Length (cm)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={length}
-                  onChange={(e) => setLength(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                  Width (cm)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={width}
-                  onChange={(e) => setWidth(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                  Height (cm)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={height}
-                  onChange={(e) => setHeight(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 pt-2">
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={freeShipping}
-                  onChange={(e) => setFreeShipping(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                />
-                <span>Free Shipping Available</span>
-              </label>
-
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={expressShipping}
-                  onChange={(e) => setExpressShipping(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                />
-                <span>Express Courier Shipping</span>
-              </label>
-            </div>
-          </div>
+          {/* SECTION 7: Shipping & Logistics - hidden for now (backend keeps its defaults; payload still sends the existing/default values). */}
 
           {/* SECTION 8: SEO Foundation */}
           <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
@@ -1897,7 +1809,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                className={`${selectClass} w-full`}
               >
                 <option value="published">Published</option>
                 <option value="draft">Draft</option>
@@ -1913,7 +1825,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
               <select
                 value={visibility}
                 onChange={(e) => setVisibility(e.target.value as any)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={`${selectClass} w-full`}
               >
                 <option value="public">Public (Catalog)</option>
                 <option value="private">Private (Admin only)</option>
