@@ -13,6 +13,30 @@ const PRICING = {
   maxQuantityPerLine: 50,
 };
 
+// Cash-on-delivery delivery charges by zone. EDIT THESE to change the owner's rates.
+// Amounts are in Bangladeshi Taka; the store prices everything in USD (the base currency), so the
+// charge is converted with BDT_PER_USD (default 120, same as the payment gateway conversion).
+// Override per deployment with COD_FEE_INSIDE_DHAKA_BDT / COD_FEE_OUTSIDE_DHAKA_BDT.
+// The free-shipping rule still applies: a merchandise subtotal of freeShippingMin ($100, about
+// 12,000 Taka) or more ships free in every zone. Card / bKash orders keep the flat shippingFee.
+const envFee = (name, fallback) => (process.env[name] !== undefined && process.env[name] !== '' && Number(process.env[name]) >= 0 ? Number(process.env[name]) : fallback);
+const DELIVERY_ZONES = {
+  inside_dhaka: { label: 'Inside Dhaka', feeBdt: envFee('COD_FEE_INSIDE_DHAKA_BDT', 60) },
+  outside_dhaka: { label: 'Outside Dhaka', feeBdt: envFee('COD_FEE_OUTSIDE_DHAKA_BDT', 120) },
+};
+const bdtPerUsd = () => (Number(process.env.BDT_PER_USD) > 0 ? Number(process.env.BDT_PER_USD) : 120);
+const isDeliveryZone = (zone) => Object.prototype.hasOwnProperty.call(DELIVERY_ZONES, zone);
+
+// Does this address city count as Dhaka? ("Inside Dhaka" is only accepted for Dhaka addresses)
+const isDhakaCity = (city) => /dhaka|ঢাকা/i.test(String(city || ''));
+
+// Shipping charge in USD for a merchandise subtotal, payment method and (COD only) zone
+const shippingFor = (subtotal, paymentMethod, zone) => {
+  if (subtotal >= PRICING.freeShippingMin) return 0;
+  if (paymentMethod === 'cod' && isDeliveryZone(zone)) return Number((DELIVERY_ZONES[zone].feeBdt / bdtPerUsd()).toFixed(2));
+  return PRICING.shippingFee;
+};
+
 class QuoteError extends Error {
   constructor(message, status = 400) {
     super(message);
@@ -26,7 +50,11 @@ const isLive = (p) => p && p.active !== false && p.status === 'published' && p.v
 
 // Server-side price calculation shared by the checkout preview and order creation.
 // Returns order-ready lines (with variant stock targets) and the totals breakdown.
-const quoteOrder = async (products, userId, couponCode) => {
+const quoteOrder = async (products, userId, couponCode, options = {}) => {
+  const paymentMethod = options.paymentMethod || '';
+  if (options.deliveryZone && !isDeliveryZone(options.deliveryZone)) throw new QuoteError('Choose Inside Dhaka or Outside Dhaka for delivery.');
+  // The zone only matters for cash on delivery
+  const deliveryZone = paymentMethod === 'cod' ? options.deliveryZone || '' : '';
   if (!Array.isArray(products) || !products.length) throw new QuoteError('Your cart is empty.');
   if (products.length > 100) throw new QuoteError('Too many items in one order.');
 
@@ -92,7 +120,8 @@ const quoteOrder = async (products, userId, couponCode) => {
   const promoDiscount = subtotal >= PRICING.promoMin ? Math.min(PRICING.promoAmount, Math.max(0, subtotal - couponDiscount)) : 0;
   const discounted = Math.max(0, subtotal - couponDiscount - promoDiscount);
   const tax = round(discounted * PRICING.taxRate);
-  const shipping = subtotal >= PRICING.freeShippingMin ? 0 : PRICING.shippingFee;
+  const shipping = shippingFor(subtotal, paymentMethod, deliveryZone);
+  const deliveryOptions = Object.entries(DELIVERY_ZONES).map(([zone, z]) => ({ zone, label: z.label, charge: shippingFor(subtotal, 'cod', zone) }));
 
   return {
     lines,
@@ -101,6 +130,8 @@ const quoteOrder = async (products, userId, couponCode) => {
     promoDiscount: round(promoDiscount),
     tax,
     shipping,
+    deliveryZone,
+    deliveryOptions,
     total: round(discounted + tax + shipping),
     coupon: couponResult?.coupon.code || '',
     couponDoc: couponResult?.coupon || null,
@@ -115,8 +146,10 @@ const publicQuote = (quote) => ({
   promoDiscount: quote.promoDiscount,
   tax: quote.tax,
   shipping: quote.shipping,
+  deliveryZone: quote.deliveryZone,
+  deliveryOptions: quote.deliveryOptions,
   total: quote.total,
   coupon: quote.coupon,
 });
 
-module.exports = { quoteOrder, publicQuote, QuoteError, PRICING };
+module.exports = { quoteOrder, publicQuote, QuoteError, PRICING, DELIVERY_ZONES, isDeliveryZone, isDhakaCity };

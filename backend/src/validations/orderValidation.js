@@ -1,4 +1,5 @@
 const { body } = require('express-validator');
+const { validateAddress } = require('../utils/address');
 
 const orderRules = [
   body('products')
@@ -13,28 +14,17 @@ const orderRules = [
     .isInt({ min: 1, max: 50 })
     .withMessage('Quantity must be between 1 and 50'),
   body('shippingAddress')
-    .notEmpty()
+    .isObject()
     .withMessage('Shipping address is required'),
-  body('shippingAddress.street')
-    .notEmpty()
-    .withMessage('Street is required')
-    .trim(),
-  body('shippingAddress.city')
-    .notEmpty()
-    .withMessage('City is required')
-    .trim(),
-  body('shippingAddress.state')
-    .notEmpty()
-    .withMessage('State is required')
-    .trim(),
-  body('shippingAddress.zipCode')
-    .notEmpty()
-    .withMessage('Zip code is required')
-    .trim(),
-  body('shippingAddress.country')
-    .notEmpty()
-    .withMessage('Country is required')
-    .trim(),
+  ...['street', 'city', 'state', 'zipCode', 'country'].map((field) =>
+    body(`shippingAddress.${field}`)
+      .custom((value, { req }) => {
+        const message = validateAddress(req.body.shippingAddress)[field];
+        if (message) throw new Error(message);
+        return true;
+      })
+      .trim()
+  ),
   body('paymentMethod')
     .isIn(['cod', 'bkash', 'card'])
     .withMessage('Choose cash on delivery, bKash or card'),
@@ -42,10 +32,25 @@ const orderRules = [
     .optional({ values: 'falsy' })
     .isString()
     .trim()
-    .isLength({ max: 40 })
+    .isLength({ max: 40 }),
+  body('deliveryZone')
+    .optional({ values: 'falsy' })
+    .isIn(['inside_dhaka', 'outside_dhaka'])
+    .withMessage('Choose Inside Dhaka or Outside Dhaka for delivery'),
+  body('deliveryZone')
+    .if(body('paymentMethod').equals('cod'))
+    .notEmpty()
+    .withMessage('Choose Inside Dhaka or Outside Dhaka for cash on delivery')
 ];
 
 const quoteRules = [
+  body('paymentMethod')
+    .optional({ values: 'falsy' })
+    .isIn(['cod', 'bkash', 'card']),
+  body('deliveryZone')
+    .optional({ values: 'falsy' })
+    .isIn(['inside_dhaka', 'outside_dhaka'])
+    .withMessage('Choose Inside Dhaka or Outside Dhaka for delivery'),
   body('products')
     .isArray({ min: 1, max: 100 })
     .withMessage('Your cart is empty'),

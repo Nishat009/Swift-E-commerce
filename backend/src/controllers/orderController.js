@@ -8,9 +8,10 @@ const { logActivity, logAudit } = require('../utils/activityLog');
 const payments = require('../services/paymentService');
 const inventory = require('../services/inventory');
 const { emailOrderEvent, fire: fireEmail } = require('../services/emailService');
-const { quoteOrder, publicQuote, QuoteError } = require('../services/orderQuote');
+const { quoteOrder, publicQuote, QuoteError, isDhakaCity } = require('../services/orderQuote');
+const { isSuperAdmin } = require('../middleware/roleMiddleware');
 const {
-  CUSTOMER_CANCELLABLE, CLOSED, canTransition, closeOrder, expireUnpaidOrders, notifyOrderUser,
+  CUSTOMER_CANCELLABLE, CLOSED, NEEDS_PAYMENT_FIRST, isOnline, canTransition, closeOrder, expireUnpaidOrders, notifyOrderUser,
 } = require('../services/orderLifecycle');
 
 const newOrderNumber = () => `ORD-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -20,7 +21,10 @@ const newOrderNumber = () => `ORD-${Date.now()}-${crypto.randomBytes(3).toString
 // @access  Private
 const getOrderQuote = async (req, res, next) => {
   try {
-    const quote = await quoteOrder(req.body.products, req.user.id, req.body.couponCode);
+    const quote = await quoteOrder(req.body.products, req.user.id, req.body.couponCode, {
+      paymentMethod: req.body.paymentMethod,
+      deliveryZone: req.body.deliveryZone,
+    });
     return sendSuccess(res, 'Order quote calculated', publicQuote(quote));
   } catch (error) {
     if (error instanceof QuoteError) return sendError(res, error.message, error.status);
@@ -32,17 +36,22 @@ const getOrderQuote = async (req, res, next) => {
 // @route   POST /api/orders
 // @access  Private
 const createOrder = async (req, res, next) => {
-  const { products, shippingAddress, paymentMethod, couponCode } = req.body;
+  const { products, shippingAddress, paymentMethod, couponCode, deliveryZone } = req.body;
 
   try {
     if (!payments.isMethodEnabled(paymentMethod)) {
       return sendError(res, 'Selected payment method is not available', 400);
     }
 
-    // 1. Prices, promotions, coupon and stock are all computed server-side
+    // Cash on delivery: the customer must say where it is going, and "Inside Dhaka" needs a Dhaka address
+    if (paymentMethod === 'cod' && deliveryZone === 'inside_dhaka' && !isDhakaCity(shippingAddress?.city)) {
+      return sendError(res, 'Inside Dhaka delivery is only for addresses in Dhaka. Choose Outside Dhaka for this address.', 400);
+    }
+
+    // 1. Prices, promotions, coupon, delivery charge and stock are all computed server-side
     let quote;
     try {
-      quote = await quoteOrder(products, req.user.id, couponCode);
+      quote = await quoteOrder(products, req.user.id, couponCode, { paymentMethod, deliveryZone });
     } catch (err) {
       if (err instanceof QuoteError) return sendError(res, err.message, err.status);
       throw err;
@@ -73,6 +82,7 @@ const createOrder = async (req, res, next) => {
         })),
         subtotal: quote.subtotal,
         shipping: quote.shipping,
+        deliveryZone: quote.deliveryZone,
         tax: quote.tax,
         coupon: appliedCoupon ? appliedCoupon.code : '',
         discount: quote.discount,
@@ -117,6 +127,7 @@ const getMyOrders = async (req, res, next) => {
   try {
     await expireUnpaidOrders();
     const orders = await Order.find({ user: req.user.id })
+      .select('-refund.by')
       .populate('products.product')
       .sort({ createdAt: -1 });
     return sendSuccess(res, 'Orders retrieved successfully', orders);
@@ -141,6 +152,8 @@ const getOrderById = async (req, res, next) => {
       return sendError(res, 'Not authorized to view this order', 403);
     }
 
+    // Customers see the refund amount and date, not which staff member issued it
+    if (req.user.role !== 'admin' && order.refund) order.refund.by = undefined;
     return sendSuccess(res, 'Order retrieved successfully', order);
   } catch (error) {
     next(error);
@@ -175,7 +188,9 @@ const cancelOrder = async (req, res, next) => {
     await notifyOrderUser(cancelled, 'Order cancelled', `Your order ${cancelled.orderNumber} has been cancelled.${refundNote}`);
     if (refundNote) await logActivity(req, 'Refund Needed', `Paid order ${cancelled.orderNumber} was cancelled by the customer and needs a refund`);
     fireEmail(emailOrderEvent(cancelled, 'status'));
-    return sendSuccess(res, 'Order cancelled successfully', cancelled);
+    const result = cancelled.toJSON();
+    if (result.refund) delete result.refund.by;
+    return sendSuccess(res, 'Order cancelled successfully', result);
   } catch (error) {
     next(error);
   }
@@ -185,7 +200,6 @@ const cancelOrder = async (req, res, next) => {
 const allowedPaymentChange = (order, next) => {
   if (next === order.paymentStatus) return null;
   if (next === 'Paid' && order.paymentMethod === 'cod' && !CLOSED.includes(order.orderStatus)) return null;
-  if (next === 'Refunded' && ['Paid', 'Refund Needed'].includes(order.paymentStatus)) return null;
   return `Payment status cannot be changed from ${order.paymentStatus} to ${next} manually.`;
 };
 
@@ -249,6 +263,101 @@ const updateOrderStatus = async (req, res, next) => {
   }
 };
 
+// @desc    Set an order to any status at any stage (super admin only)
+// @route   PUT /api/orders/:id/override-status
+// @access  Private/SuperAdmin
+// Open statuses can be swapped freely. Moving to Cancelled / Returned gives the stock and coupon use
+// back (and flags a paid order 'Refund Needed'). Cancelled / Returned orders cannot be reopened: their
+// stock was already released and may have been sold again, so the customer should place a new order.
+const overrideOrderStatus = async (req, res, next) => {
+  const { status } = req.body;
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id);
+    if (!order) return sendError(res, 'Order not found', 404);
+
+    const validStatuses = Order.schema.path('orderStatus').enumValues;
+    if (!validStatuses.includes(status)) return sendError(res, `Invalid order status. Allowed: ${validStatuses.join(', ')}`, 400);
+    if (status === order.orderStatus) return sendError(res, `The order is already ${status}.`, 400);
+    if (CLOSED.includes(order.orderStatus)) {
+      return sendError(res, `A ${order.orderStatus} order cannot be reopened because its stock was already released. Ask the customer to place a new order.`, 400);
+    }
+    if (NEEDS_PAYMENT_FIRST.includes(status) && isOnline(order) && order.paymentStatus !== 'Paid') {
+      return sendError(res, 'This order has not been paid online yet, so it cannot be packed, shipped or delivered.', 400);
+    }
+
+    const prev = { orderStatus: order.orderStatus, paymentStatus: order.paymentStatus };
+    let updated;
+    if (CLOSED.includes(status)) {
+      updated = await closeOrder(order, status, [order.orderStatus]);
+    } else {
+      const set = { orderStatus: status };
+      if (status === 'Delivered' && order.paymentMethod === 'cod') {
+        set.paymentStatus = 'Paid';
+        if (order.paymentStatus !== 'Paid') set.paidAt = new Date();
+      }
+      updated = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: set }, { new: true });
+    }
+    if (!updated) return sendError(res, 'This order was changed by someone else. Please refresh.', 409);
+
+    const after = { orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus };
+    await logAudit(req, 'Order', updated._id, `Order ${updated.orderNumber} status set by super admin`, prev, after);
+    await logActivity(req, 'Order Status Override', `Order ${updated.orderNumber}: ${prev.orderStatus} -> ${after.orderStatus}, payment ${prev.paymentStatus} -> ${after.paymentStatus}`);
+    const refundNote = after.paymentStatus === 'Refund Needed' && prev.paymentStatus !== 'Refund Needed' ? ' Your payment will be refunded.' : '';
+    await notifyOrderUser(updated, 'Order update', `Your order ${updated.orderNumber} is now: ${updated.orderStatus}.${refundNote}`);
+    fireEmail(emailOrderEvent(updated, 'status'));
+    return sendSuccess(res, 'Order status updated successfully', updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Mark a cancelled / returned paid order as refunded (super admin only)
+// @route   POST /api/orders/:id/refund   body: { note? }
+// @access  Private/SuperAdmin
+// No gateway refund API is wired up (the mock gateway has none, and card / bKash refunds are issued from
+// the Stripe / bKash dashboard), so this records the refund: who, when and how much (the full order total).
+const refundOrder = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id);
+    if (!order) return sendError(res, 'Order not found', 404);
+    if (order.paymentStatus === 'Refunded') return sendError(res, 'This order has already been refunded.', 400);
+    if (!CLOSED.includes(order.orderStatus) || order.paymentStatus !== 'Refund Needed') {
+      return sendError(res, 'Only a cancelled or returned order that was paid and still needs a refund can be refunded.', 400);
+    }
+
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
+    const amount = order.total;
+    const updated = await Order.findOneAndUpdate(
+      { _id: order._id, paymentStatus: 'Refund Needed' },
+      {
+        $set: {
+          paymentStatus: 'Refunded',
+          refund: {
+            amount,
+            at: new Date(),
+            by: req.user._id || req.user.id,
+            byName: req.user.name || '',
+            reference: `${order.paymentGateway || 'manual'}:${order.paymentTransactionId || ''}`,
+            note,
+          },
+        },
+      },
+      { new: true }
+    );
+    if (!updated) return sendError(res, 'This order was already refunded. Please refresh.', 409);
+
+    await logAudit(req, 'Order', updated._id, `Order ${updated.orderNumber} refunded`, { paymentStatus: 'Refund Needed' }, { paymentStatus: 'Refunded', refundAmount: amount });
+    await logActivity(req, 'Order Refunded', `Order ${updated.orderNumber}: refund of $${amount.toFixed(2)} recorded${note ? ` (${note})` : ''}`);
+    await notifyOrderUser(updated, 'Payment refunded', `Your payment of $${amount.toFixed(2)} for order ${updated.orderNumber} has been refunded.`);
+    fireEmail(emailOrderEvent(updated, 'status'));
+    return sendSuccess(res, 'Refund recorded', updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get all orders (Admin)
 // @route   GET /api/admin/orders
 // @access  Private/Admin
@@ -268,8 +377,12 @@ const getAllOrders = async (req, res, next) => {
 
     const total = await Order.countDocuments();
 
+    const refundsNeeded = await Order.countDocuments({ paymentStatus: 'Refund Needed' });
     return sendSuccess(res, 'All orders retrieved successfully', orders, 200, {
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      // Lets the admin screen show the super-admin controls (the server enforces them again)
+      canOverrideStatus: isSuperAdmin(req.user),
+      refundsNeeded,
     });
   } catch (error) {
     next(error);
@@ -283,5 +396,7 @@ module.exports = {
   getOrderById,
   cancelOrder,
   updateOrderStatus,
+  overrideOrderStatus,
+  refundOrder,
   getAllOrders,
 };

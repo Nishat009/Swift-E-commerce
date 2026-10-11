@@ -192,7 +192,7 @@ const itemsTable = (order) => {
 ${summaryRow('Subtotal', money(order.subtotal))}
 ${discountRows}
 ${summaryRow('Tax (10%)', money(order.tax))}
-${summaryRow('Shipping', order.shipping > 0 ? money(order.shipping) : 'Free')}
+${summaryRow(order.deliveryZone ? `Delivery (${order.deliveryZone === 'inside_dhaka' ? 'Inside Dhaka' : 'Outside Dhaka'})` : 'Shipping', order.shipping > 0 ? money(order.shipping) : 'Free')}
 <tr><td colspan="2" style="padding:10px 0;font-family:Georgia,serif;font-size:18px;color:${GOLD};">Total</td><td align="right" style="font-family:Georgia,serif;font-size:18px;color:${GOLD};">${money(order.total)}</td></tr></table>
 <p style="font-size:13px;margin:16px 0 0;color:#7a7168;">Payment: ${esc(String(order.paymentMethod || '').toUpperCase())} (${esc(order.paymentStatus)})</p>
 ${address}`;

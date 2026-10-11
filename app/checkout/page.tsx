@@ -12,9 +12,20 @@ import { useAuth } from '@/context/AuthContext';
 import Loading from '@/components/ui/Loading';
 
 import apiClient from '@/lib/apiClient';
-import { useOrderQuote } from '@/hooks/useOrderQuote';
+import { useOrderQuote, DeliveryZone } from '@/hooks/useOrderQuote';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { validateAddress as checkAddress } from '@/lib/addressValidation';
+import { SITE } from '@/lib/siteConfig';
 
 type Step = 'address' | 'payment' | 'confirmation';
+
+const EMPTY_ADDRESS: Address = {
+  street: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  country: SITE.defaultCountry,
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -35,13 +46,7 @@ export default function CheckoutPage() {
   }, [user, loading, router]);
 
   const [step, setStep] = useState<Step>('address');
-  const [address, setAddress] = useState<Address>({
-    street: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-  });
+  const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [enabledMethods, setEnabledMethods] = useState<{ cod: boolean; bkash: boolean; card: boolean }>({ cod: true, bkash: false, card: false });
 
@@ -60,6 +65,9 @@ export default function CheckoutPage() {
     { id: 'bkash', label: 'bKash', hint: 'Pay with your bKash wallet', enabled: enabledMethods.bkash },
     { id: 'cod', label: 'Cash on Delivery', hint: 'Pay when your order arrives', enabled: true },
   ].filter((o) => o.enabled);
+  // Cash on delivery: where the parcel goes decides the delivery charge (the server prices it)
+  const [deliveryZone, setDeliveryZone] = useState<DeliveryZone | ''>('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState('');
@@ -74,8 +82,15 @@ export default function CheckoutPage() {
       city: addr.city || '',
       state: addr.state || '',
       zipCode: addr.zipCode || '',
-      country: addr.country || '',
+      country: addr.country || SITE.defaultCountry,
     });
+    setErrors({});
+  };
+
+  // "Enter a new address": start from a blank form instead of editing the saved one
+  const startNewAddress = () => {
+    setSelectedSavedId('');
+    setAddress(EMPTY_ADDRESS);
     setErrors({});
   };
 
@@ -133,7 +148,20 @@ export default function CheckoutPage() {
     }
   };
 
-  const { quote, error: quoteError, loading: quoteLoading } = useOrderQuote(items, appliedCoupon?.code);
+  const isCod = paymentMethod === 'cod';
+  const isDhakaAddress = /dhaka|ঢাকা/i.test(address.city);
+  // Pre-select the zone from the address city; the customer can change it ("Inside Dhaka" only for Dhaka)
+  useEffect(() => {
+    if (!isCod) return;
+    setDeliveryZone((zone) => (isDhakaAddress ? zone || 'inside_dhaka' : 'outside_dhaka'));
+  }, [isCod, isDhakaAddress]);
+  const { quote, error: quoteError, loading: quoteLoading } = useOrderQuote(items, appliedCoupon?.code, { paymentMethod, deliveryZone });
+  // Keep the last delivery prices on screen while a new quote is loading
+  const [deliveryOptions, setDeliveryOptions] = useState<NonNullable<typeof quote>['deliveryOptions']>([]);
+  useEffect(() => {
+    if (quote?.deliveryOptions) setDeliveryOptions(quote.deliveryOptions);
+  }, [quote]);
+  const zoneLabel = (zone: string) => (zone === 'inside_dhaka' ? 'Inside Dhaka' : zone === 'outside_dhaka' ? 'Outside Dhaka' : '');
   const subtotal = quote?.subtotal ?? 0;
   const discountAmount = quote?.discount ?? 0;
   const promoDiscount = quote?.promoDiscount ?? 0;
@@ -142,12 +170,7 @@ export default function CheckoutPage() {
   const total = quote?.total ?? 0;
 
   const validateAddress = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    if (!address.street.trim()) newErrors.street = 'Street address is required';
-    if (!address.city.trim()) newErrors.city = 'City is required';
-    if (!address.state.trim()) newErrors.state = 'State is required';
-    if (!address.zipCode.trim()) newErrors.zipCode = 'Zip code is required';
-    if (!address.country.trim()) newErrors.country = 'Country is required';
+    const newErrors: Record<string, string> = { ...checkAddress(address) };
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -157,6 +180,10 @@ export default function CheckoutPage() {
     const newErrors: Record<string, string> = {};
     if (!paymentOptions.some((o) => o.id === paymentMethod)) {
       newErrors.form = 'Please choose an available payment method';
+    } else if (isCod && !deliveryZone) {
+      newErrors.form = 'Please choose Inside Dhaka or Outside Dhaka for delivery';
+    } else if (isCod && deliveryZone === 'inside_dhaka' && !isDhakaAddress) {
+      newErrors.form = 'Inside Dhaka delivery is only for addresses in Dhaka. Choose Outside Dhaka.';
     }
 
     setErrors(newErrors);
@@ -170,14 +197,21 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
+  // "Place order" first asks "Are you sure?"; only Confirm sends the order
+  const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     if (!quote || quoteLoading || quoteError) {
       setErrors({ form: quoteError || 'Please wait while we confirm your order total.' });
       return;
     }
-    if (validatePayment()) {
+    if (validatePayment()) setConfirmOpen(true);
+  };
+
+  const placeOrder = async () => {
+    if (submitting) return;
+    setConfirmOpen(false);
+    if (quote && !quoteLoading && !quoteError && validatePayment()) {
       setSubmitting(true);
       try {
         const response = await apiClient.post('/orders', {
@@ -188,6 +222,7 @@ export default function CheckoutPage() {
           })),
           shippingAddress: address,
           paymentMethod,
+          deliveryZone: isCod ? deliveryZone : undefined,
           couponCode: appliedCoupon?.code || undefined,
         });
 
@@ -220,6 +255,20 @@ export default function CheckoutPage() {
       } catch (err: any) {
         console.error('Checkout error:', err);
         const details = err.response?.data?.errors;
+        // Address problems the server caught: send the shopper back to fix the fields
+        const addressErrors: Record<string, string> = {};
+        if (details && typeof details === 'object') {
+          Object.entries(details).forEach(([key, msg]) => {
+            if (key.startsWith('shippingAddress.') && typeof msg === 'string') {
+              addressErrors[key.slice('shippingAddress.'.length)] = msg;
+            }
+          });
+        }
+        if (Object.keys(addressErrors).length) {
+          setErrors(addressErrors);
+          setStep('address');
+          return;
+        }
         const detailMsg = details && typeof details === 'object'
           ? Object.values(details).filter((v) => typeof v === 'string').join(', ')
           : '';
@@ -368,7 +417,7 @@ export default function CheckoutPage() {
                         onChange={(e) => {
                           const found = savedAddresses.find((a) => String(a._id || a.id) === e.target.value);
                           if (found) applySavedAddress(found);
-                          else setSelectedSavedId('');
+                          else startNewAddress();
                         }}
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       >
@@ -397,7 +446,7 @@ export default function CheckoutPage() {
                       required
                     />
                     <Input
-                      label="State"
+                      label="State / Division"
                       value={address.state}
                       onChange={(e) => setAddress({ ...address, state: e.target.value })}
                       error={errors.state}
@@ -406,7 +455,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Input
-                      label="Zip Code"
+                      label="Postal Code"
                       value={address.zipCode}
                       onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
                       error={errors.zipCode}
@@ -470,6 +519,45 @@ export default function CheckoutPage() {
                         </span>
                       </label>
                     ))}
+                    {isCod && (
+                      <fieldset className="rounded-2xl border border-[#8b6f47]/30 bg-[#8b6f47]/5 p-4 space-y-3">
+                        <legend className="px-1 text-sm font-bold text-gray-900 dark:text-white">Where should we deliver?</legend>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Cash on delivery: the delivery charge depends on your location. Please choose one.
+                        </p>
+                        {([['inside_dhaka', 'Inside Dhaka'], ['outside_dhaka', 'Outside Dhaka']] as [DeliveryZone, string][]).map(([zone, label]) => {
+                          const option = deliveryOptions?.find((d) => d.zone === zone);
+                          const disabled = zone === 'inside_dhaka' && !isDhakaAddress;
+                          return (
+                            <label
+                              key={zone}
+                              className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                                disabled ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700' : 'cursor-pointer'
+                              } ${deliveryZone === zone ? 'border-[#8b6f47] bg-white dark:bg-gray-900' : 'border-gray-200 dark:border-gray-700'}`}
+                            >
+                              <input
+                                type="radio"
+                                name="deliveryZone"
+                                value={zone}
+                                checked={deliveryZone === zone}
+                                disabled={disabled}
+                                onChange={() => setDeliveryZone(zone)}
+                                className="accent-[#8b6f47]"
+                              />
+                              <span className="flex-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                {label}
+                                {disabled && <span className="block text-[11px] font-normal text-gray-500">Only for addresses in Dhaka</span>}
+                              </span>
+                              {option && (
+                                <span className="font-mono text-sm font-bold text-[#8b6f47] dark:text-[#c9a96b]">
+                                  {option.charge === 0 ? 'Free' : formatPrice(option.charge)}
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </fieldset>
+                    )}
                     {paymentMethod !== 'cod' && (
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         You will be redirected to a secure payment page to complete your payment.
@@ -535,7 +623,7 @@ export default function CheckoutPage() {
                   <span className="font-mono font-medium">{formatPrice(tax)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-400 text-sm">
-                  <span>Shipping</span>
+                  <span>{isCod && deliveryZone ? `Delivery (${zoneLabel(deliveryZone)})` : 'Shipping'}</span>
                   <span className="font-mono font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
                 </div>
                 {/* Promo Code Input */}
@@ -572,6 +660,32 @@ export default function CheckoutPage() {
           </div>
         </div>
       )}
+      <ConfirmationModal
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={placeOrder}
+        title="Are you sure you want to place this order?"
+        message={
+          <dl className="text-left space-y-2 text-xs">
+            <div className="flex justify-between gap-4"><dt className="text-gray-500">Total</dt><dd className="font-mono font-bold text-gray-900 dark:text-white">{formatPrice(total)}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-gray-500">Payment</dt><dd className="font-semibold text-gray-900 dark:text-white text-right">{paymentOptions.find((o) => o.id === paymentMethod)?.label}</dd></div>
+            {isCod && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">Delivery</dt>
+                <dd className="font-semibold text-gray-900 dark:text-white text-right">{zoneLabel(deliveryZone)}: {shipping === 0 ? 'Free' : formatPrice(shipping)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500">Deliver to</dt>
+              <dd className="font-semibold text-gray-900 dark:text-white text-right">{address.street}, {address.city}, {address.state} {address.zipCode}, {address.country}</dd>
+            </div>
+          </dl>
+        }
+        confirmText="Yes, place order"
+        cancelText="Go back"
+        variant="primary"
+        isLoading={submitting}
+      />
     </div>
   );
 }

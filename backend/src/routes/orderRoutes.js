@@ -7,10 +7,12 @@ const {
   getOrderById,
   cancelOrder,
   updateOrderStatus,
+  overrideOrderStatus,
+  refundOrder,
   getAllOrders
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
-const { authorize } = require('../middleware/roleMiddleware');
+const { authorize, requireSuperAdmin } = require('../middleware/roleMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
 const { orderRules, quoteRules } = require('../validations/orderValidation');
 
@@ -25,5 +27,8 @@ router.put('/:id/cancel', cancelOrder);
 
 // Admin routes
 router.put('/:id/status', authorize('admin'), updateOrderStatus);
+// Super admin only: set any status at any stage, and refund a cancelled / returned paid order
+router.put('/:id/override-status', authorize('admin'), requireSuperAdmin, overrideOrderStatus);
+router.post('/:id/refund', authorize('admin'), requireSuperAdmin, refundOrder);
 
 module.exports = router;
