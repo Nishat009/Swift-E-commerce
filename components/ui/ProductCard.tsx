@@ -18,6 +18,9 @@ import HighlightText from './HighlightText';
 import { ShoppingBag, Heart, Star, Eye, Scale, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Uploaded/local images are served by the API host; skip the Next optimizer for them
+const isLocalImage = (src?: string) => !!src && /^(https?:\/\/(localhost|127\.0\.0\.1)|\/uploads)/.test(src);
+
 interface ProductCardProps {
   product: Product;
   viewMode?: 'grid' | 'list';
@@ -138,6 +141,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         <Link href={`/product/${product.id}`} className="relative w-full sm:w-48 h-56 sm:h-48 rounded-xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-950 flex-shrink-0">
           <Image
             src={mainImage}
+            unoptimized={isLocalImage(mainImage)}
             alt={product.title}
             fill
             className="object-cover object-top group-hover:scale-105 transition-transform duration-700 ease-out"
@@ -226,6 +230,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         <Link href={`/product/${product.id}`} className="absolute inset-0 block w-full h-full cursor-pointer z-0">
           <Image
             src={displayImage}
+            unoptimized={isLocalImage(displayImage)}
             alt={product.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -239,9 +244,9 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 via-45% to-transparent pointer-events-none z-10 transition-opacity duration-300" />
 
         {/* 3. Top Badges & Actions Strip */}
-        <div className="relative z-20 flex items-start justify-between gap-2 p-4 sm:p-5 pointer-events-none">
+        <div className="relative z-20 flex flex-wrap items-start justify-between gap-x-2 gap-y-2 p-4 sm:p-5 pointer-events-none">
           {/* Top Left: Discount / Drop Pill */}
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {product.discountPercentage > 0 ? (
               <span className="inline-block whitespace-nowrap text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] px-3.5 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md backdrop-blur-xs">
                 -{product.discountPercentage}% OFF
@@ -259,8 +264,8 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
           </div>
 
           {/* Top Right: Tag & Glass Action Cluster */}
-          <div className="flex min-w-0 items-center gap-1.5 pointer-events-auto">
-            <span className="hidden min-w-0 max-w-20 truncate whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.08em] text-white/95 bg-[#3a3a3a]/80 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/15 shadow-md min-[360px]:inline-block sm:max-w-24 lg:max-w-28">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 pointer-events-auto">
+            <span className="inline-block max-w-[9rem] truncate whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[0.08em] text-white/95 bg-[#3a3a3a]/80 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-white/15 shadow-md">
               {product.category.toUpperCase()}
             </span>
 
@@ -367,11 +372,11 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
           </div>
 
           {/* Shopping actions remain available on touch and keyboard. */}
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-1.5 pt-3">
+          <div className="flex flex-wrap items-center gap-1.5 pt-3">
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}
-              className="min-w-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wide bg-[#8b6f47] hover:bg-[#725a38] disabled:opacity-50 text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
+              className="flex-1 basis-[6.5rem] min-w-0 text-[10px] font-bold uppercase tracking-wide bg-[#8b6f47] hover:bg-[#725a38] disabled:opacity-50 text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
               <span className="whitespace-nowrap">{product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}</span>
@@ -380,9 +385,9 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
             <Link
               href={`/dressing-room?product=${product.id}&category=${product.category || 'all'}`}
               onClick={(e) => e.stopPropagation()}
-              className="min-w-0"
+              className="flex-1 basis-[6.5rem] min-w-0"
             >
-              <span className="w-full min-w-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-normal sm:tracking-wide bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
+              <span className="w-full min-w-0 text-[10px] font-bold uppercase tracking-wide bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
                 <Sparkles className="w-3.5 h-3.5 text-[#dfb76c] shrink-0" /> <span className="whitespace-nowrap">3D Try On</span>
               </span>
             </Link>
@@ -415,6 +420,7 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
             <div className="md:col-span-6 relative aspect-[3/4] min-h-[380px] sm:min-h-[480px] rounded-2xl overflow-hidden bg-[#F6F5F3] dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-sm">
               <Image
                 src={displayImage || mainImage}
+                unoptimized={isLocalImage(displayImage || mainImage)}
                 alt={product.title}
                 fill
                 className="object-cover object-top"
