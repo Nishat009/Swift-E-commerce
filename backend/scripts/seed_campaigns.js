@@ -70,8 +70,7 @@ const seedCampaigns = async () => {
         ticketsSold: 50,
         status: 'completed',
         winnerUser: testUser._id,
-        winnerTicket: 'SWIFT-TKT-MALD-391',
-        winnerVideoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4'
+        winnerTicket: 'SWIFT-TKT-MALD-391'
       }
     ];
 
