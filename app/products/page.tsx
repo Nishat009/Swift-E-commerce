@@ -8,7 +8,7 @@ import { fetchProducts } from '@/lib/api';
 import apiClient from '@/lib/apiClient';
 import { Product } from '@/types';
 import { useCatalog } from '@/hooks/useCatalog';
-import { normalizeProduct } from '@/utils/productUtils';
+import { normalizeProduct, matchesBadge, getProductSizes, getProductColors, BADGE_FILTERS } from '@/utils/productUtils';
 import { LoadingSkeleton } from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
 import { Grid, List, ChevronLeft, ChevronRight, SlidersHorizontal, X, Search, RotateCcw, Filter, Check, Tag } from 'lucide-react';
@@ -16,6 +16,10 @@ import { debounce } from '@/utils/debounce';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type SortOption = 'default' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
+
+const SIZE_FILTERS = ['XS', 'S', 'M', 'L', 'XL'];
+// Shown even before the catalog loads; colours found in the data are added after these
+const BASE_COLOR_FILTERS = ['Cream', 'Black', 'White', 'Beige', 'Blue', 'Grey', 'Brown', 'Green'];
 
 const getLevenshteinDistance = (a: string, b: string): number => {
   const tmp: number[][] = [];
@@ -348,32 +352,22 @@ function ProductsPageContent() {
         brandsMap[product.brand] = (brandsMap[product.brand] || 0) + 1;
       }
 
-      // Tags count
-      if (product.tags) {
-        product.tags.forEach((tag) => {
-          tagsMap[tag] = (tagsMap[tag] || 0) + 1;
-        });
-      }
-
-      // Color facet count
-      const colorVal = product.specifications?.ColorName || product.specifications?.Color || 'Default';
-      ['Cream', 'Black', 'White', 'Beige', 'Blue', 'Grey', 'Brown', 'Green'].forEach((c) => {
-        const matchesSpec = colorVal.toLowerCase().includes(c.toLowerCase());
-        const matchesVariant = product.variants?.some((v) =>
-          v.options.some((opt) => opt.value.toLowerCase().includes(c.toLowerCase()))
-        );
-        if (matchesSpec || matchesVariant) {
-          colorsMap[c] = (colorsMap[c] || 0) + 1;
+      // Badge count (same rules the API filters with: Sale = discounted, etc.)
+      BADGE_FILTERS.forEach((badge) => {
+        if (matchesBadge(product, badge)) {
+          tagsMap[badge] = (tagsMap[badge] || 0) + 1;
         }
       });
 
+      // Color facet count
+      getProductColors(product).forEach((c) => {
+        colorsMap[c] = (colorsMap[c] || 0) + 1;
+      });
+
       // Size facet count
-      ['XS', 'S', 'M', 'L', 'XL'].forEach((s) => {
-        const matchesSpec = (product.specifications?.Sizes || '').toUpperCase().includes(s);
-        const matchesVariant = product.variants?.some((v) =>
-          v.options.some((opt) => opt.value.toUpperCase() === s)
-        );
-        if (matchesSpec || matchesVariant) {
+      const sizes = getProductSizes(product);
+      SIZE_FILTERS.forEach((s) => {
+        if (sizes.includes(s)) {
           sizesMap[s] = (sizesMap[s] || 0) + 1;
         }
       });
@@ -387,6 +381,11 @@ function ProductsPageContent() {
       brands: brandsMap,
     };
   }, [allCatalogProducts]);
+
+  const colorFilters = useMemo(
+    () => [...BASE_COLOR_FILTERS, ...Object.keys(facetCounts.colors).filter((c) => !BASE_COLOR_FILTERS.includes(c)).sort()],
+    [facetCounts.colors]
+  );
 
   // Active filters counter
   const activeFiltersCount = useMemo(() => {
@@ -551,7 +550,7 @@ function ProductsPageContent() {
           <span>Product Badges & Tags</span>
         </h3>
         <div className="flex flex-wrap gap-1.5">
-          {['Bestseller', 'New', 'Low Stock', 'Sale', 'Featured'].map((tag) => {
+          {BADGE_FILTERS.map((tag) => {
             const isChecked = selectedTags.includes(tag);
             const count = facetCounts.tags[tag] || 0;
             return (
@@ -582,7 +581,7 @@ function ProductsPageContent() {
           Colors & Swatches
         </h3>
         <div className="grid grid-cols-2 gap-2">
-          {['Cream', 'Black', 'White', 'Beige', 'Blue', 'Grey', 'Brown', 'Green'].map((color) => {
+          {colorFilters.map((color) => {
             const isChecked = selectedColors.includes(color);
             const count = facetCounts.colors[color] || 0;
             return (
@@ -612,7 +611,7 @@ function ProductsPageContent() {
           Sizes
         </h3>
         <div className="flex flex-wrap gap-2">
-          {['XS', 'S', 'M', 'L', 'XL'].map((size) => {
+          {SIZE_FILTERS.map((size) => {
             const isChecked = selectedSizes.includes(size);
             const count = facetCounts.sizes[size] || 0;
             return (

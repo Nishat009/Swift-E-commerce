@@ -9,6 +9,7 @@ const Category = require('../src/models/Category');
 const Coupon = require('../src/models/Coupon');
 const Review = require('../src/models/Review');
 const fashionProductsData = require('./fashionProductsData');
+const { deriveFilterSpecs } = require('./filterMetadata');
 
 const categoriesData = [
   { name: 'Top', slug: 'top', image: '/images/categories/top.jpg', featured: true },
@@ -460,9 +461,9 @@ const curatedProducts = [
     shortDescription: 'White marble cutting and serving board with leather strap.',
     category: 'kitchen', brand: 'MarbleHome', price: 59,
     stock: 60, rating: 4.5, featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1594794112455-6e3e57f2a15f?w=400&h=400&fit=crop',
+    thumbnail: '/images/products/marble-cutting-board.jpg',
     images: [
-      'https://images.unsplash.com/photo-1594794112455-6e3e57f2a15f?w=800&h=800&fit=crop',
+      '/images/products/marble-cutting-board.jpg',
     ],
     tags: ['kitchen', 'cutting-board', 'marble', 'serving'],
   },
@@ -730,6 +731,7 @@ const seed = async () => {
         'Origin': 'Imported',
         ...(p.specifications || {})
       };
+      Object.assign(specs, deriveFilterSpecs({ title: p.title, category: p.category, specifications: specs }));
       return {
         ...p,
         SKU: `SC-${p.category.toUpperCase().slice(0, 3)}-${1000 + i}`,
