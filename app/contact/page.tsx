@@ -51,7 +51,11 @@ export default function ContactPage() {
     { icon: Phone, label: 'Phone', value: SITE.phone, href: `tel:${SITE.phone.replace(/[^+\d]/g, '')}` },
     { icon: MapPin, label: 'Address', value: SITE.address },
     { icon: Clock, label: 'Support hours', value: SITE.hours },
-  ];
+  ].filter((d) => d.value); // only details the shop owner has configured
+  const socials = [
+    { href: SITE.social.facebook, label: 'Facebook', icon: Facebook },
+    { href: SITE.social.instagram, label: 'Instagram', icon: Instagram },
+  ].filter((s) => s.href);
 
   return (
     <InfoPage
@@ -138,14 +142,18 @@ export default function ContactPage() {
               );
             })}
           </ul>
-          <div className="flex items-center gap-3 pt-2">
-            <a href={SITE.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="p-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:text-[#8b6f47] dark:hover:text-[#c9a96b]">
-              <Facebook className="w-4 h-4" />
-            </a>
-            <a href={SITE.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:text-[#8b6f47] dark:hover:text-[#c9a96b]">
-              <Instagram className="w-4 h-4" />
-            </a>
-          </div>
+          {socials.length > 0 && (
+            <div className="flex items-center gap-3 pt-2">
+              {socials.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label} className="p-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:text-[#8b6f47] dark:hover:text-[#c9a96b]">
+                    <Icon className="w-4 h-4" />
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </InfoCard>
       </div>
     </InfoPage>

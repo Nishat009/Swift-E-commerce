@@ -84,7 +84,13 @@ export default function PrivacyPage() {
 
         <InfoCard title="Contact">
           <p>
-            Privacy questions or requests: <a href={`mailto:${SITE.supportEmail}`} className={link}>{SITE.supportEmail}</a> or our{' '}
+            Privacy questions or requests:{' '}
+            {SITE.supportEmail && (
+              <>
+                <a href={`mailto:${SITE.supportEmail}`} className={link}>{SITE.supportEmail}</a> or{' '}
+              </>
+            )}
+            our{' '}
             <Link href="/contact" className={link}>contact form</Link>. We may update this policy; the date above shows the latest
             revision. Our <Link href="/terms" className={link}>Terms &amp; Conditions</Link> also apply.
           </p>

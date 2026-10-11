@@ -91,8 +91,15 @@ export default function TermsPage() {
 
         <InfoCard title="10. Contact">
           <p>
-            Questions about these terms? Email <a href={`mailto:${SITE.supportEmail}`} className={link}>{SITE.supportEmail}</a>{' '}
-            or use our <Link href="/contact" className={link}>contact form</Link>. See also our{' '}
+            Questions about these terms?{' '}
+            {SITE.supportEmail ? (
+              <>
+                Email <a href={`mailto:${SITE.supportEmail}`} className={link}>{SITE.supportEmail}</a> or use our{' '}
+              </>
+            ) : (
+              <>Use our </>
+            )}
+            <Link href="/contact" className={link}>contact form</Link>. See also our{' '}
             <Link href="/privacy" className={link}>Privacy Policy</Link>.
           </p>
         </InfoCard>
