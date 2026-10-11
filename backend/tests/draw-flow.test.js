@@ -2,9 +2,9 @@
 // End-to-end check of the lucky-draw flow using the MOCK payment gateway.
 // Runs against a throwaway database (swiftcart_test), never your real data.
 //   node --test tests/draw-flow.test.js
+// The API listens on a free port picked by the OS, so a busy port can never block or hang the run.
 process.env.NODE_ENV = 'test';
 process.env.PAYMENT_MOCK = 'true';
-process.env.BACKEND_URL = 'http://localhost:5055';
 process.env.FRONTEND_URL = 'http://localhost:3001';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_at_least_32_characters_long';
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test_refresh_secret_at_least_32_characters';
@@ -14,11 +14,38 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 
 const TEST_URI = process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/swiftcart_test';
-const BASE = 'http://localhost:5055';
+const HOOK_TIMEOUT = 30000;
+let BASE; // set once the server is listening
 
 let server;
 const users = {};
 const tokens = {};
+
+// Resolve with the listening server, or reject on any server error (never wait forever)
+const listen = (app) => new Promise((resolve, reject) => {
+  const srv = app.listen(0, '127.0.0.1');
+  const onError = (err) => reject(err);
+  srv.once('error', onError);
+  srv.once('listening', () => {
+    srv.off('error', onError);
+    resolve(srv);
+  });
+});
+
+const stopServer = async () => {
+  if (!server || !server.listening) return;
+  server.closeAllConnections?.();
+  await new Promise((resolve) => server.close(() => resolve()));
+};
+
+const closeDatabase = async () => {
+  if (mongoose.connection.readyState === 1) {
+    // Let background index builds finish first, or they re-create collections after the drop
+    await Promise.all(Object.values(mongoose.connection.models).map((model) => model.init().catch(() => {})));
+    await mongoose.connection.dropDatabase();
+  }
+  await mongoose.disconnect();
+};
 
 const api = async (method, path, token, body) => {
   const res = await fetch(`${BASE}${path}`, {
@@ -43,23 +70,34 @@ const completeMockPayment = async (redirectUrl, outcome) => {
 };
 
 test.before(async () => {
-  await mongoose.connect(TEST_URI);
-  await mongoose.connection.dropDatabase();
-  const User = require('../src/models/User');
-  const { generateAccessToken } = require('../src/utils/generateTokens');
-  for (const [key, role] of [['admin', 'admin'], ['alice', 'customer'], ['bob', 'customer']]) {
-    users[key] = await User.create({ name: key, email: `${key}@test.dev`, password: 'Password123!', role });
-    tokens[key] = generateAccessToken(users[key]);
+  try {
+    await mongoose.connect(TEST_URI, { serverSelectionTimeoutMS: 10000 });
+    await mongoose.connection.dropDatabase();
+    const User = require('../src/models/User');
+    const { generateAccessToken } = require('../src/utils/generateTokens');
+    for (const [key, role] of [['admin', 'admin'], ['alice', 'customer'], ['bob', 'customer']]) {
+      users[key] = await User.create({ name: key, email: `${key}@test.dev`, password: 'Password123!', role });
+      tokens[key] = generateAccessToken(users[key]);
+    }
+    const app = require('../src/app');
+    server = await listen(app);
+    BASE = `http://127.0.0.1:${server.address().port}`;
+    process.env.BACKEND_URL = BASE; // mock gateway redirect links point back at this server
+  } catch (err) {
+    // Release everything here too, so a failed start ends the run instead of keeping it open
+    await stopServer().catch(() => {});
+    await mongoose.disconnect().catch(() => {});
+    throw err;
   }
-  const app = require('../src/app');
-  await new Promise((resolve) => { server = app.listen(5055, resolve); });
-});
+}, { timeout: HOOK_TIMEOUT });
 
 test.after(async () => {
-  await new Promise((resolve) => server.close(resolve));
-  await mongoose.connection.dropDatabase();
-  await mongoose.disconnect();
-});
+  try {
+    await stopServer();
+  } finally {
+    await closeDatabase();
+  }
+}, { timeout: HOOK_TIMEOUT });
 
 const makeCampaign = async (overrides = {}) => {
   const r = await api('POST', '/api/campaigns/admin/create', tokens.admin, {
@@ -217,8 +255,8 @@ test('coupon: minimum spend, usage limit, per-user limit and release on cancel',
   });
   assert.ok([200, 201].includes(mk.status), JSON.stringify(mk.json));
 
-  const address = { street: 's', city: 'c', state: 'st', zipCode: '1', country: 'BD' };
-  const place = (who, items, couponCode) => api('POST', '/api/orders', tokens[who], { products: items, shippingAddress: address, paymentMethod: 'cod', couponCode });
+  const address = { street: '12 Test Road', city: 'Dhaka', state: 'Dhaka', zipCode: '1200', country: 'Bangladesh' };
+  const place = (who, items, couponCode) => api('POST', '/api/orders', tokens[who], { products: items, shippingAddress: address, paymentMethod: 'cod', deliveryZone: 'inside_dhaka', couponCode });
 
   // below min spend ($100 < $150)
   const low = await place('alice', [{ product: p.id, quantity: 1 }], 'SAVE10');

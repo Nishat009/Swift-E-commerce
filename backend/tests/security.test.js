@@ -1,6 +1,7 @@
 // Phase 1 hardening: login lockout, OTP input validation, product/campaign visibility, real status codes.
 // Runs against a throwaway database, never your real data.
 //   node --test tests/security.test.js
+// The API listens on a free port picked by the OS, so a busy port can never block or hang the run.
 process.env.NODE_ENV = 'test';
 process.env.FRONTEND_URL = 'http://localhost:3001';
 process.env.PAYMENT_MOCK = 'true';
@@ -12,9 +13,36 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 
 const TEST_URI = process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/swiftcart_security_test';
-const BASE = 'http://localhost:5056';
-
+const HOOK_TIMEOUT = 30000;
+let BASE; // set once the server is listening
 let server;
+
+// Resolve with the listening server, or reject on any server error (never wait forever)
+const listen = (app) => new Promise((resolve, reject) => {
+  const srv = app.listen(0, '127.0.0.1');
+  const onError = (err) => reject(err);
+  srv.once('error', onError);
+  srv.once('listening', () => {
+    srv.off('error', onError);
+    resolve(srv);
+  });
+});
+
+const stopServer = async () => {
+  if (!server || !server.listening) return;
+  server.closeAllConnections?.();
+  await new Promise((resolve) => server.close(() => resolve()));
+};
+
+const closeDatabase = async () => {
+  if (mongoose.connection.readyState === 1) {
+    // Let background index builds finish first, or they re-create collections after the drop
+    await Promise.all(Object.values(mongoose.connection.models).map((model) => model.init().catch(() => {})));
+    await mongoose.connection.dropDatabase();
+  }
+  await mongoose.disconnect();
+};
+
 const tokens = {};
 const products = {};
 
@@ -33,27 +61,37 @@ const productFields = (title, extra) => ({
 });
 
 test.before(async () => {
-  await mongoose.connect(TEST_URI);
-  await mongoose.connection.dropDatabase();
-  const User = require('../src/models/User');
-  const Product = require('../src/models/Product');
-  const { generateAccessToken } = require('../src/utils/generateTokens');
-  for (const [key, role] of [['admin', 'admin'], ['alice', 'customer']]) {
-    const user = await User.create({ name: key, email: `${key}@test.dev`, password: 'Password123!', role });
-    tokens[key] = generateAccessToken(user);
+  try {
+    await mongoose.connect(TEST_URI, { serverSelectionTimeoutMS: 10000 });
+    await mongoose.connection.dropDatabase();
+    const User = require('../src/models/User');
+    const Product = require('../src/models/Product');
+    const { generateAccessToken } = require('../src/utils/generateTokens');
+    for (const [key, role] of [['admin', 'admin'], ['alice', 'customer']]) {
+      const user = await User.create({ name: key, email: `${key}@test.dev`, password: 'Password123!', role });
+      tokens[key] = generateAccessToken(user);
+    }
+    products.live = await Product.create(productFields('Live Tee'));
+    products.draft = await Product.create(productFields('Draft Tee', { status: 'draft' }));
+    products.hidden = await Product.create(productFields('Hidden Tee', { visibility: 'private' }));
+    const app = require('../src/app');
+    server = await listen(app);
+    BASE = `http://127.0.0.1:${server.address().port}`;
+  } catch (err) {
+    // Release everything here too, so a failed start ends the run instead of keeping it open
+    await stopServer().catch(() => {});
+    await mongoose.disconnect().catch(() => {});
+    throw err;
   }
-  products.live = await Product.create(productFields('Live Tee'));
-  products.draft = await Product.create(productFields('Draft Tee', { status: 'draft' }));
-  products.hidden = await Product.create(productFields('Hidden Tee', { visibility: 'private' }));
-  const app = require('../src/app');
-  await new Promise((resolve) => { server = app.listen(5056, resolve); });
-});
+}, { timeout: HOOK_TIMEOUT });
 
 test.after(async () => {
-  await new Promise((resolve) => server.close(resolve));
-  await mongoose.connection.dropDatabase();
-  await mongoose.disconnect();
-});
+  try {
+    await stopServer();
+  } finally {
+    await closeDatabase();
+  }
+}, { timeout: HOOK_TIMEOUT });
 
 test('errors use real HTTP status codes', async () => {
   assert.equal((await api('GET', '/api/auth/profile')).status, 401);
