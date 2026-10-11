@@ -239,7 +239,7 @@ export default function FloatingAIStylist() {
                             <Image src={p.images?.[0] || p.thumbnail || p.image || '/placeholder-fashion.jpg'} alt={p.title} fill className="object-cover" />
                           </div>
                           <p className="font-bold text-[10px] line-clamp-1 text-gray-900 dark:text-white">{p.title}</p>
-                          <p className="text-[10px] font-extrabold text-amber-600">${p.price.toFixed(2)}</p>
+                          <p className="text-[10px] font-extrabold text-amber-600">${(p.price * (1 - (p.discountPercentage || 0) / 100)).toFixed(2)}</p>
                           <div className="flex gap-1 mt-1">
                             <button
                               onClick={() => addItem(p, 1)}

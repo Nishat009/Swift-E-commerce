@@ -134,7 +134,7 @@ export default function ChatAssistant() {
                           </div>
                           <span className="truncate max-w-[120px]">{item.title}</span>
                         </div>
-                        <span className="text-[10px] text-gray-400 shrink-0 mr-1">${item.price}</span>
+                        <span className="text-[10px] text-gray-400 shrink-0 mr-1">${(item.price * (1 - (item.discountPercentage || 0) / 100)).toFixed(2)}</span>
                       </div>
                     );
                   })}
