@@ -81,10 +81,13 @@ const availableFor = (product, variant) => {
   return optionStock === null ? product.stock : Math.min(product.stock, optionStock);
 };
 
+const POPULATE = ['products.product', 'savedForLater.product'];
+
 const recalculate = async (cart) => {
-  await cart.populate('products.product');
+  await cart.populate(POPULATE);
   // Drop lines whose product was deleted
   cart.products = cart.products.filter((item) => item.product);
+  cart.savedForLater = cart.savedForLater.filter((item) => item.product);
   const subtotal = cart.products.reduce((sum, item) => sum + unitPrice(item.product, item.variant).price * item.quantity, 0);
   cart.subtotal = Number(subtotal.toFixed(2));
 };
@@ -97,9 +100,9 @@ const mutateCart = async (userId, change) => {
     if (problem) return { problem };
     await recalculate(cart);
     try {
-      cart.depopulate('products.product');
+      POPULATE.forEach((p) => cart.depopulate(p));
       await cart.save();
-      await cart.populate('products.product');
+      await cart.populate(POPULATE);
       return { cart };
     } catch (err) {
       const retryable = err.name === 'VersionError' || err.code === 11000;
@@ -117,7 +120,7 @@ const respond = (res, message, result) => (result.problem
 // @access  Private
 const getCart = async (req, res, next) => {
   try {
-    let cart = await Cart.findOne({ user: req.user.id }).populate('products.product');
+    let cart = await Cart.findOne({ user: req.user.id }).populate(POPULATE);
     if (!cart) {
       cart = await Cart.findOneAndUpdate(
         { user: req.user.id },
@@ -264,6 +267,126 @@ const removeFromCart = async (req, res, next) => {
   }
 };
 
+const savedLine = (cart, productId, variantId) =>
+  cart.savedForLater.find((item) => sameLine(item, productId, variantId));
+
+// @desc    Move a cart line to "saved for later" (or save a product that is not in the cart)
+// @route   POST /api/cart/saved   body: { productId, variantId?, quantity?, variant? }
+// @access  Private
+const saveForLater = async (req, res, next) => {
+  try {
+    const product = await findProductFlexible(req.body.productId);
+    if (!product) return sendError(res, 'Product not found', 404);
+    const bodyVariant = req.body.variant && typeof req.body.variant === 'object' ? req.body.variant : null;
+    const variantId = String(req.body.variantId ?? variantIdOf(bodyVariant));
+
+    const result = await mutateCart(req.user.id, (cart) => {
+      const pid = product._id.toString();
+      const line = cart.products.find((item) => sameLine(item, pid, variantId));
+      const quantity = line ? line.quantity : parseQuantity(req.body.quantity ?? 1);
+      if (!quantity) return { message: `Quantity must be a whole number between 1 and ${MAX_LINE_QTY}.` };
+      const variant = line
+        ? line.toObject().variant
+        : (bodyVariant ? { ...normalizeVariant(product, bodyVariant), id: variantId } : { id: variantId });
+      if (line) cart.products = cart.products.filter((item) => item !== line);
+
+      const existing = savedLine(cart, pid, variantId);
+      if (existing) {
+        existing.quantity = Math.min(MAX_LINE_QTY, existing.quantity + quantity);
+        existing.savedAt = new Date();
+      } else {
+        cart.savedForLater.push({ product: product._id, quantity, variant });
+      }
+      return null;
+    });
+    return respond(res, 'Saved for later', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Move a saved item back into the cart (stock is checked like a normal add)
+// @route   POST /api/cart/saved/:productId/move   body: { variantId? }
+// @access  Private
+const moveSavedToCart = async (req, res, next) => {
+  try {
+    const variantId = String(req.body.variantId || req.query.variantId || '');
+    const product = await findProductFlexible(req.params.productId);
+    if (!product) return sendError(res, 'This product is no longer available', 404);
+
+    const result = await mutateCart(req.user.id, (cart) => {
+      const saved = savedLine(cart, product._id.toString(), variantId);
+      if (!saved) return { message: 'Item not found in your saved list', status: 404 };
+      const problem = addLine(cart, product, saved.toObject().variant, saved.quantity);
+      if (problem) return problem;
+      cart.savedForLater = cart.savedForLater.filter((item) => item !== saved);
+      return null;
+    });
+    return respond(res, 'Moved to cart', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Remove a saved item (one variant when variantId is given)
+// @route   DELETE /api/cart/saved/:productId
+// @access  Private
+const removeSaved = async (req, res, next) => {
+  const productId = String(req.params.productId);
+  const variantId = String(req.query.variantId || '');
+  try {
+    const product = mongoose.isValidObjectId(productId) ? null : await findProductFlexible(productId);
+    const target = product ? product._id.toString() : productId;
+    const result = await mutateCart(req.user.id, (cart) => {
+      cart.savedForLater = cart.savedForLater.filter((item) => {
+        if (!item.product || item.product.toString() !== target) return true;
+        return variantId ? (item.variant?.id || '') !== variantId : false;
+      });
+      return null;
+    });
+    return respond(res, 'Removed from saved items', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Merge items a guest saved for later in this browser. Idempotent: keeps the larger quantity.
+// @route   POST /api/cart/saved/merge   body: { items: [{ productId, quantity, variant }] }
+// @access  Private
+const mergeSaved = async (req, res, next) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items.slice(0, 100) : null;
+    if (!items) return sendError(res, 'items must be an array', 400);
+
+    const resolved = [];
+    for (const item of items) {
+      const quantity = parseQuantity(item?.quantity);
+      const product = quantity ? await findProductFlexible(item.productId) : null;
+      if (product) resolved.push({ product, quantity, variant: item.variant });
+    }
+
+    const result = await mutateCart(req.user.id, (cart) => {
+      for (const { product, quantity, variant } of resolved) {
+        const variantId = variantIdOf(variant);
+        const existing = savedLine(cart, product._id.toString(), variantId);
+        if (existing) {
+          existing.quantity = Math.max(existing.quantity, quantity);
+        } else {
+          cart.savedForLater.push({
+            product: product._id,
+            quantity,
+            variant: variant && typeof variant === 'object' ? { ...normalizeVariant(product, variant), id: variantId } : { id: variantId },
+          });
+        }
+      }
+      return null;
+    });
+    return respond(res, 'Saved items merged', result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Clear user cart
 // @route   POST /api/cart/clear
 // @access  Private
@@ -283,4 +406,8 @@ module.exports = {
   updateCartItem,
   removeFromCart,
   clearCart,
+  saveForLater,
+  moveSavedToCart,
+  removeSaved,
+  mergeSaved,
 };
