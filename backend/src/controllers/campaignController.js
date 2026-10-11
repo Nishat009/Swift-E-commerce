@@ -13,6 +13,18 @@ const { isAdmin } = require('../middleware/authMiddleware');
 // Statuses a storefront visitor may see; drafts and archived campaigns are admin-only
 const PUBLIC_STATUSES = ['active', 'paused', 'sold-out', 'completed'];
 
+// Tickets a user holds for a campaign: issued tickets plus tickets held by in-flight payments
+const countUserTickets = async (user, campaign) => {
+  const [issued, held] = await Promise.all([
+    Ticket.countDocuments({ user: user._id, campaign: campaign._id }),
+    TicketPurchase.aggregate([
+      { $match: { user: user._id, campaign: campaign._id, status: { $in: ['pending', 'fulfilling'] } } },
+      { $group: { _id: null, qty: { $sum: '$quantity' } } }
+    ])
+  ]);
+  return issued + (held[0] ? held[0].qty : 0);
+};
+
 // @desc    Get all campaigns
 // @route   GET /api/campaigns
 // @access  Public
@@ -64,6 +76,13 @@ const getCampaignById = async (req, res, next) => {
       return sendError(res, 'Campaign not found', 404);
     }
 
+    // Signed-in visitors also get how many tickets they already hold, so the
+    // quantity picker can stop at the per-user limit
+    if (req.user) {
+      const userTicketCount = await countUserTickets(req.user, campaign);
+      return sendSuccess(res, 'Campaign details retrieved', { ...campaign.toJSON(), userTicketCount });
+    }
+
     return sendSuccess(res, 'Campaign details retrieved', campaign);
   } catch (error) {
     next(error);
@@ -107,14 +126,7 @@ const purchaseTicket = async (req, res, next) => {
     }
 
     // Max tickets per user: issued tickets plus tickets held by in-flight payments
-    const [issued, held] = await Promise.all([
-      Ticket.countDocuments({ user: req.user.id, campaign: campaignId }),
-      TicketPurchase.aggregate([
-        { $match: { user: req.user._id, campaign: campaign._id, status: { $in: ['pending', 'fulfilling'] } } },
-        { $group: { _id: null, qty: { $sum: '$quantity' } } }
-      ])
-    ]);
-    const userTicketCount = issued + (held[0] ? held[0].qty : 0);
+    const userTicketCount = await countUserTickets(req.user, campaign);
     if (userTicketCount + qty > campaign.maxTicketsPerUser) {
       return sendError(res, `You can hold a maximum of ${campaign.maxTicketsPerUser} tickets for this campaign. You currently have ${userTicketCount}.`, 400);
     }

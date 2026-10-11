@@ -27,6 +27,8 @@ interface Campaign {
   ticketsSold: number;
   drawDate: string | null;
   maxTicketsPerUser: number;
+  // Tickets the signed-in user already holds (only sent when logged in)
+  userTicketCount?: number;
   ticketsPerPurchase: number;
   status: 'draft' | 'active' | 'paused' | 'sold-out' | 'completed' | 'archived';
   linkedProducts?: any[];
@@ -106,7 +108,13 @@ export default function CampaignDetailsPage() {
     try {
       const res = await apiClient.get(`/campaigns/${campaignId}`);
       if (res.data?.success) {
-        setCampaign(res.data.data);
+        const data: Campaign = res.data.data;
+        setCampaign(data);
+        const allowance = Math.min(
+          data.ticketLimit - data.ticketsSold,
+          data.maxTicketsPerUser - (data.userTicketCount || 0)
+        );
+        setQuantity((q) => Math.max(1, Math.min(q, allowance)));
       } else {
         setError('Failed to load campaign.');
       }
@@ -146,6 +154,11 @@ export default function CampaignDetailsPage() {
   }
 
   const anyMethodEnabled = enabledMethods.bkash || enabledMethods.card;
+
+  // A purchase can't exceed the tickets left in the pool or the user's remaining per-user allowance
+  const ticketsRemaining = Math.max(0, campaign.ticketLimit - campaign.ticketsSold);
+  const ticketsHeld = campaign.userTicketCount || 0;
+  const maxQuantity = Math.min(ticketsRemaining, Math.max(0, campaign.maxTicketsPerUser - ticketsHeld));
 
   const handleCheckoutClick = () => {
     setIsPaymentModalOpen(true);
@@ -333,14 +346,37 @@ export default function CampaignDetailsPage() {
               <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{campaign.productDescription}</p>
             </div>
 
-            {campaign.status === 'active' ? (
+            {campaign.status === 'active' && maxQuantity < 1 ? (
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 text-center rounded-2xl border dark:border-gray-800 space-y-1">
+                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300">
+                  {ticketsRemaining < 1
+                    ? 'All tickets have been sold.'
+                    : `You already hold the maximum of ${campaign.maxTicketsPerUser} tickets for this draw.`}
+                </span>
+                {ticketsRemaining > 0 && (
+                  <Link href="/campaigns/my-tickets" className="text-[11px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline">View my tickets</Link>
+                )}
+              </div>
+            ) : campaign.status === 'active' ? (
               <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-500">Quantity:</span>
                   <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-full py-1 px-3 gap-3 bg-white dark:bg-gray-900">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="text-sm font-bold text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 w-5 h-5 flex items-center justify-center">-</button>
-                    <span className="text-sm font-bold w-6 text-center text-gray-800 dark:text-white">{quantity}</span>
-                    <button onClick={() => setQuantity(Math.min(campaign.ticketLimit - campaign.ticketsSold, quantity + 1))} className="text-sm font-bold text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 w-5 h-5 flex items-center justify-center">+</button>
+                    <button
+                      type="button"
+                      aria-label="Decrease ticket quantity"
+                      disabled={quantity <= 1}
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="text-sm font-bold text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 w-5 h-5 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                    >-</button>
+                    <span className="text-sm font-bold w-6 text-center text-gray-800 dark:text-white" aria-live="polite">{quantity}</span>
+                    <button
+                      type="button"
+                      aria-label="Increase ticket quantity"
+                      disabled={quantity >= maxQuantity}
+                      onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                      className="text-sm font-bold text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 w-5 h-5 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                    >+</button>
                   </div>
                 </div>
 
@@ -368,7 +404,8 @@ export default function CampaignDetailsPage() {
                 </Button>
 
                 <p className="text-[9px] text-gray-400 text-center leading-relaxed">
-                  Max {campaign.maxTicketsPerUser} tickets per user • {campaign.ticketLimit - campaign.ticketsSold} tickets remaining
+                  Max {campaign.maxTicketsPerUser} tickets per user
+                  {ticketsHeld > 0 && ` (you hold ${ticketsHeld})`} • {ticketsRemaining} tickets remaining
                 </p>
               </div>
             ) : (
