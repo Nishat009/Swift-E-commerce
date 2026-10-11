@@ -134,6 +134,9 @@ export default function ReviewSection({
     };
   }, [reviews]);
 
+  // Only reviews from customers who actually bought the item carry the verified flag
+  const verifiedCount = reviews.filter((r) => r.verified).length;
+
   // Aggregate all uploaded review photos
   const customerPhotos = React.useMemo(() => {
     return reviews.flatMap((r) => r.images || []);
@@ -154,7 +157,8 @@ export default function ReviewSection({
               <RatingStars rating={rating} size="lg" />
             </div>
             <p className="text-xs font-bold text-text-muted">
-              Based on {reviewCount} verified buyer reviews
+              Based on {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+              {verifiedCount > 0 && ` (${verifiedCount} from verified buyers)`}
             </p>
           </div>
 
@@ -250,8 +254,11 @@ export default function ReviewSection({
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-[32px] p-6 space-y-4 shadow-inner">
           <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
-            Write Your Verified Product Review
+            Write Your Product Review
           </h4>
+          <p className="text-[11px] text-text-muted">
+            Reviews from customers who bought this item are marked &ldquo;Verified Buyer&rdquo;.
+          </p>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
@@ -293,12 +300,12 @@ export default function ReviewSection({
             loading={isSubmitting}
             className="bg-[#8b6f47] text-white rounded-full text-xs font-bold px-6 py-2.5"
           >
-            Submit Verified Review
+            Submit Review
           </Button>
         </form>
       )}
 
-      {/* Verified Reviews Cards List */}
+      {/* Reviews Cards List */}
       <div className="space-y-4">
         {reviews.map((rev) => {
           const currentHelpful = (rev.helpfulCount || 0) + (helpfulCounts[rev.id] || 0);
