@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Plus, Edit2, Trash2, X, RefreshCw, Layers, Upload, Star } from 'lucide-react';
 import { errMsg, uploadImage } from './adminUtils';
+import PreviewImage from '@/components/ui/PreviewImage';
 
 interface Category {
   id: string;
@@ -244,7 +245,7 @@ export default function CategoriesAdmin() {
                   </label>
                 </div>
                 {form.image && (
-                  <img src={form.image} alt="Preview" className="mt-2 w-24 h-24 rounded-xl object-cover bg-gray-100 border" />
+                  <PreviewImage src={form.image.trim()} className="mt-2 w-24 h-24 rounded-xl object-cover bg-gray-100 border" />
                 )}
               </div>
               <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">

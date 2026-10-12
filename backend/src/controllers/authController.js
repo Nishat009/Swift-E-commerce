@@ -8,6 +8,16 @@ const { getRequiredSecret } = require('../utils/generateTokens');
 const AuthChallenge = require('../models/AuthChallenge');
 const { cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendPasswordReset, sendLoginOtp } = require('../services/emailService');
+const { validateAddress, cleanAddress } = require('../utils/address');
+const DEFAULT_COUNTRY = process.env.DEFAULT_COUNTRY || 'Bangladesh';
+
+// 422 with per-field messages when an address is incomplete or obviously fake
+const rejectInvalidAddress = (res, address) => {
+  const errors = validateAddress(address);
+  if (!Object.keys(errors).length) return false;
+  sendError(res, Object.values(errors)[0], 422, errors);
+  return true;
+};
 
 const devCodesAllowed = () => process.env.ALLOW_DEV_AUTH_CODES === 'true' && process.env.NODE_ENV !== 'production';
 const hashCode = (code) => crypto.createHash('sha256').update(String(code).toUpperCase().trim()).digest('hex');
@@ -234,23 +244,30 @@ const updateProfile = async (req, res, next) => {
         defaultAddress = user.addresses[0];
       }
 
-      if (defaultAddress) {
-        defaultAddress.street = req.body.address !== undefined ? req.body.address : defaultAddress.street;
-        defaultAddress.city = req.body.city !== undefined ? req.body.city : defaultAddress.city;
-        defaultAddress.state = req.body.state !== undefined ? req.body.state : defaultAddress.state;
-        defaultAddress.zipCode = req.body.zipCode !== undefined ? req.body.zipCode : defaultAddress.zipCode;
-        if (req.body.country !== undefined) {
-          defaultAddress.country = req.body.country;
-        }
-      } else if (req.body.address && req.body.city && req.body.state && req.body.zipCode) {
-        user.addresses.push({
-          street: req.body.address || '',
-          city: req.body.city || '',
-          state: req.body.state || '',
-          zipCode: req.body.zipCode || '',
-          country: req.body.country || 'United States',
-          isDefault: true
+      // The profile form sends all four fields blank when no address was entered: leave addresses alone
+      const allBlank = ['address', 'city', 'state', 'zipCode'].every((k) => !String(req.body[k] ?? '').trim());
+      if (allBlank) {
+        // nothing to change
+      } else if (defaultAddress) {
+        const merged = cleanAddress({
+          street: req.body.address !== undefined ? req.body.address : defaultAddress.street,
+          city: req.body.city !== undefined ? req.body.city : defaultAddress.city,
+          state: req.body.state !== undefined ? req.body.state : defaultAddress.state,
+          zipCode: req.body.zipCode !== undefined ? req.body.zipCode : defaultAddress.zipCode,
+          country: req.body.country !== undefined ? req.body.country : defaultAddress.country,
         });
+        if (rejectInvalidAddress(res, merged)) return;
+        Object.assign(defaultAddress, merged);
+      } else if (req.body.address && req.body.city && req.body.state && req.body.zipCode) {
+        const fresh = cleanAddress({
+          street: req.body.address,
+          city: req.body.city,
+          state: req.body.state,
+          zipCode: req.body.zipCode,
+          country: req.body.country || DEFAULT_COUNTRY,
+        });
+        if (rejectInvalidAddress(res, fresh)) return;
+        user.addresses.push({ ...fresh, isDefault: true });
       }
     }
 
@@ -650,6 +667,9 @@ const verifyOTP = async (req, res, next) => {
 const addAddress = async (req, res, next) => {
   const { street, city, state, zipCode, country, isDefault } = req.body;
   try {
+    const fresh = cleanAddress({ street, city, state, zipCode, country: country || DEFAULT_COUNTRY });
+    if (rejectInvalidAddress(res, fresh)) return;
+
     const user = await User.findById(req.user.id);
     if (!user) return sendError(res, 'User not found', 404);
 
@@ -658,11 +678,7 @@ const addAddress = async (req, res, next) => {
     }
 
     user.addresses.push({
-      street,
-      city,
-      state,
-      zipCode,
-      country: country || 'United States',
+      ...fresh,
       isDefault: user.addresses.length === 0 ? true : !!isDefault
     });
 
@@ -686,15 +702,22 @@ const updateAddress = async (req, res, next) => {
     const address = user.addresses.id(addressId);
     if (!address) return sendError(res, 'Address not found', 404);
 
+    // Only re-check the fields when they change (e.g. "set as default" sends just isDefault)
+    const touched = [street, city, state, zipCode, country].some((v) => v !== undefined);
+    const merged = cleanAddress({
+      street: street !== undefined ? street : address.street,
+      city: city !== undefined ? city : address.city,
+      state: state !== undefined ? state : address.state,
+      zipCode: zipCode !== undefined ? zipCode : address.zipCode,
+      country: country !== undefined ? country : address.country,
+    });
+    if (touched && rejectInvalidAddress(res, merged)) return;
+
     if (isDefault && !address.isDefault) {
       user.addresses.forEach(addr => addr.isDefault = false);
     }
 
-    address.street = street !== undefined ? street : address.street;
-    address.city = city !== undefined ? city : address.city;
-    address.state = state !== undefined ? state : address.state;
-    address.zipCode = zipCode !== undefined ? zipCode : address.zipCode;
-    address.country = country !== undefined ? country : address.country;
+    Object.assign(address, merged);
     address.isDefault = isDefault !== undefined ? !!isDefault : address.isDefault;
 
     const updatedUser = await user.save();

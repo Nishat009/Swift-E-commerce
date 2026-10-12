@@ -25,7 +25,7 @@ export const getAccessToken = () => {
 };
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+  baseURL: '/api/backend',
   withCredentials: true, // Crucial for sending/receiving HTTP-Only cookies (refreshToken)
   timeout: 10000,
   headers: {
@@ -112,7 +112,7 @@ apiClient.interceptors.response.use(
 
         // Call refresh endpoint to get new access token (pass refreshToken in body as fallback)
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/refresh`,
+          '/api/backend/auth/refresh',
           { refreshToken: rToken },
           { withCredentials: true }
         );

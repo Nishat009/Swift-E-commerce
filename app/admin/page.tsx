@@ -18,6 +18,7 @@ import ChatMessages from '@/components/admin/ChatMessages';
 import OrderDetailModal, { ORDER_STATUSES } from '@/components/admin/OrderDetailModal';
 import { errMsg } from '@/components/admin/adminUtils';
 import ProductTable from '@/components/product/ProductTable';
+import { selectClass } from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
 import Input from '@/components/ui/Input';
@@ -187,6 +188,8 @@ export default function AdminDashboardPage() {
   // Search/Filters states
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
+  const [refundOnly, setRefundOnly] = useState(false);
+  const [canOverrideStatus, setCanOverrideStatus] = useState(false); // super admin (the server decides)
   const [userSearch, setUserSearch] = useState('');
   const [reviewSearch, setReviewSearch] = useState('');
   const [campaignSearch, setCampaignSearch] = useState('');
@@ -266,6 +269,7 @@ export default function AdminDashboardPage() {
         const res = await apiClient.get('/orders/admin/all?limit=500');
         if (res.data?.success) {
           setAllOrders(res.data.data);
+          setCanOverrideStatus(Boolean(res.data.canOverrideStatus));
         }
       } else if (adminTab === 'users') {
         const res = await apiClient.get('/admin/users');
@@ -312,18 +316,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // --- ORDER STATUS ACTIONS ---
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    try {
-      const res = await apiClient.put(`/orders/${orderId}/status`, { status });
-      if (res.data?.success) {
-        setAllOrders(allOrders.map((o) => (o.id === orderId ? { ...o, orderStatus: status } : o)));
-        toast.success(`Order status updated to "${status}" successfully.`);
-      }
-    } catch (err: any) {
-      toast.error(errMsg(err, 'Failed to update order status.'));
-    }
-  };
+  // Order status / refund changes happen in OrderDetailModal ("Manage" on each order)
 
   // --- USER ROLE ACTIONS ---
   const handleToggleUserRole = async (targetUser: User) => {
@@ -733,12 +726,14 @@ export default function AdminDashboardPage() {
       p.category.toLowerCase().includes(productSearch.toLowerCase())
   );
 
+  const refundsNeededCount = allOrders.filter((o) => o.paymentStatus === 'Refund Needed').length;
   const filteredOrders = allOrders.filter(
     (o) =>
-      String(o.id).includes(orderSearch) ||
+      (!refundOnly || o.paymentStatus === 'Refund Needed') &&
+      (String(o.id).includes(orderSearch) ||
       (o.orderNumber || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
       (o.user as any)?.name?.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      (o.user as any)?.email?.toLowerCase().includes(orderSearch.toLowerCase())
+      (o.user as any)?.email?.toLowerCase().includes(orderSearch.toLowerCase()))
   );
 
   const filteredUsers = allUsers.filter(
@@ -813,7 +808,8 @@ export default function AdminDashboardPage() {
             { id: 'logs', label: 'Action Audit Logs', icon: ShieldAlert },
             { id: 'security', label: 'Security & 2FA', icon: ShieldCheck },
             { id: 'currencies', label: 'Manage Currencies', icon: RefreshCw },
-            { id: 'languages', label: 'Manage Languages', icon: Globe },
+            // Language management hidden for now
+            // { id: 'languages', label: 'Manage Languages', icon: Globe },
             { id: 'messages', label: 'Messages', icon: Mail }
           ].map((item) => {
             const IconComponent = item.icon;
@@ -997,6 +993,13 @@ export default function AdminDashboardPage() {
                     <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Placed Customer Orders</h2>
                   </div>
 
+                  {refundsNeededCount > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/40 px-4 py-2.5 text-xs text-orange-800 dark:text-orange-300">
+                      <span><strong>{refundsNeededCount}</strong> cancelled or returned {refundsNeededCount === 1 ? 'order needs' : 'orders need'} a refund. Open the order and use the Refund button.</span>
+                      <button onClick={() => setRefundOnly(!refundOnly)} className="font-bold underline">{refundOnly ? 'Show all orders' : 'Show only refunds needed'}</button>
+                    </div>
+                  )}
+
                   {/* Search Bar */}
                   <div className="relative">
                     <Input
@@ -1020,7 +1023,7 @@ export default function AdminDashboardPage() {
                           <th className="p-3">Method</th>
                           <th className="p-3">Status</th>
                           <th className="p-3">Payment</th>
-                          <th className="p-3 text-right">Update Status</th>
+                          <th className="p-3 text-right">Manage</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -1059,15 +1062,12 @@ export default function AdminDashboardPage() {
                               </span>
                             </td>
                             <td className="p-3 text-right">
-                              <select
-                                value={o.orderStatus}
-                                onChange={(e) => handleUpdateOrderStatus(o.id!, e.target.value)}
-                                className="text-[10px] font-bold border rounded-lg px-2 py-1 bg-white dark:bg-gray-900"
+                              <button
+                                onClick={() => setSelectedOrder(o)}
+                                className="text-[10px] font-bold border border-[#8b6f47]/40 text-[#8b6f47] rounded-lg px-3 py-1.5 hover:bg-[#8b6f47]/10"
                               >
-                                {ORDER_STATUSES.map((s) => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
+                                Update status
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1516,7 +1516,8 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              {/* 12. MANAGE LANGUAGES VIEW */}
+              {/* Language management hidden for now (re-enable: remove this comment wrapper and restore the tab entry above)
+              12. MANAGE LANGUAGES VIEW
               {adminTab === 'languages' && (
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
@@ -1593,6 +1594,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               )}
+              */}
 
             </>
           )}
@@ -1604,10 +1606,11 @@ export default function AdminDashboardPage() {
       {selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
+          canOverrideStatus={canOverrideStatus}
           onClose={() => setSelectedOrder(null)}
           onUpdated={(updated) => {
             setSelectedOrder(updated);
-            setAllOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus } : o)));
+            setAllOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus, refund: updated.refund } : o)));
           }}
           onViewAudit={(id) => fetchAuditTrail('Order', id)}
         />
@@ -1800,7 +1803,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <div>
                   <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Visibility</label>
-                  <select value={campaignForm.visibility} onChange={(e) => setCampaignForm({ ...campaignForm, visibility: e.target.value })} className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl p-2.5 focus:outline-none">
+                  <select value={campaignForm.visibility} onChange={(e) => setCampaignForm({ ...campaignForm, visibility: e.target.value })} className={`${selectClass} w-full`}>
                     <option value="public">Public</option>
                     <option value="private">Private</option>
                   </select>

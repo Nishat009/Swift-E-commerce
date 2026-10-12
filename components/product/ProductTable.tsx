@@ -1,5 +1,6 @@
 'use client';
 
+import { selectClass } from '@/components/ui/Select';
 import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -472,7 +473,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white font-medium focus:ring-2 focus:ring-[#8b6f47]/30"
+                className={`${selectClass}`}
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -492,7 +493,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                 setLimit(Number(e.target.value));
                 setPage(1);
               }}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white font-medium"
+              className={`${selectClass}`}
             >
               <option value={10}>10 / page</option>
               <option value={25}>25 / page</option>
@@ -517,7 +518,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                   setCategoryFilter(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={`${selectClass} w-full`}
               >
                 <option value="all">All Categories</option>
                 {categoriesList.map((cat) => (
@@ -539,7 +540,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                   setBrandFilter(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={`${selectClass} w-full`}
               >
                 <option value="all">All Brands</option>
                 {brandsList.map((b) => (
@@ -561,7 +562,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                   setStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={`${selectClass} w-full`}
               >
                 <option value="all">All Statuses</option>
                 <option value="published">Published</option>
@@ -581,7 +582,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                   setStockStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={`${selectClass} w-full`}
               >
                 <option value="all">All Stock Levels</option>
                 <option value="in_stock">In Stock</option>
@@ -781,7 +782,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                       <td className="py-3.5 px-4 font-semibold text-gray-900 dark:text-white">
                         <div className="flex items-baseline gap-1.5">
                           <span>${p.price}</span>
-                          {p.originalPrice && p.originalPrice > p.price && (
+                          {Number(p.originalPrice) > 0 && Number(p.originalPrice) > Number(p.price) && (
                             <span className="text-[10px] text-text-muted line-through">
                               ${p.originalPrice}
                             </span>
@@ -873,22 +874,6 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
                                 className="absolute right-0 top-8 w-44 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-150 dark:border-gray-800 py-1.5 z-30 text-left"
                                 onMouseLeave={() => setActiveActionMenuId(null)}
                               >
-                                <Link
-                                  href={`/dashboard/products/${p.id}`}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
-                                >
-                                  <Eye className="w-3.5 h-3.5 text-gray-500" />
-                                  <span>View Details</span>
-                                </Link>
-
-                                <Link
-                                  href={`/dashboard/products/${p.id}/edit`}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5 text-[#8b6f47]" />
-                                  <span>Edit Product</span>
-                                </Link>
-
                                 <button
                                   onClick={() => {
                                     setActiveActionMenuId(null);

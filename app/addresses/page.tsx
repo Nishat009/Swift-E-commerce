@@ -6,6 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
 import { Address } from '@/types';
+import { SITE } from '@/lib/siteConfig';
+import { validateAddress, AddressErrors } from '@/lib/addressValidation';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -31,10 +33,11 @@ export default function AddressesPage() {
     city: '',
     state: '',
     zipCode: '',
-    country: 'United States',
+    country: SITE.defaultCountry,
     isDefault: false
   });
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<AddressErrors>({});
 
   const openAddModal = () => {
     setEditingAddress(null);
@@ -43,9 +46,10 @@ export default function AddressesPage() {
       city: '',
       state: '',
       zipCode: '',
-      country: 'United States',
+      country: SITE.defaultCountry,
       isDefault: savedAddresses.length === 0 // Force first address to default
     });
+    setFormErrors({});
     setIsFormOpen(true);
   };
 
@@ -56,14 +60,18 @@ export default function AddressesPage() {
       city: addr.city,
       state: addr.state,
       zipCode: addr.zipCode,
-      country: addr.country || 'United States',
+      country: addr.country || SITE.defaultCountry,
       isDefault: !!addr.isDefault
     });
+    setFormErrors({});
     setIsFormOpen(true);
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errors = validateAddress(formData);
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
     setSubmitting(true);
     try {
       if (editingAddress) {
@@ -84,6 +92,8 @@ export default function AddressesPage() {
       await refreshUser();
     } catch (err: any) {
       console.error(err);
+      const serverErrors = err.response?.data?.errors;
+      if (serverErrors && typeof serverErrors === 'object') setFormErrors(serverErrors);
       toast.error(err.response?.data?.message || 'Failed to save address.');
     } finally {
       setSubmitting(false);
@@ -237,6 +247,7 @@ export default function AddressesPage() {
             type="text"
             value={formData.street}
             onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+            error={formErrors.street}
             required
             disabled={submitting}
             className="rounded-xl text-xs"
@@ -247,6 +258,7 @@ export default function AddressesPage() {
               type="text"
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              error={formErrors.city}
               required
               disabled={submitting}
               className="rounded-xl text-xs"
@@ -256,6 +268,7 @@ export default function AddressesPage() {
               type="text"
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              error={formErrors.state}
               required
               disabled={submitting}
               className="rounded-xl text-xs"
@@ -267,6 +280,7 @@ export default function AddressesPage() {
               type="text"
               value={formData.zipCode}
               onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+              error={formErrors.zipCode}
               required
               disabled={submitting}
               className="rounded-xl text-xs"
@@ -276,6 +290,7 @@ export default function AddressesPage() {
               type="text"
               value={formData.country}
               onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+              error={formErrors.country}
               required
               disabled={submitting}
               className="rounded-xl text-xs"

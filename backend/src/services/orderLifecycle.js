@@ -94,6 +94,8 @@ module.exports = {
   CUSTOMER_CANCELLABLE,
   TRANSITIONS,
   UNPAID_HOLD_MINUTES,
+  NEEDS_PAYMENT_FIRST,
+  isOnline,
   canTransition,
   closeOrder,
   expireUnpaidOrders,

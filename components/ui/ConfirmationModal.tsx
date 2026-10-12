@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
@@ -10,7 +10,7 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  message: string;
+  message: ReactNode;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'primary';
@@ -54,9 +54,9 @@ export default function ConfirmationModal({
         </h3>
 
         {/* Message */}
-        <p className="text-sm text-gray-650 dark:text-gray-400 mb-6 leading-relaxed">
+        <div className="text-sm text-gray-650 dark:text-gray-400 mb-6 leading-relaxed w-full">
           {message}
-        </p>
+        </div>
 
         {/* Action Buttons */}
         <div className="flex flex-row justify-center gap-3 w-full">

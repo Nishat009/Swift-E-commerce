@@ -14,11 +14,8 @@ import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { Minus, Plus, Trash2, ShoppingBag, Gift, ArrowRight, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrderQuote } from '@/hooks/useOrderQuote';
-
-interface SavedItem {
-  product: any;
-  quantity: number;
-}
+import { getEffectivePrice } from '@/utils/productUtils';
+import type { CartItem } from '@/types';
 
 export default function CartPage() {
   const router = useRouter();
@@ -35,9 +32,9 @@ export default function CartPage() {
   const getTotalPrice = useCartStore((state) => state.getTotalPrice);
   const clearCart = useCartStore((state) => state.clearCart);
 
-  // Save for later states
-  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
-  
+  // Saved for later: stored on the account when signed in (see cartStore)
+  const savedItems = useCartStore((state) => state.savedItems);
+
   // Coupon/Promo states
   const [couponCode, setCouponCode] = useState('');
   const [activeCoupon, setActiveCoupon] = useState<{ code: string; discount: number; isFixed: boolean } | null>(null);
@@ -48,35 +45,36 @@ export default function CartPage() {
   const [removingItemId, setRemovingItemId] = useState<string | number | null>(null);
   const [isClearCartConfirmOpen, setIsClearCartConfirmOpen] = useState(false);
 
-  // Load saved-for-later items from localStorage
+  // Items older versions kept only in this browser move into the saved list once
   useEffect(() => {
-    const stored = localStorage.getItem('save-for-later');
-    if (stored) {
-      setSavedItems(JSON.parse(stored));
-    }
+    useCartStore.getState().adoptLegacySaved();
   }, []);
 
-  const saveForLater = (product: any, quantity: number) => {
-    const updated = [...savedItems, { product, quantity }];
-    setSavedItems(updated);
-    localStorage.setItem('save-for-later', JSON.stringify(updated));
-    removeItem(product.id);
-    toast.success(`"${product.title}" saved for later.`);
+  const saveForLater = async (item: CartItem) => {
+    try {
+      await useCartStore.getState().saveForLater(item.product.id, item.selectedVariant?.id);
+      toast.success(`"${item.product.title}" saved for later.`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not save the item for later.');
+    }
   };
 
-  const moveToCart = async (product: any, quantity: number) => {
-    await useCartStore.getState().addItem(product, quantity);
-    const updated = savedItems.filter((item) => String(item.product.id) !== String(product.id));
-    setSavedItems(updated);
-    localStorage.setItem('save-for-later', JSON.stringify(updated));
-    toast.success(`"${product.title}" moved to cart.`);
+  const moveToCart = async (item: CartItem) => {
+    try {
+      await useCartStore.getState().moveSavedToCart(item.product.id, item.selectedVariant?.id);
+      toast.success(`"${item.product.title}" moved to cart.`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Could not move the item to your cart.');
+    }
   };
 
-  const removeSavedItem = (productId: string | number) => {
-    const updated = savedItems.filter((item) => String(item.product.id) !== String(productId));
-    setSavedItems(updated);
-    localStorage.setItem('save-for-later', JSON.stringify(updated));
-    toast.success('Item removed from saved list.');
+  const removeSavedItem = async (item: CartItem) => {
+    try {
+      await useCartStore.getState().removeSaved(item.product.id, item.selectedVariant?.id);
+      toast.success('Item removed from saved list.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not remove the saved item.');
+    }
   };
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -179,12 +177,12 @@ export default function CartPage() {
             <div className="space-y-4">
               <AnimatePresence initial={false}>
                 {items.map((item) => {
-                  const discountedPrice = item.product.price * (1 - item.product.discountPercentage / 100);
+                  const discountedPrice = getEffectivePrice(item.product);
                   const itemTotal = discountedPrice * item.quantity;
 
                   return (
                     <motion.div
-                      key={item.product.id}
+                      key={`${item.product.id}-${item.selectedVariant?.id || ''}`}
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
@@ -218,6 +216,7 @@ export default function CartPage() {
                             onClick={() => setRemovingItemId(item.product.id)}
                             className="p-2 text-red-500 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 rounded-full transition"
                             title="Remove item"
+                            aria-label={`Remove ${item.product.title} from cart`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -227,22 +226,26 @@ export default function CartPage() {
                         <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-gray-50 dark:border-gray-850">
                           
                           {/* Quantity Controls */}
-                          <div className="flex items-center border border-gray-250 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950">
+                          <div className="flex items-center border border-gray-250 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950" role="group" aria-label={`Quantity of ${item.product.title}`}>
                             <button
-                              onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                              type="button"
+                              onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.selectedVariant?.id)}
                               className="p-1.5 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-500"
+                              aria-label={item.quantity <= 1 ? `Remove ${item.product.title} from cart` : `Decrease quantity of ${item.product.title}`}
                             >
-                              <Minus className="w-3 h-3" />
+                              <Minus className="w-3 h-3" aria-hidden="true" />
                             </button>
-                            <span className="px-3.5 text-xs text-gray-900 dark:text-white font-bold min-w-[2rem] text-center">
+                            <span className="px-3.5 text-xs text-gray-900 dark:text-white font-bold min-w-[2rem] text-center" aria-live="polite">
                               {item.quantity}
                             </span>
                             <button
-                              onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                              className="p-1.5 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-500"
+                              type="button"
+                              onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.selectedVariant?.id)}
+                              className="p-1.5 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed"
                               disabled={item.quantity >= item.product.stock}
+                              aria-label={`Increase quantity of ${item.product.title}`}
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3 h-3" aria-hidden="true" />
                             </button>
                           </div>
 
@@ -262,7 +265,7 @@ export default function CartPage() {
                         {/* Save for Later trigger */}
                         <div className="pt-2">
                           <button
-                            onClick={() => saveForLater(item.product, item.quantity)}
+                            onClick={() => saveForLater(item)}
                             className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
                           >
                             Save for later
@@ -283,36 +286,47 @@ export default function CartPage() {
                 Saved For Later ({savedItems.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {savedItems.map((item) => (
-                  <div
-                    key={item.product.id}
-                    className="border border-gray-150/40 dark:border-gray-800 rounded-[28px] p-4 bg-white dark:bg-gray-900 flex gap-4 shadow-xs relative"
-                  >
-                    <div className="relative w-20 h-20 bg-gray-50 dark:bg-gray-950 border rounded-xl overflow-hidden flex-shrink-0">
-                      <img src={item.product.thumbnail} alt={item.product.title} className="object-cover w-full h-full" />
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between min-w-0">
-                      <div>
-                        <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{item.product.title}</h4>
-                        <p className="text-[10px] text-text-muted mt-0.5">${item.product.price} • Qty: {item.quantity}</p>
+                {savedItems.map((item) => {
+                  const unitPrice = getEffectivePrice(item.product);
+                  const discounted = (item.product.discountPercentage || 0) > 0;
+                  return (
+                    <div
+                      key={`${item.product.id}-${item.selectedVariant?.id || ''}`}
+                      className="border border-gray-150/40 dark:border-gray-800 rounded-[28px] p-4 bg-white dark:bg-gray-900 flex gap-4 shadow-xs relative"
+                    >
+                      <div className="relative w-20 h-20 bg-gray-50 dark:bg-gray-950 border rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={item.product.thumbnail} alt={item.product.title} className="object-cover w-full h-full" />
                       </div>
-                      <div className="flex gap-3 mt-3">
-                        <button
-                          onClick={() => moveToCart(item.product, item.quantity)}
-                          className="text-[10px] font-black text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
-                        >
-                          Move to Bag
-                        </button>
-                        <button
-                          onClick={() => removeSavedItem(item.product.id)}
-                          className="text-[10px] font-black text-red-500 hover:underline"
-                        >
-                          Delete
-                        </button>
+                      <div className="flex-1 flex flex-col justify-between min-w-0">
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{item.product.title}</h4>
+                          <p className="text-[10px] text-text-muted mt-0.5">
+                            <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(unitPrice)}</span>
+                            {discounted && <span className="line-through ml-1.5">{formatPrice(item.product.price)}</span>}
+                            {' '}• Qty: {item.quantity}
+                          </p>
+                        </div>
+                        <div className="flex gap-3 mt-3">
+                          <button
+                            type="button"
+                            onClick={() => moveToCart(item)}
+                            className="text-[10px] font-black text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
+                          >
+                            Move to Bag
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeSavedItem(item)}
+                            className="text-[10px] font-black text-red-500 hover:underline"
+                            aria-label={`Delete ${item.product.title} from saved items`}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

@@ -29,6 +29,8 @@ const OrderSchema = new mongoose.Schema(
     products: [OrderItemSchema],
     subtotal: { type: Number, required: true },
     shipping: { type: Number, required: true, default: 0 },
+    // Cash on delivery only: which delivery charge was applied ('' for card / bKash orders)
+    deliveryZone: { type: String, enum: ['', 'inside_dhaka', 'outside_dhaka'], default: '' },
     tax: { type: Number, required: true, default: 0 },
     coupon: { type: String, default: '' },
     discount: { type: Number, default: 0 },
@@ -42,6 +44,15 @@ const OrderSchema = new mongoose.Schema(
     // Every gateway session started for this order, so a payment on an older tab still settles
     paymentSessionIds: { type: [String], default: [], index: true },
     paymentTransactionId: { type: String, default: '' },
+    // Filled when an admin marks a cancelled / returned order's payment as refunded
+    refund: {
+      amount: { type: Number },
+      at: { type: Date },
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      byName: { type: String, default: '' },
+      reference: { type: String, default: '' },
+      note: { type: String, default: '' },
+    },
     paidAt: { type: Date, default: null },
     orderStatus: {
       type: String,

@@ -15,6 +15,60 @@ export function calculateTotalStock(product: Partial<Product>): number {
 }
 
 /**
+ * Price the shopper pays: list price minus the product-level discount.
+ */
+export function getEffectivePrice(product: Pick<Product, 'price' | 'discountPercentage'>): number {
+  return (product.price || 0) * (1 - (product.discountPercentage || 0) / 100);
+}
+
+export const BADGE_FILTERS = ['Bestseller', 'New', 'Low Stock', 'Sale', 'Featured'] as const;
+
+/**
+ * Whether a product carries a storefront badge. Badges come from product data
+ * (discount, stock, flags), not only from free-form tags.
+ * Keep in sync with BADGE_CONDITIONS in backend/src/controllers/productController.js.
+ */
+export function matchesBadge(product: Product, badge: string): boolean {
+  const tagged = (product.tags || []).some((t) => t.toLowerCase() === badge.toLowerCase());
+  switch (badge) {
+    case 'Sale':
+      return (product.discountPercentage || 0) > 0;
+    case 'Low Stock':
+      return product.stock > 0 && product.stock <= (product.lowStockThreshold ?? 5);
+    case 'Featured':
+      return tagged || Boolean(product.featured);
+    case 'Bestseller':
+      return tagged || Boolean(product.bestSeller);
+    case 'New':
+      return tagged || Boolean(product.newArrival);
+    default:
+      return tagged;
+  }
+}
+
+/**
+ * Sizes a product comes in, from its "Sizes" specification ("XS, S, M") or its Size variant options.
+ */
+export function getProductSizes(product: Product): string[] {
+  const fromSpec = String(product.specifications?.Sizes || '').split(',');
+  const fromVariants = (product.variants || [])
+    .filter((group) => /^size$/i.test(group.name))
+    .flatMap((group) => group.options.map((opt) => opt.value || opt.name));
+  return Array.from(new Set([...fromSpec, ...fromVariants].map((s) => String(s).trim().toUpperCase()).filter(Boolean)));
+}
+
+/**
+ * Colour family used by the colour filter (specifications.ColorName or Color variant options).
+ */
+export function getProductColors(product: Product): string[] {
+  const fromSpec = product.specifications?.ColorName ? [product.specifications.ColorName] : [];
+  const fromVariants = (product.variants || [])
+    .filter((group) => /^colou?r$/i.test(group.name))
+    .flatMap((group) => group.options.map((opt) => opt.value || opt.name));
+  return Array.from(new Set([...fromSpec, ...fromVariants].map((c) => String(c).trim()).filter(Boolean)));
+}
+
+/**
  * Dynamically derives product tags based on stock, sale price, and creation status.
  */
 export function deriveProductTags(product: Partial<Product>): ProductTag[] {

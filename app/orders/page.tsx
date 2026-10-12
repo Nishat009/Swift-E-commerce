@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AccountLayout from '@/components/layout/AccountLayout';
 import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
@@ -22,7 +23,16 @@ import {
   CreditCard
 } from 'lucide-react';
 
+// useSearchParams needs a Suspense boundary in the App Router
 export default function OrdersHistoryPage() {
+  return (
+    <Suspense fallback={<AccountLayout activeTabName="/orders"><OrderSkeleton /></AccountLayout>}>
+      <OrdersHistoryContent />
+    </Suspense>
+  );
+}
+
+function OrdersHistoryContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -43,11 +53,26 @@ export default function OrdersHistoryPage() {
       const result = q.get('payment');
       if (result === 'success') toast.success('Payment received. Thank you!');
       else if (result === 'failed') toast.error('Payment was not completed. You can retry with "Pay now".');
-      if (result) window.history.replaceState({}, '', '/orders');
+      if (result && !q.get('order')) window.history.replaceState({}, '', '/orders');
     }
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Links from notifications / checkout (?order=<id>) open that order's details,
+  // also when the user is already on this page
+  const searchParams = useSearchParams();
+  const focusOrderId = searchParams.get('order');
+  useEffect(() => {
+    if (!focusOrderId || loading) return;
+    if (orders.some((o) => o.id === focusOrderId)) {
+      setExpandedOrderId(focusOrderId);
+      requestAnimationFrame(() => {
+        document.getElementById(`order-${focusOrderId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    window.history.replaceState({}, '', '/orders');
+  }, [focusOrderId, loading, orders]);
 
   const handlePayNow = async (order: Order) => {
     setPayingOrderId(order.id);
@@ -89,7 +114,11 @@ export default function OrdersHistoryPage() {
       const response = await apiClient.put(`/orders/${cancellingOrderId}/cancel`);
       if (response.data?.success) {
         toast.success('Order cancelled successfully.');
-        setOrders(orders.map((o) => (o.id === cancellingOrderId || (o as any)._id === cancellingOrderId ? { ...o, orderStatus: 'Cancelled' } : o)));
+        // Use the server's answer so a paid order shows "Refund pending" straight away
+        const updated = response.data.data;
+        setOrders(orders.map((o) => (o.id === cancellingOrderId || (o as any)._id === cancellingOrderId
+          ? { ...o, orderStatus: updated?.orderStatus || 'Cancelled', paymentStatus: updated?.paymentStatus || o.paymentStatus, refund: updated?.refund }
+          : o)));
       }
     } catch (err: any) {
       console.error(err);
@@ -129,12 +158,14 @@ export default function OrdersHistoryPage() {
       '</div><div>Status: ' + escapeHtml(order.orderStatus || 'Pending') +
       '</div></div></div><div><b>Ship to</b><br>' +
       (addr ? escapeHtml(addr.street) + '<br>' + escapeHtml(addr.city) + ', ' + escapeHtml(addr.state) + ' ' + escapeHtml(addr.zipCode) + '<br>' + escapeHtml(addr.country) : 'N/A') +
-      '</div><div style="margin-top:12px"><b>Payment</b>: ' + escapeHtml(String(order.paymentMethod || '').toUpperCase()) +
+      '</div>' + (order.deliveryZone ? '<div style="margin-top:12px"><b>Delivery</b>: ' + escapeHtml(zoneLabels[order.deliveryZone] || '') + '</div>' : '') +
+      '<div style="margin-top:12px"><b>Payment</b>: ' + escapeHtml(String(order.paymentMethod || '').toUpperCase()) +
       ' (' + escapeHtml(order.paymentStatus || 'Pending') + ')</div>' +
+      (order.paymentStatus === 'Refunded' && order.refund?.at ? '<div style="margin-top:6px"><b>Refunded</b>: ' + money(order.refund.amount) + ' on ' + escapeHtml(new Date(order.refund.at).toLocaleDateString()) + '</div>' : '') +
       '<table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>' + rows + '</tbody></table>' +
       '<div class="tot"><div><span>Subtotal</span><span>' + money(order.subtotal) + '</span></div>' +
       (discount > 0 ? '<div><span>Discount' + (order.coupon ? ' (' + escapeHtml(order.coupon) + ')' : '') + '</span><span>-' + money(discount) + '</span></div>' : '') +
-      '<div><span>Tax</span><span>' + money(order.tax) + '</span></div><div><span>Shipping</span><span>' + money(order.shipping) + '</span></div>' +
+      '<div><span>Tax</span><span>' + money(order.tax) + '</span></div><div><span>' + (order.deliveryZone ? 'Delivery (' + escapeHtml(zoneLabels[order.deliveryZone] || '') + ')' : 'Shipping') + '</span><span>' + money(order.shipping) + '</span></div>' +
       '<div class="grand"><span>Total</span><span>' + money(order.total) + '</span></div></div>' +
       '<p style="margin-top:40px;color:#666">Thank you for shopping with SwiftCart.</p></body></html>';
 
@@ -158,6 +189,7 @@ export default function OrdersHistoryPage() {
     Refunded: 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-900/40 dark:border-gray-800 dark:text-gray-300',
   };
   const methodLabels: Record<string, string> = { cod: 'Cash on Delivery', bkash: 'bKash', card: 'Card' };
+  const zoneLabels: Record<string, string> = { inside_dhaka: 'Inside Dhaka', outside_dhaka: 'Outside Dhaka' };
 
   const statusStyles = {
     Confirmed: 'bg-indigo-150 border-indigo-200 text-indigo-700 dark:bg-indigo-950/20 dark:border-indigo-900/30 dark:text-indigo-400',
@@ -218,15 +250,17 @@ export default function OrdersHistoryPage() {
               const isCancellable = ['Pending', 'Processing', 'Confirmed'].includes(status); // same rule as the server
 
               // Timeline milestones (backend enum: Pending, Processing, Confirmed, Packed, Shipped, Delivered, Cancelled, Returned)
-              const steps = ['Pending', 'Processing', 'Packed', 'Shipped', 'Delivered'];
-              const stepIndexByStatus: Record<string, number> = { Pending: 0, Processing: 1, Confirmed: 1, Packed: 2, Shipped: 3, Delivered: 4 };
+              // Every open status has its own step, so the bar always matches the real status
+              const steps = ['Pending', 'Processing', 'Confirmed', 'Packed', 'Shipped', 'Delivered'];
+              const stepIndexByStatus: Record<string, number> = { Pending: 0, Processing: 1, Confirmed: 2, Packed: 3, Shipped: 4, Delivered: 5 };
               const currentStepIndex = stepIndexByStatus[status] ?? 0;
               const orderDiscount = Math.max(0, Number(((order.subtotal || 0) + (order.shipping || 0) + (order.tax || 0) - order.total).toFixed(2)));
 
               return (
                 <div
                   key={order.id}
-                  className="border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] bg-white dark:bg-gray-900 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300"
+                  id={`order-${order.id}`}
+                  className="scroll-mt-24 border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] bg-white dark:bg-gray-900 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300"
                 >
                   {/* Summary Bar */}
                   <div className="p-5 sm:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/50 dark:bg-gray-850/30 border-b border-gray-100 dark:border-gray-800">
@@ -293,7 +327,7 @@ export default function OrdersHistoryPage() {
                           className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50 rounded-full text-[10px] font-black px-4 flex items-center gap-1"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          Cancel
+                          Cancel order
                         </Button>
                       )}
                     </div>
@@ -302,6 +336,18 @@ export default function OrdersHistoryPage() {
                   {/* Expanded Tracker & Products Details */}
                   {isExpanded && (
                     <div className="p-6 space-y-6 border-t border-gray-100 dark:border-gray-800 animate-slide-down">
+                      {/* Closed orders: say so clearly, with the refund state for paid orders */}
+                      {(status === 'Cancelled' || status === 'Returned') && (
+                        <div className={`rounded-2xl border p-4 text-xs leading-relaxed ${status === 'Cancelled' ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400' : 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/20 dark:border-orange-900/30 dark:text-orange-400'}`}>
+                          <p className="font-black uppercase tracking-wider text-[10px] mb-1">Order {status.toLowerCase()}</p>
+                          <p>
+                            {status === 'Cancelled' ? 'This order was cancelled and will not be delivered.' : 'This order was returned.'}
+                            {paymentStatus === 'Refund Needed' && ' Refund pending: we will send your payment back soon.'}
+                            {paymentStatus === 'Refunded' && ` Refunded${order.refund?.amount ? ' $' + Number(order.refund.amount).toFixed(2) : ''}${order.refund?.at ? ' on ' + new Date(order.refund.at).toLocaleDateString() : ''}.`}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Live Tracking Timeline */}
                       {status !== 'Cancelled' && status !== 'Returned' && (
                         <div className="space-y-4 max-w-xl mx-auto py-2">
@@ -403,7 +449,7 @@ export default function OrdersHistoryPage() {
                             <span className="font-semibold text-gray-900 dark:text-white">${(order.tax || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Shipping fee:</span>
+                            <span>Shipping fee{order.deliveryZone ? ` (${zoneLabels[order.deliveryZone]})` : ''}:</span>
                             <span className="font-semibold text-gray-900 dark:text-white">${(order.shipping || 0).toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between pt-1.5 border-t border-gray-250/20 font-bold text-gray-950 dark:text-white text-xs">
@@ -426,9 +472,10 @@ export default function OrdersHistoryPage() {
         isOpen={cancellingOrderId !== null}
         onClose={() => setCancellingOrderId(null)}
         onConfirm={handleCancelOrder}
-        title="Cancel Order"
-        message="Are you sure you want to cancel this order? This will release reserved stock back to the store and trigger a refund. This action is irreversible."
-        confirmText="Cancel Order"
+        title="Cancel this order?"
+        message="The items go back on sale and, if you already paid online, your payment is refunded. A cancelled order can't be restored."
+        confirmText="Yes, cancel order"
+        cancelText="Keep order"
         variant="danger"
         isLoading={isCancelling}
       />

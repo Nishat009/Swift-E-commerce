@@ -15,6 +15,18 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   icon?: ReactNode;
 }
 
+/**
+ * Shared look for every native <select> in the admin/product UI: same radius, padding,
+ * focus ring and chevron (works in light and dark mode). Use: className={selectClass}
+ * Add w-full (or leave auto width for inline selects such as sort / per-page).
+ */
+export const selectClass =
+  "pl-3 pr-9 py-2 border border-gray-200 dark:border-gray-700 rounded-xl appearance-none cursor-pointer " +
+  "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-xs font-medium " +
+  "bg-no-repeat bg-[right_0.65rem_center] bg-[length:1rem_1rem] " +
+  "bg-[url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27%239ca3af%27%20stroke-width=%272.5%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3E%3Cpath%20d=%27m6%209%206%206%206-6%27/%3E%3C/svg%3E)] " +
+  "focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/40 focus:border-[#8b6f47] transition disabled:opacity-60 disabled:cursor-not-allowed";
+
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, options, icon, className, ...props }, ref) => {
     return (
@@ -33,9 +45,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             className={cn(
-              'w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 rounded-xl appearance-none cursor-pointer',
-              'bg-white dark:bg-gray-950 text-gray-900 dark:text-white text-xs font-bold',
-              'focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/40 focus:border-transparent transition',
+              selectClass,
+              'w-full',
               icon && 'pl-9',
               error && 'border-red-500 focus:ring-red-500',
               className

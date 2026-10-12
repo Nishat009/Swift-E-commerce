@@ -1,6 +1,28 @@
 import type { NextConfig } from "next";
 
+const backendApiUrl = process.env.BACKEND_API_URL || (process.env.NODE_ENV === 'production'
+  ? 'https://swift-e-commerce.onrender.com/api'
+  : 'http://localhost:5000/api');
+
+// Allow product/category uploads served by the backend through next/image.
+const apiHostPattern: NonNullable<NonNullable<NextConfig['images']>['remotePatterns']> = (() => {
+  try {
+    const u = new URL(backendApiUrl);
+    return [{
+      protocol: u.protocol.replace(':', '') as 'http' | 'https',
+      hostname: u.hostname,
+      port: u.port,
+      pathname: '/uploads/**',
+    }];
+  } catch {
+    return [];
+  }
+})();
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{ source: '/api/backend/:path*', destination: `${backendApiUrl.replace(/\/$/, '')}/:path*` }];
+  },
   async headers() {
     return ['/auth/:path*', '/settings'].map(source => ({
       source,
@@ -13,6 +35,9 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
+      { protocol: 'http', hostname: 'localhost', port: '5000', pathname: '/uploads/**' },
+      { protocol: 'http', hostname: '127.0.0.1', port: '5000', pathname: '/uploads/**' },
+      ...apiHostPattern,
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',

@@ -1,6 +1,7 @@
 // SRS features: back-in-stock sign-ups (FR-1.15), wishlist collections / alerts / sharing (FR-1.18),
 // fuzzy search and trending (FR-1.19), CSV/JSON import (FR-1.4) and the admin audit trail.
 //   node --test tests/features.test.js
+// The API listens on a free port picked by the OS, so a busy port can never block or hang the run.
 process.env.NODE_ENV = 'test';
 process.env.FRONTEND_URL = 'http://localhost:3001';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_at_least_32_characters_long';
@@ -11,9 +12,36 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 
 const TEST_URI = process.env.TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/swiftcart_features_test';
-const BASE = 'http://localhost:5058';
-
+const HOOK_TIMEOUT = 30000;
+let BASE; // set once the server is listening
 let server;
+
+// Resolve with the listening server, or reject on any server error (never wait forever)
+const listen = (app) => new Promise((resolve, reject) => {
+  const srv = app.listen(0, '127.0.0.1');
+  const onError = (err) => reject(err);
+  srv.once('error', onError);
+  srv.once('listening', () => {
+    srv.off('error', onError);
+    resolve(srv);
+  });
+});
+
+const stopServer = async () => {
+  if (!server || !server.listening) return;
+  server.closeAllConnections?.();
+  await new Promise((resolve) => server.close(() => resolve()));
+};
+
+const closeDatabase = async () => {
+  if (mongoose.connection.readyState === 1) {
+    // Let background index builds finish first, or they re-create collections after the drop
+    await Promise.all(Object.values(mongoose.connection.models).map((model) => model.init().catch(() => {})));
+    await mongoose.connection.dropDatabase();
+  }
+  await mongoose.disconnect();
+};
+
 let Product;
 const tokens = {};
 const users = {};
@@ -33,25 +61,35 @@ const makeProduct = (title, extra = {}) => Product.create({
 });
 
 test.before(async () => {
-  await mongoose.connect(TEST_URI);
-  await mongoose.connection.dropDatabase();
-  const User = require('../src/models/User');
-  Product = require('../src/models/Product');
-  await Promise.all([require('../src/models/StockAlert').init(), require('../src/models/Review').init()]);
-  const { generateAccessToken } = require('../src/utils/generateTokens');
-  for (const [key, role] of [['admin', 'admin'], ['alice', 'customer'], ['bob', 'customer']]) {
-    users[key] = await User.create({ name: `${key} Tester`, email: `${key}@test.dev`, password: 'Password123!', role });
-    tokens[key] = generateAccessToken(users[key]);
+  try {
+    await mongoose.connect(TEST_URI, { serverSelectionTimeoutMS: 10000 });
+    await mongoose.connection.dropDatabase();
+    const User = require('../src/models/User');
+    Product = require('../src/models/Product');
+    await Promise.all([require('../src/models/StockAlert').init(), require('../src/models/Review').init()]);
+    const { generateAccessToken } = require('../src/utils/generateTokens');
+    for (const [key, role] of [['admin', 'admin'], ['alice', 'customer'], ['bob', 'customer']]) {
+      users[key] = await User.create({ name: `${key} Tester`, email: `${key}@test.dev`, password: 'Password123!', role });
+      tokens[key] = generateAccessToken(users[key]);
+    }
+    const app = require('../src/app');
+    server = await listen(app);
+    BASE = `http://127.0.0.1:${server.address().port}`;
+  } catch (err) {
+    // Release everything here too, so a failed start ends the run instead of keeping it open
+    await stopServer().catch(() => {});
+    await mongoose.disconnect().catch(() => {});
+    throw err;
   }
-  const app = require('../src/app');
-  await new Promise((resolve) => { server = app.listen(5058, resolve); });
-});
+}, { timeout: HOOK_TIMEOUT });
 
 test.after(async () => {
-  await new Promise((resolve) => server.close(resolve));
-  await mongoose.connection.dropDatabase();
-  await mongoose.disconnect();
-});
+  try {
+    await stopServer();
+  } finally {
+    await closeDatabase();
+  }
+}, { timeout: HOOK_TIMEOUT });
 
 test('FR-1.15: back-in-stock sign-up is stored once and fires when the product is restocked', async () => {
   const StockAlert = require('../src/models/StockAlert');

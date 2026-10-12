@@ -41,11 +41,21 @@ interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'campaign_purchase' | 'draw_result' | 'campaign_update' | 'winner_announcement' | 'system';
-  relatedCampaign?: { id: string; title: string; prizeName: string; status: string };
+  type: 'campaign_purchase' | 'draw_result' | 'campaign_update' | 'winner_announcement' | 'price_drop' | 'restock' | 'delivery_update' | 'system';
+  relatedCampaign?: { id: string; title: string; prizeName: string; status: string } | null;
+  relatedOrder?: string | null;
+  relatedProduct?: string | null;
   isRead: boolean;
   createdAt: string;
 }
+
+// Where clicking a notification takes the user
+const notificationHref = (n: Notification): string | null => {
+  if (n.relatedOrder) return `/orders?order=${n.relatedOrder}`;
+  if (n.relatedCampaign?.id) return `/campaigns/${n.relatedCampaign.id}`;
+  if (n.relatedProduct) return `/product/${n.relatedProduct}`;
+  return null;
+};
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -221,7 +231,7 @@ export default function Navbar() {
   // Primary Navigation Links
   const navLinks = [
     { href: '/products', label: 'SHOP' },
-    { href: '#', label: 'COLLECTIONS', hasMegaMenu: true },
+    { href: '/products', label: 'COLLECTIONS', hasMegaMenu: true },
     { href: '/campaigns', label: 'LUCKY DRAW' },
     { href: '/dressing-room', label: 'DRESSING ROOM' },
   ];
@@ -576,10 +586,11 @@ export default function Navbar() {
                                   </div>
                                 </div>
                               );
-                              return n.relatedCampaign?.id ? (
+                              const href = notificationHref(n);
+                              return href ? (
                                 <Link
                                   key={n.id}
-                                  href={'/campaigns/' + n.relatedCampaign.id}
+                                  href={href}
                                   onClick={() => {
                                     markNotificationRead(n);
                                     setIsNotifOpen(false);
@@ -684,7 +695,7 @@ export default function Navbar() {
           </div>
 
           {/* ROW 2: All Navigation Menus (Centered with Relative Anchor for Mega Menu) */}
-          <div className="hidden lg:flex items-center justify-center space-x-8 py-3 relative">
+          <div className="hidden lg:flex items-center justify-center space-x-8 py-3">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
 
@@ -692,12 +703,21 @@ export default function Navbar() {
                 return (
                   <div
                     key={link.label}
-                    className="relative"
+                    className="-my-3 py-3"
                     onMouseEnter={() => setIsMegaMenuOpen(true)}
                     onMouseLeave={() => setIsMegaMenuOpen(false)}
+                    onFocus={() => setIsMegaMenuOpen(true)}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsMegaMenuOpen(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setIsMegaMenuOpen(false);
+                    }}
                   >
                     <button
                       type="button"
+                      aria-expanded={isMegaMenuOpen}
+                      aria-haspopup="true"
                       onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
                       className={`flex items-center gap-1 text-xs font-black tracking-widest transition-colors py-1 uppercase cursor-pointer ${
                         isMegaMenuOpen
@@ -717,7 +737,7 @@ export default function Navbar() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
                           transition={{ duration: 0.2 }}
-                          className="fixed left-0 right-0 top-[112px] bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-2xl z-50 overflow-hidden"
+                          className="absolute left-0 right-0 top-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-2xl z-50 overflow-hidden"
                         >
                           <div className="max-w-[1440px] mx-auto p-8 grid grid-cols-12 gap-8 text-left">
                             

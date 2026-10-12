@@ -263,6 +263,7 @@
 
 /* Editorial palette shared by the sections below the landing hero. */
 .classic-home { --background: #f6f0e9; }
+.dark .classic-home { --background: #241715; }
 .classic-home > section:not(.fashion-story),
 .classic-home > .max-w-7xl { border-color: #cdb9a9; }
 .classic-home > section:nth-of-type(even):not(.bg-black) { background-color: #f2e5d9; }

@@ -1,5 +1,6 @@
 'use client';
 
+import { selectClass } from '@/components/ui/Select';
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
@@ -237,7 +238,7 @@ export default function CouponsAdmin() {
                   <select
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value as 'percentage' | 'fixed' })}
-                    className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5"
+                    className={`${selectClass} w-full`}
                   >
                     <option value="percentage">Percentage (%)</option>
                     <option value="fixed">Fixed amount ($)</option>

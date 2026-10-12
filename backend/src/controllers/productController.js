@@ -13,6 +13,30 @@ const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$
 
 const PUBLIC_FILTER = { active: true, status: 'published', visibility: 'public' };
 const SORTABLE_FIELDS = ['createdAt', 'updatedAt', 'price', 'title', 'rating', 'soldCount', 'stock'];
+
+// What the shopper pays: list price minus the product-level discount (same formula as utils/pricing.js)
+const EFFECTIVE_PRICE = {
+  $multiply: ['$price', { $subtract: [1, { $divide: [{ $ifNull: ['$discountPercentage', 0] }, 100] }] }]
+};
+const exactMatch = (value) => new RegExp(`^${escapeRegex(value)}$`, 'i');
+// One entry of a comma separated list such as "XS, S, M" (so "S" doesn't match "XS")
+const listEntry = (value) => new RegExp(`(^|,)\\s*${escapeRegex(value)}\\s*(,|$)`, 'i');
+
+// Storefront badges are derived from product data, not only from free-form tags
+// (keep in sync with matchesBadge in utils/productUtils.ts)
+const BADGE_CONDITIONS = {
+  sale: () => ({ discountPercentage: { $gt: 0 } }),
+  'low stock': () => ({
+    $expr: { $and: [{ $gt: ['$stock', 0] }, { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 5] }] }] }
+  }),
+  featured: () => ({ $or: [{ featured: true }, { tags: exactMatch('Featured') }] }),
+  bestseller: () => ({ $or: [{ bestSeller: true }, { tags: exactMatch('Bestseller') }] }),
+  new: () => ({ $or: [{ newArrival: true }, { tags: exactMatch('New') }] }),
+};
+const tagCondition = (tag) => {
+  const badge = BADGE_CONDITIONS[tag.toLowerCase()];
+  return badge ? badge() : { tags: exactMatch(tag) };
+};
 const MAX_PAGE_SIZE = 500;
 const AUDITED_FIELDS = ['title', 'price', 'discountPercentage', 'stock', 'status', 'category', 'brand', 'visibility', 'active', 'featured'];
 const auditFields = (product) => Object.fromEntries(AUDITED_FIELDS.map((k) => [k, product.get(k)]));
@@ -53,6 +77,8 @@ const getProducts = async (req, res, next) => {
     // Only admins may see drafts, archived, hidden or inactive products
     const adminView = all === 'true' && isAdmin(req);
     const query = adminView ? {} : { ...PUBLIC_FILTER };
+    // Filters that need their own $or / $expr are AND-ed together at the end
+    const andClauses = [];
 
     if (adminView && status && status !== 'all') {
       query.status = status;
@@ -93,12 +119,15 @@ const getProducts = async (req, res, next) => {
       ];
     }
 
-    // Price Filtering
-    if ((priceMin !== undefined && priceMin !== '') || (priceMax !== undefined && priceMax !== '')) {
-      query.price = {};
-      if (priceMin !== undefined && priceMin !== '') query.price.$gte = Number(priceMin);
-      if (priceMax !== undefined && priceMax !== '') query.price.$lte = Number(priceMax);
+    // Price Filtering on the discounted price the shopper actually pays
+    const priceBounds = [];
+    if (priceMin !== undefined && priceMin !== '' && Number.isFinite(Number(priceMin))) {
+      priceBounds.push({ $gte: [EFFECTIVE_PRICE, Number(priceMin)] });
     }
+    if (priceMax !== undefined && priceMax !== '' && Number.isFinite(Number(priceMax))) {
+      priceBounds.push({ $lte: [EFFECTIVE_PRICE, Number(priceMax)] });
+    }
+    if (priceBounds.length) andClauses.push({ $expr: { $and: priceBounds } });
 
     // Brand Filter
     if (brand) {
@@ -106,10 +135,10 @@ const getProducts = async (req, res, next) => {
       if (brands.length) query.brand = brands.length > 1 ? { $in: brands } : brands[0];
     }
 
-    // Tag Filter (comma separated, matches any)
+    // Tag / badge Filter (comma separated, matches any)
     if (req.query.tag) {
       const tagList = String(req.query.tag).split(',').map(t => t.trim()).filter(Boolean);
-      if (tagList.length) query.tags = { $in: tagList };
+      if (tagList.length) andClauses.push({ $or: tagList.map(tagCondition) });
     }
 
     // Rating Filter
@@ -117,17 +146,30 @@ const getProducts = async (req, res, next) => {
       query.rating = { $gte: Number(rating) };
     }
 
-    // Color Filter
+    // Color Filter (specification or a Color variant option)
     if (color) {
-      const colors = color.split(',').map(c => c.trim());
-      query['specifications.ColorName'] = { $in: colors };
+      const colors = String(color).split(',').map(c => c.trim()).filter(Boolean).map(exactMatch);
+      if (colors.length) {
+        andClauses.push({
+          $or: [
+            { 'specifications.ColorName': { $in: colors } },
+            { variants: { $elemMatch: { name: /^colou?r$/i, 'options.value': { $in: colors } } } }
+          ]
+        });
+      }
     }
 
-    // Size Filter
+    // Size Filter (entry of the Sizes specification or a Size variant option)
     if (size) {
-      const sizes = size.split(',').map(s => s.trim());
-      const regexes = sizes.map(s => new RegExp(`\\b${escapeRegex(s)}\\b`, 'i'));
-      query['specifications.Sizes'] = { $in: regexes };
+      const sizes = String(size).split(',').map(s => s.trim()).filter(Boolean);
+      if (sizes.length) {
+        andClauses.push({
+          $or: [
+            { 'specifications.Sizes': { $in: sizes.map(listEntry) } },
+            { variants: { $elemMatch: { name: /^size$/i, 'options.value': { $in: sizes.map(exactMatch) } } } }
+          ]
+        });
+      }
     }
 
     // Availability Filter
@@ -143,14 +185,18 @@ const getProducts = async (req, res, next) => {
     if (newArrival === 'true' || newArrival === true) query.newArrival = true;
     if (bestSeller === 'true' || bestSeller === true) query.bestSeller = true;
 
+    if (andClauses.length) query.$and = andClauses;
+
     // Sorting definition
     let sortOptions = {};
+    // Storefront price sorts follow the discounted price, not the list price
+    let effectivePriceOrder = 0;
 
     if (newest === 'true') {
       sortOptions = { createdAt: -1 };
     } else if (sortBy) {
-      if (sortBy === 'price-asc') sortOptions = { price: 1 };
-      else if (sortBy === 'price-desc') sortOptions = { price: -1 };
+      if (sortBy === 'price-asc') effectivePriceOrder = 1;
+      else if (sortBy === 'price-desc') effectivePriceOrder = -1;
       else if (sortBy === 'rating') sortOptions = { rating: -1 };
       else if (sortBy === 'sold') sortOptions = { soldCount: -1 };
       else sortOptions = { createdAt: -1 };
@@ -165,10 +211,25 @@ const getProducts = async (req, res, next) => {
     const skipNum = skip !== undefined ? Math.max(0, Math.floor(Number(skip)) || 0) : (pageNum - 1) * limitNum;
 
     const total = await Product.countDocuments(query);
-    const products = await Product.find(query)
-      .sort(sortOptions)
-      .skip(skipNum)
-      .limit(limitNum);
+    let products;
+    if (effectivePriceOrder) {
+      const rows = await Product.aggregate([
+        { $match: query },
+        { $addFields: { effectivePrice: EFFECTIVE_PRICE } },
+        { $sort: { effectivePrice: effectivePriceOrder, _id: 1 } },
+        { $skip: skipNum },
+        { $limit: limitNum },
+        { $project: { effectivePrice: 0, costPrice: 0, profitMargin: 0 } }
+      ]);
+      // Hydrate so the response goes through the same toJSON transform as find();
+      // the projection keeps hidden fields (costPrice, profitMargin) from being defaulted back in
+      products = rows.map((row) => Product.hydrate(row, { costPrice: 0, profitMargin: 0 }));
+    } else {
+      products = await Product.find(query)
+        .sort(sortOptions)
+        .skip(skipNum)
+        .limit(limitNum);
+    }
 
     let didYouMean = null;
     if (search && !adminView) {

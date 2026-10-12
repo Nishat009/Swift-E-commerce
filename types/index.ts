@@ -234,8 +234,10 @@ export interface Order {
   coupon?: string;
   subtotal?: number;
   shipping?: number;
+  deliveryZone?: '' | 'inside_dhaka' | 'outside_dhaka';
   tax?: number;
   total: number;
+  refund?: { amount?: number; at?: string; by?: string; byName?: string; note?: string };
   address?: Address;
   shippingAddress?: Address;
   paymentMethod: string;

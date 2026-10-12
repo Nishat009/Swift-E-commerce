@@ -67,7 +67,6 @@ const testDraw = async () => {
     campaign.status = 'completed';
     campaign.winnerUser = winningTicket.user;
     campaign.winnerTicket = winningTicket.ticketNumber;
-    campaign.winnerVideoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
     await campaign.save();
     console.log('Campaign status updated to "completed". Winner details populated.');
 

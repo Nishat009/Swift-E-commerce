@@ -297,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('refreshToken');
       }
       // Clear local cart storage
-      useCartStore.setState({ items: [] });
+      useCartStore.setState({ items: [], savedItems: [] });
       useWishlistStore.getState().reset();
       setLoading(false);
       router.push('/auth/login');
