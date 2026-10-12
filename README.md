@@ -282,7 +282,7 @@ The backend provides a RESTful API with interactive Swagger documentation:
 
 ### Frontend (`.env.local` - Optional)
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
+BACKEND_API_URL=http://localhost:5000/api
 NEXT_PUBLIC_APP_URL=http://localhost:3001
 ```
 

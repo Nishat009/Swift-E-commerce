@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
 
-// Allow product/category uploads served by the backend (NEXT_PUBLIC_API_URL host) through next/image.
+const backendApiUrl = process.env.BACKEND_API_URL || (process.env.NODE_ENV === 'production'
+  ? 'https://swift-e-commerce.onrender.com/api'
+  : 'http://localhost:5000/api');
+
+// Allow product/category uploads served by the backend through next/image.
 const apiHostPattern: NonNullable<NonNullable<NextConfig['images']>['remotePatterns']> = (() => {
   try {
-    const u = new URL(process.env.NEXT_PUBLIC_API_URL || '');
+    const u = new URL(backendApiUrl);
     return [{
       protocol: u.protocol.replace(':', '') as 'http' | 'https',
       hostname: u.hostname,
@@ -16,9 +20,9 @@ const apiHostPattern: NonNullable<NonNullable<NextConfig['images']>['remotePatte
 })();
 
 const nextConfig: NextConfig = {
-  ...(process.env.NODE_ENV === 'development' && {
-    env: { NEXT_PUBLIC_API_URL: 'http://localhost:5000/api' },
-  }),
+  async rewrites() {
+    return [{ source: '/api/backend/:path*', destination: `${backendApiUrl.replace(/\/$/, '')}/:path*` }];
+  },
   async headers() {
     return ['/auth/:path*', '/settings'].map(source => ({
       source,

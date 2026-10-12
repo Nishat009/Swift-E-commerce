@@ -59,7 +59,7 @@ For a manual end-to-end check, verify first login, logout and returning login, p
 
 ## Deployment and troubleshooting
 
-- Add the production frontend's HTTPS origin to the same Google web client (or use a separate production client), set backend `GOOGLE_CLIENT_ID` and `FRONTEND_URL`, and set frontend `NEXT_PUBLIC_API_URL` to the deployed API. Configure strong, different `JWT_SECRET` and `JWT_REFRESH_SECRET` values. Keep frontend/API on the same site when possible so browser third-party-cookie restrictions do not block refresh/challenge cookies.
+- Add the production frontend's HTTPS origin to the same Google web client (or use a separate production client), and set backend `GOOGLE_CLIENT_ID` and `FRONTEND_URL`. The frontend sends API requests through its own `/api/backend` path so the Google challenge and refresh cookies are first-party. The proxy uses `https://swift-e-commerce.onrender.com/api` in production by default; set frontend `BACKEND_API_URL` only when deploying a different backend. Configure strong, different `JWT_SECRET` and `JWT_REFRESH_SECRET` values.
 - `origin_mismatch`: check the exact browser origin and authorized JavaScript origins, including the port. Cloud configuration changes can take time to propagate.
 - Google script blocked/network error: allow `https://accounts.google.com/gsi/client`, permit the Google popup, or use email login.
 - Expired challenge: click **Try Google again** (or start Google sign-in again) for a new nonce.
