@@ -1,307 +1,235 @@
-# 🛍️ SwiftCart — Luxury Fashion & Enterprise E-Commerce Platform
+# 🛍️ SwiftCart — Full-Stack Fashion E-Commerce
 
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![React 19](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
-[![Express.js](https://img.shields.io/badge/Express.js-4-000000?style=flat-square&logo=express)](https://expressjs.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
-[![Three.js](https://img.shields.io/badge/Three.js-3D_Studio-black?style=flat-square&logo=three.js)](https://threejs.org/)
-[![Swagger API](https://img.shields.io/badge/Swagger-API_Docs-85EA2D?style=flat-square&logo=swagger)](http://localhost:5000/api-docs)
+A fashion store with a customer storefront, an admin panel, online payments, and AI shopping helpers.
+The frontend is **Next.js** and the backend is an **Express + MongoDB** REST API.
 
-> **Live Preview & Demo:** [http://localhost:3000](http://localhost:3000) (or `http://localhost:3001`)  
-> **API Documentation (Swagger):** [http://localhost:5000/api-docs](http://localhost:5000/api-docs)  
-> **Backend REST API:** [http://localhost:5000/api](http://localhost:5000/api)
-
----
-
-## 📖 Table of Contents
-1. [Overview & Value Proposition](#-overview--value-proposition)
-2. [Key Features & Highlights](#-key-features--highlights)
-3. [Technology Stack](#-technology-stack)
-4. [Architecture & Project Structure](#-architecture--project-structure)
-5. [Getting Started & Installation](#-getting-started--installation)
-6. [Default Demo Credentials](#-default-demo-credentials)
-7. [API Endpoints Overview](#-api-endpoints-overview)
-8. [Environment Configuration](#-environment-configuration)
-9. [License](#-license)
-
----
-
-## 🌟 Overview & Value Proposition
-
-**SwiftCart** is a high-end, luxury fashion and apparel e-commerce platform that pairs **Scandinavian/Ately-inspired minimalist editorial aesthetics** and **Zara-style lookbooks** with cutting-edge **3D Virtual Fitting Rooms** and **AI Commerce Intelligence**.
-
-Built for enterprise scale, SwiftCart offers a seamless shopping experience for customers and a full-featured management dashboard for store administrators and sellers.
-
----
-
-## ✨ Key Features & Highlights
-
-### 👗 1. Customer Shopping Experience
-* **Minimalist Ately & Zara Editorial Showcase**:
-  * Uncluttered, spacious 3-column curated wardrobe grid with tabbed filtering (`All Pieces`, `New Drops`, `Bestsellers`, `Tops & Shirts`, `Trousers`, `Jackets & Coats`).
-  * Smooth single-image zoom hover transition (`scale-105`) with neutral `#F6F5F3` garment backdrops.
-  * Structured details beneath the frame: Uppercase brand tracking, live color swatches, fabric descriptors, and stock/rating indicators.
-* **3D Virtual Dressing Room (`/dressing-room`)**:
-  * Real-time 3D avatar fitting room powered by **Three.js**.
-  * Interactive gender, skin tone, hairstyle, and body shape customization.
-  * 1-click try-on for coats, knits, pants, dresses, and sneakers with 360° camera rotation.
-* **Zara-Style Editorial Lookbook Reel**:
-  * Horizontal lookbook panel with models against neutral stone plaster walls, oversized watermark typography, and an interactive **Look Inspector Modal**.
-* **Enterprise Product Detail Page (PDP)**:
-  * Image gallery with fullscreen zoom, video viewer, and color variant switching.
-  * **AI Fit & Sizing Quiz**: Enter height, weight, and preferred cut for automatic size recommendation (XS–XXL).
-  * **Frequently Bought Together Bundle Builder**: Automated 10% bundle discount when purchasing complementary items.
-  * **Same-Day Dispatch Estimator**: Live countdown timer calculating guaranteed standard/express delivery dates.
-  * **Sticky Mobile & Desktop Purchase Bar**: Floating quick-add bar with price and variant summary.
-* **Smart Commerce Tools**:
-  * **Multi-Product Comparison**: Side-by-side comparison modal with a *"Show Differences Only"* toggle.
-  * **Instant Smart Search**: Debounced autocomplete with keyword highlighting and recent search history.
-  * **Multi-Currency & Language Engine**: Dynamic price conversion (`USD`, `EUR`, `GBP`, `BDT`) and language localizer.
-  * **Verified Photo Reviews**: Customer reviews with outfit photo attachments and AI sentiment rating bars.
-* **Responsive Homepage Shell**:
-  * Mobile navigation keeps the menu, logo, and core account/cart actions visible from 320px upward.
-  * Homepage catalog cards use responsive wide image frames across phone, tablet, and desktop layouts.
-  * Category slider uses a simple responsive card layout from 320px to 1920px; category artwork remains fully visible with contain-fit images.
-* **Google Sign-In**:
-  * Google Identity Services login/signup uses a one-use nonce challenge, HttpOnly cookies, optional 2FA, and guest-cart synchronization.
-
-* **Multi-Layered Security & Google Authentication**:
-  * **Google OAuth 2.0 & Identity Services (GSI)**: 1-click Google sign-in modal with automatic account creation and JWT session linking.
-  * **Two-Factor Authentication (2FA)**: Google Authenticator TOTP verification + emergency backup recovery codes.
-  * **Passwordless Email OTP**: Secure 6-digit one-time passcodes dispatched for fast login.
-  * **Brute-force Account Lockout**: Automatic 30-second security cooldown after 3 consecutive failed attempts.
-* **Automated Order Invoicing & Email Notifications**:
-  * **Transactional Order Confirmation**: Instant dispatch of branded, itemized HTML invoice receipts upon order placement.
-  * **Dual-Mode Engine (Nodemailer)**: Zero-config **Ethereal Email** test mode with clickable live browser preview URLs, and seamless **Production SMTP** integration (Gmail, Resend, Brevo).
-  * **Order Lifecycle Email Triggers**: Automatic status update emails on `Confirmed`, `Shipped`, `Delivered`, or `Cancelled`.
-  * **In-App Notification Center**: Synchronized notifications stored in MongoDB with real-time notification bell counts.
-
----
-
-### 🛡️ 2. Enterprise Admin & Seller Portal (`/admin`)
-* **Live Store Overview**:
-  * Real-time metrics for Gross Revenue, Orders Count, Customer Registrations, and Catalog Counts.
-* **Comprehensive Catalog Management**:
-  * Full-text search and multi-criteria filters across title, SKU, brand, and status.
-  * Bulk operations: Select multiple items for Bulk Delete, Bulk Publish, and Bulk Archive.
-  * CSV Inventory Export & JSON Catalog Payload Importer.
-* **Order Lifecycle Control**:
-  * Status progression: `Pending` ➔ `Processing` ➔ `Shipped` ➔ `Delivered` ➔ `Cancelled` (with automated customer email dispatch).
-* **Security & Action Audit Trail**:
-  * Real-time audit logs of administrative changes and access records.
-* **Currencies & Languages Manager**:
-  * Dynamic creation and rate management for global currencies and regional languages.
-* **Admin Navigation & Instant Logout**:
-  * Header and sidebar logout shortcuts and storefront link.
-
----
-
-## 🛠 Technology Stack
-
-### Frontend
-| Technology | Description |
+| | Link |
 | :--- | :--- |
-| **Next.js 16** | React framework with App Router, Turbopack, and SSR/SSG optimization |
-| **React 19** | Modern UI rendering library with advanced hooks and concurrent features |
-| **TypeScript 5** | End-to-end type safety and structured interfaces |
-| **Tailwind CSS v4** | Utility-first CSS framework tailored for modern minimal design |
-| **Framer Motion 12** | Fluid layout animations, transitions, and gesture controls |
-| **Zustand 5** | Lightweight, reactive state management (Cart, Wishlist, Compare, Theme, Currencies) |
-| **Three.js** | 3D avatar rendering and interactive fitting studio |
-| **Lucide React** | Clean, minimalist icon set |
+| 🌐 **Live site** | **https://swift-e-commerce-eta.vercel.app** |
+| ⚙️ **Live API** | https://swift-e-commerce.onrender.com/api |
+| 📘 **API docs (Swagger)** | https://swift-e-commerce.onrender.com/api-docs |
 
-### Backend
-| Technology | Description |
-| :--- | :--- |
-| **Node.js 18+** | High-performance JavaScript runtime |
-| **Express.js 4** | Robust REST API server with modular routing and controllers |
-| **MongoDB & Mongoose 8** | NoSQL document database with strict schema validation and populate indexing |
-| **Nodemailer** | Transactional HTML email dispatch with Ethereal test preview and SMTP support |
-| **JSON Web Tokens (JWT)** | Secure stateless authentication with HTTP-only cookie support |
-| **Bcrypt.js** | Salted password hashing and security verification |
-| **Swagger UI Express** | Interactive OpenAPI / Swagger 2.0 API documentation |
-| **Helmet & Express-Rate-Limit** | Production-ready HTTP security headers and brute-force protection |
+> The backend runs on Render's free tier, so the **first request after a while can take 30–60 seconds** while the server wakes up.
 
 ---
 
-## 📂 Architecture & Project Structure
+## 📌 Contents
+
+1. [Architecture at a glance](#-architecture-at-a-glance)
+2. [Tech stack](#-tech-stack)
+3. [Features](#-features)
+4. [Folder structure](#-folder-structure)
+5. [Run it locally](#-run-it-locally)
+6. [Environment variables](#-environment-variables)
+7. [Tests](#-tests)
+8. [More docs](#-more-docs)
+
+---
+
+## 🏗️ Architecture at a glance
+
+```mermaid
+flowchart LR
+    U["👤 Browser"] --> FE
+
+    subgraph FE["Frontend · Next.js on Vercel"]
+        P["Pages (App Router)"]
+        S["Zustand stores + React context"]
+        PX["/api/backend/* proxy"]
+    end
+
+    PX -->|"REST + HttpOnly cookies"| BE
+
+    subgraph BE["Backend · Express on Render"]
+        R["Routes"] --> C["Controllers"] --> SV["Services"] --> M["Mongoose models"]
+        J["Every 5 min: expire unpaid orders & ticket holds"]
+    end
+
+    M --> DB[("MongoDB")]
+    SV --> EXT["Stripe · bKash · Cloudinary · SMTP email · Google Sign-In"]
+```
+
+**How a request moves:**
+
+1. The browser only talks to the **Next.js app** (same domain).
+2. Every API call goes to `/api/backend/...`. Next.js forwards it to the Express API (a rewrite in [next.config.ts](next.config.ts)). This keeps login cookies first-party.
+3. Express handles it in layers: **route → middleware (auth, role, validation) → controller → service → model**.
+4. Data is stored in **MongoDB**. Payments, images, emails, and Google login go to external services.
+5. Login uses a short-lived **JWT access token** plus a **refresh token in an HttpOnly cookie**. [lib/apiClient.ts](lib/apiClient.ts) refreshes the token automatically.
+
+---
+
+## 🧰 Tech stack
+
+| Layer | Tools |
+| :--- | :--- |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Zustand, Framer Motion, Three.js, Axios |
+| **Backend** | Node.js, Express 4, Mongoose 8, JWT, bcrypt, Helmet, rate limiting, express-validator, Multer + Sharp |
+| **Database** | MongoDB (Atlas in production) |
+| **Integrations** | Stripe (card), bKash (mobile wallet), Cloudinary (images), Nodemailer (email), Google Identity Services |
+| **Docs & tests** | Swagger UI, Node test runner, Playwright |
+| **Hosting** | Vercel (frontend), Render (backend) |
+
+---
+
+## ✨ Features
+
+### 🛒 Customer side
+- **Shopping:** product listing with filters and sorting, product detail page, search, compare, wishlist, cart, and "save for later"
+- **Checkout:** address validation, coupons, and three payment methods: **Cash on Delivery** (charge depends on the delivery zone), **Card (Stripe)**, and **bKash**
+- **Account:** login/signup with email, **Google Sign-In**, or email OTP, plus optional **2FA**. Includes profile, addresses, orders, and notifications
+- **Orders:** order tracking, email updates on each status change, "Pay now" for unpaid online orders, and cancellation
+- **Extras:** reviews with photos, stock alerts, multi-currency and multi-language, newsletter, contact form
+- **Campaigns / lucky draw:** buy tickets with bKash or card. A ticket is created only after the server confirms the payment
+- **AI helpers:** chat stylist, outfit suggestions, recommendations, smart search, and a 3D **virtual dressing room** (`/dressing-room`)
+
+### 🛡️ Admin panel (`/admin`)
+- Dashboard with revenue, orders, customers, and products
+- Product management: create, edit, bulk actions, CSV/JSON import and export, image uploads
+- Order management: status updates and refunds. A **super admin** can override any order status
+- Manage categories, coupons, campaigns, hero banners, currencies, languages, and support messages
+- Audit trail of admin actions
+
+---
+
+## 📂 Folder structure
 
 ```text
 Swift-E-commerce/
-├── app/                              # Next.js App Router (Frontend)
-│   ├── page.tsx                      # Minimalist Editorial Homepage
-│   ├── layout.tsx                    # Root Layout with Theme & Context Providers
-│   ├── products/                     # Product Catalog & Category Filter Pages
-│   ├── product/[id]/                 # Enterprise Product Detail Page (PDP)
-│   ├── dressing-room/                # 3D Virtual Try-On Studio (Three.js)
-│   ├── admin/                        # Enterprise Management Console
-│   ├── dashboard/                    # Customer Account & Orders Dashboard
-│   ├── wishlist/                     # Saved Favorite Items Page
-│   ├── checkout/                     # Multi-Step Localized Checkout
-│   └── auth/                         # Login & Registration Pages
-├── backend/                          # Express.js REST API (Backend)
-│   ├── server.js                     # Server Entry Point & Swagger Configuration
-│   ├── scripts/
-│   │   ├── seed.js                   # Database Seeder (Catalog, Categories, Reviews)
-│   │   └── seedAdmin.js              # Dedicated Admin Credentials Seeder
-│   └── src/
-│       ├── controllers/              # Business Logic (Products, Cart, Auth, Orders)
-│       ├── middleware/               # Auth Guard, Role Verification, Error Handlers
-│       ├── models/                   # Mongoose Schemas (Product, User, Cart, Order, etc.)
-│       ├── routes/                   # Express API Route Handlers
-│       └── utils/                    # Response formatters & helpers
-├── components/                       # Reusable UI Components
-│   ├── layout/                       # Navbar, Footer, MegaMenu, AccountLayout
-│   ├── product/                      # ProductTable, ImageGallery, ReviewSection, VariantSelector
-│   └── ui/                           # ProductCard, ZaraLookbookSection, CategorySlider, Modal, Button
-├── context/                          # React Contexts (AuthContext, ToastContext)
-├── data/                             # Curated High-Fashion Catalog Data
-├── features/                         # AI Search, AI Recommendations, 3D Avatar Try-On
-├── lib/                              # Axios API Client & Shared Utilities
-├── stores/                           # Zustand Stores (Cart, Wishlist, Compare, Theme, Currency)
-├── types/                            # Global TypeScript Interfaces
-└── README.md                         # Project Documentation
+├── app/                 # Next.js pages (storefront, /admin, /checkout, /orders, /auth, …)
+├── components/          # Reusable UI (layout, product, ui)
+├── features/ai/         # AI features: avatar, chatbot, product-ai, recommendation, search
+├── stores/              # Zustand state: cart, wishlist, compare, currency, language, theme
+├── context/             # AuthContext, ToastContext
+├── hooks/               # Custom React hooks
+├── lib/                 # API client, Google login helper, utilities
+├── services/            # Frontend data and AI services
+├── types/               # Shared TypeScript types
+├── tests/browser/       # Playwright browser tests
+│
+└── backend/             # Express REST API
+    ├── server.js        # Entry point: connect DB, start server, start background job
+    ├── scripts/         # seed.js, seedAdmin.js
+    ├── tests/           # Backend tests
+    └── src/
+        ├── app.js       # Express setup and all /api/* routes
+        ├── routes/      # URL → controller mapping
+        ├── middleware/  # Auth, roles, errors
+        ├── validations/ # Request validation
+        ├── controllers/ # Request handlers
+        ├── services/    # Business logic (payments, order quote, email, inventory, …)
+        ├── models/      # MongoDB schemas (User, Product, Order, Cart, Campaign, …)
+        ├── config/      # DB, env check, Cloudinary
+        └── utils/       # Helpers and Swagger setup
 ```
 
+### Main API groups
+
+All routes start with `/api`. See the full list in [Swagger](https://swift-e-commerce.onrender.com/api-docs).
+
+| Area | Routes |
+| :--- | :--- |
+| Auth & users | `/auth` |
+| Catalog | `/products`, `/categories`, `/reviews`, `/recommendations` |
+| Shopping | `/cart`, `/wishlist`, `/coupons`, `/orders`, `/payments` |
+| Marketing | `/campaigns`, `/hero`, `/newsletter`, `/notifications` |
+| Settings | `/currencies`, `/languages` |
+| Support & AI | `/contact`, `/chat`, `/wardrobe` |
+| Admin | `/admin`, `/enterprise`, `/uploads`, `/image-assets` |
+
 ---
 
-## 🚀 Getting Started & Installation
+## 🚀 Run it locally
 
-### Prerequisites
-* **Node.js** >= 18.0.0
-* **MongoDB** (Local instance at `mongodb://127.0.0.1:27017` or MongoDB Atlas URI)
-* **npm** or **pnpm** / **yarn**
+**You need:** Node.js 18+ and MongoDB (local or Atlas).
 
----
-
-### Step 1: Clone the Repository
 ```bash
+# 1. Clone
 git clone https://github.com/Nishat009/Swift-E-commerce.git
 cd Swift-E-commerce
-```
 
----
+# 2. Install dependencies (frontend + backend)
+npm install
+npm --prefix backend install
 
-### Step 2: Set Up Backend Server
-1. Navigate to the `backend` directory and install dependencies:
-   ```bash
-   cd backend
-   npm install
-   ```
+# 3. Create backend/.env (see the next section)
 
-2. Seed the MongoDB Database with high-fashion catalog items, categories, and master accounts:
-   ```bash
-   npm run seed
-   npm run seed:admin
-   ```
+# 4. Add demo data
+npm --prefix backend run seed
+npm --prefix backend run seed:admin
 
-3. Start the backend API server:
-   ```bash
-   npm run dev
-   ```
-   * The API server will be available at: **[http://localhost:5000](http://localhost:5000)**
-   * Swagger Documentation is mounted at: **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**
-
----
-
-### Step 3: Set Up Frontend (Next.js)
-1. In a new terminal, navigate back to the root directory and install dependencies:
-   ```bash
-   cd ..
-   npm install
-   ```
-
-2. Start only the Next.js development server (if the backend is already running):
-   ```bash
-   npm run dev:frontend
-   ```
-   * The live storefront is running at: **[http://localhost:3001](http://localhost:3001)**
-
-### Run Frontend and Backend Together
-
-For real Google login/signup, see [Google sign-in setup and verification](docs/google-login.md). After creating a Google web client, configure it using `npm run setup:google -- YOUR_CLIENT_ID.apps.googleusercontent.com`.
-
-After installing dependencies in both the root and `backend` directories and configuring `backend/.env`, run this command from the project root:
-
-```bash
+# 5. Start frontend and backend together
 npm run dev
 ```
 
-This starts the frontend at **http://localhost:3001** and the backend at **http://localhost:5000** (unless `PORT` is overridden). MongoDB must be available using the configured `MONGO_URI`. Press `Ctrl+C` to stop both servers. Stop any separately running development servers first to avoid port conflicts.
+| Service | URL |
+| :--- | :--- |
+| Frontend | http://localhost:3001 |
+| Backend API | http://localhost:5000/api |
+| Swagger | http://localhost:5000/api-docs |
 
-To run either service separately from the project root, use `npm run dev:frontend` or `npm run dev:backend`.
+> On Windows PowerShell, if `npm` is blocked, use `npm.cmd run dev`.
 
-On Windows PowerShell, if execution policy blocks `npm.ps1`, use `npm.cmd run dev`.
+**Demo accounts** (created by `seed:admin`):
 
----
-
-## 🔑 Default Demo Credentials
-
-You can use the pre-configured accounts created during `npm run seed:admin`:
-
-| Role | Email | Password | Access Level |
-| :--- | :--- | :--- | :--- |
-| **Master Admin** | `admin@email.com` | `12345678` | Full access to `/admin` Console, Products, Orders & Analytics |
-| **Customer User** | `user@email.com` | `12345678` | Storefront browsing, 3D Studio, Cart, Wishlist & Orders |
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| Admin | `admin@email.com` | `12345678` |
+| Customer | `user@email.com` | `12345678` |
 
 ---
 
-## 🔌 API Endpoints Overview
+## ⚙️ Environment variables
 
-The backend provides a RESTful API with interactive Swagger documentation:
+**`backend/.env`** (required)
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| **POST** | `/api/auth/register` | Register new customer account | No |
-| **POST** | `/api/auth/login` | Login with JWT token issuance | No |
-| **POST** | `/api/auth/logout` | Terminate session & clear cookies | Yes |
-| **GET** | `/api/auth/profile` | Retrieve active authenticated profile | Yes |
-| **GET** | `/api/products` | Query catalog with search, filter, and pagination | No |
-| **GET** | `/api/products/:id` | Fetch single product by ObjectId, numeric ID, or slug | No |
-| **POST** | `/api/products` | Create a new catalog item | Admin |
-| **PUT** | `/api/products/:id` | Update product attributes | Admin |
-| **DELETE** | `/api/products/:id` | Remove product from store | Admin |
-| **GET** | `/api/cart` | Retrieve user shopping bag | Yes |
-| **POST** | `/api/cart` | Add product to shopping bag | Yes |
-| **DELETE** | `/api/cart/:id` | Remove item from cart | Yes |
-| **GET** | `/api/orders` | List customer orders / storewide orders | Yes |
-| **POST** | `/api/orders` | Place new order with address and line items | Yes |
-| **GET** | `/api/categories` | Retrieve all product categories | No |
-| **GET** | `/api/currencies` | Retrieve live supported currencies | No |
-| **GET** | `/api/languages` | Retrieve live supported languages | No |
-| **GET** | `/api/admin/dashboard` | Aggregated analytics & recent orders | Admin |
+```env
+PORT=5000
+NODE_ENV=development
+MONGO_URI=mongodb://127.0.0.1:27017/swiftcart
+JWT_SECRET=change_me
+JWT_REFRESH_SECRET=change_me_too
+FRONTEND_URL=http://localhost:3001
+BACKEND_URL=http://localhost:5000
 
-> Explore the full interactive API schema at **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**.
+# Optional: each feature turns on when its keys are set
+GOOGLE_CLIENT_ID=...            # Google Sign-In
+STRIPE_SECRET_KEY=sk_test_...   # Card payments
+BKASH_APP_KEY=...               # bKash (also BKASH_APP_SECRET, BKASH_USERNAME, BKASH_PASSWORD)
+CLOUDINARY_CLOUD_NAME=...       # Image hosting (also API key/secret)
+SMTP_HOST=...                   # Real email (without it, test emails use Ethereal)
+```
 
----
+**`.env.local`** (frontend, optional)
 
-## ⚙️ Environment Configuration
-
-### Frontend (`.env.local` - Optional)
 ```env
 BACKEND_API_URL=http://localhost:5000/api
 NEXT_PUBLIC_APP_URL=http://localhost:3001
 ```
 
-### Backend (`backend/.env`)
-```env
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb://127.0.0.1:27017/swiftcart
-JWT_SECRET=your_super_secret_jwt_key_swiftcart_2026
-JWT_EXPIRE=30d
-COOKIE_EXPIRE=30
-FRONTEND_URL=http://localhost:3001
-GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+---
+
+## 🧪 Tests
+
+```bash
+npm --prefix backend test      # Backend: auth, security, orders, lucky draw, features
+npm run test:auth:browser      # Browser test for Google login (Playwright)
+npm run lint                   # Lint the frontend
 ```
 
-Google login also requires `GOOGLE_CLIENT_ID` in `backend/.env`. Create a Google web client with `http://localhost:3001` as an authorized JavaScript origin, then run `npm.cmd run setup:google -- YOUR_CLIENT_ID.apps.googleusercontent.com` and restart the backend.
+---
+
+## 📚 More docs
+
+| File | What it covers |
+| :--- | :--- |
+| [docs/google-login.md](docs/google-login.md) | Setting up Google Sign-In |
+| [backend/PAYMENTS.md](backend/PAYMENTS.md) | Setting up and testing Stripe and bKash |
+| [backend/EMAIL.md](backend/EMAIL.md) | Setting up email |
+| [BRD.md](BRD.md) / [SRS.md](SRS.md) | Business and software requirements |
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. Built with craftsmanship for luxury e-commerce excellence.
+MIT. See [LICENSE](LICENSE).

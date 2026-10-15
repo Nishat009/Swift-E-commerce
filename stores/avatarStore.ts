@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { Product } from '@/types';
-import { AvatarState, WornItems, SavedAvatar, GenderType, BodyType, HeightType, HairStyleType } from '@/types/dressingRoom';
+import { AvatarState, WornItems, SavedAvatar, DemoDressSelection, HairStyleType } from '@/types/dressingRoom';
 
 interface AvatarStore {
   avatar: AvatarState;
   wornItems: WornItems;
+  demoDress: DemoDressSelection | null;
   savedAvatars: SavedAvatar[];
   undoStack: WornItems[];
   redoStack: WornItems[];
@@ -17,6 +18,7 @@ interface AvatarStore {
   // Actions
   setAvatarProperty: <K extends keyof AvatarState>(key: K, value: AvatarState[K]) => void;
   tryOnItem: (product: Product) => void;
+  setDemoDress: (selection: DemoDressSelection | null) => void;
   takeOffItem: (layer: keyof WornItems) => void;
   undo: () => void;
   redo: () => void;
@@ -60,6 +62,7 @@ const getSpec = (product: Product, key: string): string => {
 export const useAvatarStore = create<AvatarStore>((set) => ({
   avatar: defaultAvatar,
   wornItems: {},
+  demoDress: null,
   savedAvatars: [],
   undoStack: [],
   redoStack: [],
@@ -122,10 +125,14 @@ export const useAvatarStore = create<AvatarStore>((set) => ({
 
     return {
       wornItems: newWornItems,
+      // A catalog dress, top or trousers takes the place of the demo dress
+      demoDress: ['dress', 'top', 'pants'].includes(layer) ? null : state.demoDress,
       undoStack: newUndoStack,
       redoStack: [], // Clear redo stack on new action
     };
   }),
+
+  setDemoDress: (selection) => set({ demoDress: selection }),
 
   takeOffItem: (layer) => set((state) => {
     if (!state.wornItems[layer]) return {};
@@ -173,11 +180,12 @@ export const useAvatarStore = create<AvatarStore>((set) => ({
   }),
 
   resetOutfit: () => set((state) => {
-    if (Object.keys(state.wornItems).length === 0) return {};
+    if (Object.keys(state.wornItems).length === 0) return state.demoDress ? { demoDress: null } : {};
 
     const newUndoStack = [...state.undoStack, { ...state.wornItems }];
     return {
       wornItems: {},
+      demoDress: null,
       undoStack: newUndoStack,
       redoStack: [],
     };
@@ -206,6 +214,7 @@ export const useAvatarStore = create<AvatarStore>((set) => ({
   loadSavedAvatar: (saved) => set({
     avatar: { ...saved.avatar },
     wornItems: { ...saved.wornItems },
+    demoDress: null,
     undoStack: [],
     redoStack: [],
   }),

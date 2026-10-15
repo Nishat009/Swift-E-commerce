@@ -13,6 +13,7 @@ import { Sparkles, MessageSquare, Award, Shirt, Sliders, ChevronRight, Bot } fro
 import Link from 'next/link';
 
 import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
+import DemoDressRack from '@/components/dressing-room/DemoDressRack';
 import { useCatalog } from '@/hooks/useCatalog';
 import { Product } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -23,7 +24,7 @@ function DressingRoomContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
-  const [shopTab, setShopTab] = useState<'closet' | 'stylist'>('closet');
+  const [shopTab, setShopTab] = useState<'demo' | 'closet' | 'stylist'>('demo');
   const { products: allCatalog, loading: catalogLoading, error: catalogError } = useCatalog();
   // Dressing room works with items that have a Layer spec (fall back to whole catalog if none)
   const layered = allCatalog.filter((p) => p.specifications && (p.specifications as any)['Layer']);
@@ -100,7 +101,7 @@ function DressingRoomContent() {
               Virtual Dressing Room
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
-              Switch between studio product views and editorial model wearing looks, customize your 3D runway avatar, and curate your wardrobe.
+              Dress the 3D model with showroom demo dresses or pieces from the closet, rotate it 360°, customize the avatar and curate your wardrobe.
             </p>
           </div>
 
@@ -257,11 +258,19 @@ function DressingRoomContent() {
           </div>
           <div className="lg:col-span-4 min-h-[500px]"><AvatarViewer /></div>
           <div className="lg:col-span-4 space-y-4">
-            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
-              <button onClick={() => setShopTab('closet')} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === 'closet' ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>Closet</button>
-              <button onClick={() => setShopTab('stylist')} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === 'stylist' ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>Style Feedback</button>
+            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
+              {([
+                ['demo', 'Demo Dresses'],
+                ['closet', 'Closet'],
+                ['stylist', 'Style Feedback'],
+              ] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setShopTab(key)} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === key ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>
+                  {label}
+                </button>
+              ))}
             </div>
             <div className="min-h-[420px]">
+              {shopTab === 'demo' && <DemoDressRack />}
               {shopTab === 'closet' && <ClosetBuilder onProductSelect={setSelectedSpotlightProduct} />}
               {shopTab === 'stylist' && <SmartStylist />}
             </div>
