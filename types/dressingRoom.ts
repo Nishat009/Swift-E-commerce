@@ -32,6 +32,12 @@ export interface WornItems {
   glasses?: Product;
 }
 
+/** Showroom demo dress on the 3D model (id from DEMO_DRESSES plus the chosen colour). */
+export interface DemoDressSelection {
+  id: string;
+  color: string;
+}
+
 export interface SavedAvatar {
   id: string;
   name: string;
