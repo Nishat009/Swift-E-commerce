@@ -7,14 +7,35 @@ const { sendSuccess, sendError } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
 const payments = require('../services/paymentService');
 const inventory = require('../services/inventory');
-const { emailOrderEvent, fire: fireEmail } = require('../services/emailService');
+const { emailOrderEvent, sendStaffOrderAlert, fire: fireEmail } = require('../services/emailService');
 const { quoteOrder, publicQuote, QuoteError, isDhakaCity } = require('../services/orderQuote');
 const { isSuperAdmin } = require('../middleware/roleMiddleware');
+const { canEmailCustomers } = require('./customerEmailController');
 const {
-  CUSTOMER_CANCELLABLE, CLOSED, NEEDS_PAYMENT_FIRST, isOnline, canTransition, closeOrder, expireUnpaidOrders, notifyOrderUser,
+  CUSTOMER_CANCELLABLE, CLOSED, NEEDS_PAYMENT_FIRST, RETURN_REASONS, RETURN_WINDOW_DAYS, isOnline, canTransition, closeOrder,
+  expireUnpaidOrders, notifyOrderUser, notifyStaff, returnDeadline, customerView,
 } = require('../services/orderLifecycle');
 
 const newOrderNumber = () => `ORD-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+const METHOD_LABELS = { cod: 'cash on delivery', bkash: 'bKash', card: 'card' };
+const staffId = (req) => req.user._id || req.user.id;
+
+// Marking an order Returned settles a return request that is still waiting, as approved
+const approvePendingReturn = async (order, req) => {
+  if (order.orderStatus !== 'Returned' || order.returnRequest?.status !== 'Requested') return order;
+  const approved = await Order.findOneAndUpdate(
+    { _id: order._id, 'returnRequest.status': 'Requested' },
+    { $set: { 'returnRequest.status': 'Approved', 'returnRequest.decidedAt': new Date(), 'returnRequest.decidedBy': staffId(req), 'returnRequest.decidedByName': req.user.name || '' } },
+    { new: true }
+  );
+  return approved || order;
+};
+
+// Email for a status change; an order returned through a return request gets the return decision instead
+const emailStatusChange = (order) => {
+  const kind = order.orderStatus === 'Returned' && order.returnRequest?.status === 'Approved' ? 'return_decision' : 'status';
+  fireEmail(emailOrderEvent(order, kind));
+};
 
 // @desc    Price preview for the cart / checkout (same calculation as createOrder)
 // @route   POST /api/orders/quote
@@ -107,8 +128,12 @@ const createOrder = async (req, res, next) => {
 
       await order.populate('products.product');
       await notifyOrderUser(order, 'Order placed', `Your order ${order.orderNumber} was placed successfully. Total: $${order.total.toFixed(2)}.`);
+      const awaitingPayment = isOnline(order) ? ', waiting for online payment' : '';
+      const alert = `${order.orderNumber} from ${req.user.name || 'a customer'}: $${order.total.toFixed(2)} by ${METHOD_LABELS[order.paymentMethod] || order.paymentMethod}${awaitingPayment}.`;
+      await notifyStaff(order, 'New order received', alert);
       fireEmail(emailOrderEvent(order, 'confirmation'));
-      return sendSuccess(res, 'Order created successfully', order, 201);
+      fireEmail(sendStaffOrderAlert(order, { subject: `New order ${order.orderNumber} ($${order.total.toFixed(2)})`, title: 'New order received', intro: alert }));
+      return sendSuccess(res, 'Order created successfully', customerView(order), 201);
     } catch (orderErr) {
       // Give back the stock and coupon use if the order could not be saved
       if (appliedCoupon) await releaseCouponUse(appliedCoupon.code, req.user.id);
@@ -127,10 +152,9 @@ const getMyOrders = async (req, res, next) => {
   try {
     await expireUnpaidOrders();
     const orders = await Order.find({ user: req.user.id })
-      .select('-refund.by')
       .populate('products.product')
       .sort({ createdAt: -1 });
-    return sendSuccess(res, 'Orders retrieved successfully', orders);
+    return sendSuccess(res, 'Orders retrieved successfully', orders.map(customerView));
   } catch (error) {
     next(error);
   }
@@ -153,8 +177,7 @@ const getOrderById = async (req, res, next) => {
     }
 
     // Customers see the refund amount and date, not which staff member issued it
-    if (req.user.role !== 'admin' && order.refund) order.refund.by = undefined;
-    return sendSuccess(res, 'Order retrieved successfully', order);
+    return sendSuccess(res, 'Order retrieved successfully', req.user.role === 'admin' ? order : customerView(order));
   } catch (error) {
     next(error);
   }
@@ -187,10 +210,11 @@ const cancelOrder = async (req, res, next) => {
     const refundNote = cancelled.paymentStatus === 'Refund Needed' ? ' Your payment will be refunded.' : '';
     await notifyOrderUser(cancelled, 'Order cancelled', `Your order ${cancelled.orderNumber} has been cancelled.${refundNote}`);
     if (refundNote) await logActivity(req, 'Refund Needed', `Paid order ${cancelled.orderNumber} was cancelled by the customer and needs a refund`);
+    if (order.user.toString() === req.user.id) {
+      await notifyStaff(cancelled, 'Order cancelled by customer', `${cancelled.orderNumber} ($${cancelled.total.toFixed(2)}) was cancelled by the customer.${refundNote ? ' It was paid, so it needs a refund.' : ''}`);
+    }
     fireEmail(emailOrderEvent(cancelled, 'status'));
-    const result = cancelled.toJSON();
-    if (result.refund) delete result.refund.by;
-    return sendSuccess(res, 'Order cancelled successfully', result);
+    return sendSuccess(res, 'Order cancelled successfully', customerView(cancelled));
   } catch (error) {
     next(error);
   }
@@ -239,9 +263,11 @@ const updateOrderStatus = async (req, res, next) => {
     let updated;
     if (statusChange && CLOSED.includes(status)) {
       updated = await closeOrder(order, status, [order.orderStatus]);
+      if (updated) updated = await approvePendingReturn(updated, req);
     } else {
       const set = {};
       if (statusChange) set.orderStatus = status;
+      if (statusChange && status === 'Delivered') set.deliveredAt = new Date();
       if (statusChange && status === 'Delivered' && order.paymentMethod === 'cod' && !paymentStatus) set.paymentStatus = 'Paid';
       updated = await Order.findOneAndUpdate({ _id: order._id, orderStatus: order.orderStatus }, { $set: set }, { new: true });
     }
@@ -255,7 +281,7 @@ const updateOrderStatus = async (req, res, next) => {
     await logActivity(req, 'Order Updated', `Order ${updated.orderNumber}: ${prevOrderState.orderStatus} -> ${newState.orderStatus}, payment ${prevOrderState.paymentStatus} -> ${newState.paymentStatus}`);
     if (newState.orderStatus !== prevOrderState.orderStatus) {
       await notifyOrderUser(updated, 'Order update', `Your order ${updated.orderNumber} is now: ${updated.orderStatus}.`);
-      fireEmail(emailOrderEvent(updated, 'status'));
+      emailStatusChange(updated);
     }
     return sendSuccess(res, 'Order status updated successfully', updated);
   } catch (error) {
@@ -290,8 +316,10 @@ const overrideOrderStatus = async (req, res, next) => {
     let updated;
     if (CLOSED.includes(status)) {
       updated = await closeOrder(order, status, [order.orderStatus]);
+      if (updated) updated = await approvePendingReturn(updated, req);
     } else {
       const set = { orderStatus: status };
+      if (status === 'Delivered') set.deliveredAt = new Date();
       if (status === 'Delivered' && order.paymentMethod === 'cod') {
         set.paymentStatus = 'Paid';
         if (order.paymentStatus !== 'Paid') set.paidAt = new Date();
@@ -305,7 +333,7 @@ const overrideOrderStatus = async (req, res, next) => {
     await logActivity(req, 'Order Status Override', `Order ${updated.orderNumber}: ${prev.orderStatus} -> ${after.orderStatus}, payment ${prev.paymentStatus} -> ${after.paymentStatus}`);
     const refundNote = after.paymentStatus === 'Refund Needed' && prev.paymentStatus !== 'Refund Needed' ? ' Your payment will be refunded.' : '';
     await notifyOrderUser(updated, 'Order update', `Your order ${updated.orderNumber} is now: ${updated.orderStatus}.${refundNote}`);
-    fireEmail(emailOrderEvent(updated, 'status'));
+    emailStatusChange(updated);
     return sendSuccess(res, 'Order status updated successfully', updated);
   } catch (error) {
     next(error);
@@ -313,10 +341,11 @@ const overrideOrderStatus = async (req, res, next) => {
 };
 
 // @desc    Mark a cancelled / returned paid order as refunded (super admin only)
-// @route   POST /api/orders/:id/refund   body: { note? }
+// @route   POST /api/orders/:id/refund   body: { amount?, reference?, note? }
 // @access  Private/SuperAdmin
 // No gateway refund API is wired up (the mock gateway has none, and card / bKash refunds are issued from
-// the Stripe / bKash dashboard), so this records the refund: who, when and how much (the full order total).
+// the Stripe / bKash dashboard), so this records the refund: who, when, how much (default: the order total)
+// and the payout reference (e.g. the bKash TrxID).
 const refundOrder = async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
@@ -327,8 +356,13 @@ const refundOrder = async (req, res, next) => {
       return sendError(res, 'Only a cancelled or returned order that was paid and still needs a refund can be refunded.', 400);
     }
 
+    const raw = req.body?.amount;
+    const amount = raw === undefined || raw === null || raw === '' ? order.total : Math.round(Number(raw) * 100) / 100;
+    if (!Number.isFinite(amount) || amount <= 0 || amount > order.total) {
+      return sendError(res, `The refund must be more than $0 and at most the order total ($${order.total.toFixed(2)}).`, 400);
+    }
     const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
-    const amount = order.total;
+    const reference = typeof req.body?.reference === 'string' ? req.body.reference.trim().slice(0, 120) : '';
     const updated = await Order.findOneAndUpdate(
       { _id: order._id, paymentStatus: 'Refund Needed' },
       {
@@ -337,9 +371,9 @@ const refundOrder = async (req, res, next) => {
           refund: {
             amount,
             at: new Date(),
-            by: req.user._id || req.user.id,
+            by: staffId(req),
             byName: req.user.name || '',
-            reference: `${order.paymentGateway || 'manual'}:${order.paymentTransactionId || ''}`,
+            reference: reference || `${order.paymentGateway || 'manual'}:${order.paymentTransactionId || ''}`,
             note,
           },
         },
@@ -348,11 +382,114 @@ const refundOrder = async (req, res, next) => {
     );
     if (!updated) return sendError(res, 'This order was already refunded. Please refresh.', 409);
 
+    const partial = amount < order.total ? ` (partial, order total $${order.total.toFixed(2)})` : '';
     await logAudit(req, 'Order', updated._id, `Order ${updated.orderNumber} refunded`, { paymentStatus: 'Refund Needed' }, { paymentStatus: 'Refunded', refundAmount: amount });
-    await logActivity(req, 'Order Refunded', `Order ${updated.orderNumber}: refund of $${amount.toFixed(2)} recorded${note ? ` (${note})` : ''}`);
+    await logActivity(req, 'Order Refunded', `Order ${updated.orderNumber}: refund of $${amount.toFixed(2)}${partial} recorded${note ? ` (${note})` : ''}`);
     await notifyOrderUser(updated, 'Payment refunded', `Your payment of $${amount.toFixed(2)} for order ${updated.orderNumber} has been refunded.`);
-    fireEmail(emailOrderEvent(updated, 'status'));
+    fireEmail(emailOrderEvent(updated, 'refund'));
     return sendSuccess(res, 'Refund recorded', updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Ask to return a delivered order (and get a refund)
+// @route   POST /api/orders/:id/return-request   body: { reason, details? }
+// @access  Private (the customer who placed the order)
+const requestReturn = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id);
+    if (!order) return sendError(res, 'Order not found', 404);
+    if (order.user.toString() !== req.user.id) return sendError(res, 'Only the customer who placed this order can ask to return it.', 403);
+
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    const details = typeof req.body?.details === 'string' ? req.body.details.trim().slice(0, 1000) : '';
+    if (!RETURN_REASONS.includes(reason)) return sendError(res, `Choose a reason: ${RETURN_REASONS.join(', ')}`, 400);
+    if (reason === 'Other' && details.length < 10) return sendError(res, 'Please tell us a little more about why you are returning this order.', 400);
+
+    if (order.returnRequest?.status) return sendError(res, 'A return was already requested for this order.', 400);
+    if (order.orderStatus !== 'Delivered') return sendError(res, 'Only a delivered order can be returned.', 400);
+    const deadline = returnDeadline(order);
+    if (deadline && deadline < new Date()) {
+      return sendError(res, `The ${RETURN_WINDOW_DAYS}-day return window for this order ended on ${deadline.toDateString()}.`, 400);
+    }
+
+    const updated = await Order.findOneAndUpdate(
+      { _id: order._id, orderStatus: 'Delivered', 'returnRequest.status': { $in: ['', null] } },
+      { $set: { returnRequest: { status: 'Requested', reason, details, requestedAt: new Date() } } },
+      { new: true }
+    );
+    if (!updated) return sendError(res, 'This order was just updated. Please refresh.', 409);
+
+    await logActivity(req, 'Return Requested', `Order ${updated.orderNumber}: ${reason}${details ? ` - ${details.slice(0, 120)}` : ''}`);
+    await notifyOrderUser(updated, 'Return requested', `We received your return request for order ${updated.orderNumber}. We will review it within 2 business days.`);
+    const alert = `${updated.orderNumber} ($${updated.total.toFixed(2)}): ${reason}.`;
+    await notifyStaff(updated, 'Return requested', alert);
+    fireEmail(emailOrderEvent(updated, 'return_requested'));
+    fireEmail(sendStaffOrderAlert(updated, { subject: `Return requested for ${updated.orderNumber}`, title: 'Return requested', intro: `${req.user.name || 'A customer'} asked to return ${alert}${details ? ` "${details}"` : ''}` }));
+    return sendSuccess(res, 'Return requested', customerView(updated));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Approve or reject a customer's return request (approving marks the order Returned,
+//          puts the items back in stock and flags a paid order for a refund)
+// @route   PUT /api/orders/:id/return-request   body: { decision: 'approve' | 'reject', response? }
+// @access  Private/Admin
+const decideReturn = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return sendError(res, 'Order not found', 404);
+    const order = await Order.findById(req.params.id);
+    if (!order) return sendError(res, 'Order not found', 404);
+
+    const decision = req.body?.decision;
+    const response = typeof req.body?.response === 'string' ? req.body.response.trim().slice(0, 1000) : '';
+    if (!['approve', 'reject'].includes(decision)) return sendError(res, 'Decision must be "approve" or "reject".', 400);
+    if (decision === 'reject' && response.length < 5) return sendError(res, 'Tell the customer why the return is not approved.', 400);
+    if (order.returnRequest?.status !== 'Requested') return sendError(res, 'This order has no return request waiting for a decision.', 400);
+    if (decision === 'approve' && order.orderStatus !== 'Delivered') {
+      return sendError(res, `The order is ${order.orderStatus} now, so the return cannot be approved. Reject it with a note instead.`, 400);
+    }
+
+    const decided = {
+      'returnRequest.status': decision === 'approve' ? 'Approved' : 'Rejected',
+      'returnRequest.decidedAt': new Date(),
+      'returnRequest.decidedBy': staffId(req),
+      'returnRequest.decidedByName': req.user.name || '',
+      'returnRequest.response': response,
+    };
+    let updated = await Order.findOneAndUpdate({ _id: order._id, 'returnRequest.status': 'Requested' }, { $set: decided }, { new: true });
+    if (!updated) return sendError(res, 'Someone else already handled this return. Please refresh.', 409);
+
+    const before = { orderStatus: order.orderStatus, paymentStatus: order.paymentStatus, returnRequest: 'Requested' };
+    if (decision === 'approve') {
+      const returned = await closeOrder(updated, 'Returned', ['Delivered']);
+      if (!returned) {
+        // The order moved on while we were deciding: put the request back so it can be handled again
+        await Order.updateOne(
+          { _id: order._id },
+          {
+            $set: { 'returnRequest.status': 'Requested', 'returnRequest.decidedByName': '', 'returnRequest.response': '' },
+            $unset: { 'returnRequest.decidedAt': 1, 'returnRequest.decidedBy': 1 },
+          }
+        );
+        return sendError(res, 'This order was changed by someone else. Please refresh.', 409);
+      }
+      updated = returned;
+    }
+
+    const after = { orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus, returnRequest: updated.returnRequest.status };
+    await logAudit(req, 'Order', updated._id, `Order ${updated.orderNumber} return ${after.returnRequest.toLowerCase()}`, before, after);
+    await logActivity(req, decision === 'approve' ? 'Return Approved' : 'Return Rejected', `Order ${updated.orderNumber}${response ? `: ${response.slice(0, 160)}` : ''}`);
+    const refundNote = updated.paymentStatus === 'Refund Needed' ? ' Your refund will be processed soon.' : '';
+    await notifyOrderUser(updated, decision === 'approve' ? 'Return approved' : 'Return not approved',
+      decision === 'approve'
+        ? `Your return for order ${updated.orderNumber} was approved.${refundNote}`
+        : `Your return request for order ${updated.orderNumber} was not approved: ${response}`);
+    fireEmail(emailOrderEvent(updated, 'return_decision'));
+    return sendSuccess(res, decision === 'approve' ? 'Return approved' : 'Return rejected', updated);
   } catch (error) {
     next(error);
   }
@@ -378,11 +515,15 @@ const getAllOrders = async (req, res, next) => {
     const total = await Order.countDocuments();
 
     const refundsNeeded = await Order.countDocuments({ paymentStatus: 'Refund Needed' });
+    const returnRequests = await Order.countDocuments({ 'returnRequest.status': 'Requested' });
     return sendSuccess(res, 'All orders retrieved successfully', orders, 200, {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       // Lets the admin screen show the super-admin controls (the server enforces them again)
       canOverrideStatus: isSuperAdmin(req.user),
+      canEmailCustomers: canEmailCustomers(req.user),
       refundsNeeded,
+      returnRequests,
+      returnWindowDays: RETURN_WINDOW_DAYS,
     });
   } catch (error) {
     next(error);
@@ -398,5 +539,7 @@ module.exports = {
   updateOrderStatus,
   overrideOrderStatus,
   refundOrder,
+  requestReturn,
+  decideReturn,
   getAllOrders,
 };

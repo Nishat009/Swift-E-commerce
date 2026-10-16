@@ -237,11 +237,30 @@ export interface Order {
   deliveryZone?: '' | 'inside_dhaka' | 'outside_dhaka';
   tax?: number;
   total: number;
-  refund?: { amount?: number; at?: string; by?: string; byName?: string; note?: string };
+  refund?: { amount?: number; at?: string; by?: string; byName?: string; reference?: string; note?: string };
+  returnRequest?: ReturnRequest;
+  /** Last day the customer may ask to return a delivered order (null otherwise) */
+  returnDeadline?: string | null;
+  deliveredAt?: string | null;
   address?: Address;
   shippingAddress?: Address;
   paymentMethod: string;
   paymentStatus?: string;
   orderStatus?: string;
   createdAt: string;
+  updatedAt?: string;
 }
+
+export interface ReturnRequest {
+  status: '' | 'Requested' | 'Approved' | 'Rejected';
+  reason?: string;
+  details?: string;
+  requestedAt?: string;
+  decidedAt?: string;
+  decidedByName?: string;
+  /** Staff reply shown to the customer */
+  response?: string;
+}
+
+/** Same list as the server's RETURN_REASONS */
+export const RETURN_REASONS = ['Wrong size or fit', 'Damaged or defective', 'Not as described', 'Wrong item received', 'Changed my mind', 'Other'] as const;

@@ -23,7 +23,28 @@ const TRANSITIONS = {
 const CUSTOMER_CANCELLABLE = ['Pending', 'Processing', 'Confirmed'];
 const NEEDS_PAYMENT_FIRST = ['Packed', 'Shipped', 'Delivered'];
 
+// Shipping & returns policy: a delivered order can be returned within this many days
+const RETURN_WINDOW_DAYS = Math.max(1, Number(process.env.RETURN_WINDOW_DAYS) || 7);
+const RETURN_REASONS = ['Wrong size or fit', 'Damaged or defective', 'Not as described', 'Wrong item received', 'Changed my mind', 'Other'];
+
 const isOnline = (order) => order.paymentMethod === 'bkash' || order.paymentMethod === 'card';
+
+// Last moment a delivered order can be sent back (null when it is not delivered).
+// Orders delivered before deliveredAt existed fall back to their last update.
+const returnDeadline = (order) => {
+  if (order.orderStatus !== 'Delivered') return null;
+  const from = order.deliveredAt || order.updatedAt;
+  return from ? new Date(new Date(from).getTime() + RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000) : null;
+};
+
+// The order as its customer sees it: no staff identities, plus the return deadline
+const customerView = (order) => {
+  const json = typeof order.toJSON === 'function' ? order.toJSON() : { ...order };
+  if (json.refund) delete json.refund.by;
+  if (json.returnRequest) delete json.returnRequest.decidedBy;
+  json.returnDeadline = returnDeadline(order);
+  return json;
+};
 
 const canTransition = (order, next) => {
   if (!(TRANSITIONS[order.orderStatus] || []).includes(next)) {
@@ -41,6 +62,25 @@ const notifyOrderUser = async (order, title, message) => {
     await Notification.create({ user: order.user?._id || order.user, title, message, type: 'delivery_update', relatedOrder: order._id });
   } catch (err) {
     console.error('Order notification failed:', err.message);
+  }
+};
+
+// Best-effort alert for every admin account; clicking it opens the order in the admin panel
+const notifyStaff = async (order, title, message) => {
+  try {
+    const User = require('../models/User');
+    const admins = await User.find({ role: 'admin' }).select('_id').lean();
+    if (!admins.length) return;
+    await Notification.insertMany(admins.map((admin) => ({
+      user: admin._id,
+      title,
+      message,
+      type: 'admin_alert',
+      relatedOrder: order._id,
+      link: `/admin?tab=orders&order=${order._id}`,
+    })));
+  } catch (err) {
+    console.error('Staff notification failed:', err.message);
   }
 };
 
@@ -95,10 +135,15 @@ module.exports = {
   TRANSITIONS,
   UNPAID_HOLD_MINUTES,
   NEEDS_PAYMENT_FIRST,
+  RETURN_WINDOW_DAYS,
+  RETURN_REASONS,
   isOnline,
   canTransition,
   closeOrder,
   expireUnpaidOrders,
   inventoryLines,
   notifyOrderUser,
+  notifyStaff,
+  returnDeadline,
+  customerView,
 };

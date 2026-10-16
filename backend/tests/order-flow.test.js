@@ -356,3 +356,125 @@ test('refunds: customer cancel of a paid order flags Refund Needed; only a super
   assert.equal(codCancel.json.data.paymentStatus, 'Pending', 'unpaid COD needs no refund');
   assert.equal((await api('POST', `/api/orders/${cod}/refund`, tokens.admin)).status, 400);
 });
+
+test('returns: a delivered order can be returned once within the window; staff approve it and the refund can be partial', async () => {
+  const Notification = require('../src/models/Notification');
+  const p = await makeProduct('Returnable Scarf', 40, 10);
+  const id = (await order(tokens.bob, [{ product: p.id, quantity: 2 }])).json.data.id;
+  const ask = (token, body) => api('POST', `/api/orders/${id}/return-request`, token, body);
+  const decide = (token, body) => api('PUT', `/api/orders/${id}/return-request`, token, body);
+
+  assert.ok(await Notification.findOne({ type: 'admin_alert', relatedOrder: id, title: 'New order received', link: `/admin?tab=orders&order=${id}` }), 'staff hear about new orders');
+  assert.equal((await ask(tokens.bob, { reason: 'Wrong size or fit' })).status, 400, 'not delivered yet');
+  assert.equal((await api('PUT', `/api/orders/${id}/override-status`, tokens.admin, { status: 'Delivered' })).status, 200);
+  const delivered = await Order.findById(id);
+  assert.ok(delivered.deliveredAt, 'delivery date starts the return window');
+  assert.equal(delivered.paymentStatus, 'Paid');
+  const listed = (await api('GET', '/api/orders', tokens.bob)).json.data.find((o) => o.id === id);
+  assert.ok(new Date(listed.returnDeadline) > new Date(), 'customer sees the return deadline');
+
+  assert.equal((await ask(tokens.alice, { reason: 'Wrong size or fit' })).status, 403, 'only the owner can ask');
+  assert.equal((await ask(tokens.bob, { reason: 'Because' })).status, 400, 'unknown reason');
+  assert.equal((await ask(tokens.bob, { reason: 'Other', details: 'meh' })).status, 400, '"Other" needs a few words');
+  const asked = await ask(tokens.bob, { reason: 'Wrong size or fit', details: 'Too tight on the shoulders' });
+  assert.equal(asked.status, 200, JSON.stringify(asked.json));
+  assert.equal(asked.json.data.returnRequest.status, 'Requested');
+  assert.equal((await ask(tokens.bob, { reason: 'Wrong size or fit' })).status, 400, 'only one request per order');
+  assert.ok(await Notification.findOne({ type: 'admin_alert', relatedOrder: id, title: 'Return requested' }), 'staff are alerted');
+  assert.ok((await api('GET', '/api/orders/admin/all', tokens.admin)).json.returnRequests >= 1);
+
+  assert.equal((await decide(tokens.bob, { decision: 'approve' })).status, 403, 'customers cannot decide');
+  assert.equal((await decide(tokens.admin, { decision: 'maybe' })).status, 400);
+  const approved = await decide(tokens.admin, { decision: 'approve', response: 'Courier will collect on Monday' });
+  assert.equal(approved.status, 200, JSON.stringify(approved.json));
+  assert.equal(approved.json.data.orderStatus, 'Returned');
+  assert.equal(approved.json.data.paymentStatus, 'Refund Needed', 'a paid return needs a refund');
+  assert.equal(approved.json.data.returnRequest.status, 'Approved');
+  assert.equal((await Product.findById(p.id)).stock, 10, 'returned items are back in stock');
+  assert.equal((await decide(tokens.admin, { decision: 'approve' })).status, 400, 'already decided');
+  assert.ok(await Notification.findOne({ user: delivered.user, relatedOrder: id, title: 'Return approved' }));
+
+  const mine = (await api('GET', `/api/orders/${id}`, tokens.bob)).json.data;
+  assert.equal(mine.returnRequest.decidedBy, undefined, 'staff identity is not shown to the customer');
+  assert.equal(mine.returnRequest.response, 'Courier will collect on Monday');
+
+  const refund = (body) => api('POST', `/api/orders/${id}/refund`, tokens.admin, body);
+  assert.equal((await refund({ amount: 9999 })).status, 400, 'cannot refund more than the order total');
+  assert.equal((await refund({ amount: -1 })).status, 400);
+  const done = await refund({ amount: 70.5, reference: 'TRX-778', note: 'shipping kept' });
+  assert.equal(done.status, 200, JSON.stringify(done.json));
+  assert.equal(done.json.data.refund.amount, 70.5);
+  assert.equal(done.json.data.refund.reference, 'TRX-778');
+});
+
+test('returns: staff must explain a rejection, and the window closes after the return period', async () => {
+  const p = await makeProduct('Returnable Belt', 25, 5);
+  const id = (await order(tokens.bob, [{ product: p.id, quantity: 1 }])).json.data.id;
+  await api('PUT', `/api/orders/${id}/override-status`, tokens.admin, { status: 'Delivered' });
+  await api('POST', `/api/orders/${id}/return-request`, tokens.bob, { reason: 'Changed my mind' });
+
+  const decide = (body) => api('PUT', `/api/orders/${id}/return-request`, tokens.admin, body);
+  assert.equal((await decide({ decision: 'reject' })).status, 400, 'a rejection needs a reason');
+  const rejected = await decide({ decision: 'reject', response: 'The tags were removed.' });
+  assert.equal(rejected.status, 200);
+  assert.equal(rejected.json.data.orderStatus, 'Delivered', 'a rejected return leaves the order as it was');
+  assert.equal(rejected.json.data.returnRequest.status, 'Rejected');
+  assert.equal((await Product.findById(p.id)).stock, 4);
+
+  const late = (await order(tokens.bob, [{ product: p.id, quantity: 1 }])).json.data.id;
+  await api('PUT', `/api/orders/${late}/override-status`, tokens.admin, { status: 'Delivered' });
+  await Order.updateOne({ _id: late }, { deliveredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) });
+  const tooLate = await api('POST', `/api/orders/${late}/return-request`, tokens.bob, { reason: 'Changed my mind' });
+  assert.equal(tooLate.status, 400);
+  assert.match(tooLate.json.message, /return window/);
+
+  // Marking a requested return "Returned" from the status menu settles the request too
+  const viaStatus = (await order(tokens.bob, [{ product: p.id, quantity: 1 }])).json.data.id;
+  await api('PUT', `/api/orders/${viaStatus}/override-status`, tokens.admin, { status: 'Delivered' });
+  await api('POST', `/api/orders/${viaStatus}/return-request`, tokens.bob, { reason: 'Damaged or defective' });
+  const returned = await api('PUT', `/api/orders/${viaStatus}/status`, tokens.admin, { status: 'Returned' });
+  assert.equal(returned.json.data.returnRequest.status, 'Approved');
+});
+
+test('admins can email a customer about their order; demo admins cannot while real email is on', async () => {
+  const User = require('../src/models/User');
+  const Notification = require('../src/models/Notification');
+  const CustomerEmail = require('../src/models/CustomerEmail');
+  const { generateAccessToken } = require('../src/utils/generateTokens');
+  const bob = await User.findOne({ email: 'bob@test.dev' });
+  const alice = await User.findOne({ email: 'alice@test.dev' });
+  const p = await makeProduct('Emailed Cap', 15, 5);
+  const bobOrder = (await order(tokens.bob, [{ product: p.id, quantity: 1 }])).json.data.id;
+  const send = (token, userId, body) => api('POST', `/api/admin/users/${userId}/email`, token, body);
+  const body = { subject: 'About your order', message: 'Your parcel leaves our warehouse tomorrow morning.', orderId: bobOrder, includeOrder: true };
+
+  assert.equal((await send(tokens.alice, bob.id, body)).status, 403, 'customers cannot');
+  assert.equal((await send(tokens.admin, bob.id, { ...body, subject: '' })).status, 400);
+  assert.equal((await send(tokens.admin, bob.id, { ...body, message: 'short' })).status, 400);
+  assert.equal((await send(tokens.admin, alice.id, body)).status, 400, 'the order must belong to that customer');
+
+  // No mail server in tests: the email is not delivered, but the in-app copy still reaches the customer
+  const sent = await send(tokens.admin, bob.id, body);
+  assert.equal(sent.status, 201, JSON.stringify(sent.json));
+  assert.equal(sent.json.data.delivered, false);
+  assert.ok(await Notification.findOne({ user: bob._id, type: 'store_message', title: 'About your order', relatedOrder: bobOrder }));
+  assert.equal(await CustomerEmail.countDocuments({ user: bob._id, order: bobOrder }), 1);
+  assert.equal((await send(tokens.admin, bob.id, { ...body, notifyInApp: false })).status, 502, 'nothing reached the customer');
+
+  const history = await api('GET', `/api/admin/users/${bob.id}/emails?order=${bobOrder}`, tokens.admin);
+  assert.equal(history.json.data.length, 2);
+  assert.equal(history.json.data[0].sentByName, 'admin');
+
+  const demo = await User.findOne({ email: 'admin@swiftcart.demo' });
+  const demoToken = generateAccessToken(demo);
+  process.env.SMTP_HOST = 'smtp.invalid';
+  process.env.SMTP_USER = 'x';
+  process.env.SMTP_PASS = 'y';
+  try {
+    assert.equal((await send(demoToken, bob.id, body)).status, 403, 'demo admin cannot send real email');
+  } finally {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASS;
+  }
+});

@@ -29,28 +29,32 @@ import { useCartStore } from '@/stores/cartStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useCurrencyStore } from '@/stores/currencyStore';
 import { useLanguageStore } from '@/stores/languageStore';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import CartDrawer from '@/components/ui/CartDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
 import { Product } from '@/types';
 import { debounce } from '@/utils/debounce';
+import { NOTIFICATIONS_REFRESH_EVENT, NotificationsRefreshDetail } from '@/utils/notifications';
 
 interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'campaign_purchase' | 'draw_result' | 'campaign_update' | 'winner_announcement' | 'price_drop' | 'restock' | 'delivery_update' | 'system';
+  type: 'campaign_purchase' | 'draw_result' | 'campaign_update' | 'winner_announcement' | 'price_drop' | 'restock' | 'delivery_update' | 'admin_alert' | 'store_message' | 'system';
   relatedCampaign?: { id: string; title: string; prizeName: string; status: string } | null;
   relatedOrder?: string | null;
   relatedProduct?: string | null;
+  link?: string;
   isRead: boolean;
   createdAt: string;
 }
 
 // Where clicking a notification takes the user
 const notificationHref = (n: Notification): string | null => {
+  if (n.link) return n.link;
   if (n.relatedOrder) return `/orders?order=${n.relatedOrder}`;
   if (n.relatedCampaign?.id) return `/campaigns/${n.relatedCampaign.id}`;
   if (n.relatedProduct) return `/product/${n.relatedProduct}`;
@@ -61,6 +65,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const toast = useToast();
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { theme, toggleTheme } = useThemeStore();
   const { code: activeCurrencyCode, setCurrency, availableCurrencies, loadCurrencies } = useCurrencyStore();
@@ -121,21 +126,37 @@ export default function Navbar() {
     }
   };
 
-  const fetchNotifications = useCallback(async () => {
+  // Newest notification time already shown; anything newer and unread pops up as a toast (null until the first load)
+  const newestSeenRef = useRef<number | null>(null);
+
+  const fetchNotifications = useCallback(async ({ silent = false }: NotificationsRefreshDetail = {}) => {
     if (!user) return;
     try {
       const [notifRes, countRes] = await Promise.all([
         apiClient.get('/notifications?limit=10'),
         apiClient.get('/notifications/unread-count'),
       ]);
-      if (notifRes.data?.success) setNotifications(notifRes.data.data);
+      if (notifRes.data?.success) {
+        const list: Notification[] = notifRes.data.data;
+        setNotifications(list);
+        const newest = list.reduce((max, n) => Math.max(max, new Date(n.createdAt).getTime()), 0);
+        const seen = newestSeenRef.current;
+        if (seen !== null && !silent) {
+          const fresh = list.filter((n) => !n.isRead && new Date(n.createdAt).getTime() > seen);
+          if (fresh.length === 1) toast.info(`${fresh[0].title}: ${fresh[0].message}`);
+          else if (fresh.length > 1) toast.info(`You have ${fresh.length} new notifications.`);
+        }
+        newestSeenRef.current = Math.max(seen ?? 0, newest);
+      }
       if (countRes.data?.success) setUnreadCount(countRes.data.data.count);
     } catch {
       // Silently fail
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
+    newestSeenRef.current = null;
     if (!user) {
       setNotifications([]);
       setUnreadCount(0);
@@ -150,16 +171,20 @@ export default function Navbar() {
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Pages fire this right after something that creates a notification (placing an order, a return request...)
+    const handleRefresh = (e: Event) => fetchNotifications((e as CustomEvent<NotificationsRefreshDetail>).detail || {});
+    window.addEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
 
     const interval = setInterval(() => {
       if (!document.hidden) {
         fetchNotifications();
       }
-    }, 60000);
+    }, 30000);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener(NOTIFICATIONS_REFRESH_EVENT, handleRefresh);
     };
   }, [user, fetchNotifications]);
 
@@ -580,7 +605,7 @@ export default function Navbar() {
                                     {!n.isRead && <span className="mt-1 w-2 h-2 rounded-full bg-[#8b6f47] flex-shrink-0" />}
                                     <div className="min-w-0">
                                       <p className="font-bold text-zinc-900 dark:text-white">{n.title}</p>
-                                      <p className="text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug">{n.message}</p>
+                                      <p className="text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug line-clamp-3">{n.message}</p>
                                       <p className="text-[10px] text-zinc-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                                     </div>
                                   </div>

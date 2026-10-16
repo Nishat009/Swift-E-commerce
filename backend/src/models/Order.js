@@ -59,6 +59,20 @@ const OrderSchema = new mongoose.Schema(
       enum: ['Pending', 'Processing', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'],
       default: 'Pending'
     },
+    // Starts the return window (set when the order is marked Delivered)
+    deliveredAt: { type: Date, default: null },
+    // The customer's return / refund request on a delivered order; staff approve or reject it
+    returnRequest: {
+      status: { type: String, enum: ['', 'Requested', 'Approved', 'Rejected'], default: '' },
+      reason: { type: String, default: '' },
+      details: { type: String, default: '' },
+      requestedAt: { type: Date },
+      decidedAt: { type: Date },
+      decidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      decidedByName: { type: String, default: '' },
+      // Staff reply shown to the customer (required when rejecting)
+      response: { type: String, default: '' },
+    },
     shippingAddress: { type: OrderAddressSchema, required: true }
   },
   { timestamps: true }
@@ -67,6 +81,7 @@ const OrderSchema = new mongoose.Schema(
 OrderSchema.index({ user: 1, createdAt: -1 });
 OrderSchema.index({ orderStatus: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ 'returnRequest.status': 1 });
 
 OrderSchema.set('toJSON', {
   virtuals: true,

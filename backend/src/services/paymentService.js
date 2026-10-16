@@ -5,6 +5,7 @@ const Ticket = require('../models/Ticket');
 const TicketPurchase = require('../models/TicketPurchase');
 const Notification = require('../models/Notification');
 const emailService = require('./emailService');
+const { notifyStaff } = require('./orderLifecycle');
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 const BKASH_SANDBOX_URL = 'https://tokenized.sandbox.bka.sh/v1.2.0-beta';
@@ -221,6 +222,7 @@ const settleOrderPayment = async (order, { paid, transactionId }) => {
       // A paid online order is confirmed automatically
       const confirmed = await Order.findOneAndUpdate({ _id: order._id, orderStatus: 'Pending' }, { orderStatus: 'Confirmed' }, { new: true });
       await notify(order.user, 'Payment received', `Payment for order ${order.orderNumber} was successful. Thank you!`, { type: 'delivery_update', relatedOrder: order._id });
+      await notifyStaff(order, 'Payment received', `${order.orderNumber} was paid online ($${Number(order.total).toFixed(2)} by ${order.paymentMethod === 'bkash' ? 'bKash' : 'card'}) and is ready to pack.`);
       if (confirmed) emailService.fire(emailService.emailOrderEvent(confirmed, 'status'));
       return { ok: true };
     }
@@ -233,6 +235,7 @@ const settleOrderPayment = async (order, { paid, transactionId }) => {
         { paymentStatus: 'Refund Needed', paymentTransactionId: transactionId || '', paidAt: new Date() }
       );
       await notify(order.user, 'Payment will be refunded', `Your payment for order ${order.orderNumber} arrived after the order was cancelled. It will be refunded.`, { type: 'delivery_update', relatedOrder: order._id });
+      await notifyStaff(order, 'Refund needed', `A payment for ${order.orderNumber} arrived after the order was cancelled. Refund it to the customer.`);
     }
     console.error(`[payments] Order ${order.orderNumber} was paid (${transactionId}) but is ${fresh && fresh.orderStatus}. Refund needed.`);
     return { ok: false };
