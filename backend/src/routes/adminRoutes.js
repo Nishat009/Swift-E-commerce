@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const {
   getDashboardStats,
@@ -17,6 +18,15 @@ const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const { blockDemoAdmin } = require('../controllers/demoAuthController');
 const { getInsights } = require('../controllers/insightController');
+const { sendCustomerEmail, listCustomerEmails } = require('../controllers/customerEmailController');
+
+const customerEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many emails sent in a short time. Please wait a few minutes.' },
+});
 
 // Secure all admin routes
 router.use(protect);
@@ -44,6 +54,8 @@ router.put('/users/:id/role', blockDemoAdmin, updateUserRole);
 router.delete('/users/:id', blockDemoAdmin, deleteUser);
 router.get('/users/:id/cart', getUserCart);
 router.get('/users/:id/wishlist', getUserWishlist);
+router.get('/users/:id/emails', listCustomerEmails);
+router.post('/users/:id/email', customerEmailLimiter, sendCustomerEmail);
 
 // Admin orders management routes
 router.get('/orders', getAllOrders);

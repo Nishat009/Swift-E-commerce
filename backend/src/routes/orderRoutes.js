@@ -9,6 +9,8 @@ const {
   updateOrderStatus,
   overrideOrderStatus,
   refundOrder,
+  requestReturn,
+  decideReturn,
   getAllOrders
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
@@ -24,6 +26,9 @@ router.get('/', getMyOrders);
 router.get('/admin/all', authorize('admin'), getAllOrders);
 router.get('/:id', getOrderById);
 router.put('/:id/cancel', cancelOrder);
+// Customer asks to return a delivered order; staff approve or reject it
+router.post('/:id/return-request', requestReturn);
+router.put('/:id/return-request', authorize('admin'), decideReturn);
 
 // Admin routes
 router.put('/:id/status', authorize('admin'), updateOrderStatus);

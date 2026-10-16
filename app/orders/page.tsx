@@ -10,6 +10,9 @@ import { OrderSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Button from '@/components/ui/Button';
+import ReturnRequestModal from '@/components/orders/ReturnRequestModal';
+import RefundStatus from '@/components/orders/RefundStatus';
+import { refreshNotifications } from '@/utils/notifications';
 import {
   Package,
   Calendar,
@@ -20,8 +23,15 @@ import {
   ShieldCheck,
   TrendingUp,
   ChevronRight,
-  CreditCard
+  CreditCard,
+  RotateCcw
 } from 'lucide-react';
+
+const RETURN_BADGES: Record<string, { label: string; className: string }> = {
+  Requested: { label: 'Return requested', className: 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' },
+  Approved: { label: 'Return approved', className: 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900/30 dark:text-green-400' },
+  Rejected: { label: 'Return declined', className: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400' },
+};
 
 // useSearchParams needs a Suspense boundary in the App Router
 export default function OrdersHistoryPage() {
@@ -42,6 +52,7 @@ function OrdersHistoryContent() {
   // Modals / Cancel states
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [returningOrder, setReturningOrder] = useState<Order | null>(null);
   
   // Selected Order for Timeline
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -119,6 +130,7 @@ function OrdersHistoryContent() {
         setOrders(orders.map((o) => (o.id === cancellingOrderId || (o as any)._id === cancellingOrderId
           ? { ...o, orderStatus: updated?.orderStatus || 'Cancelled', paymentStatus: updated?.paymentStatus || o.paymentStatus, refund: updated?.refund }
           : o)));
+        refreshNotifications();
       }
     } catch (err: any) {
       console.error(err);
@@ -248,6 +260,9 @@ function OrdersHistoryContent() {
                 paymentStatus !== 'Paid' &&
                 !['Cancelled', 'Returned'].includes(status);
               const isCancellable = ['Pending', 'Processing', 'Confirmed'].includes(status); // same rule as the server
+              const returnDeadline = order.returnDeadline ? new Date(order.returnDeadline) : null;
+              const returnStatus = order.returnRequest?.status || '';
+              const canRequestReturn = status === 'Delivered' && !returnStatus && !!returnDeadline && returnDeadline > new Date();
 
               // Timeline milestones (backend enum: Pending, Processing, Confirmed, Packed, Shipped, Delivered, Cancelled, Returned)
               // Every open status has its own step, so the bar always matches the real status
@@ -275,6 +290,11 @@ function OrdersHistoryContent() {
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${paymentStyles[paymentStatus] || paymentStyles.Pending}`}>
                           {paymentStatus === 'Paid' ? 'Paid' : paymentStatus === 'Failed' ? 'Payment failed' : paymentStatus === 'Refund Needed' ? 'Refund pending' : paymentStatus === 'Refunded' ? 'Refunded' : 'Payment pending'}
                         </span>
+                        {RETURN_BADGES[returnStatus] && (
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${RETURN_BADGES[returnStatus].className}`}>
+                            {RETURN_BADGES[returnStatus].label}
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-4 text-[10px] text-text-muted">
                         <div className="flex items-center gap-1">
@@ -320,6 +340,17 @@ function OrdersHistoryContent() {
                           {payingOrderId === order.id ? 'Redirecting...' : 'Pay now'}
                         </Button>
                       )}
+                      {canRequestReturn && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setReturningOrder(order)}
+                          className="rounded-full text-[10px] font-black px-4 flex items-center gap-1.5 border-[#8b6f47]/40 text-[#8b6f47] dark:text-[#c9a96b] hover:bg-[#8b6f47]/10"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Return / refund
+                        </Button>
+                      )}
                       {isCancellable && (
                         <Button
                           size="sm"
@@ -341,12 +372,27 @@ function OrdersHistoryContent() {
                         <div className={`rounded-2xl border p-4 text-xs leading-relaxed ${status === 'Cancelled' ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400' : 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/20 dark:border-orange-900/30 dark:text-orange-400'}`}>
                           <p className="font-black uppercase tracking-wider text-[10px] mb-1">Order {status.toLowerCase()}</p>
                           <p>
-                            {status === 'Cancelled' ? 'This order was cancelled and will not be delivered.' : 'This order was returned.'}
-                            {paymentStatus === 'Refund Needed' && ' Refund pending: we will send your payment back soon.'}
-                            {paymentStatus === 'Refunded' && ` Refunded${order.refund?.amount ? ' $' + Number(order.refund.amount).toFixed(2) : ''}${order.refund?.at ? ' on ' + new Date(order.refund.at).toLocaleDateString() : ''}.`}
+                            {status === 'Cancelled' ? 'This order was cancelled and will not be delivered.' : 'This order was returned and its items are back with us.'}
+                            {(paymentStatus === 'Pending' || paymentStatus === 'Failed') && ' Nothing was charged, so there is nothing to refund.'}
                           </p>
                         </div>
                       )}
+
+                      {/* Return window for delivered orders */}
+                      {status === 'Delivered' && !returnStatus && returnDeadline && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850/20 p-4 text-xs text-gray-600 dark:text-gray-300">
+                          {canRequestReturn ? (
+                            <>
+                              <span>Not quite right? You can request a return or refund until <strong>{returnDeadline.toLocaleDateString()}</strong>.</span>
+                              <button onClick={() => setReturningOrder(order)} className="font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline">Start a return</button>
+                            </>
+                          ) : (
+                            <span>The return window for this order ended on {returnDeadline.toLocaleDateString()}. Need help? <a href="/contact" className="font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline">Contact us</a>.</span>
+                          )}
+                        </div>
+                      )}
+
+                      <RefundStatus order={order} />
 
                       {/* Live Tracking Timeline */}
                       {status !== 'Cancelled' && status !== 'Returned' && (
@@ -479,6 +525,18 @@ function OrdersHistoryContent() {
         variant="danger"
         isLoading={isCancelling}
       />
+
+      {returningOrder && (
+        <ReturnRequestModal
+          order={returningOrder}
+          onClose={() => setReturningOrder(null)}
+          onSubmitted={(updated) => {
+            setOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, returnRequest: updated.returnRequest } : o)));
+            setExpandedOrderId(updated.id);
+            setReturningOrder(null);
+          }}
+        />
+      )}
     </AccountLayout>
   );
 }

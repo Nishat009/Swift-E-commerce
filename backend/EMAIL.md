@@ -1,6 +1,7 @@
 # Email setup (FREE) / ইমেইল সেটআপ
 
-Backend সব email (welcome, order confirmation, order shipped/delivered/cancelled, forgot-password, login OTP,
+Backend সব email (welcome, order confirmation, order shipped/delivered/cancelled, return request / approved /
+rejected, refund, admin panel থেকে customer কে লেখা message, store এর new-order alert, forgot-password, login OTP,
 newsletter, contact form) SMTP দিয়ে পাঠায়। SMTP ঠিকমতো config না থাকলে server crash করে না, শুধু একটি warning log করে
 এবং email skip করে। `backend/.env` এ নিচের variable গুলো দিন, তারপর backend restart করুন।
 
@@ -11,8 +12,16 @@ SMTP_SECURE=false      # port 465 হলে true
 SMTP_USER=...
 SMTP_PASS=...
 MAIL_FROM="SwiftCart <your@email.com>"
-CONTACT_EMAIL=your@email.com   # contact form message এখানে আসবে
+CONTACT_EMAIL=your@email.com   # contact form message এখানে আসবে; admin এর customer email এর reply ও এখানে আসবে
+ORDER_ALERT_EMAIL=             # optional: new order / return request alert এর inbox (না দিলে CONTACT_EMAIL)
 ```
+
+## Admin থেকে customer কে email
+
+Admin panel > Customer Orders > order খুলে **Email customer**, অথবা User Accounts > **Email**. Template বেছে নিন
+(order update, delivery delay, payment reminder, return pickup, refund sent...) বা নিজে লিখুন, চাইলে order summary
+যোগ করুন। পাঠানো সব email order / customer এর history তে থাকে। SMTP ছাড়া development এ email Ethereal test inbox এ
+যায় এবং admin panel এ **Open the email** link দেখায়। SMTP চালু থাকলে shared demo admin real customer কে email পাঠাতে পারে না।
 
 ## Option 1: Gmail (free, সবচেয়ে সহজ, ~500 mail/day)
 

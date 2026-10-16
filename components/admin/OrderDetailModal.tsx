@@ -5,8 +5,9 @@ import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
 import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
-import { X, ShieldAlert } from 'lucide-react';
+import { X, ShieldAlert, Mail, RotateCcw } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import EmailCustomerModal from './EmailCustomerModal';
 
 export const ORDER_STATUSES = ['Pending', 'Processing', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
 export const PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed'];
@@ -38,10 +39,17 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
   const [status, setStatus] = useState<string>(order.orderStatus || 'Pending');
   const [payment, setPayment] = useState<string>(order.paymentStatus || 'Pending');
   const [saving, setSaving] = useState(false);
-  const [confirm, setConfirm] = useState<'status' | 'refund' | null>(null);
+  const [confirm, setConfirm] = useState<'status' | 'refund' | 'approve' | 'reject' | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [returnResponse, setReturnResponse] = useState('');
+  const [refundAmount, setRefundAmount] = useState(Number(order.total || 0).toFixed(2));
+  const [refundReference, setRefundReference] = useState('');
+  const [refundNote, setRefundNote] = useState('');
 
   const addr = order.shippingAddress || order.address;
   const isClosed = CLOSED_STATUSES.includes(order.orderStatus);
+  const returnRequest = order.returnRequest?.status ? order.returnRequest : null;
+  const customerId = order.user?.id || order.user?._id;
   const statusDirty = status !== order.orderStatus;
   const paymentDirty = payment !== order.paymentStatus;
   // Super admins can pick any status; everyone else only sees the moves the server allows
@@ -81,15 +89,39 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
     }
   };
 
+  const refundValue = Number(refundAmount);
+  const refundAmountValid = Number.isFinite(refundValue) && refundValue > 0 && refundValue <= Number(order.total);
+
   const refund = async () => {
     setSaving(true);
     try {
-      const res = await apiClient.post(`/orders/${order.id}/refund`, {});
+      const res = await apiClient.post(`/orders/${order.id}/refund`, {
+        amount: refundValue,
+        reference: refundReference.trim() || undefined,
+        note: refundNote.trim() || undefined,
+      });
       merge(res.data?.data || { paymentStatus: 'Refunded' });
       setPayment('Refunded');
-      toast.success('Refund recorded. The customer was notified.');
+      toast.success('Refund recorded. The customer was notified by email and in the app.');
     } catch (err) {
       toast.error(errMsg(err, 'Failed to record the refund.'));
+    } finally {
+      setSaving(false);
+      setConfirm(null);
+    }
+  };
+
+  const decideReturn = async (decision: 'approve' | 'reject') => {
+    setSaving(true);
+    try {
+      const res = await apiClient.put(`/orders/${order.id}/return-request`, { decision, response: returnResponse.trim() });
+      const updated = res.data?.data || {};
+      merge(updated);
+      if (updated.orderStatus) setStatus(updated.orderStatus);
+      if (updated.paymentStatus) setPayment(updated.paymentStatus);
+      toast.success(decision === 'approve' ? 'Return approved. The items are back in stock and the customer was notified.' : 'Return rejected. The customer was notified.');
+    } catch (err) {
+      toast.error(errMsg(err, 'Failed to update the return request.'));
     } finally {
       setSaving(false);
       setConfirm(null);
@@ -104,13 +136,25 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
         </button>
 
         <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">Order {order.orderNumber || order.id}</h3>
-        <p className="text-xs text-gray-400 mb-4 border-b pb-3">Placed {new Date(order.createdAt).toLocaleString()}</p>
+        <p className="text-xs text-gray-400 mb-4 border-b pb-3">
+          Placed {new Date(order.createdAt).toLocaleString()}
+          {order.deliveredAt && <> &middot; Delivered {new Date(order.deliveredAt).toLocaleDateString()}</>}
+        </p>
 
         <div className="grid sm:grid-cols-2 gap-4 text-xs mb-5">
           <div className="p-3 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-800">
             <span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Customer</span>
             <span className="block font-bold text-gray-800 dark:text-gray-200">{order.user?.name || 'Deleted user'}</span>
             <span className="block text-gray-500">{order.user?.email}</span>
+            {customerId && order.user?.email && (
+              <button
+                type="button"
+                onClick={() => setEmailOpen(true)}
+                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8b6f47] border border-[#8b6f47]/40 rounded-lg px-2.5 py-1 hover:bg-[#8b6f47]/10"
+              >
+                <Mail className="w-3.5 h-3.5" /> Email customer
+              </button>
+            )}
           </div>
           <div className="p-3 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-800">
             <span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Ship to</span>
@@ -164,6 +208,58 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
           </div>
         </div>
 
+        {/* Customer's return / refund request */}
+        {returnRequest && (
+          <div className={`rounded-2xl border p-4 mb-4 text-xs ${
+            returnRequest.status === 'Requested'
+              ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40'
+              : 'border-gray-200 bg-gray-50 dark:bg-gray-950 dark:border-gray-800'
+          }`}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="font-black uppercase tracking-wider text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                <RotateCcw className="w-3.5 h-3.5" /> Return request
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                returnRequest.status === 'Requested' ? 'bg-amber-100 text-amber-800' : returnRequest.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {returnRequest.status === 'Requested' ? 'Waiting for a decision' : returnRequest.status}
+              </span>
+            </div>
+            <p className="text-gray-700 dark:text-gray-300"><strong>{returnRequest.reason}</strong>{returnRequest.requestedAt && <span className="text-gray-400"> &middot; {new Date(returnRequest.requestedAt).toLocaleString()}</span>}</p>
+            {returnRequest.details && <p className="mt-1 text-gray-600 dark:text-gray-400 whitespace-pre-line">&ldquo;{returnRequest.details}&rdquo;</p>}
+
+            {returnRequest.status === 'Requested' ? (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={returnResponse}
+                  onChange={(e) => setReturnResponse(e.target.value)}
+                  maxLength={1000}
+                  rows={2}
+                  placeholder="Message to the customer (required to reject, e.g. pickup details or why it cannot be returned)"
+                  className="w-full text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2"
+                />
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <Button onClick={() => setConfirm('reject')} disabled={returnResponse.trim().length < 5} variant="outline" className="text-xs py-2 px-4 font-bold rounded-xl border-red-200 text-red-600">
+                    Reject
+                  </Button>
+                  <Button onClick={() => setConfirm('approve')} disabled={order.orderStatus !== 'Delivered'} className="text-xs py-2 px-4 font-bold rounded-xl bg-green-600 text-white">
+                    Approve return
+                  </Button>
+                </div>
+                <p className="text-[10px] text-gray-500">
+                  Approving marks the order Returned and puts the items back in stock.
+                  {order.paymentStatus === 'Paid' && ` The payment of $${Number(order.total).toFixed(2)} is then flagged for a refund.`}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-gray-500">
+                {returnRequest.status} {returnRequest.decidedAt && `on ${new Date(returnRequest.decidedAt).toLocaleString()}`}{returnRequest.decidedByName && ` by ${returnRequest.decidedByName}`}
+                {returnRequest.response && <span className="block mt-1 text-gray-600 dark:text-gray-400">Reply: &ldquo;{returnRequest.response}&rdquo;</span>}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Order status */}
         <div className="rounded-2xl border border-[#8b6f47]/30 bg-[#8b6f47]/5 p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -208,21 +304,59 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 p-3 text-xs text-gray-600 dark:text-gray-300">
               <strong className="block text-gray-800 dark:text-gray-100">Refunded ${Number(order.refund.amount || 0).toFixed(2)}</strong>
               {order.refund.at && new Date(order.refund.at).toLocaleString()}{order.refund.byName ? ` by ${order.refund.byName}` : ''}
+              {order.refund.reference && <span className="block text-gray-500">Ref: <span className="font-mono">{order.refund.reference}</span></span>}
               {order.refund.note && <span className="block text-gray-500">{order.refund.note}</span>}
             </div>
           )}
         </div>
 
         {canRefund && (
-          <div className="rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/40 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-orange-800 dark:text-orange-300">
-              <strong>Refund needed:</strong> this order is {order.orderStatus.toLowerCase()} and was paid. Pay ${Number(order.total).toFixed(2)} back to the customer
-              {canOverrideStatus ? ', then mark it refunded.' : '. Only a super admin can mark it refunded.'}
+          <div className="rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/40 p-4 mb-4">
+            <p className="text-xs text-orange-800 dark:text-orange-300 mb-3">
+              <strong>Refund needed:</strong> this order is {order.orderStatus.toLowerCase()} and was paid by {String(order.paymentMethod).toUpperCase()}.
+              Send the money back (Stripe / bKash dashboard or cash), then record it here.
+              {!canOverrideStatus && ' Only a super admin can record refunds, and the shared demo admin is never a super admin. Sign in with your own admin account to do it.'}
             </p>
             {canOverrideStatus && (
-              <Button onClick={() => setConfirm('refund')} className="text-sm py-2 px-5 font-bold rounded-xl bg-orange-600 text-white">
-                Refund
-              </Button>
+              <div className="grid sm:grid-cols-3 gap-2 items-end">
+                <div>
+                  <label htmlFor="refund-amount" className="block text-[10px] font-bold text-orange-900/70 dark:text-orange-300/80 uppercase mb-1">Amount ($)</label>
+                  <input
+                    id="refund-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    max={Number(order.total)}
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                    className="w-full text-sm border border-orange-200 dark:border-orange-900/50 bg-white dark:bg-gray-900 rounded-lg p-2"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="refund-reference" className="block text-[10px] font-bold text-orange-900/70 dark:text-orange-300/80 uppercase mb-1">Reference</label>
+                  <input
+                    id="refund-reference"
+                    value={refundReference}
+                    onChange={(e) => setRefundReference(e.target.value)}
+                    maxLength={120}
+                    placeholder="e.g. bKash TrxID"
+                    className="w-full text-sm border border-orange-200 dark:border-orange-900/50 bg-white dark:bg-gray-900 rounded-lg p-2"
+                  />
+                </div>
+                <Button onClick={() => setConfirm('refund')} disabled={!refundAmountValid} className="text-sm py-2 px-5 font-bold rounded-xl bg-orange-600 text-white">
+                  Record refund
+                </Button>
+                <input
+                  value={refundNote}
+                  onChange={(e) => setRefundNote(e.target.value)}
+                  maxLength={300}
+                  placeholder="Note for the customer (optional, e.g. shipping fee not refunded)"
+                  className="sm:col-span-3 w-full text-xs border border-orange-200 dark:border-orange-900/50 bg-white dark:bg-gray-900 rounded-lg p-2"
+                />
+                {!refundAmountValid && (
+                  <p className="sm:col-span-3 text-[10px] text-red-600">Enter an amount between $0.01 and ${Number(order.total).toFixed(2)}.</p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -260,12 +394,42 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
         onClose={() => setConfirm(null)}
         onConfirm={refund}
         title="Mark this order as refunded?"
-        message={`Record a refund of $${Number(order.total).toFixed(2)} for order ${order.orderNumber || order.id}. Make sure the money has actually been sent back (card / bKash dashboard or cash). The customer will be notified.`}
+        message={`Record a refund of $${refundAmountValid ? refundValue.toFixed(2) : Number(order.total).toFixed(2)}${refundAmountValid && refundValue < Number(order.total) ? ` (of $${Number(order.total).toFixed(2)})` : ''} for order ${order.orderNumber || order.id}. Make sure the money has actually been sent back (card / bKash dashboard or cash). The customer will be notified.`}
         confirmText="Yes, record refund"
         cancelText="Go back"
         variant="warning"
         isLoading={saving}
       />
+      <ConfirmationModal
+        isOpen={confirm === 'approve'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => decideReturn('approve')}
+        title="Approve this return?"
+        message={`Order ${order.orderNumber || order.id} becomes Returned and its items go back in stock.${order.paymentStatus === 'Paid' ? ' The payment will be flagged for a refund.' : ''} The customer gets an email and a notification.`}
+        confirmText="Yes, approve"
+        cancelText="Go back"
+        variant="primary"
+        isLoading={saving}
+      />
+      <ConfirmationModal
+        isOpen={confirm === 'reject'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => decideReturn('reject')}
+        title="Reject this return?"
+        message="The order stays delivered. The customer gets your message by email and in their notifications."
+        confirmText="Yes, reject"
+        cancelText="Go back"
+        variant="danger"
+        isLoading={saving}
+      />
+
+      {emailOpen && customerId && (
+        <EmailCustomerModal
+          customer={{ id: String(customerId), name: order.user?.name || 'Customer', email: order.user?.email || '' }}
+          order={order}
+          onClose={() => setEmailOpen(false)}
+        />
+      )}
     </div>
   );
 }

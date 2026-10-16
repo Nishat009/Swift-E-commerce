@@ -57,7 +57,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const frontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:3001').split(',')[0].trim().replace(/\/$/, '');
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
-const template = ({ title, intro, body = '', button, footnote }) => `<!doctype html>
+const template = ({ title, intro, body = '', button, footnote, automated = true }) => `<!doctype html>
 <html><body style="margin:0;padding:0;background:${CREAM};font-family:Helvetica,Arial,sans-serif;color:#2b2622;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:32px 12px;"><tr><td align="center">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e8e2d6;">
@@ -69,16 +69,16 @@ ${body}
 ${button ? `<p style="text-align:center;margin:28px 0 8px;"><a href="${esc(button.url)}" style="background:${GOLD};color:#ffffff;text-decoration:none;padding:13px 30px;font-size:13px;letter-spacing:2px;text-transform:uppercase;display:inline-block;">${esc(button.label)}</a></p>` : ''}
 ${footnote ? `<p style="font-size:12px;line-height:1.5;color:#7a7168;margin:24px 0 0;">${footnote}</p>` : ''}
 </td></tr>
-<tr><td style="background:${CREAM};padding:18px 32px;text-align:center;font-size:11px;color:#9a9086;border-top:1px solid #e8e2d6;">&copy; ${new Date().getFullYear()} ${BRAND}. This is an automated message.</td></tr>
+<tr><td style="background:${CREAM};padding:18px 32px;text-align:center;font-size:11px;color:#9a9086;border-top:1px solid #e8e2d6;">&copy; ${new Date().getFullYear()} ${BRAND}.${automated ? ' This is an automated message.' : ''}</td></tr>
 </table></td></tr></table></body></html>`;
 
 const codeBox = (code) => `<p style="text-align:center;margin:8px 0 20px;"><span style="font-family:Georgia,serif;font-size:34px;letter-spacing:8px;color:${GOLD};background:${CREAM};border:1px dashed ${GOLD};padding:12px 24px;display:inline-block;">${esc(code)}</span></p>`;
 
-// Core sender: never throws, resolves true/false.
-const sendEmail = async ({ to, subject, html, text, replyTo }) => {
+// Core sender: never throws. Resolves { ok, previewUrl } (previewUrl only for the Ethereal test inbox).
+const deliver = async ({ to, subject, html, text, replyTo }) => {
   try {
     const t = await getTransporter();
-    if (!t || !to) return false;
+    if (!t || !to) return { ok: false, previewUrl: '' };
     const info = await t.sendMail({
       from: process.env.MAIL_FROM || `"${BRAND}" <${process.env.SMTP_USER || 'no-reply@swiftcart.test'}>`,
       to,
@@ -87,14 +87,17 @@ const sendEmail = async ({ to, subject, html, text, replyTo }) => {
       text: text || subject,
       ...(replyTo ? { replyTo } : {}),
     });
-    const preview = nodemailer.getTestMessageUrl(info);
+    const preview = nodemailer.getTestMessageUrl(info) || '';
     if (preview) console.log(`[email] "${subject}" preview: ${preview}`);
-    return true;
+    return { ok: true, previewUrl: preview };
   } catch (err) {
     console.error(`[email] Failed to send "${subject}" to ${to}: ${err.message}`);
-    return false;
+    return { ok: false, previewUrl: '' };
   }
 };
+
+// Resolves true/false.
+const sendEmail = async (mail) => (await deliver(mail)).ok;
 
 // Fire-and-forget wrapper so API responses never wait on SMTP.
 const fire = (promise) => { Promise.resolve(promise).catch((e) => console.error('[email]', e.message)); };
@@ -156,6 +159,7 @@ const sendNewsletterConfirmation = (email, unsubscribeToken) => {
 };
 
 const orderUrl = (order) => `${frontendUrl()}/orders?order=${encodeURIComponent(order._id || order.id)}`;
+const adminOrderUrl = (order) => `${frontendUrl()}/admin?tab=orders&order=${encodeURIComponent(order._id || order.id)}`;
 
 const variantLabel = (it) => {
   const options = it.variant?.options && typeof it.variant.options === 'object' ? Object.entries(it.variant.options) : [];
@@ -237,14 +241,118 @@ const sendOrderStatusUpdate = (user, order) => {
   });
 };
 
+// Plain text typed by a person, as escaped HTML paragraphs (blank line = new paragraph)
+const paragraphs = (text) => String(text || '').trim().split(/\n\s*\n/)
+  .map((p) => `<p style="font-size:15px;line-height:1.6;margin:0 0 14px;">${esc(p).replace(/\n/g, '<br>')}</p>`)
+  .join('');
+
+const quoteBox = (label, text) => `<p style="font-size:13px;line-height:1.6;background:${CREAM};padding:12px 14px;border:1px solid #e8e2d6;margin:0 0 16px;"><strong>${esc(label)}</strong><br>${esc(text).replace(/\n/g, '<br>')}</p>`;
+
+const sendReturnRequested = (user, order) => {
+  const r = order.returnRequest || {};
+  return sendEmail({
+    to: user.email,
+    subject: `Return request received for order ${order.orderNumber}`,
+    text: `We received your return request for order ${order.orderNumber} (${r.reason}). We will review it within 2 business days.`,
+    html: template({
+      title: 'Return request received',
+      intro: `Hi ${esc(user.name)}, we received your request to return order <strong>${esc(order.orderNumber)}</strong>. Our team will review it within 2 business days and email you the result.`,
+      body: quoteBox('Reason', `${r.reason}${r.details ? `\n${r.details}` : ''}`),
+      button: { label: 'View order', url: orderUrl(order) },
+      footnote: 'Please keep the items unused, with their tags and original packaging, until the return is approved.',
+    }),
+  });
+};
+
+const sendReturnDecision = (user, order) => {
+  const r = order.returnRequest || {};
+  const approved = r.status === 'Approved';
+  const refundLine = order.paymentStatus === 'Refund Needed'
+    ? ` Your refund of ${money(order.total)} will be sent to your original payment method once we receive the items.`
+    : '';
+  return sendEmail({
+    to: user.email,
+    subject: `Return ${approved ? 'approved' : 'not approved'}: order ${order.orderNumber}`,
+    text: approved
+      ? `Your return for order ${order.orderNumber} was approved.${refundLine}${r.response ? `\n\n${r.response}` : ''}`
+      : `Your return request for order ${order.orderNumber} was not approved.${r.response ? `\n\n${r.response}` : ''}`,
+    html: template({
+      title: approved ? 'Your return is approved' : 'About your return request',
+      intro: approved
+        ? `Hi ${esc(user.name)}, your return for order <strong>${esc(order.orderNumber)}</strong> was approved.${esc(refundLine)}`
+        : `Hi ${esc(user.name)}, we reviewed your return request for order <strong>${esc(order.orderNumber)}</strong> and could not approve it.`,
+      body: r.response ? quoteBox('Message from our team', r.response) : '',
+      button: { label: 'View order', url: orderUrl(order) },
+      footnote: approved ? 'Pack the items securely with their tags. Our courier will contact you to collect them.' : 'If you have questions, just reply to this email.',
+    }),
+  });
+};
+
+const sendRefundIssued = (user, order) => {
+  const refund = order.refund || {};
+  return sendEmail({
+    to: user.email,
+    subject: `Refund issued for order ${order.orderNumber}`,
+    text: `We refunded ${money(refund.amount)} for order ${order.orderNumber} to your original payment method.`,
+    html: template({
+      title: 'Your refund is on its way',
+      intro: `Hi ${esc(user.name)}, we refunded <strong>${money(refund.amount)}</strong> for order <strong>${esc(order.orderNumber)}</strong> to your original payment method (${esc(String(order.paymentMethod || '').toUpperCase())}).`,
+      body: refund.note ? quoteBox('Note', refund.note) : '',
+      button: { label: 'View order', url: orderUrl(order) },
+      footnote: 'Card refunds usually take 5-10 business days to appear. bKash and cash refunds usually arrive within 3 business days.',
+    }),
+  });
+};
+
+// A message an admin wrote to the customer. Resolves { ok, previewUrl }.
+const sendCustomerMessage = ({ user, order, subject, message, includeOrder, replyTo }) => deliver({
+  to: user.email,
+  subject,
+  replyTo,
+  text: `Hi ${user.name},\n\n${message}${order ? `\n\nOrder ${order.orderNumber}: ${orderUrl(order)}` : ''}`,
+  html: template({
+    title: subject,
+    intro: `Hi ${esc(user.name)},`,
+    body: `${paragraphs(message)}${order && includeOrder ? `<p style="font-size:13px;font-weight:bold;margin:24px 0 8px;">Order ${esc(order.orderNumber)}</p>${itemsTable(order)}` : ''}`,
+    button: order ? { label: 'View order', url: orderUrl(order) } : { label: 'Visit the shop', url: `${frontendUrl()}/products` },
+    footnote: 'You can reply directly to this email.',
+    automated: false,
+  }),
+});
+
+// Heads-up for the store team (ORDER_ALERT_EMAIL, else CONTACT_EMAIL / SMTP_USER). Skipped when none is set.
+const sendStaffOrderAlert = (order, { subject, title, intro }) => {
+  const to = process.env.ORDER_ALERT_EMAIL || process.env.CONTACT_EMAIL || process.env.SMTP_USER;
+  if (!to) return Promise.resolve(false);
+  return sendEmail({
+    to,
+    subject,
+    text: `${intro}\n${adminOrderUrl(order)}`,
+    html: template({
+      title,
+      intro: esc(intro),
+      body: itemsTable(order),
+      button: { label: 'Open in admin', url: adminOrderUrl(order) },
+    }),
+  });
+};
+
+const ORDER_EMAILS = {
+  confirmation: sendOrderConfirmation,
+  status: sendOrderStatusUpdate,
+  return_requested: sendReturnRequested,
+  return_decision: sendReturnDecision,
+  refund: sendRefundIssued,
+};
+
 // Loads the order's user (if not already populated) and emails them. Fire-and-forget safe.
 const emailOrderEvent = async (order, kind) => {
   try {
     const User = require('../models/User');
     const user = await User.findById(order.user?._id || order.user).select('name email');
-    if (!user) return false;
+    if (!user || !ORDER_EMAILS[kind]) return false;
     if (kind === 'confirmation' && order.populate && !order.populated?.('products.product')) await order.populate('products.product');
-    return kind === 'confirmation' ? await sendOrderConfirmation(user, order) : await sendOrderStatusUpdate(user, order);
+    return await ORDER_EMAILS[kind](user, order);
   } catch (err) {
     console.error('[email] order email failed:', err.message);
     return false;
@@ -278,6 +386,8 @@ module.exports = {
   sendNewsletterConfirmation,
   sendOrderConfirmation,
   sendOrderStatusUpdate,
+  sendCustomerMessage,
+  sendStaffOrderAlert,
   emailOrderEvent,
   renderOrderInvoice: itemsTable,
   sendContactNotification,

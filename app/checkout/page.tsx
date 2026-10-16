@@ -16,6 +16,7 @@ import { useOrderQuote, DeliveryZone } from '@/hooks/useOrderQuote';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { validateAddress as checkAddress } from '@/lib/addressValidation';
 import { SITE } from '@/lib/siteConfig';
+import { refreshNotifications } from '@/utils/notifications';
 
 type Step = 'address' | 'payment' | 'confirmation';
 
@@ -232,6 +233,7 @@ export default function CheckoutPage() {
           }
           const createdOrder = response.data.data;
           setPlacedOrderNumber(createdOrder?.orderNumber || '');
+          refreshNotifications();
           await clearCart().catch(() => {});
 
           if (paymentMethod === 'bkash' || paymentMethod === 'card') {
@@ -374,10 +376,13 @@ export default function CheckoutPage() {
             Thank you for your purchase. Your order has been placed successfully and is currently being processed.
           </p>
           {placedOrderNumber && (
-            <p className="text-sm font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b] mb-8">
+            <p className="text-sm font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b] mb-4">
               Order #{placedOrderNumber}
             </p>
           )}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
+            A confirmation email is on its way to <strong>{user.email}</strong>. We will notify you here (the bell at the top) and by email at every step.
+          </p>
           <div className="flex gap-4 justify-center">
             <Button 
               onClick={() => router.push('/products')} 

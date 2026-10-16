@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
@@ -16,6 +16,7 @@ import ReportsAdmin from '@/components/admin/ReportsAdmin';
 import ContactMessages, { useContactUnread } from '@/components/admin/ContactMessages';
 import ChatMessages from '@/components/admin/ChatMessages';
 import OrderDetailModal, { ORDER_STATUSES } from '@/components/admin/OrderDetailModal';
+import EmailCustomerModal from '@/components/admin/EmailCustomerModal';
 import { errMsg } from '@/components/admin/adminUtils';
 import ProductTable from '@/components/product/ProductTable';
 import { selectClass } from '@/components/ui/Select';
@@ -76,7 +77,16 @@ interface NewsletterSub {
   subscribedAt: string;
 }
 
+// useSearchParams (notification deep links) needs a Suspense boundary in the App Router
 export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
+function AdminDashboardContent() {
   const { user, loading: authLoading, logout, refreshUser } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -189,6 +199,8 @@ export default function AdminDashboardPage() {
   const [productSearch, setProductSearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [refundOnly, setRefundOnly] = useState(false);
+  const [returnsOnly, setReturnsOnly] = useState(false);
+  const [emailingUser, setEmailingUser] = useState<User | null>(null);
   const [canOverrideStatus, setCanOverrideStatus] = useState(false); // super admin (the server decides)
   const [userSearch, setUserSearch] = useState('');
   const [reviewSearch, setReviewSearch] = useState('');
@@ -248,6 +260,26 @@ export default function AdminDashboardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
+
+  // Deep links: /admin?tab=orders&order=<id> opens that tab (and order). Re-read when a notification
+  // link is clicked while the admin page is already open.
+  const searchParams = useSearchParams();
+  const linkTab = searchParams.get('tab');
+  const linkOrder = searchParams.get('order');
+  useEffect(() => {
+    if (!linkTab && !linkOrder) return;
+    const tab = linkOrder ? 'orders' : linkTab;
+    if (tab === adminTab && tab === 'orders') loadAdminData(); // already here: refresh so a brand-new order shows up
+    else if (tab) setAdminTab(tab as any);
+    if (linkOrder) {
+      apiClient
+        .get(`/orders/${linkOrder}`)
+        .then((res) => { if (res.data?.success) setSelectedOrder(res.data.data); })
+        .catch(() => toast.error('That order could not be found.'));
+    }
+    router.replace('/admin', { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkTab, linkOrder]);
 
   // Fetch data depending on active tab (also runs once the admin user is known)
   useEffect(() => {
@@ -727,9 +759,11 @@ export default function AdminDashboardPage() {
   );
 
   const refundsNeededCount = allOrders.filter((o) => o.paymentStatus === 'Refund Needed').length;
+  const returnRequestsCount = allOrders.filter((o) => o.returnRequest?.status === 'Requested').length;
   const filteredOrders = allOrders.filter(
     (o) =>
       (!refundOnly || o.paymentStatus === 'Refund Needed') &&
+      (!returnsOnly || o.returnRequest?.status === 'Requested') &&
       (String(o.id).includes(orderSearch) ||
       (o.orderNumber || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
       (o.user as any)?.name?.toLowerCase().includes(orderSearch.toLowerCase()) ||
@@ -993,10 +1027,20 @@ export default function AdminDashboardPage() {
                     <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Placed Customer Orders</h2>
                   </div>
 
+                  {returnRequestsCount > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
+                      <span><strong>{returnRequestsCount}</strong> {returnRequestsCount === 1 ? 'customer is' : 'customers are'} waiting for a return decision. Open the order to approve or reject it.</span>
+                      <button onClick={() => { setReturnsOnly(!returnsOnly); setRefundOnly(false); }} className="font-bold underline">{returnsOnly ? 'Show all orders' : 'Show only return requests'}</button>
+                    </div>
+                  )}
+
                   {refundsNeededCount > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/40 px-4 py-2.5 text-xs text-orange-800 dark:text-orange-300">
-                      <span><strong>{refundsNeededCount}</strong> cancelled or returned {refundsNeededCount === 1 ? 'order needs' : 'orders need'} a refund. Open the order and use the Refund button.</span>
-                      <button onClick={() => setRefundOnly(!refundOnly)} className="font-bold underline">{refundOnly ? 'Show all orders' : 'Show only refunds needed'}</button>
+                      <span>
+                        <strong>{refundsNeededCount}</strong> cancelled or returned {refundsNeededCount === 1 ? 'order needs' : 'orders need'} a refund. Open the order and record the refund.
+                        {!canOverrideStatus && ' Only a super admin can record refunds (the shared demo admin cannot).'}
+                      </span>
+                      <button onClick={() => { setRefundOnly(!refundOnly); setReturnsOnly(false); }} className="font-bold underline">{refundOnly ? 'Show all orders' : 'Show only refunds needed'}</button>
                     </div>
                   )}
 
@@ -1051,6 +1095,9 @@ export default function AdminDashboardPage() {
                               }`}>
                                 {o.orderStatus}
                               </span>
+                              {o.returnRequest?.status === 'Requested' && (
+                                <span className="block mt-1 w-fit px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800">Return requested</span>
+                              )}
                             </td>
                             <td className="p-3">
                               <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
@@ -1066,7 +1113,7 @@ export default function AdminDashboardPage() {
                                 onClick={() => setSelectedOrder(o)}
                                 className="text-[10px] font-bold border border-[#8b6f47]/40 text-[#8b6f47] rounded-lg px-3 py-1.5 hover:bg-[#8b6f47]/10"
                               >
-                                Update status
+                                {o.returnRequest?.status === 'Requested' ? 'Review return' : 'Manage'}
                               </button>
                             </td>
                           </tr>
@@ -1127,6 +1174,14 @@ export default function AdminDashboardPage() {
                                 className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55 flex items-center gap-1"
                               >
                                 <Search className="w-3 h-3" /> Inspect Session
+                              </Button>
+                              <Button
+                                onClick={() => setEmailingUser(u)}
+                                variant="outline"
+                                size="sm"
+                                className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55 flex items-center gap-1"
+                              >
+                                <Mail className="w-3 h-3" /> Email
                               </Button>
                               {u.id !== user?.id ? (
                                 <>
@@ -1610,9 +1665,18 @@ export default function AdminDashboardPage() {
           onClose={() => setSelectedOrder(null)}
           onUpdated={(updated) => {
             setSelectedOrder(updated);
-            setAllOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus, refund: updated.refund } : o)));
+            setAllOrders((prev) => prev.map((o) => (o.id === updated.id
+              ? { ...o, orderStatus: updated.orderStatus, paymentStatus: updated.paymentStatus, refund: updated.refund, returnRequest: updated.returnRequest, deliveredAt: updated.deliveredAt }
+              : o)));
           }}
           onViewAudit={(id) => fetchAuditTrail('Order', id)}
+        />
+      )}
+
+      {emailingUser && (
+        <EmailCustomerModal
+          customer={{ id: emailingUser.id, name: emailingUser.name, email: emailingUser.email }}
+          onClose={() => setEmailingUser(null)}
         />
       )}
 

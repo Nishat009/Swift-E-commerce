@@ -79,6 +79,8 @@ flowchart LR
 - **Checkout:** address validation, coupons, and three payment methods: **Cash on Delivery** (charge depends on the delivery zone), **Card (Stripe)**, and **bKash**
 - **Account:** login/signup with email, **Google Sign-In**, or email OTP, plus optional **2FA**. Includes profile, addresses, orders, and notifications
 - **Orders:** order tracking, email updates on each status change, "Pay now" for unpaid online orders, and cancellation
+- **Returns & refunds:** request a return or refund on a delivered order within 7 days (`RETURN_WINDOW_DAYS`) and follow it on a return → approval → refund timeline
+- **Notifications:** the bell updates right after an order and pops up anything new (status changes, refunds, messages from the store)
 - **Extras:** reviews with photos, stock alerts, multi-currency and multi-language, newsletter, contact form
 - **Campaigns / lucky draw:** buy tickets with bKash or card. A ticket is created only after the server confirms the payment
 - **AI helpers:** chat stylist, outfit suggestions, recommendations, smart search, and a 3D **virtual dressing room** (`/dressing-room`)
@@ -86,7 +88,9 @@ flowchart LR
 ### 🛡️ Admin panel (`/admin`)
 - Dashboard with revenue, orders, customers, and products
 - Product management: create, edit, bulk actions, CSV/JSON import and export, image uploads
-- Order management: status updates and refunds. A **super admin** can override any order status
+- Order management: status updates, approving or rejecting **return requests**, and recording refunds (full or partial, with a payout reference). A **super admin** can override any order status and record refunds
+- Staff alerts in the bell (and the store inbox) for new orders, cancellations, online payments and return requests; each one opens the order
+- **Email customers** from an order or the user list: templates, optional order summary, and a history of what was sent
 - Manage categories, coupons, campaigns, hero banners, currencies, languages, and support messages
 - Audit trail of admin actions
 
