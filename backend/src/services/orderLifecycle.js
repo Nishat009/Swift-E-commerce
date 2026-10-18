@@ -4,6 +4,7 @@ const Notification = require('../models/Notification');
 const inventory = require('./inventory');
 const { releaseCouponUse } = require('./couponService');
 const { snapshotProducts, alertAfterStockChange } = require('./productAlertService');
+const { logSystem } = require('../utils/activityLog');
 
 const CLOSED = ['Cancelled', 'Returned'];
 const UNPAID_HOLD_MINUTES = Number(process.env.ORDER_PAYMENT_HOLD_MINUTES) || 30;
@@ -27,6 +28,18 @@ const NEEDS_PAYMENT_FIRST = ['Packed', 'Shipped', 'Delivered'];
 const RETURN_WINDOW_DAYS = Math.max(1, Number(process.env.RETURN_WINDOW_DAYS) || 7);
 const RETURN_REASONS = ['Wrong size or fit', 'Damaged or defective', 'Not as described', 'Wrong item received', 'Changed my mind', 'Other'];
 
+// Refund policy: only the product price comes back (the delivery charge never does). A return asked
+// for within FULL_REFUND_DAYS of delivery gets it all; after that staff keep a handling charge
+// (suggested: LATE_RETURN_FEE_PERCENT of the product price) and must say why.
+const FULL_REFUND_DAYS = Math.max(0, Number(process.env.FULL_REFUND_DAYS ?? 3));
+const LATE_RETURN_FEE_PERCENT = Math.min(100, Math.max(0, Number(process.env.LATE_RETURN_FEE_PERCENT ?? 15)));
+// Return requests that are still open (not yet paid out or rejected)
+const OPEN_RETURN = ['Requested', 'Proposed', 'Accepted', 'Declined'];
+// ...and the ones waiting on staff (Proposed waits on the customer)
+const RETURN_NEEDS_STAFF = ['Requested', 'Accepted', 'Declined'];
+const DAY_MS = 24 * 60 * 60 * 1000;
+const money = (n) => Math.round(Number(n) * 100) / 100;
+
 const isOnline = (order) => order.paymentMethod === 'bkash' || order.paymentMethod === 'card';
 
 // Last moment a delivered order can be sent back (null when it is not delivered).
@@ -37,11 +50,35 @@ const returnDeadline = (order) => {
   return from ? new Date(new Date(from).getTime() + RETURN_WINDOW_DAYS * 24 * 60 * 60 * 1000) : null;
 };
 
+// What a return of this order can refund. Days are counted from delivery to the day the customer
+// asked (not to today), so slow staff replies never cost the customer money.
+const refundQuote = (order) => {
+  const shipping = money(order.shipping || 0);
+  const productAmount = money(Math.max(0, Number(order.total || 0) - shipping));
+  const from = order.deliveredAt || order.updatedAt;
+  const asked = order.returnRequest?.requestedAt || new Date();
+  const elapsed = from ? Math.max(0, new Date(asked).getTime() - new Date(from).getTime()) : 0;
+  const late = elapsed > FULL_REFUND_DAYS * DAY_MS;
+  return {
+    productAmount,
+    shippingExcluded: shipping,
+    daysAfterDelivery: Math.floor(elapsed / DAY_MS),
+    late,
+    fullRefundDays: FULL_REFUND_DAYS,
+    lateFeePercent: LATE_RETURN_FEE_PERCENT,
+    suggestedDeduction: late ? money(productAmount * LATE_RETURN_FEE_PERCENT / 100) : 0,
+  };
+};
+
 // The order as its customer sees it: no staff identities, plus the return deadline
 const customerView = (order) => {
   const json = typeof order.toJSON === 'function' ? order.toJSON() : { ...order };
   if (json.refund) delete json.refund.by;
-  if (json.returnRequest) delete json.returnRequest.decidedBy;
+  if (json.returnRequest) {
+    delete json.returnRequest.decidedBy;
+    if (json.returnRequest.proposal) delete json.returnRequest.proposal.proposedBy;
+  }
+  if (json.refund) delete json.refund.walletTransaction;
   json.returnDeadline = returnDeadline(order);
   return json;
 };
@@ -123,6 +160,7 @@ const expireUnpaidOrders = async () => {
   for (const order of stale) {
     const closed = await closeOrder(order, 'Cancelled', ['Pending']);
     if (closed) {
+      await logSystem('Order Auto-Cancelled', `${closed.orderNumber} was not paid within ${UNPAID_HOLD_MINUTES} minutes and was cancelled`, 'order');
       await notifyOrderUser(closed, 'Order cancelled', `Order ${closed.orderNumber} was cancelled because the payment was not completed within ${UNPAID_HOLD_MINUTES} minutes.`);
     }
   }
@@ -137,6 +175,11 @@ module.exports = {
   NEEDS_PAYMENT_FIRST,
   RETURN_WINDOW_DAYS,
   RETURN_REASONS,
+  FULL_REFUND_DAYS,
+  LATE_RETURN_FEE_PERCENT,
+  OPEN_RETURN,
+  RETURN_NEEDS_STAFF,
+  refundQuote,
   isOnline,
   canTransition,
   closeOrder,

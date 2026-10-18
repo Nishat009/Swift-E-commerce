@@ -25,6 +25,9 @@ const startServer = async () => {
   // Ensure provider IDs are unique before accepting Google registrations.
   await require('./src/models/User').init();
   await require('./src/models/AuthChallenge').init();
+  // Store account with its opening balance (STORE_WALLET_OPENING_BALANCE) on first start
+  await require('./src/services/wallet').ensureWallet();
+  await require('./src/utils/activityLog').backfillActorRoles();
   server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   });

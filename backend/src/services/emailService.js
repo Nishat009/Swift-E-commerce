@@ -337,8 +337,32 @@ const sendStaffOrderAlert = (order, { subject, title, intro }) => {
   });
 };
 
+// Staff reviewed a return and offer this refund; the customer accepts or declines it in My Orders
+const sendRefundOffer = (user, order) => {
+  const p = order.returnRequest?.proposal || {};
+  const breakdown = [
+    `Product price: ${money(p.productAmount)}`,
+    p.deduction > 0 ? `Handling charge: -${money(p.deduction)}${p.remarks ? ` (${p.remarks})` : ''}` : '',
+    p.shippingExcluded > 0 ? `Delivery charge (not refundable): ${money(p.shippingExcluded)}` : '',
+    `Refund offered: ${money(p.amount)}`,
+  ].filter(Boolean).join('\n');
+  return sendEmail({
+    to: user.email,
+    subject: `Refund offer for order ${order.orderNumber}: ${money(p.amount)}`,
+    text: `We reviewed your return for order ${order.orderNumber}.\n\n${breakdown}\n\nPlease accept or decline the offer in My Orders: ${orderUrl(order)}`,
+    html: template({
+      title: 'Your refund offer',
+      intro: `Hi ${esc(user.name)}, we reviewed your return for order <strong>${esc(order.orderNumber)}</strong> and can refund <strong>${money(p.amount)}</strong>.`,
+      body: quoteBox('Breakdown', breakdown),
+      button: { label: 'Accept or decline', url: orderUrl(order) },
+      footnote: 'Delivery charges are not refundable. The refund is sent once you accept and we confirm it.',
+    }),
+  });
+};
+
 const ORDER_EMAILS = {
   confirmation: sendOrderConfirmation,
+  refund_offer: sendRefundOffer,
   status: sendOrderStatusUpdate,
   return_requested: sendReturnRequested,
   return_decision: sendReturnDecision,

@@ -11,6 +11,8 @@ const {
   refundOrder,
   requestReturn,
   decideReturn,
+  respondToRefundOffer,
+  getRefundQuote,
   getAllOrders
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
@@ -29,6 +31,9 @@ router.put('/:id/cancel', cancelOrder);
 // Customer asks to return a delivered order; staff approve or reject it
 router.post('/:id/return-request', requestReturn);
 router.put('/:id/return-request', authorize('admin'), decideReturn);
+// Staff offer a refund amount; the customer accepts or declines it
+router.get('/:id/refund-quote', authorize('admin'), getRefundQuote);
+router.post('/:id/return-request/respond', respondToRefundOffer);
 
 // Admin routes
 router.put('/:id/status', authorize('admin'), updateOrderStatus);

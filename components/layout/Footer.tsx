@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import { cachedGet, peekCached } from '@/lib/cachedGet';
 
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -12,10 +13,11 @@ export default function Footer() {
   const [categories, setCategories] = useState<{ name: string; slug: string }[]>([]);
 
   useEffect(() => {
-    apiClient
-      .get('/categories')
-      .then((res) => {
-        if (Array.isArray(res.data?.data)) setCategories(res.data.data.slice(0, 6));
+    const last = peekCached('/categories');
+    if (Array.isArray(last?.data)) setCategories(last.data.slice(0, 6));
+    cachedGet('/categories')
+      .then((body) => {
+        if (Array.isArray(body?.data)) setCategories(body.data.slice(0, 6));
       })
       .catch(() => {});
   }, []);

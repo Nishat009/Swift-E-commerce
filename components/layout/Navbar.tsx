@@ -35,6 +35,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
+import { cachedGet, peekCached } from '@/lib/cachedGet';
 import { Product } from '@/types';
 import { debounce } from '@/utils/debounce';
 import { NOTIFICATIONS_REFRESH_EVENT, NotificationsRefreshDetail } from '@/utils/notifications';
@@ -97,10 +98,12 @@ export default function Navbar() {
   const [navCategories, setNavCategories] = useState<{ name: string; slug: string; image?: string; featured?: boolean }[]>([]);
 
   useEffect(() => {
-    apiClient
-      .get('/categories')
-      .then((res) => {
-        if (Array.isArray(res.data?.data)) setNavCategories(res.data.data);
+    // Last visit's categories first (instant menu), then the fresh list (shared with the footer)
+    const last = peekCached('/categories');
+    if (Array.isArray(last?.data)) setNavCategories(last.data);
+    cachedGet('/categories')
+      .then((body) => {
+        if (Array.isArray(body?.data)) setNavCategories(body.data);
       })
       .catch(() => {});
   }, []);

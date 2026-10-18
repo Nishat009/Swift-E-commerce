@@ -12,6 +12,7 @@ import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Button from '@/components/ui/Button';
 import ReturnRequestModal from '@/components/orders/ReturnRequestModal';
 import RefundStatus from '@/components/orders/RefundStatus';
+import RefundOfferCard from '@/components/orders/RefundOfferCard';
 import { refreshNotifications } from '@/utils/notifications';
 import {
   Package,
@@ -29,6 +30,9 @@ import {
 
 const RETURN_BADGES: Record<string, { label: string; className: string }> = {
   Requested: { label: 'Return requested', className: 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' },
+  Proposed: { label: 'Refund offer: action needed', className: 'bg-[#8b6f47]/10 border-[#8b6f47]/30 text-[#8b6f47] dark:text-[#c9a96b]' },
+  Accepted: { label: 'Refund on its way', className: 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900/30 dark:text-green-400' },
+  Declined: { label: 'Offer declined', className: 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' },
   Approved: { label: 'Return approved', className: 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900/30 dark:text-green-400' },
   Rejected: { label: 'Return declined', className: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400' },
 };
@@ -392,6 +396,10 @@ function OrdersHistoryContent() {
                         </div>
                       )}
 
+                      <RefundOfferCard
+                        order={order}
+                        onUpdated={(updated) => setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, returnRequest: updated.returnRequest } : o)))}
+                      />
                       <RefundStatus order={order} />
 
                       {/* Live Tracking Timeline */}

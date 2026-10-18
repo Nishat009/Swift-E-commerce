@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import apiClient from '@/lib/apiClient';
+import { cachedGet } from '@/lib/cachedGet';
 
 export interface CurrencyInfo {
   code: string;
@@ -39,9 +39,9 @@ export const useCurrencyStore = create<CurrencyState>()(
       },
       loadCurrencies: async () => {
         try {
-          const response = await apiClient.get('/currencies');
-          if (response.data && response.data.success && Array.isArray(response.data.data)) {
-            const list = response.data.data;
+          const body = await cachedGet('/currencies');
+          if (body && body.success && Array.isArray(body.data)) {
+            const list = body.data;
             set({ availableCurrencies: list });
             
             // Check if active code is still available

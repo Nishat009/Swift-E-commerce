@@ -252,7 +252,8 @@ export interface Order {
 }
 
 export interface ReturnRequest {
-  status: '' | 'Requested' | 'Approved' | 'Rejected';
+  /** Requested -> Proposed (refund offer) -> Accepted | Declined -> Approved (refund paid); Rejected at any open step */
+  status: '' | 'Requested' | 'Proposed' | 'Accepted' | 'Declined' | 'Approved' | 'Rejected';
   reason?: string;
   details?: string;
   requestedAt?: string;
@@ -260,7 +261,27 @@ export interface ReturnRequest {
   decidedByName?: string;
   /** Staff reply shown to the customer */
   response?: string;
+  proposal?: RefundProposal;
 }
+
+/** The refund offered for a return: product price only, less a handling charge for a late return */
+export interface RefundProposal {
+  productAmount: number;
+  /** Delivery charge, never refunded */
+  shippingExcluded: number;
+  deduction: number;
+  amount: number;
+  remarks?: string;
+  late?: boolean;
+  daysAfterDelivery?: number;
+  proposedAt?: string;
+  proposedByName?: string;
+  respondedAt?: string;
+  customerNote?: string;
+}
+
+/** Same as the server's FULL_REFUND_DAYS: a return asked for within this many days of delivery gets the full product price back */
+export const FULL_REFUND_DAYS = 3;
 
 /** Same list as the server's RETURN_REASONS */
 export const RETURN_REASONS = ['Wrong size or fit', 'Damaged or defective', 'Not as described', 'Wrong item received', 'Changed my mind', 'Other'] as const;

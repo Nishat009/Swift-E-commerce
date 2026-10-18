@@ -6,7 +6,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import { Order, RETURN_REASONS } from '@/types';
+import { Order, RETURN_REASONS, FULL_REFUND_DAYS } from '@/types';
 import { refreshNotifications } from '@/utils/notifications';
 
 interface Props {
@@ -89,7 +89,7 @@ export default function ReturnRequestModal({ order, onClose, onSubmitted }: Prop
           <p>Keep the items unused, with their tags and original packaging. Innerwear, swimwear and personalised items cannot be returned.</p>
           <p>
             {paid
-              ? `Once approved, $${order.total.toFixed(2)} goes back to your original payment method.`
+              ? `We refund the product price (the delivery charge is not refundable): in full if you ask within ${FULL_REFUND_DAYS} days of delivery, after that less a handling charge. We send you the exact amount to accept before anything is paid.`
               : 'Once approved, we will arrange the refund with you.'}{' '}
             <Link href="/shipping-returns" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">Returns policy</Link>
           </p>

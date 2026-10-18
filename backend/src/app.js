@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
@@ -34,6 +35,7 @@ const wardrobeRoutes = require('./routes/wardrobeRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
 const imageAssetRoutes = require('./routes/imageAssetRoutes');
 const { metricsMiddleware } = require('./utils/metrics');
+const { requestLogger } = require('./utils/activityLog');
 
 const app = express();
 
@@ -76,8 +78,13 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
+// 3a. Gzip JSON responses (a 500-product listing is ~340 KB raw, ~40 KB gzipped)
+app.use(compression({ threshold: 1024 }));
+
 // 3b. Request metrics (admin monitoring tab)
 app.use(metricsMiddleware);
+// 3c. System log: every write request and every failed request (admin System Logs tab)
+app.use(requestLogger);
 
 // 4. Body parser and Cookie parser
 // Keep the raw body for the Stripe webhook signature check

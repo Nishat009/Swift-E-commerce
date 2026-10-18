@@ -5,9 +5,11 @@ import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
 import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
-import { X, ShieldAlert, Mail, RotateCcw } from 'lucide-react';
+import Dropdown from '@/components/ui/Dropdown';
+import { X, ShieldAlert, Mail } from 'lucide-react';
 import { errMsg } from './adminUtils';
 import EmailCustomerModal from './EmailCustomerModal';
+import ReturnRefundPanel from './ReturnRefundPanel';
 
 export const ORDER_STATUSES = ['Pending', 'Processing', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
 export const PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed'];
@@ -39,16 +41,14 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
   const [status, setStatus] = useState<string>(order.orderStatus || 'Pending');
   const [payment, setPayment] = useState<string>(order.paymentStatus || 'Pending');
   const [saving, setSaving] = useState(false);
-  const [confirm, setConfirm] = useState<'status' | 'refund' | 'approve' | 'reject' | null>(null);
+  const [confirm, setConfirm] = useState<'status' | 'refund' | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
-  const [returnResponse, setReturnResponse] = useState('');
   const [refundAmount, setRefundAmount] = useState(Number(order.total || 0).toFixed(2));
   const [refundReference, setRefundReference] = useState('');
   const [refundNote, setRefundNote] = useState('');
 
   const addr = order.shippingAddress || order.address;
   const isClosed = CLOSED_STATUSES.includes(order.orderStatus);
-  const returnRequest = order.returnRequest?.status ? order.returnRequest : null;
   const customerId = order.user?.id || order.user?._id;
   const statusDirty = status !== order.orderStatus;
   const paymentDirty = payment !== order.paymentStatus;
@@ -105,23 +105,6 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
       toast.success('Refund recorded. The customer was notified by email and in the app.');
     } catch (err) {
       toast.error(errMsg(err, 'Failed to record the refund.'));
-    } finally {
-      setSaving(false);
-      setConfirm(null);
-    }
-  };
-
-  const decideReturn = async (decision: 'approve' | 'reject') => {
-    setSaving(true);
-    try {
-      const res = await apiClient.put(`/orders/${order.id}/return-request`, { decision, response: returnResponse.trim() });
-      const updated = res.data?.data || {};
-      merge(updated);
-      if (updated.orderStatus) setStatus(updated.orderStatus);
-      if (updated.paymentStatus) setPayment(updated.paymentStatus);
-      toast.success(decision === 'approve' ? 'Return approved. The items are back in stock and the customer was notified.' : 'Return rejected. The customer was notified.');
-    } catch (err) {
-      toast.error(errMsg(err, 'Failed to update the return request.'));
     } finally {
       setSaving(false);
       setConfirm(null);
@@ -208,57 +191,16 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
           </div>
         </div>
 
-        {/* Customer's return / refund request */}
-        {returnRequest && (
-          <div className={`rounded-2xl border p-4 mb-4 text-xs ${
-            returnRequest.status === 'Requested'
-              ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40'
-              : 'border-gray-200 bg-gray-50 dark:bg-gray-950 dark:border-gray-800'
-          }`}>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="font-black uppercase tracking-wider text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
-                <RotateCcw className="w-3.5 h-3.5" /> Return request
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                returnRequest.status === 'Requested' ? 'bg-amber-100 text-amber-800' : returnRequest.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {returnRequest.status === 'Requested' ? 'Waiting for a decision' : returnRequest.status}
-              </span>
-            </div>
-            <p className="text-gray-700 dark:text-gray-300"><strong>{returnRequest.reason}</strong>{returnRequest.requestedAt && <span className="text-gray-400"> &middot; {new Date(returnRequest.requestedAt).toLocaleString()}</span>}</p>
-            {returnRequest.details && <p className="mt-1 text-gray-600 dark:text-gray-400 whitespace-pre-line">&ldquo;{returnRequest.details}&rdquo;</p>}
-
-            {returnRequest.status === 'Requested' ? (
-              <div className="mt-3 space-y-2">
-                <textarea
-                  value={returnResponse}
-                  onChange={(e) => setReturnResponse(e.target.value)}
-                  maxLength={1000}
-                  rows={2}
-                  placeholder="Message to the customer (required to reject, e.g. pickup details or why it cannot be returned)"
-                  className="w-full text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2"
-                />
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <Button onClick={() => setConfirm('reject')} disabled={returnResponse.trim().length < 5} variant="outline" className="text-xs py-2 px-4 font-bold rounded-xl border-red-200 text-red-600">
-                    Reject
-                  </Button>
-                  <Button onClick={() => setConfirm('approve')} disabled={order.orderStatus !== 'Delivered'} className="text-xs py-2 px-4 font-bold rounded-xl bg-green-600 text-white">
-                    Approve return
-                  </Button>
-                </div>
-                <p className="text-[10px] text-gray-500">
-                  Approving marks the order Returned and puts the items back in stock.
-                  {order.paymentStatus === 'Paid' && ` The payment of $${Number(order.total).toFixed(2)} is then flagged for a refund.`}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-2 text-gray-500">
-                {returnRequest.status} {returnRequest.decidedAt && `on ${new Date(returnRequest.decidedAt).toLocaleString()}`}{returnRequest.decidedByName && ` by ${returnRequest.decidedByName}`}
-                {returnRequest.response && <span className="block mt-1 text-gray-600 dark:text-gray-400">Reply: &ldquo;{returnRequest.response}&rdquo;</span>}
-              </p>
-            )}
-          </div>
-        )}
+        {/* Customer's return request and refund offer */}
+        <ReturnRefundPanel
+          order={order}
+          canConfirm={canOverrideStatus}
+          onUpdated={(updated) => {
+            merge(updated);
+            if (updated.orderStatus) setStatus(updated.orderStatus);
+            if (updated.paymentStatus) setPayment(updated.paymentStatus);
+          }}
+        />
 
         {/* Order status */}
         <div className="rounded-2xl border border-[#8b6f47]/30 bg-[#8b6f47]/5 p-4 mb-4">
@@ -267,15 +209,14 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
             <span className="text-[10px] text-gray-500">Current: <strong>{order.orderStatus}</strong>{canOverrideStatus && ' | Super admin: any status'}</span>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <select
+            <Dropdown
               id="order-status-select"
               value={status}
               disabled={isClosed}
-              onChange={(e) => setStatus(e.target.value)}
-              className="flex-1 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5 disabled:opacity-60"
-            >
-              {statusChoices.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+              onChange={setStatus}
+              options={statusChoices.map((s) => ({ value: s, label: s, hint: s === order.orderStatus ? 'Current status' : undefined }))}
+              className="flex-1"
+            />
             <Button onClick={() => setConfirm('status')} loading={saving && confirm === null} disabled={!statusDirty || isClosed} className="text-sm py-2 px-5 font-bold rounded-xl bg-[#8b6f47] text-white">
               Update status
             </Button>
@@ -292,9 +233,13 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payment status</label>
             <div className="flex gap-2">
-              <select value={payment} onChange={(e) => setPayment(e.target.value)} className="flex-1 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5">
-                {paymentChoices.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Dropdown
+                aria-label="Payment status"
+                value={payment}
+                onChange={setPayment}
+                options={paymentChoices.map((s) => ({ value: s, label: s }))}
+                className="flex-1"
+              />
               <Button onClick={savePayment} loading={saving && confirm === null} disabled={!paymentDirty} variant="outline" className="text-xs py-2 px-3 font-bold rounded-xl">
                 Save
               </Button>
@@ -314,7 +259,7 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
           <div className="rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/40 p-4 mb-4">
             <p className="text-xs text-orange-800 dark:text-orange-300 mb-3">
               <strong>Refund needed:</strong> this order is {order.orderStatus.toLowerCase()} and was paid by {String(order.paymentMethod).toUpperCase()}.
-              Send the money back (Stripe / bKash dashboard or cash), then record it here.
+              Send the money back (Stripe / bKash dashboard or cash), then record it here. The amount is taken out of the store wallet.
               {!canOverrideStatus && ' Only a super admin can record refunds, and the shared demo admin is never a super admin. Sign in with your own admin account to do it.'}
             </p>
             {canOverrideStatus && (
@@ -394,35 +339,12 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
         onClose={() => setConfirm(null)}
         onConfirm={refund}
         title="Mark this order as refunded?"
-        message={`Record a refund of $${refundAmountValid ? refundValue.toFixed(2) : Number(order.total).toFixed(2)}${refundAmountValid && refundValue < Number(order.total) ? ` (of $${Number(order.total).toFixed(2)})` : ''} for order ${order.orderNumber || order.id}. Make sure the money has actually been sent back (card / bKash dashboard or cash). The customer will be notified.`}
+        message={`Record a refund of $${refundAmountValid ? refundValue.toFixed(2) : Number(order.total).toFixed(2)}${refundAmountValid && refundValue < Number(order.total) ? ` (of $${Number(order.total).toFixed(2)})` : ''} for order ${order.orderNumber || order.id}. It is taken out of the store wallet. Make sure the money has actually been sent back (card / bKash dashboard or cash). The customer will be notified.`}
         confirmText="Yes, record refund"
         cancelText="Go back"
         variant="warning"
         isLoading={saving}
       />
-      <ConfirmationModal
-        isOpen={confirm === 'approve'}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => decideReturn('approve')}
-        title="Approve this return?"
-        message={`Order ${order.orderNumber || order.id} becomes Returned and its items go back in stock.${order.paymentStatus === 'Paid' ? ' The payment will be flagged for a refund.' : ''} The customer gets an email and a notification.`}
-        confirmText="Yes, approve"
-        cancelText="Go back"
-        variant="primary"
-        isLoading={saving}
-      />
-      <ConfirmationModal
-        isOpen={confirm === 'reject'}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => decideReturn('reject')}
-        title="Reject this return?"
-        message="The order stays delivered. The customer gets your message by email and in their notifications."
-        confirmText="Yes, reject"
-        cancelText="Go back"
-        variant="danger"
-        isLoading={saving}
-      />
-
       {emailOpen && customerId && (
         <EmailCustomerModal
           customer={{ id: String(customerId), name: order.user?.name || 'Customer', email: order.user?.email || '' }}

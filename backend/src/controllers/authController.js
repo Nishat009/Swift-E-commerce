@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { generateSecret, verifyTOTP, generateRecoveryCodes } = require('../utils/totp');
 const { getRequiredSecret } = require('../utils/generateTokens');
 const AuthChallenge = require('../models/AuthChallenge');
-const { cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
+const { noteSignIn, cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendPasswordReset, sendLoginOtp } = require('../services/emailService');
 const { validateAddress, cleanAddress } = require('../utils/address');
 const DEFAULT_COUNTRY = process.env.DEFAULT_COUNTRY || 'Bangladesh';
@@ -76,6 +76,7 @@ const register = async (req, res, next) => {
       phone
     });
 
+    noteSignIn(res, user, 'Registered');
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user, true);
 
@@ -124,6 +125,7 @@ const login = async (req, res, next) => {
       return await requestSecondFactor(req, res, user, !!rememberMe);
     }
 
+    noteSignIn(res, user, 'Signed in with password');
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user, !!rememberMe);
 
@@ -637,6 +639,7 @@ const verifyOTP = async (req, res, next) => {
       return await requestSecondFactor(req, res, user, !!rememberMe);
     }
 
+    noteSignIn(res, user, 'Signed in with email code');
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user, !!rememberMe);
 

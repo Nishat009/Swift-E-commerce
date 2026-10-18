@@ -11,6 +11,7 @@ import { useCompareStore } from '@/stores/compareStore';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useCurrencyStore } from '@/stores/currencyStore';
+import { garmentKind } from '@/stores/fittingStore';
 import apiClient from '@/lib/apiClient';
 import Modal from './Modal';
 import Button from './Button';
@@ -382,15 +383,17 @@ export default function ProductCard({ product, viewMode = 'grid', index = 0, sea
               <span className="whitespace-nowrap">{product.stock === 0 ? 'Out of Stock' : 'Add to Bag'}</span>
             </button>
 
-            <Link
-              href={`/dressing-room?product=${product.id}&category=${product.category || 'all'}`}
-              onClick={(e) => e.stopPropagation()}
-              className="flex-1 basis-[6.5rem] min-w-0"
-            >
-              <span className="w-full min-w-0 text-[10px] font-bold uppercase tracking-wide bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
-                <Sparkles className="w-3.5 h-3.5 text-[#dfb76c] shrink-0" /> <span className="whitespace-nowrap">3D Try On</span>
-              </span>
-            </Link>
+            {garmentKind(product) && (
+              <Link
+                href={`/dressing-room?product=${product.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 basis-[6.5rem] min-w-0"
+              >
+                <span className="w-full min-w-0 text-[10px] font-bold uppercase tracking-wide bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2.5 px-1.5 rounded-full flex items-center justify-center gap-1 transition-colors border border-white/30 active:scale-95 whitespace-nowrap">
+                  <Sparkles className="w-3.5 h-3.5 text-[#dfb76c] shrink-0" /> <span className="whitespace-nowrap">3D Try On</span>
+                </span>
+              </Link>
+            )}
 
             <button
               onClick={(e) => {

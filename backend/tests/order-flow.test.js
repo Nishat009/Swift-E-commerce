@@ -357,7 +357,7 @@ test('refunds: customer cancel of a paid order flags Refund Needed; only a super
   assert.equal((await api('POST', `/api/orders/${cod}/refund`, tokens.admin)).status, 400);
 });
 
-test('returns: a delivered order can be returned once within the window; staff approve it and the refund can be partial', async () => {
+test('returns: a delivered order can be returned once within the window; staff offer the product price, the customer accepts and the refund comes out of the store wallet', async () => {
   const Notification = require('../src/models/Notification');
   const p = await makeProduct('Returnable Scarf', 40, 10);
   const id = (await order(tokens.bob, [{ product: p.id, quantity: 2 }])).json.data.id;
@@ -383,28 +383,47 @@ test('returns: a delivered order can be returned once within the window; staff a
   assert.ok(await Notification.findOne({ type: 'admin_alert', relatedOrder: id, title: 'Return requested' }), 'staff are alerted');
   assert.ok((await api('GET', '/api/orders/admin/all', tokens.admin)).json.returnRequests >= 1);
 
-  assert.equal((await decide(tokens.bob, { decision: 'approve' })).status, 403, 'customers cannot decide');
+  assert.equal((await decide(tokens.bob, { decision: 'propose' })).status, 403, 'customers cannot decide');
   assert.equal((await decide(tokens.admin, { decision: 'maybe' })).status, 400);
-  const approved = await decide(tokens.admin, { decision: 'approve', response: 'Courier will collect on Monday' });
-  assert.equal(approved.status, 200, JSON.stringify(approved.json));
-  assert.equal(approved.json.data.orderStatus, 'Returned');
-  assert.equal(approved.json.data.paymentStatus, 'Refund Needed', 'a paid return needs a refund');
-  assert.equal(approved.json.data.returnRequest.status, 'Approved');
-  assert.equal((await Product.findById(p.id)).stock, 10, 'returned items are back in stock');
-  assert.equal((await decide(tokens.admin, { decision: 'approve' })).status, 400, 'already decided');
-  assert.ok(await Notification.findOne({ user: delivered.user, relatedOrder: id, title: 'Return approved' }));
+  assert.equal((await decide(tokens.admin, { decision: 'approve' })).status, 400, 'a paid return needs a refund offer, not a plain approval');
+  assert.equal((await decide(tokens.admin, { decision: 'propose', deduction: 5, remarks: 'Worn once' })).status, 400, 'no charge inside the full-refund period');
 
-  const mine = (await api('GET', `/api/orders/${id}`, tokens.bob)).json.data;
-  assert.equal(mine.returnRequest.decidedBy, undefined, 'staff identity is not shown to the customer');
+  // Only the product price is offered: total minus the delivery charge
+  const quote = (await api('GET', `/api/orders/${id}/refund-quote`, tokens.admin)).json.data;
+  assert.equal(quote.late, false);
+  assert.equal(quote.productAmount, Math.round((delivered.total - delivered.shipping) * 100) / 100);
+  assert.ok(delivered.shipping > 0, 'this order has a delivery charge to keep back');
+  const offered = await decide(tokens.admin, { decision: 'propose', response: 'Courier will collect on Monday' });
+  assert.equal(offered.status, 200, JSON.stringify(offered.json));
+  assert.equal(offered.json.data.returnRequest.status, 'Proposed');
+  assert.equal(offered.json.data.returnRequest.proposal.amount, quote.productAmount);
+  assert.equal(offered.json.data.orderStatus, 'Delivered', 'nothing moves until the refund is confirmed');
+  assert.ok(await Notification.findOne({ user: delivered.user, relatedOrder: id, title: 'Refund offer' }));
+  assert.equal((await decide(tokens.admin, { decision: 'confirm' })).status, 400, 'cannot pay out before the customer accepts');
+
+  const respond = (token, body) => api('POST', `/api/orders/${id}/return-request/respond`, token, body);
+  assert.equal((await respond(tokens.alice, { accept: true })).status, 403, 'only the owner answers');
+  const mine = (await respond(tokens.bob, { accept: true })).json.data;
+  assert.equal(mine.returnRequest.status, 'Accepted');
+  assert.equal(mine.returnRequest.proposal.proposedBy, undefined, 'staff identity is not shown to the customer');
   assert.equal(mine.returnRequest.response, 'Courier will collect on Monday');
+  assert.equal((await respond(tokens.bob, { accept: false })).status, 400, 'already answered');
 
-  const refund = (body) => api('POST', `/api/orders/${id}/refund`, tokens.admin, body);
-  assert.equal((await refund({ amount: 9999 })).status, 400, 'cannot refund more than the order total');
-  assert.equal((await refund({ amount: -1 })).status, 400);
-  const done = await refund({ amount: 70.5, reference: 'TRX-778', note: 'shipping kept' });
-  assert.equal(done.status, 200, JSON.stringify(done.json));
-  assert.equal(done.json.data.refund.amount, 70.5);
-  assert.equal(done.json.data.refund.reference, 'TRX-778');
+  const balanceBefore = (await api('GET', '/api/admin/wallet', tokens.admin)).json.data.balance;
+  const confirmed = await decide(tokens.admin, { decision: 'confirm' });
+  assert.equal(confirmed.status, 200, JSON.stringify(confirmed.json));
+  assert.equal(confirmed.json.data.orderStatus, 'Returned');
+  assert.equal(confirmed.json.data.paymentStatus, 'Refunded');
+  assert.equal(confirmed.json.data.returnRequest.status, 'Approved');
+  assert.equal(confirmed.json.data.refund.amount, quote.productAmount);
+  assert.equal((await Product.findById(p.id)).stock, 10, 'returned items are back in stock');
+  assert.equal((await decide(tokens.admin, { decision: 'confirm' })).status, 400, 'paid only once');
+
+  const statement = (await api('GET', '/api/admin/wallet', tokens.admin)).json.data;
+  assert.equal(statement.balance, Math.round((balanceBefore - quote.productAmount) * 100) / 100, 'the refund comes out of the store wallet');
+  const line = statement.transactions.find((t) => t.category === 'refund' && t.orderNumber === delivered.orderNumber);
+  assert.ok(line && line.type === 'debit' && line.amount === quote.productAmount && line.balanceAfter === statement.balance);
+  assert.ok(statement.transactions.find((t) => t.category === 'sale' && t.orderNumber === delivered.orderNumber), 'the COD payment was booked in on delivery');
 });
 
 test('returns: staff must explain a rejection, and the window closes after the return period', async () => {
@@ -434,6 +453,81 @@ test('returns: staff must explain a rejection, and the window closes after the r
   await api('POST', `/api/orders/${viaStatus}/return-request`, tokens.bob, { reason: 'Damaged or defective' });
   const returned = await api('PUT', `/api/orders/${viaStatus}/status`, tokens.admin, { status: 'Returned' });
   assert.equal(returned.json.data.returnRequest.status, 'Approved');
+});
+
+test('refunds: a late return carries an explained charge, a declined offer can be revised, and the wallet must cover the payout', async () => {
+  const StoreWallet = require('../src/models/StoreWallet');
+  const p = await makeProduct('Late Return Shirt', 50, 5);
+  const id = (await order(tokens.bob, [{ product: p.id, quantity: 1 }])).json.data.id;
+  await api('PUT', `/api/orders/${id}/override-status`, tokens.admin, { status: 'Delivered' });
+  // Delivered 5 days ago: still inside the 7-day return window, past the 3-day full-refund period
+  await Order.updateOne({ _id: id }, { deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) });
+  assert.equal((await api('POST', `/api/orders/${id}/return-request`, tokens.bob, { reason: 'Changed my mind' })).status, 200);
+
+  const decide = (body) => api('PUT', `/api/orders/${id}/return-request`, tokens.admin, body);
+  const quote = (await api('GET', `/api/orders/${id}/refund-quote`, tokens.admin)).json.data;
+  assert.equal(quote.late, true);
+  assert.equal(quote.daysAfterDelivery, 5);
+  assert.ok(quote.suggestedDeduction > 0);
+  assert.equal((await decide({ decision: 'propose' })).status, 400, 'a late return needs a charge');
+  assert.equal((await decide({ decision: 'propose', deduction: 5 })).status, 400, 'the charge must be explained');
+  assert.equal((await decide({ decision: 'propose', deduction: quote.productAmount, remarks: 'Everything' })).status, 400, 'cannot keep the whole price');
+
+  const first = await decide({ decision: 'propose', deduction: 10, remarks: 'Returned after 3 days, tags removed' });
+  assert.equal(first.status, 200, JSON.stringify(first.json));
+  assert.equal(first.json.data.returnRequest.proposal.amount, Math.round((quote.productAmount - 10) * 100) / 100);
+  const declined = await api('POST', `/api/orders/${id}/return-request/respond`, tokens.bob, { accept: false, note: 'Too much' });
+  assert.equal(declined.json.data.returnRequest.status, 'Declined');
+
+  const second = await decide({ decision: 'propose', deduction: 4, remarks: 'Returned after 3 days' });
+  assert.equal(second.json.data.returnRequest.status, 'Proposed');
+  await api('POST', `/api/orders/${id}/return-request/respond`, tokens.bob, { accept: true });
+
+  // An empty wallet refuses the payout and leaves everything as it was
+  const store = await StoreWallet.findOne({ key: 'store' });
+  const saved = store.balance;
+  await StoreWallet.updateOne({ key: 'store' }, { balance: 1 });
+  const refused = await decide({ decision: 'confirm' });
+  assert.equal(refused.status, 409);
+  assert.match(refused.json.message, /not enough/);
+  const still = await Order.findById(id);
+  assert.equal(still.returnRequest.status, 'Accepted');
+  assert.equal(still.orderStatus, 'Delivered');
+  await StoreWallet.updateOne({ key: 'store' }, { balance: saved });
+
+  const paid = await decide({ decision: 'confirm' });
+  assert.equal(paid.status, 200, JSON.stringify(paid.json));
+  assert.equal(paid.json.data.refund.amount, Math.round((quote.productAmount - 4) * 100) / 100);
+  assert.match(paid.json.data.refund.note, /handling charge/);
+});
+
+test('store wallet: only a super admin adjusts it, and every adjustment is on the statement and in the system log', async () => {
+  const adjust = (token, body) => api('POST', '/api/admin/wallet/adjust', token, body);
+  assert.equal((await adjust(tokens.bob, { type: 'credit', amount: 10, note: 'top up' })).status, 403);
+  assert.equal((await adjust(tokens.admin, { type: 'credit', amount: 10, note: 'x' })).status, 400, 'needs a note');
+  assert.equal((await adjust(tokens.admin, { type: 'debit', amount: 999999999, note: 'Owner withdrawal' })).status, 400);
+  const before = (await api('GET', '/api/admin/wallet', tokens.admin)).json.data.balance;
+  const added = await adjust(tokens.admin, { type: 'credit', amount: 250, note: 'Owner top up' });
+  assert.equal(added.status, 201, JSON.stringify(added.json));
+  assert.equal(added.json.data.balanceAfter, Math.round((before + 250) * 100) / 100);
+
+  const filtered = (await api('GET', '/api/admin/wallet?category=adjustment', tokens.admin)).json.data;
+  assert.ok(filtered.transactions.every((t) => t.category === 'adjustment'));
+  assert.ok(filtered.transactions.some((t) => t.description === 'Owner top up'));
+  const csv = await api('GET', '/api/admin/wallet/statement.csv', tokens.admin);
+  assert.equal(csv.status, 200);
+  assert.match(csv.text, /^Date,Type,Category/);
+
+  const logs = (await api('GET', '/api/enterprise/logs?category=wallet', tokens.admin)).json.data;
+  assert.ok(logs.some((l) => l.action === 'Wallet Funds Added'));
+  const customerLogs = (await api('GET', '/api/enterprise/logs?role=customer', tokens.admin)).json.data;
+  assert.ok(customerLogs.length && customerLogs.every((l) => l.actorRole === 'customer'), 'customer actions are logged too');
+  // The request trail is written after the response; give it a moment
+  await new Promise((r) => setTimeout(r, 200));
+  const trail = (await api('GET', '/api/enterprise/request-logs?q=/api/admin/wallet/adjust', tokens.admin)).json.data;
+  assert.ok(trail.some((r) => r.method === 'POST' && r.statusCode === 201 && r.userRole === 'admin'));
+  assert.ok(trail.some((r) => r.statusCode === 403 && r.userRole === 'customer'), 'refused calls are in the trail');
+  assert.equal((await api('GET', '/api/enterprise/request-logs', tokens.bob)).status, 403);
 });
 
 test('admins can email a customer about their order; demo admins cannot while real email is on', async () => {

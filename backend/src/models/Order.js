@@ -52,6 +52,8 @@ const OrderSchema = new mongoose.Schema(
       byName: { type: String, default: '' },
       reference: { type: String, default: '' },
       note: { type: String, default: '' },
+      // The store wallet line the refund was paid from
+      walletTransaction: { type: mongoose.Schema.Types.ObjectId, ref: 'WalletTransaction' },
     },
     paidAt: { type: Date, default: null },
     orderStatus: {
@@ -62,8 +64,10 @@ const OrderSchema = new mongoose.Schema(
     // Starts the return window (set when the order is marked Delivered)
     deliveredAt: { type: Date, default: null },
     // The customer's return / refund request on a delivered order; staff approve or reject it
+    // Requested -> (staff propose an amount) Proposed -> (customer) Accepted | Declined
+    // Accepted -> (staff confirm: paid out of the store wallet) Approved. Staff may reject while it is open.
     returnRequest: {
-      status: { type: String, enum: ['', 'Requested', 'Approved', 'Rejected'], default: '' },
+      status: { type: String, enum: ['', 'Requested', 'Proposed', 'Accepted', 'Declined', 'Approved', 'Rejected'], default: '' },
       reason: { type: String, default: '' },
       details: { type: String, default: '' },
       requestedAt: { type: Date },
@@ -72,6 +76,22 @@ const OrderSchema = new mongoose.Schema(
       decidedByName: { type: String, default: '' },
       // Staff reply shown to the customer (required when rejecting)
       response: { type: String, default: '' },
+      // The refund offer. Only the product price is refunded (never the delivery charge); a request
+      // made after the full-refund period carries a handling charge that staff must explain.
+      proposal: {
+        productAmount: { type: Number },
+        shippingExcluded: { type: Number },
+        deduction: { type: Number, default: 0 },
+        amount: { type: Number },
+        remarks: { type: String, default: '' },
+        late: { type: Boolean, default: false },
+        daysAfterDelivery: { type: Number },
+        proposedAt: { type: Date },
+        proposedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        proposedByName: { type: String, default: '' },
+        respondedAt: { type: Date },
+        customerNote: { type: String, default: '' },
+      },
     },
     shippingAddress: { type: OrderAddressSchema, required: true }
   },

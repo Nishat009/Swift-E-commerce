@@ -48,8 +48,15 @@ const publicUser = (user) => ({
   googleConnected: Boolean(user.googleId),
 });
 
+// System log for a sign-in: an activity entry, and the request trail learns who it was
+const noteSignIn = (res, user, message) => {
+  res.locals.sessionUser = user;
+  require('./activityLog').logActivity({ user, ip: res.req?.ip }, 'Signed In', `${user.email}: ${message}`, 'auth');
+};
+
 const sendSession = (res, user, rememberMe, message = 'Logged in successfully') => {
   res.set('Cache-Control', 'no-store');
+  noteSignIn(res, user, message);
   res.cookie('refreshToken', generateRefreshToken(user, rememberMe), cookieOptions(rememberMe));
   return sendSuccess(res, message, { user: publicUser(user), accessToken: generateAccessToken(user) });
 };
@@ -60,4 +67,4 @@ const requestSecondFactor = async (req, res, user, rememberMe) => {
   return sendSuccess(res, '2FA code required to login', { require2FA: true, userId: user.id });
 };
 
-module.exports = { cookieOptions, publicUser, sendSession, createChallenge, clearChallenge, challengeQuery, requestSecondFactor };
+module.exports = { noteSignIn, cookieOptions, publicUser, sendSession, createChallenge, clearChallenge, challengeQuery, requestSecondFactor };

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAvatarStore } from '@/stores/avatarStore';
+import { garmentKind } from '@/stores/fittingStore';
 import { useAuth } from '@/context/AuthContext';
 import { fetchProductById, fetchProducts } from '@/lib/api';
 import apiClient from '@/lib/apiClient';
@@ -31,7 +31,9 @@ import { ShoppingCart, Heart, ShieldCheck, Truck, RefreshCw, Gift, ArrowRight, S
 import { motion } from 'framer-motion';
 import { useToast } from '@/context/ToastContext';
 
-import TryOnModal from '@/features/ai/avatar/TryOnModal';
+import dynamic from 'next/dynamic';
+// The try-on modal carries the 3D studio (three.js); load it only when a shopper opens it
+const TryOnModal = dynamic(() => import('@/features/ai/avatar/TryOnModal'), { ssr: false });
 import CompleteOutfitBuilder from '@/features/ai/product-ai/CompleteOutfitBuilder';
 import AIBadge from '@/components/ui/AIBadge';
 
@@ -57,7 +59,6 @@ export default function ProductDetailPage() {
 
   const { user } = useAuth();
   const addItem = useCartStore((state) => state.addItem);
-  const tryOnItem = useAvatarStore((state) => state.tryOnItem);
   const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
 
   // Sizing Advisor and bundle states
@@ -272,14 +273,11 @@ export default function ProductDetailPage() {
     }
   };
 
-  const isTryOnable = product
-    ? ['top', 'pants', 'dress', 'jacket', 'shoes', 'hat', 'bag', 'jewelry', 'glasses'].includes(product.category.toLowerCase())
-    : false;
+  const isTryOnable = product ? garmentKind(product) !== null : false;
 
   const handleTryOn = () => {
     if (product) {
-      tryOnItem(product);
-      router.push('/dressing-room');
+      router.push(`/dressing-room?product=${product.id}`);
     }
   };
 
@@ -975,7 +973,7 @@ export default function ProductDetailPage() {
       />
 
       {/* AI Virtual Try-On Modal */}
-      {product && (
+      {product && isTryOnModalOpen && (
         <TryOnModal
           isOpen={isTryOnModalOpen}
           onClose={() => setIsTryOnModalOpen(false)}

@@ -1,404 +1,207 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import AvatarViewer from '@/components/dressing-room/AvatarViewer';
-import AvatarControls from '@/components/dressing-room/AvatarControls';
-import ClosetBuilder from '@/components/dressing-room/ClosetBuilder';
-import SmartStylist from '@/components/dressing-room/SmartStylist';
-import StyleChallenges from '@/components/dressing-room/StyleChallenges';
-import ChatAssistant from '@/components/dressing-room/ChatAssistant';
-import AIStudio from '@/components/dressing-room/AIStudio';
-import { Sparkles, MessageSquare, Award, Shirt, Sliders, ChevronRight, Bot } from 'lucide-react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-
-import DressRoomViewer from '@/components/dressing-room/DressRoomViewer';
-import DemoDressRack from '@/components/dressing-room/DemoDressRack';
+import { useSearchParams } from 'next/navigation';
+import { ImagePlus, ShoppingBag, X } from 'lucide-react';
 import { useCatalog } from '@/hooks/useCatalog';
-import { Product } from '@/types';
-import { useAuth } from '@/context/AuthContext';
-import { useAvatarStore } from '@/stores/avatarStore';
-import apiClient from '@/lib/apiClient';
+import { useCartStore } from '@/stores/cartStore';
+import { useToast } from '@/context/ToastContext';
+import { FittingItem, fittingItemFor, garmentImageOf, useFittingStore } from '@/stores/fittingStore';
+import type { GarmentKind } from '@/components/dressing-room/tryon/garment';
 
-function DressingRoomContent() {
-  const { user } = useAuth();
+// three.js is heavy: paint the page first, then load the 3D view
+const FittingRoom3D = dynamic(() => import('@/components/dressing-room/FittingRoom3D'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[480px] items-center justify-center rounded-2xl border border-gray-200 bg-[#f3f1ed] text-xs text-gray-400 sm:h-[600px] dark:border-gray-800">
+      Loading 3D view...
+    </div>
+  ),
+});
+
+const FILTERS: { key: 'all' | GarmentKind | 'bottoms'; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'dress', label: 'Dresses' },
+  { key: 'top', label: 'Tops' },
+  { key: 'outer', label: 'Jackets' },
+  { key: 'bottoms', label: 'Bottoms' },
+];
+
+const UPLOAD_KINDS: { kind: GarmentKind; label: string }[] = [
+  { kind: 'dress', label: 'Dress' },
+  { kind: 'top', label: 'Top' },
+  { kind: 'outer', label: 'Jacket' },
+  { kind: 'pants', label: 'Trousers' },
+  { kind: 'skirt', label: 'Skirt' },
+];
+
+function DressingRoom() {
   const searchParams = useSearchParams();
-  const [sidebarTab, setSidebarTab] = useState<'customizer' | 'challenges' | 'chat' | 'aistudio'>('customizer');
-  const [shopTab, setShopTab] = useState<'demo' | 'closet' | 'stylist'>('demo');
-  const { products: allCatalog, loading: catalogLoading, error: catalogError } = useCatalog();
-  // Dressing room works with items that have a Layer spec (fall back to whole catalog if none)
-  const layered = allCatalog.filter((p) => p.specifications && (p.specifications as any)['Layer']);
-  const fashionProducts: Product[] = layered.length > 0 ? layered : allCatalog;
-  const [pickedProduct, setSelectedSpotlightProduct] = useState<Product | null>(null);
-  const selectedSpotlightProduct: Product | null = pickedProduct || fashionProducts[0] || null;
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+  const toast = useToast();
+  const addToCart = useCartStore((state) => state.addItem);
+  const { products, loading, error } = useCatalog();
+  const { gender, worn, setGender, toggle, wear, remove, clear } = useFittingStore();
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['key']>('all');
+  const [uploadKind, setUploadKind] = useState<GarmentKind>('dress');
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    let active = true;
-    let unsubscribe: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    apiClient.get('/wardrobe').then(({ data }) => {
-      if (!active || !data?.data) return;
-      const wardrobe = data.data;
-      useAvatarStore.setState({
-        avatar: { ...useAvatarStore.getState().avatar, ...wardrobe.avatar },
-        wornItems: wardrobe.wornItems || {},
-        savedAvatars: wardrobe.savedAvatars || [],
-        points: wardrobe.points ?? 100,
-        unlockedBadges: wardrobe.unlockedBadges || ['first_avatar'],
-      });
-      unsubscribe = useAvatarStore.subscribe((state, previous) => {
-        if (state.avatar === previous.avatar && state.wornItems === previous.wornItems && state.savedAvatars === previous.savedAvatars) return;
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          void apiClient.put('/wardrobe', {
-            avatar: state.avatar, wornItems: state.wornItems, savedAvatars: state.savedAvatars,
-          }).catch(() => {});
-        }, 600);
-      });
-    }).catch(() => {});
-    return () => {
-      active = false;
-      if (timer) clearTimeout(timer);
-      unsubscribe?.();
-    };
-  }, [user?.id]);
+  const wearable = useMemo(
+    () => products.map((product) => ({ product, item: fittingItemFor(product) })).filter((x): x is { product: typeof x.product; item: FittingItem } => x.item !== null),
+    [products],
+  );
+  const shown = wearable.filter(({ item }) =>
+    filter === 'all' ? true : filter === 'bottoms' ? item.kind === 'pants' || item.kind === 'skirt' : item.kind === filter,
+  );
 
+  // Arriving from a product page: put that product on.
+  const requested = searchParams?.get('product');
+  const handled = useRef<string | null>(null);
   useEffect(() => {
-    const productId = searchParams?.get('product');
-    const category = searchParams?.get('category');
-    if (productId && allCatalog.length > 0) {
-      const match = allCatalog.find((p) => String(p.id) === String(productId));
-      if (match) {
-        setSelectedSpotlightProduct(match);
-        if (category && category !== 'all') {
-          setActiveCategoryFilter(category);
-        }
-      }
+    if (!requested || handled.current === requested || products.length === 0) return;
+    handled.current = requested;
+    const match = wearable.find(({ product }) => String(product.id) === requested);
+    if (match) wear(match.item);
+  }, [requested, products.length, wearable, wear]);
+
+  const onUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file.');
+      return;
     }
-  }, [searchParams, allCatalog]);
+    const label = UPLOAD_KINDS.find((k) => k.kind === uploadKind)?.label ?? 'Garment';
+    wear({ key: `upload-${Date.now()}`, image: URL.createObjectURL(file), kind: uploadKind, title: `Your ${label.toLowerCase()}` });
+  };
 
-  const filteredSpotlightProducts = activeCategoryFilter === 'all'
-    ? fashionProducts
-    : activeCategoryFilter === 'accessories'
-    ? fashionProducts.filter((p) => ['jewelry', 'glasses', 'hat'].includes(p.category.toLowerCase()))
-    : fashionProducts.filter((p) => p.category.toLowerCase() === activeCategoryFilter.toLowerCase());
+  const addWornToCart = (item: FittingItem) => {
+    const product = products.find((p) => String(p.id) === item.productId);
+    if (!product) return;
+    addToCart(product, 1);
+    toast.success(`Added "${product.title}" to your bag`);
+  };
+
+  const pill = (active: boolean) =>
+    `rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+      active ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+    }`;
 
   return (
-    <div className="min-h-screen bg-[#fafaf9] dark:bg-gray-950">
-      {/* Premium Studio Header Banner */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-background via-cream/30 to-[#8b6f47]/5 py-6 border-b border-gray-200/50 dark:border-gray-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium mb-1">
-              <Link href="/" className="hover:text-gray-600 dark:hover:text-gray-200">Store</Link>
-              <ChevronRight className="w-3 h-3 text-gray-300" />
-              <span className="text-[#8b6f47] dark:text-[#c9a96b]">Interactive Studio</span>
-            </div>
-            <h1 className="font-serif text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-[#f5f1eb] tracking-tight">
-              Virtual Dressing Room
-            </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
-              Dress the 3D model with showroom demo dresses or pieces from the closet, rotate it 360°, customize the avatar and curate your wardrobe.
-            </p>
-          </div>
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <header className="mb-6">
+        <h1 className="font-serif text-3xl text-gray-900 dark:text-white">Dressing Room</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Pick a piece to see it on the mannequin. Drag to turn it around.</p>
+      </header>
 
-          {/* Quick Stats / Points bubble */}
-          <div className="hidden lg:flex items-center gap-4">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-2.5 px-4 shadow-sm flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#8b6f47]/10 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b]">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <span className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold">Dress Room Engine</span>
-                <span className="text-xs font-black text-gray-800 dark:text-gray-250">Dual Product & Model View</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Grid Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-        
-        {/* 
-        ====================================================================================
-        [UPPER 3D AVATAR WORKSPACE - TEMPORARILY COMMENTED OUT FOR LATER DEVELOPMENT]
-        Includes: 3D Avatar Runway Visualizer, Avatar Customizer, Challenges, AI Stylist, Closet Racks
-        ====================================================================================
-        
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/ * COLUMN 1: Avatar Settings / Achievements / AI Chat (4 Columns) * /}
-          <div className="lg:col-span-4 flex flex-col gap-6 h-full">
-            {/ * Sidebar Tab Triggers * /}
-            <div className="grid grid-cols-4 bg-gray-100 dark:bg-gray-900 p-1 rounded-2xl border border-gray-200/55 dark:border-gray-850">
-              <button
-                onClick={() => setSidebarTab('customizer')}
-                className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  sidebarTab === 'customizer'
-                    ? 'bg-white dark:bg-gray-850 text-[#8b6f47] dark:text-[#c9a96b] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                Avatar
-              </button>
-              <button
-                onClick={() => setSidebarTab('challenges')}
-                className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  sidebarTab === 'challenges'
-                    ? 'bg-white dark:bg-gray-850 text-[#8b6f47] dark:text-[#c9a96b] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Award className="w-3.5 h-3.5" />
-                Challenges
-              </button>
-              <button
-                onClick={() => setSidebarTab('chat')}
-                className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  sidebarTab === 'chat'
-                    ? 'bg-white dark:bg-gray-850 text-[#8b6f47] dark:text-[#c9a96b] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                Assistant
-              </button>
-              <button
-                onClick={() => setSidebarTab('aistudio')}
-                className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  sidebarTab === 'aistudio'
-                    ? 'bg-white dark:bg-gray-850 text-[#8b6f47] dark:text-[#c9a96b] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Bot className="w-3.5 h-3.5" />
-                Studio
-              </button>
-            </div>
-
-            {/ * Sidebar Active Panel * /}
-            <div className="min-h-[500px]">
-              {sidebarTab === 'customizer' && <AvatarControls />}
-              {sidebarTab === 'challenges' && <StyleChallenges />}
-              {sidebarTab === 'chat' && <ChatAssistant />}
-              {sidebarTab === 'aistudio' && <AIStudio />}
-            </div>
-          </div>
-
-          {/ * COLUMN 2: Large Viewport Visualizer (4 Columns) * /}
-          <div className="lg:col-span-4 h-full min-h-[500px]">
-            <AvatarViewer />
-          </div>
-
-          {/ * COLUMN 3: E-commerce Closet Inventory / Stylist scoring (4 Columns) * /}
-          <div className="lg:col-span-4 flex flex-col gap-6 h-full">
-            {/ * Shop Drawer Tab Triggers * /}
-            <div className="grid grid-cols-2 bg-gray-100 dark:bg-gray-900 p-1 rounded-2xl border border-gray-200/55 dark:border-gray-850">
-              <button
-                onClick={() => setShopTab('closet')}
-                className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  shopTab === 'closet'
-                    ? 'bg-white dark:bg-gray-850 text-[#8b6f47] dark:text-[#c9a96b] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Shirt className="w-3.5 h-3.5" />
-                Closet Racks
-              </button>
-              <button
-                onClick={() => setShopTab('stylist')}
-                className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  shopTab === 'stylist'
-                    ? 'bg-white dark:bg-gray-850 text-[#8b6f47] dark:text-[#c9a96b] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                AI Stylist
-              </button>
-            </div>
-
-            {/ * Shop Active Panel * /}
-            <div className="min-h-[500px]">
-              {shopTab === 'closet' && <ClosetBuilder onProductSelect={(p) => setSelectedSpotlightProduct(p)} />}
-              {shopTab === 'stylist' && <SmartStylist />}
-            </div>
-          </div>
-
-        </div>
-        ====================================================================================
-        */}
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-4 space-y-4">
-            <div className="grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
-              {([
-                ['customizer', 'Avatar', Sliders],
-                ['challenges', 'Rewards', Award],
-                ['chat', 'Chat', MessageSquare],
-                ['aistudio', 'Scenes', Bot],
-              ] as const).map(([key, label, Icon]) => (
-                <button key={key} onClick={() => setSidebarTab(key)}
-                  className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold sm:flex-row sm:justify-center ${sidebarTab === key ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>
-                  <Icon className="h-4 w-4 shrink-0" /> <span>{label}</span>
-                </button>
-              ))}
-            </div>
-            <div className="min-h-[420px]">
-              {sidebarTab === 'customizer' && <AvatarControls />}
-              {sidebarTab === 'challenges' && <StyleChallenges />}
-              {sidebarTab === 'chat' && <ChatAssistant />}
-              {sidebarTab === 'aistudio' && <AIStudio />}
-            </div>
-          </div>
-          <div className="lg:col-span-4 min-h-[500px]"><AvatarViewer /></div>
-          <div className="lg:col-span-4 space-y-4">
-            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-900 p-1">
-              {([
-                ['demo', 'Demo Dresses'],
-                ['closet', 'Closet'],
-                ['stylist', 'Style Feedback'],
-              ] as const).map(([key, label]) => (
-                <button key={key} onClick={() => setShopTab(key)} className={`rounded-xl px-2 py-2 text-xs font-semibold ${shopTab === key ? 'bg-white text-[#8b6f47] shadow-sm dark:bg-gray-800' : 'text-gray-500'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="min-h-[420px]">
-              {shopTab === 'demo' && <DemoDressRack />}
-              {shopTab === 'closet' && <ClosetBuilder onProductSelect={setSelectedSpotlightProduct} />}
-              {shopTab === 'stylist' && <SmartStylist />}
-            </div>
-          </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-7">
+          <FittingRoom3D gender={gender} items={worn} />
         </div>
 
-        {/* SECTION 2: DRESS ROOM DEDICATED SPOTLIGHT VIEWER */}
-        <div className="pt-8 border-t border-stone-200/70 dark:border-zinc-800 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                Interactive Dress Room Spotlight
-              </span>
-              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mt-1">
-                Garment & Model View Studio
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
-                Click any outfit below to test instantaneous switching between high-resolution flat-lay product photography and editorial model looks.
-              </p>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-zinc-900 p-1.5 rounded-2xl border border-stone-200/60 dark:border-zinc-800">
-              {[
-                { label: `All Pieces (${fashionProducts.length})`, key: 'all' },
-                { label: 'Tops & Shirts', key: 'top' },
-                { label: 'Dresses', key: 'dress' },
-                { label: 'Outerwear', key: 'jacket' },
-                { label: 'Trousers & Denim', key: 'pants' },
-                { label: 'Footwear', key: 'shoes' },
-                { label: 'Bags & Leather', key: 'bag' },
-                { label: 'Jewelry & Accessories', key: 'accessories' }
-              ].map((cat) => (
-                <button
-                  key={cat.key}
-                  onClick={() => setActiveCategoryFilter(cat.key)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeCategoryFilter === cat.key
-                      ? 'bg-white dark:bg-zinc-800 text-[#8b6f47] dark:text-[#c9a96b] shadow-xs'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
+        <aside className="space-y-6 lg:col-span-5">
+          <div className="inline-flex rounded-full border border-gray-200 p-1 dark:border-gray-800" role="group" aria-label="Mannequin">
+            <button type="button" onClick={() => setGender('female')} className={pill(gender === 'female')} aria-pressed={gender === 'female'}>Women</button>
+            <button type="button" onClick={() => setGender('male')} className={pill(gender === 'male')} aria-pressed={gender === 'male'}>Men</button>
           </div>
 
-          {/* Main Interactive Stage */}
-          <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-3xl border border-stone-200/80 dark:border-zinc-800 shadow-md">
-            {selectedSpotlightProduct ? (
-              <DressRoomViewer
-                product={selectedSpotlightProduct}
-                onProductChange={(p) => setSelectedSpotlightProduct(p)}
-                showDetails={true}
-              />
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Wearing</h2>
+              {worn.length > 0 && (
+                <button type="button" onClick={clear} className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white">Take all off</button>
+              )}
+            </div>
+            {worn.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nothing yet. Choose something below.</p>
             ) : (
-              <p className="text-center text-sm text-zinc-500 py-16">
-                {catalogLoading ? 'Loading products...' : catalogError || 'No products available right now.'}
-              </p>
-            )}
-          </div>
-
-          {/* Outfit Carousel / Rack Selector */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-                Select Garment to Inspect ({filteredSpotlightProducts.length} items)
-              </h3>
-              <span className="text-[11px] text-zinc-400">
-                Items with gold badge include Model Wearing previews
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
-              {filteredSpotlightProducts.map((p) => {
-                const isSelected = selectedSpotlightProduct?.id === p.id;
-                const hasModel = Boolean(p.modelWearingImage);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelectedSpotlightProduct(p)}
-                    className={`relative p-2 rounded-2xl border text-left transition-all duration-300 group cursor-pointer overflow-hidden ${
-                      isSelected
-                        ? 'border-[#8b6f47] dark:border-[#c9a96b] bg-[#8b6f47]/5 dark:bg-[#8b6f47]/10 ring-2 ring-[#8b6f47]/30 shadow-md scale-[1.02]'
-                        : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-900/50 hover:border-stone-300 dark:hover:border-zinc-700'
-                    }`}
-                  >
-                    <div className="relative aspect-square rounded-xl overflow-hidden bg-stone-100 dark:bg-zinc-950 mb-2">
-                      <img
-                        src={p.productImage || p.thumbnail}
-                        alt={p.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {hasModel && (
-                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-extrabold uppercase tracking-wide bg-black/80 backdrop-blur-xs text-[#c9a96b] border border-[#c9a96b]/30">
-                          Model
-                        </span>
+              <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+                {worn.map((item) => (
+                  <li key={item.key} className="flex items-center gap-3 p-2.5">
+                    <img src={item.image} alt="" className="h-12 w-10 shrink-0 rounded-md bg-gray-100 object-cover" />
+                    <div className="min-w-0 flex-1">
+                      {item.productId ? (
+                        <Link href={`/product/${item.productId}`} className="block truncate text-sm text-gray-900 hover:underline dark:text-white">{item.title}</Link>
+                      ) : (
+                        <span className="block truncate text-sm text-gray-900 dark:text-white">{item.title}</span>
                       )}
+                      {item.price !== undefined && <span className="text-xs text-gray-500">${item.price.toFixed(2)}</span>}
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 line-clamp-1">
-                      {p.brand}
-                    </p>
-                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 line-clamp-1">
-                      {p.title}
-                    </h4>
-                    <p className="text-[11px] font-extrabold text-[#8b6f47] dark:text-[#c9a96b] mt-0.5">
-                      ${p.price.toFixed(0)}
-                    </p>
-                  </button>
-                );
-              })}
+                    {item.productId && (
+                      <button type="button" onClick={() => addWornToCart(item)} className="rounded-full p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" aria-label={`Add ${item.title} to bag`}>
+                        <ShoppingBag className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button type="button" onClick={() => remove(item.key)} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800" aria-label={`Take off ${item.title}`}>
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-3 flex flex-wrap gap-1">
+              {FILTERS.map((f) => (
+                <button key={f.key} type="button" onClick={() => setFilter(f.key)} className={pill(filter === f.key)}>{f.label}</button>
+              ))}
             </div>
-          </div>
+            {shown.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-500">
+                {loading ? 'Loading products...' : error || 'No items here yet.'}
+              </p>
+            ) : (
+              <div className="grid max-h-[440px] grid-cols-3 gap-2.5 overflow-y-auto pr-1">
+                {shown.map(({ product, item }) => {
+                  const on = worn.some((w) => w.key === item.key);
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => toggle(item)}
+                      aria-pressed={on}
+                      className={`group overflow-hidden rounded-lg border text-left transition ${on ? 'border-gray-900 ring-1 ring-gray-900 dark:border-white dark:ring-white' : 'border-gray-200 hover:border-gray-400 dark:border-gray-800'}`}
+                    >
+                      <img src={garmentImageOf(product)} alt="" loading="lazy" className="aspect-[3/4] w-full bg-gray-100 object-cover" />
+                      <span className="block truncate px-2 pt-1.5 text-xs text-gray-800 dark:text-gray-200">{product.title}</span>
+                      <span className="block px-2 pb-1.5 text-xs text-gray-500">${product.price.toFixed(0)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-        </div>
-
-      </main>
-    </div>
+          <section className="rounded-xl border border-dashed border-gray-300 p-4 dark:border-gray-700">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Try your own photo</h2>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">A flat photo of the garment on a plain background works best.</p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {UPLOAD_KINDS.map((k) => (
+                <button key={k.kind} type="button" onClick={() => setUploadKind(k.kind)} className={pill(uploadKind === k.kind)}>{k.label}</button>
+              ))}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" onChange={onUpload} className="hidden" />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900"
+            >
+              <ImagePlus className="h-4 w-4" /> Upload photo
+            </button>
+          </section>
+        </aside>
+      </div>
+    </main>
   );
 }
 
 export default function DressingRoomPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-zinc-500">Loading Dressing Room...</div>}>
-      <DressingRoomContent />
+    <Suspense fallback={null}>
+      <DressingRoom />
     </Suspense>
   );
 }

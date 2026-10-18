@@ -22,9 +22,21 @@ export function refundSteps(order: Order): Step[] {
 
   if (rr?.status) {
     steps.push({ label: 'Return requested', detail: `${rr.reason}${rr.details ? ` - "${rr.details}"` : ''}`, date: rr.requestedAt, state: 'done' });
+    const offer = rr.proposal?.amount !== undefined ? `$${Number(rr.proposal.amount).toFixed(2)}` : '';
     if (rr.status === 'Requested') {
       steps.push({ label: 'Under review', detail: 'We usually reply within 2 business days.', state: 'current' });
-      if (order.paymentStatus === 'Paid') steps.push({ label: 'Refund', detail: 'Sent once the return is approved.', state: 'upcoming' });
+      if (order.paymentStatus === 'Paid') steps.push({ label: 'Refund offer', detail: 'You accept the amount before anything is paid.', state: 'upcoming' });
+    }
+    if (rr.status === 'Proposed') {
+      steps.push({ label: `Refund offered: ${offer}`, detail: rr.response || 'Accept or decline the offer above.', date: rr.proposal?.proposedAt, state: 'current' });
+    }
+    if (rr.status === 'Declined') {
+      steps.push({ label: `You declined ${offer}`, detail: rr.proposal?.customerNote, date: rr.proposal?.respondedAt, state: 'done' });
+      steps.push({ label: 'Back with our team', detail: 'We will send a new offer or get in touch.', state: 'current' });
+    }
+    if (rr.status === 'Accepted') {
+      steps.push({ label: `Offer accepted: ${offer}`, date: rr.proposal?.respondedAt, state: 'done' });
+      steps.push({ label: 'Refund being sent', detail: rr.response || 'Pack the items with their tags. Our courier will collect them.', state: 'current' });
     }
     if (rr.status === 'Rejected') steps.push({ label: 'Return not approved', detail: rr.response, date: rr.decidedAt, state: 'failed' });
     if (rr.status === 'Approved') {

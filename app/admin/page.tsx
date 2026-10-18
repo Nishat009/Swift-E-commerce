@@ -11,6 +11,7 @@ import HeroImageAdmin from '@/components/ui/HeroImageAdmin';
 import CouponsAdmin from '@/components/admin/CouponsAdmin';
 import CategoriesAdmin from '@/components/admin/CategoriesAdmin';
 import ActivityLogsAdmin from '@/components/admin/ActivityLogsAdmin';
+import WalletAdmin from '@/components/admin/WalletAdmin';
 import MonitoringAdmin from '@/components/admin/MonitoringAdmin';
 import ReportsAdmin from '@/components/admin/ReportsAdmin';
 import ContactMessages, { useContactUnread } from '@/components/admin/ContactMessages';
@@ -54,7 +55,8 @@ import {
   ShieldCheck,
   Globe,
   LogOut,
-  Store
+  Store,
+  Wallet,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -102,7 +104,7 @@ function AdminDashboardContent() {
   };
 
   // Navigation states
-  const [adminTab, setAdminTab] = useState<'overview' | 'hero' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages' | 'coupons' | 'categories' | 'messages'>('overview');
+  const [adminTab, setAdminTab] = useState<'overview' | 'hero' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'languages' | 'coupons' | 'categories' | 'messages' | 'accounts'>('overview');
   const [contactUnread, setContactUnread] = useContactUnread(!authLoading && user?.role === 'admin');
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [loadingData, setLoadingData] = useState(true);
@@ -759,11 +761,14 @@ function AdminDashboardContent() {
   );
 
   const refundsNeededCount = allOrders.filter((o) => o.paymentStatus === 'Refund Needed').length;
-  const returnRequestsCount = allOrders.filter((o) => o.returnRequest?.status === 'Requested').length;
+  // Return requests waiting on staff (an offer the customer has not answered yet waits on them)
+  const RETURN_NEEDS_STAFF = ['Requested', 'Accepted', 'Declined'];
+  const RETURN_LABELS: Record<string, string> = { Requested: 'Return requested', Proposed: 'Refund offered', Accepted: 'Offer accepted: pay refund', Declined: 'Offer declined' };
+  const returnRequestsCount = allOrders.filter((o) => RETURN_NEEDS_STAFF.includes(o.returnRequest?.status || '')).length;
   const filteredOrders = allOrders.filter(
     (o) =>
       (!refundOnly || o.paymentStatus === 'Refund Needed') &&
-      (!returnsOnly || o.returnRequest?.status === 'Requested') &&
+      (!returnsOnly || RETURN_NEEDS_STAFF.includes(o.returnRequest?.status || '')) &&
       (String(o.id).includes(orderSearch) ||
       (o.orderNumber || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
       (o.user as any)?.name?.toLowerCase().includes(orderSearch.toLowerCase()) ||
@@ -831,6 +836,7 @@ function AdminDashboardContent() {
             { id: 'ai_suite', label: 'AI Commerce Suite', icon: Sparkles },
             { id: 'products', label: 'Products Catalog', icon: Shirt },
             { id: 'orders', label: 'Customer Orders', icon: ShoppingBag },
+            { id: 'accounts', label: 'Accounts & Wallet', icon: Wallet },
             { id: 'categories', label: 'Categories', icon: Shirt },
             { id: 'coupons', label: 'Coupons', icon: Gift },
             { id: 'users', label: 'User Accounts', icon: Users },
@@ -839,7 +845,7 @@ function AdminDashboardContent() {
             { id: 'campaigns', label: 'Manage Campaigns', icon: Gift },
             { id: 'monitoring', label: 'System Monitoring', icon: TrendingUp },
             { id: 'reports', label: 'Reports & Export', icon: BarChart3 },
-            { id: 'logs', label: 'Action Audit Logs', icon: ShieldAlert },
+            { id: 'logs', label: 'System Logs', icon: ShieldAlert },
             { id: 'security', label: 'Security & 2FA', icon: ShieldCheck },
             { id: 'currencies', label: 'Manage Currencies', icon: RefreshCw },
             // Language management hidden for now
@@ -1011,6 +1017,7 @@ function AdminDashboardContent() {
               {adminTab === 'categories' && <CategoriesAdmin />}
               {adminTab === 'coupons' && <CouponsAdmin />}
               {adminTab === 'logs' && <ActivityLogsAdmin />}
+              {adminTab === 'accounts' && <WalletAdmin onOpenOrder={(id) => router.push(`/admin?tab=orders&order=${id}`)} />}
               {adminTab === 'monitoring' && <MonitoringAdmin />}
               {adminTab === 'reports' && <ReportsAdmin />}
               {adminTab === 'messages' && (
@@ -1029,7 +1036,7 @@ function AdminDashboardContent() {
 
                   {returnRequestsCount > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
-                      <span><strong>{returnRequestsCount}</strong> {returnRequestsCount === 1 ? 'customer is' : 'customers are'} waiting for a return decision. Open the order to approve or reject it.</span>
+                      <span><strong>{returnRequestsCount}</strong> {returnRequestsCount === 1 ? 'customer is' : 'customers are'} waiting on a return or refund. Open the order to send a refund offer, pay an accepted one, or reject it.</span>
                       <button onClick={() => { setReturnsOnly(!returnsOnly); setRefundOnly(false); }} className="font-bold underline">{returnsOnly ? 'Show all orders' : 'Show only return requests'}</button>
                     </div>
                   )}
@@ -1095,8 +1102,8 @@ function AdminDashboardContent() {
                               }`}>
                                 {o.orderStatus}
                               </span>
-                              {o.returnRequest?.status === 'Requested' && (
-                                <span className="block mt-1 w-fit px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800">Return requested</span>
+                              {RETURN_LABELS[o.returnRequest?.status || ''] && (
+                                <span className={`block mt-1 w-fit px-2 py-0.5 rounded-full text-[9px] font-bold ${o.returnRequest?.status === 'Proposed' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800'}`}>{RETURN_LABELS[o.returnRequest?.status || '']}</span>
                               )}
                             </td>
                             <td className="p-3">
@@ -1113,7 +1120,7 @@ function AdminDashboardContent() {
                                 onClick={() => setSelectedOrder(o)}
                                 className="text-[10px] font-bold border border-[#8b6f47]/40 text-[#8b6f47] rounded-lg px-3 py-1.5 hover:bg-[#8b6f47]/10"
                               >
-                                {o.returnRequest?.status === 'Requested' ? 'Review return' : 'Manage'}
+                                {RETURN_NEEDS_STAFF.includes(o.returnRequest?.status || '') ? 'Review return' : 'Manage'}
                               </button>
                             </td>
                           </tr>

@@ -15,7 +15,8 @@ const {
   updateOrderStatus
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
-const { authorize } = require('../middleware/roleMiddleware');
+const { authorize, requireSuperAdmin } = require('../middleware/roleMiddleware');
+const { getWallet, exportStatement, adjustWallet } = require('../controllers/walletController');
 const { blockDemoAdmin } = require('../controllers/demoAuthController');
 const { getInsights } = require('../controllers/insightController');
 const { sendCustomerEmail, listCustomerEmails } = require('../controllers/customerEmailController');
@@ -56,6 +57,11 @@ router.get('/users/:id/cart', getUserCart);
 router.get('/users/:id/wishlist', getUserWishlist);
 router.get('/users/:id/emails', listCustomerEmails);
 router.post('/users/:id/email', customerEmailLimiter, sendCustomerEmail);
+
+// Store wallet (account statement); only a super admin can add or withdraw funds by hand
+router.get('/wallet', getWallet);
+router.get('/wallet/statement.csv', exportStatement);
+router.post('/wallet/adjust', requireSuperAdmin, adjustWallet);
 
 // Admin orders management routes
 router.get('/orders', getAllOrders);
