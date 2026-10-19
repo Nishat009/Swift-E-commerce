@@ -1,0 +1,2790 @@
+{
+  "ActivityLog": {
+    "collection": "activitylogs",
+    "timestamps": true,
+    "fields": {
+      "adminUser": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "actorRole": {
+        "type": "String",
+        "enum": [
+          "admin",
+          "customer",
+          "system"
+        ],
+        "default": "admin"
+      },
+      "category": {
+        "type": "String",
+        "enum": [
+          "order",
+          "refund",
+          "wallet",
+          "product",
+          "user",
+          "auth",
+          "campaign",
+          "marketing",
+          "system",
+          "other"
+        ],
+        "default": "other"
+      },
+      "action": {
+        "type": "String",
+        "required": true
+      },
+      "details": {
+        "type": "String",
+        "required": true
+      },
+      "ipAddress": {
+        "type": "String",
+        "default": "127.0.0.1"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "actorRole": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "category": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "AuditTrail": {
+    "collection": "audittrails",
+    "timestamps": true,
+    "fields": {
+      "entityType": {
+        "type": "String",
+        "required": true,
+        "enum": [
+          "Campaign",
+          "Product",
+          "Order",
+          "User",
+          "Category",
+          "Coupon"
+        ]
+      },
+      "entityId": {
+        "type": "ObjectId",
+        "required": true
+      },
+      "changedBy": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "changeSummary": {
+        "type": "String",
+        "required": true
+      },
+      "previousState": {
+        "type": "Map"
+      },
+      "previousState.$*": {
+        "type": "Mixed"
+      },
+      "newState": {
+        "type": "Map"
+      },
+      "newState.$*": {
+        "type": "Mixed"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": []
+  },
+  "AuthChallenge": {
+    "collection": "authchallenges",
+    "timestamps": false,
+    "fields": {
+      "digest": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "purpose": {
+        "type": "String",
+        "required": true,
+        "enum": [
+          "google",
+          "two-factor"
+        ]
+      },
+      "nonce": {
+        "type": "String"
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User"
+      },
+      "rememberMe": {
+        "type": "Boolean",
+        "default": false
+      },
+      "attempts": {
+        "type": "Number",
+        "default": 0
+      },
+      "expiresAt": {
+        "type": "Date",
+        "required": true
+      },
+      "_id": {
+        "type": "ObjectId"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "digest": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "expiresAt": 1
+        },
+        "expireAfterSeconds": 0,
+        "background": true
+      }
+    ]
+  },
+  "Campaign": {
+    "collection": "campaigns",
+    "timestamps": true,
+    "fields": {
+      "title": {
+        "type": "String",
+        "required": true
+      },
+      "description": {
+        "type": "String",
+        "default": ""
+      },
+      "terms": {
+        "type": "String",
+        "default": ""
+      },
+      "bannerImage": {
+        "type": "String",
+        "default": ""
+      },
+      "productTitle": {
+        "type": "String",
+        "required": true
+      },
+      "productPrice": {
+        "type": "Number",
+        "required": true
+      },
+      "productDescription": {
+        "type": "String",
+        "required": true
+      },
+      "productImage": {
+        "type": "String",
+        "required": true
+      },
+      "linkedProducts": {
+        "type": "Array",
+        "of": "ObjectId",
+        "ref": "Product"
+      },
+      "prizeName": {
+        "type": "String",
+        "required": true
+      },
+      "prizeDescription": {
+        "type": "String",
+        "required": true
+      },
+      "prizeImage": {
+        "type": "String",
+        "required": true
+      },
+      "drawDate": {
+        "type": "Date",
+        "default": null
+      },
+      "ticketLimit": {
+        "type": "Number",
+        "required": true
+      },
+      "ticketsSold": {
+        "type": "Number",
+        "default": 0
+      },
+      "ticketsPerPurchase": {
+        "type": "Number",
+        "default": 1
+      },
+      "maxTicketsPerUser": {
+        "type": "Number",
+        "default": 10
+      },
+      "status": {
+        "type": "String",
+        "enum": [
+          "draft",
+          "active",
+          "paused",
+          "sold-out",
+          "completed",
+          "archived"
+        ],
+        "default": "active"
+      },
+      "visibility": {
+        "type": "String",
+        "enum": [
+          "public",
+          "private"
+        ],
+        "default": "public"
+      },
+      "winnerUser": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "winnerTicket": {
+        "type": "String",
+        "default": null
+      },
+      "winnerVideoUrl": {
+        "type": "String",
+        "default": null
+      },
+      "delivery.status": {
+        "type": "String",
+        "enum": [
+          "pending",
+          "shipped",
+          "delivered"
+        ],
+        "default": "pending"
+      },
+      "delivery.courier": {
+        "type": "String",
+        "default": ""
+      },
+      "delivery.trackingNumber": {
+        "type": "String",
+        "default": ""
+      },
+      "delivery.proofImage": {
+        "type": "String",
+        "default": ""
+      },
+      "delivery.note": {
+        "type": "String",
+        "default": ""
+      },
+      "delivery.shippedAt": {
+        "type": "Date",
+        "default": null
+      },
+      "delivery.deliveredAt": {
+        "type": "Date",
+        "default": null
+      },
+      "delivery.updatedBy": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": []
+  },
+  "Cart": {
+    "collection": "carts",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true,
+        "unique": true
+      },
+      "products": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "product": {
+            "type": "ObjectId",
+            "ref": "Product",
+            "required": true
+          },
+          "quantity": {
+            "type": "Number",
+            "required": true,
+            "default": 1
+          },
+          "variant.id": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.name": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.sku": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.options": {
+            "type": "Mixed"
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "savedForLater": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "product": {
+            "type": "ObjectId",
+            "ref": "Product",
+            "required": true
+          },
+          "quantity": {
+            "type": "Number",
+            "required": true,
+            "default": 1
+          },
+          "variant.id": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.name": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.sku": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.options": {
+            "type": "Mixed"
+          },
+          "savedAt": {
+            "type": "Date"
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        },
+        "default": []
+      },
+      "subtotal": {
+        "type": "Number",
+        "required": true,
+        "default": 0
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "user": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "Category": {
+    "collection": "categories",
+    "timestamps": true,
+    "fields": {
+      "name": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "slug": {
+        "type": "String",
+        "unique": true
+      },
+      "image": {
+        "type": "String",
+        "required": true
+      },
+      "featured": {
+        "type": "Boolean",
+        "default": false
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "name": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "slug": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "ChatMessage": {
+    "collection": "chatmessages",
+    "timestamps": true,
+    "fields": {
+      "sessionId": {
+        "type": "String",
+        "required": true
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "name": {
+        "type": "String",
+        "default": "Guest"
+      },
+      "email": {
+        "type": "String",
+        "default": ""
+      },
+      "message": {
+        "type": "String",
+        "required": true
+      },
+      "assistantReply": {
+        "type": "String",
+        "required": true
+      },
+      "suggestedProducts": {
+        "type": "Array",
+        "of": "Mixed"
+      },
+      "status": {
+        "type": "String",
+        "enum": [
+          "unread",
+          "read",
+          "archived"
+        ],
+        "default": "unread"
+      },
+      "ip": {
+        "type": "String",
+        "default": ""
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "sessionId": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "status": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "ContactMessage": {
+    "collection": "contactmessages",
+    "timestamps": true,
+    "fields": {
+      "name": {
+        "type": "String",
+        "required": true
+      },
+      "email": {
+        "type": "String",
+        "required": true
+      },
+      "subject": {
+        "type": "String",
+        "required": true
+      },
+      "message": {
+        "type": "String",
+        "required": true
+      },
+      "status": {
+        "type": "String",
+        "enum": [
+          "unread",
+          "read",
+          "replied",
+          "archived"
+        ],
+        "default": "unread"
+      },
+      "ip": {
+        "type": "String",
+        "default": ""
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "status": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "Coupon": {
+    "collection": "coupons",
+    "timestamps": true,
+    "fields": {
+      "code": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "percentage": {
+        "type": "Number",
+        "default": 0
+      },
+      "amount": {
+        "type": "Number",
+        "default": 0
+      },
+      "expiry": {
+        "type": "Date",
+        "required": true
+      },
+      "minSpend": {
+        "type": "Number",
+        "default": 0
+      },
+      "usageLimit": {
+        "type": "Number",
+        "default": 0
+      },
+      "perUserLimit": {
+        "type": "Number",
+        "default": 0
+      },
+      "usedCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "usedBy": {
+        "type": "Array",
+        "of": "ObjectId",
+        "default": []
+      },
+      "active": {
+        "type": "Boolean",
+        "default": true
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "code": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "Currency": {
+    "collection": "currencies",
+    "timestamps": true,
+    "fields": {
+      "code": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "symbol": {
+        "type": "String",
+        "required": true
+      },
+      "rate": {
+        "type": "Number",
+        "required": true
+      },
+      "isDefault": {
+        "type": "Boolean",
+        "default": false
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "code": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "CustomerEmail": {
+    "collection": "customeremails",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "order": {
+        "type": "ObjectId",
+        "ref": "Order",
+        "default": null
+      },
+      "to": {
+        "type": "String",
+        "required": true
+      },
+      "subject": {
+        "type": "String",
+        "required": true
+      },
+      "message": {
+        "type": "String",
+        "required": true
+      },
+      "includeOrder": {
+        "type": "Boolean",
+        "default": false
+      },
+      "sentBy": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "sentByName": {
+        "type": "String",
+        "default": ""
+      },
+      "delivered": {
+        "type": "Boolean",
+        "default": false
+      },
+      "inApp": {
+        "type": "Boolean",
+        "default": false
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "user": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "order": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "HeroSlide": {
+    "collection": "heroslides",
+    "timestamps": true,
+    "fields": {
+      "key": {
+        "type": "String",
+        "required": true,
+        "unique": true,
+        "enum": [
+          "atelier",
+          "runway",
+          "editorial"
+        ]
+      },
+      "image": {
+        "type": "String",
+        "required": true
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "key": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "Language": {
+    "collection": "languages",
+    "timestamps": true,
+    "fields": {
+      "code": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "name": {
+        "type": "String",
+        "required": true
+      },
+      "flag": {
+        "type": "String",
+        "required": true
+      },
+      "isDefault": {
+        "type": "Boolean",
+        "default": false
+      },
+      "isActive": {
+        "type": "Boolean",
+        "default": true
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "code": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "Newsletter": {
+    "collection": "newsletters",
+    "timestamps": false,
+    "fields": {
+      "email": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "subscribedAt": {
+        "type": "Date"
+      },
+      "unsubscribeToken": {
+        "type": "String"
+      },
+      "_id": {
+        "type": "ObjectId"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "email": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "unsubscribeToken": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "Notification": {
+    "collection": "notifications",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "title": {
+        "type": "String",
+        "required": true
+      },
+      "message": {
+        "type": "String",
+        "required": true
+      },
+      "type": {
+        "type": "String",
+        "enum": [
+          "campaign_purchase",
+          "draw_result",
+          "campaign_update",
+          "winner_announcement",
+          "price_drop",
+          "restock",
+          "delivery_update",
+          "admin_alert",
+          "store_message",
+          "system"
+        ],
+        "default": "system"
+      },
+      "relatedCampaign": {
+        "type": "ObjectId",
+        "ref": "Campaign",
+        "default": null
+      },
+      "relatedProduct": {
+        "type": "ObjectId",
+        "ref": "Product",
+        "default": null
+      },
+      "relatedOrder": {
+        "type": "ObjectId",
+        "ref": "Order",
+        "default": null
+      },
+      "link": {
+        "type": "String",
+        "default": ""
+      },
+      "isRead": {
+        "type": "Boolean",
+        "default": false
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "user": 1,
+          "isRead": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "Order": {
+    "collection": "orders",
+    "timestamps": true,
+    "fields": {
+      "orderNumber": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "products": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "product": {
+            "type": "ObjectId",
+            "ref": "Product",
+            "required": true
+          },
+          "quantity": {
+            "type": "Number",
+            "required": true
+          },
+          "price": {
+            "type": "Number",
+            "required": true
+          },
+          "variant.id": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.name": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.sku": {
+            "type": "String",
+            "default": ""
+          },
+          "variant.options": {
+            "type": "Mixed"
+          },
+          "stockTargets": {
+            "type": "Array",
+            "of": "Mixed",
+            "default": []
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "subtotal": {
+        "type": "Number",
+        "required": true
+      },
+      "shipping": {
+        "type": "Number",
+        "required": true,
+        "default": 0
+      },
+      "deliveryZone": {
+        "type": "String",
+        "enum": [
+          "",
+          "inside_dhaka",
+          "outside_dhaka"
+        ],
+        "default": ""
+      },
+      "tax": {
+        "type": "Number",
+        "required": true,
+        "default": 0
+      },
+      "coupon": {
+        "type": "String",
+        "default": ""
+      },
+      "discount": {
+        "type": "Number",
+        "default": 0
+      },
+      "promoDiscount": {
+        "type": "Number",
+        "default": 0
+      },
+      "couponReleased": {
+        "type": "Boolean",
+        "default": false
+      },
+      "total": {
+        "type": "Number",
+        "required": true
+      },
+      "paymentStatus": {
+        "type": "String",
+        "enum": [
+          "Pending",
+          "Paid",
+          "Failed",
+          "Refund Needed",
+          "Refunded"
+        ],
+        "default": "Pending"
+      },
+      "paymentMethod": {
+        "type": "String",
+        "required": true,
+        "default": "card"
+      },
+      "paymentGateway": {
+        "type": "String",
+        "default": ""
+      },
+      "paymentSessionId": {
+        "type": "String",
+        "default": ""
+      },
+      "paymentSessionIds": {
+        "type": "Array",
+        "of": "String",
+        "default": []
+      },
+      "paymentTransactionId": {
+        "type": "String",
+        "default": ""
+      },
+      "refund.amount": {
+        "type": "Number"
+      },
+      "refund.at": {
+        "type": "Date"
+      },
+      "refund.by": {
+        "type": "ObjectId",
+        "ref": "User"
+      },
+      "refund.byName": {
+        "type": "String",
+        "default": ""
+      },
+      "refund.reference": {
+        "type": "String",
+        "default": ""
+      },
+      "refund.note": {
+        "type": "String",
+        "default": ""
+      },
+      "refund.walletTransaction": {
+        "type": "ObjectId",
+        "ref": "WalletTransaction"
+      },
+      "paidAt": {
+        "type": "Date",
+        "default": null
+      },
+      "orderStatus": {
+        "type": "String",
+        "enum": [
+          "Pending",
+          "Processing",
+          "Confirmed",
+          "Packed",
+          "Shipped",
+          "Delivered",
+          "Cancelled",
+          "Returned"
+        ],
+        "default": "Pending"
+      },
+      "deliveredAt": {
+        "type": "Date",
+        "default": null
+      },
+      "returnRequest.status": {
+        "type": "String",
+        "enum": [
+          "",
+          "Requested",
+          "Proposed",
+          "Accepted",
+          "Declined",
+          "Approved",
+          "Rejected"
+        ],
+        "default": ""
+      },
+      "returnRequest.reason": {
+        "type": "String",
+        "default": ""
+      },
+      "returnRequest.details": {
+        "type": "String",
+        "default": ""
+      },
+      "returnRequest.requestedAt": {
+        "type": "Date"
+      },
+      "returnRequest.decidedAt": {
+        "type": "Date"
+      },
+      "returnRequest.decidedBy": {
+        "type": "ObjectId",
+        "ref": "User"
+      },
+      "returnRequest.decidedByName": {
+        "type": "String",
+        "default": ""
+      },
+      "returnRequest.response": {
+        "type": "String",
+        "default": ""
+      },
+      "returnRequest.proposal.productAmount": {
+        "type": "Number"
+      },
+      "returnRequest.proposal.shippingExcluded": {
+        "type": "Number"
+      },
+      "returnRequest.proposal.deduction": {
+        "type": "Number",
+        "default": 0
+      },
+      "returnRequest.proposal.amount": {
+        "type": "Number"
+      },
+      "returnRequest.proposal.remarks": {
+        "type": "String",
+        "default": ""
+      },
+      "returnRequest.proposal.late": {
+        "type": "Boolean",
+        "default": false
+      },
+      "returnRequest.proposal.daysAfterDelivery": {
+        "type": "Number"
+      },
+      "returnRequest.proposal.proposedAt": {
+        "type": "Date"
+      },
+      "returnRequest.proposal.proposedBy": {
+        "type": "ObjectId",
+        "ref": "User"
+      },
+      "returnRequest.proposal.proposedByName": {
+        "type": "String",
+        "default": ""
+      },
+      "returnRequest.proposal.respondedAt": {
+        "type": "Date"
+      },
+      "returnRequest.proposal.customerNote": {
+        "type": "String",
+        "default": ""
+      },
+      "shippingAddress": {
+        "type": "Embedded",
+        "fields": {
+          "street": {
+            "type": "String",
+            "required": true
+          },
+          "city": {
+            "type": "String",
+            "required": true
+          },
+          "state": {
+            "type": "String",
+            "required": true
+          },
+          "zipCode": {
+            "type": "String",
+            "required": true
+          },
+          "country": {
+            "type": "String",
+            "required": true
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        },
+        "required": true
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "orderNumber": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "paymentSessionId": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "paymentSessionIds": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "orderStatus": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "returnRequest.status": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "Product": {
+    "collection": "products",
+    "timestamps": true,
+    "fields": {
+      "title": {
+        "type": "String",
+        "required": true
+      },
+      "slug": {
+        "type": "String",
+        "unique": true
+      },
+      "sku": {
+        "type": "String"
+      },
+      "SKU": {
+        "type": "String"
+      },
+      "barcode": {
+        "type": "String",
+        "default": ""
+      },
+      "description": {
+        "type": "String",
+        "required": true
+      },
+      "shortDescription": {
+        "type": "String",
+        "default": ""
+      },
+      "category": {
+        "type": "String",
+        "required": true
+      },
+      "subcategory": {
+        "type": "String",
+        "default": ""
+      },
+      "brand": {
+        "type": "String",
+        "required": true
+      },
+      "tags": {
+        "type": "Array",
+        "of": "String"
+      },
+      "status": {
+        "type": "String",
+        "enum": [
+          "draft",
+          "published",
+          "archived"
+        ],
+        "default": "published"
+      },
+      "visibility": {
+        "type": "String",
+        "enum": [
+          "public",
+          "private",
+          "hidden"
+        ],
+        "default": "public"
+      },
+      "featured": {
+        "type": "Boolean",
+        "default": false
+      },
+      "trending": {
+        "type": "Boolean",
+        "default": false
+      },
+      "newArrival": {
+        "type": "Boolean",
+        "default": false
+      },
+      "bestSeller": {
+        "type": "Boolean",
+        "default": false
+      },
+      "active": {
+        "type": "Boolean",
+        "default": true
+      },
+      "price": {
+        "type": "Number",
+        "required": true
+      },
+      "originalPrice": {
+        "type": "Number"
+      },
+      "salePrice": {
+        "type": "Number"
+      },
+      "discountPercentage": {
+        "type": "Number",
+        "default": 0
+      },
+      "discountAmount": {
+        "type": "Number",
+        "default": 0
+      },
+      "tax": {
+        "type": "Number",
+        "default": 0
+      },
+      "currency": {
+        "type": "String",
+        "default": "USD"
+      },
+      "costPrice": {
+        "type": "Number",
+        "default": 0
+      },
+      "profitMargin": {
+        "type": "Number",
+        "default": 0
+      },
+      "stock": {
+        "type": "Number",
+        "required": true,
+        "default": 0
+      },
+      "totalStock": {
+        "type": "Number"
+      },
+      "reservedStock": {
+        "type": "Number",
+        "default": 0
+      },
+      "lowStockThreshold": {
+        "type": "Number",
+        "default": 5
+      },
+      "warehouse": {
+        "type": "String",
+        "default": "Main Warehouse"
+      },
+      "stockStatus": {
+        "type": "String",
+        "enum": [
+          "in_stock",
+          "out_of_stock",
+          "backorder"
+        ],
+        "default": "in_stock"
+      },
+      "maxOrderQuantity": {
+        "type": "Number",
+        "default": 10
+      },
+      "minOrderQuantity": {
+        "type": "Number",
+        "default": 1
+      },
+      "allowBackorders": {
+        "type": "Boolean",
+        "default": false
+      },
+      "trackInventory": {
+        "type": "Boolean",
+        "default": true
+      },
+      "images": {
+        "type": "Array",
+        "of": "String"
+      },
+      "videos": {
+        "type": "Array",
+        "of": "String"
+      },
+      "thumbnail": {
+        "type": "String",
+        "required": true
+      },
+      "productImage": {
+        "type": "String"
+      },
+      "modelWearingImage": {
+        "type": "String",
+        "default": null
+      },
+      "specifications": {
+        "type": "Map",
+        "default": {}
+      },
+      "specifications.$*": {
+        "type": "String"
+      },
+      "attributes": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "name": {
+            "type": "String",
+            "required": true
+          },
+          "value": {
+            "type": "String",
+            "required": true
+          },
+          "group": {
+            "type": "String",
+            "default": "General"
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "variants": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "id": {
+            "type": "String"
+          },
+          "name": {
+            "type": "String"
+          },
+          "options": {
+            "type": "Array",
+            "of": "Mixed",
+            "fields": {
+              "id": {
+                "type": "String"
+              },
+              "name": {
+                "type": "String"
+              },
+              "value": {
+                "type": "String"
+              },
+              "colorHex": {
+                "type": "String"
+              },
+              "priceDelta": {
+                "type": "Number"
+              },
+              "stock": {
+                "type": "Number"
+              },
+              "sku": {
+                "type": "String"
+              },
+              "image": {
+                "type": "String"
+              },
+              "_id": {
+                "type": "ObjectId"
+              }
+            }
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "variantCombinations": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "id": {
+            "type": "String"
+          },
+          "sku": {
+            "type": "String"
+          },
+          "price": {
+            "type": "Number"
+          },
+          "stock": {
+            "type": "Number"
+          },
+          "weight": {
+            "type": "Number"
+          },
+          "barcode": {
+            "type": "String"
+          },
+          "status": {
+            "type": "String",
+            "default": "active"
+          },
+          "images": {
+            "type": "Array",
+            "of": "String"
+          },
+          "attributes": {
+            "type": "Map"
+          },
+          "attributes.$*": {
+            "type": "String"
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "shippingInfo.estimate": {
+        "type": "String",
+        "default": "Standard Delivery (2 - 4 Business Days)"
+      },
+      "shippingInfo.freeShipping": {
+        "type": "Boolean",
+        "default": true
+      },
+      "shippingInfo.expressShipping": {
+        "type": "Boolean",
+        "default": false
+      },
+      "shippingInfo.returnPolicy": {
+        "type": "String",
+        "default": "30-Day Hassle-Free Returns"
+      },
+      "shippingInfo.cost": {
+        "type": "Number",
+        "default": 0
+      },
+      "shippingInfo.weight": {
+        "type": "Number",
+        "default": 0.5
+      },
+      "shippingInfo.dimensions.length": {
+        "type": "Number",
+        "default": 10
+      },
+      "shippingInfo.dimensions.width": {
+        "type": "Number",
+        "default": 10
+      },
+      "shippingInfo.dimensions.height": {
+        "type": "Number",
+        "default": 10
+      },
+      "shippingInfo.shippingClass": {
+        "type": "String",
+        "default": "Standard"
+      },
+      "shippingInfo.packagingType": {
+        "type": "String",
+        "default": "Box"
+      },
+      "shippingInfo.countryOfOrigin": {
+        "type": "String",
+        "default": "United States"
+      },
+      "shippingInfo.hsCode": {
+        "type": "String",
+        "default": ""
+      },
+      "seo.metaTitle": {
+        "type": "String",
+        "default": ""
+      },
+      "seo.metaDescription": {
+        "type": "String",
+        "default": ""
+      },
+      "seo.keywords": {
+        "type": "Array",
+        "of": "String"
+      },
+      "seo.canonicalUrl": {
+        "type": "String",
+        "default": ""
+      },
+      "seo.ogImage": {
+        "type": "String",
+        "default": ""
+      },
+      "relatedProducts": {
+        "type": "Array",
+        "of": "ObjectId",
+        "ref": "Product"
+      },
+      "bundles": {
+        "type": "Array",
+        "of": "ObjectId",
+        "ref": "Product"
+      },
+      "rating": {
+        "type": "Number",
+        "default": 0
+      },
+      "totalReviews": {
+        "type": "Number",
+        "default": 0
+      },
+      "reviewCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "soldCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "wishlistCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "viewCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "ratingDistribution.1": {
+        "type": "Number",
+        "default": 0
+      },
+      "ratingDistribution.2": {
+        "type": "Number",
+        "default": 0
+      },
+      "ratingDistribution.3": {
+        "type": "Number",
+        "default": 0
+      },
+      "ratingDistribution.4": {
+        "type": "Number",
+        "default": 0
+      },
+      "ratingDistribution.5": {
+        "type": "Number",
+        "default": 0
+      },
+      "reviews": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "id": {
+            "type": "String"
+          },
+          "userId": {
+            "type": "String"
+          },
+          "userName": {
+            "type": "String"
+          },
+          "userAvatar": {
+            "type": "String"
+          },
+          "rating": {
+            "type": "Number"
+          },
+          "comment": {
+            "type": "String"
+          },
+          "date": {
+            "type": "String"
+          },
+          "verified": {
+            "type": "Boolean"
+          },
+          "helpfulCount": {
+            "type": "Number",
+            "default": 0
+          },
+          "photos": {
+            "type": "Array",
+            "of": "String"
+          },
+          "videos": {
+            "type": "Array",
+            "of": "String"
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "slug": 1
+        },
+        "unique": true,
+        "sparse": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "sku": 1
+        },
+        "sparse": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "SKU": 1
+        },
+        "sparse": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "active": 1,
+          "status": 1,
+          "visibility": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "category": 1,
+          "active": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "brand": 1,
+          "active": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "price": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "rating": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "title": "text",
+          "brand": "text",
+          "category": "text",
+          "description": "text"
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "active": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "brand": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "featured": 1,
+          "active": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "trending": 1,
+          "active": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "RequestLog": {
+    "collection": "requestlogs",
+    "timestamps": true,
+    "fields": {
+      "method": {
+        "type": "String",
+        "required": true
+      },
+      "path": {
+        "type": "String",
+        "required": true
+      },
+      "statusCode": {
+        "type": "Number",
+        "required": true
+      },
+      "durationMs": {
+        "type": "Number",
+        "default": 0
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "userEmail": {
+        "type": "String",
+        "default": ""
+      },
+      "userRole": {
+        "type": "String",
+        "default": "guest"
+      },
+      "ipAddress": {
+        "type": "String",
+        "default": ""
+      },
+      "userAgent": {
+        "type": "String",
+        "default": ""
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "createdAt": -1
+        },
+        "expireAfterSeconds": 7776000,
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "statusCode": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "Review": {
+    "collection": "reviews",
+    "timestamps": true,
+    "fields": {
+      "product": {
+        "type": "ObjectId",
+        "ref": "Product",
+        "required": true
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "userName": {
+        "type": "String",
+        "required": true
+      },
+      "rating": {
+        "type": "Number",
+        "required": true
+      },
+      "review": {
+        "type": "String",
+        "required": true
+      },
+      "verified": {
+        "type": "Boolean",
+        "default": false
+      },
+      "images": {
+        "type": "Array",
+        "of": "String",
+        "default": []
+      },
+      "helpfulCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "helpedBy": {
+        "type": "Array",
+        "of": "ObjectId",
+        "default": []
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "product": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "product": 1,
+          "user": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "SearchTerm": {
+    "collection": "searchterms",
+    "timestamps": true,
+    "fields": {
+      "term": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "count": {
+        "type": "Number",
+        "default": 0
+      },
+      "resultCount": {
+        "type": "Number",
+        "default": 0
+      },
+      "lastSearchedAt": {
+        "type": "Date"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "term": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "lastSearchedAt": -1,
+          "count": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "StockAlert": {
+    "collection": "stockalerts",
+    "timestamps": true,
+    "fields": {
+      "product": {
+        "type": "ObjectId",
+        "ref": "Product",
+        "required": true
+      },
+      "email": {
+        "type": "String",
+        "required": true
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "pending": {
+        "type": "Boolean",
+        "default": true
+      },
+      "notifiedAt": {
+        "type": "Date",
+        "default": null
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "product": 1,
+          "email": 1
+        },
+        "unique": true,
+        "partialFilterExpression": {
+          "pending": true
+        },
+        "background": true
+      }
+    ]
+  },
+  "StoreWallet": {
+    "collection": "storewallets",
+    "timestamps": true,
+    "fields": {
+      "key": {
+        "type": "String",
+        "required": true,
+        "unique": true,
+        "default": "store"
+      },
+      "balance": {
+        "type": "Number",
+        "required": true,
+        "default": 0
+      },
+      "currency": {
+        "type": "String",
+        "default": "USD"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "key": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "Ticket": {
+    "collection": "tickets",
+    "timestamps": true,
+    "fields": {
+      "ticketNumber": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "campaign": {
+        "type": "ObjectId",
+        "ref": "Campaign",
+        "required": true
+      },
+      "orderId": {
+        "type": "ObjectId",
+        "ref": "Order",
+        "default": null
+      },
+      "purchaseAmount": {
+        "type": "Number",
+        "default": 0
+      },
+      "paymentMethod": {
+        "type": "String",
+        "default": ""
+      },
+      "paymentTransactionId": {
+        "type": "String",
+        "default": ""
+      },
+      "purchase": {
+        "type": "ObjectId",
+        "ref": "TicketPurchase",
+        "default": null
+      },
+      "status": {
+        "type": "String",
+        "enum": [
+          "active",
+          "won",
+          "lost"
+        ],
+        "default": "active"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "ticketNumber": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "campaign": 1,
+          "user": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "campaign": 1,
+          "status": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
+  },
+  "TicketPurchase": {
+    "collection": "ticketpurchases",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "campaign": {
+        "type": "ObjectId",
+        "ref": "Campaign",
+        "required": true
+      },
+      "quantity": {
+        "type": "Number",
+        "required": true
+      },
+      "unitPrice": {
+        "type": "Number",
+        "required": true
+      },
+      "amount": {
+        "type": "Number",
+        "required": true
+      },
+      "paymentMethod": {
+        "type": "String",
+        "required": true,
+        "enum": [
+          "bkash",
+          "card"
+        ]
+      },
+      "paymentSessionId": {
+        "type": "String",
+        "default": ""
+      },
+      "paymentTransactionId": {
+        "type": "String",
+        "default": ""
+      },
+      "status": {
+        "type": "String",
+        "enum": [
+          "pending",
+          "fulfilling",
+          "paid",
+          "failed",
+          "expired",
+          "refund_needed"
+        ],
+        "default": "pending"
+      },
+      "expiresAt": {
+        "type": "Date",
+        "required": true
+      },
+      "paidAt": {
+        "type": "Date",
+        "default": null
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "paymentSessionId": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "status": 1,
+          "expiresAt": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1,
+          "campaign": 1,
+          "status": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "User": {
+    "collection": "users",
+    "timestamps": true,
+    "fields": {
+      "name": {
+        "type": "String",
+        "required": true
+      },
+      "email": {
+        "type": "String",
+        "required": true,
+        "unique": true
+      },
+      "password": {
+        "type": "String",
+        "required": true
+      },
+      "googleId": {
+        "type": "String",
+        "unique": true
+      },
+      "phone": {
+        "type": "String",
+        "default": ""
+      },
+      "avatar": {
+        "type": "String",
+        "default": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop"
+      },
+      "role": {
+        "type": "String",
+        "enum": [
+          "customer",
+          "admin"
+        ],
+        "default": "customer"
+      },
+      "wishlist": {
+        "type": "Array",
+        "of": "ObjectId",
+        "ref": "Product"
+      },
+      "addresses": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "street": {
+            "type": "String",
+            "required": true
+          },
+          "city": {
+            "type": "String",
+            "required": true
+          },
+          "state": {
+            "type": "String",
+            "required": true
+          },
+          "zipCode": {
+            "type": "String",
+            "required": true
+          },
+          "country": {
+            "type": "String",
+            "required": true
+          },
+          "isDefault": {
+            "type": "Boolean",
+            "default": false
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        }
+      },
+      "twoFactorEnabled": {
+        "type": "Boolean",
+        "default": false
+      },
+      "twoFactorSecret": {
+        "type": "String",
+        "default": ""
+      },
+      "twoFactorRecoveryCodes": {
+        "type": "Array",
+        "of": "String",
+        "default": []
+      },
+      "otpCode": {
+        "type": "String",
+        "default": ""
+      },
+      "otpExpires": {
+        "type": "Date"
+      },
+      "otpAttempts": {
+        "type": "Number",
+        "default": 0
+      },
+      "otpRequestedAt": {
+        "type": "Date"
+      },
+      "passwordResetToken": {
+        "type": "String",
+        "default": ""
+      },
+      "passwordResetExpires": {
+        "type": "Date"
+      },
+      "failedLoginAttempts": {
+        "type": "Number",
+        "default": 0
+      },
+      "tokenVersion": {
+        "type": "Number",
+        "default": 0
+      },
+      "lockUntil": {
+        "type": "Date"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "email": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "googleId": 1
+        },
+        "unique": true,
+        "sparse": true,
+        "background": true
+      }
+    ]
+  },
+  "WalletTransaction": {
+    "collection": "wallettransactions",
+    "timestamps": true,
+    "fields": {
+      "type": {
+        "type": "String",
+        "required": true,
+        "enum": [
+          "credit",
+          "debit"
+        ]
+      },
+      "category": {
+        "type": "String",
+        "required": true,
+        "enum": [
+          "opening_balance",
+          "sale",
+          "refund",
+          "adjustment"
+        ]
+      },
+      "amount": {
+        "type": "Number",
+        "required": true
+      },
+      "balanceAfter": {
+        "type": "Number",
+        "default": null
+      },
+      "description": {
+        "type": "String",
+        "default": ""
+      },
+      "order": {
+        "type": "ObjectId",
+        "ref": "Order",
+        "default": null
+      },
+      "orderNumber": {
+        "type": "String",
+        "default": ""
+      },
+      "ref": {
+        "type": "String"
+      },
+      "by": {
+        "type": "ObjectId",
+        "ref": "User",
+        "default": null
+      },
+      "byName": {
+        "type": "String",
+        "default": ""
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "ref": 1
+        },
+        "unique": true,
+        "sparse": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "category": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "order": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "Wardrobe": {
+    "collection": "wardrobes",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true,
+        "unique": true
+      },
+      "avatar": {
+        "type": "Mixed"
+      },
+      "wornItems": {
+        "type": "Mixed"
+      },
+      "savedAvatars": {
+        "type": "Array",
+        "of": "Mixed",
+        "default": []
+      },
+      "points": {
+        "type": "Number",
+        "default": 100
+      },
+      "unlockedBadges": {
+        "type": "Array",
+        "of": "String",
+        "default": [
+          "first_avatar"
+        ]
+      },
+      "completedChallenges": {
+        "type": "Array",
+        "of": "String",
+        "default": []
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "user": 1
+        },
+        "unique": true,
+        "background": true
+      }
+    ]
+  },
+  "Wishlist": {
+    "collection": "wishlists",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true,
+        "unique": true
+      },
+      "products": {
+        "type": "Array",
+        "of": "ObjectId",
+        "ref": "Product"
+      },
+      "collections": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "name": {
+            "type": "String",
+            "required": true
+          },
+          "products": {
+            "type": "Array",
+            "of": "ObjectId",
+            "ref": "Product"
+          },
+          "_id": {
+            "type": "ObjectId"
+          }
+        },
+        "default": []
+      },
+      "alerts": {
+        "type": "Array",
+        "of": "Mixed",
+        "fields": {
+          "product": {
+            "type": "ObjectId",
+            "ref": "Product",
+            "required": true
+          },
+          "priceDrop": {
+            "type": "Boolean",
+            "default": true
+          },
+          "backInStock": {
+            "type": "Boolean",
+            "default": true
+          }
+        },
+        "default": []
+      },
+      "shareToken": {
+        "type": "String"
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "user": 1
+        },
+        "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "shareToken": 1
+        },
+        "unique": true,
+        "sparse": true,
+        "background": true
+      }
+    ]
+  }
+}

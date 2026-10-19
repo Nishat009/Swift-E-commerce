@@ -1,0 +1,13 @@
+-- SwiftCart does not use a SQL database.
+--
+-- The data store is MongoDB, and the schema is defined by the Mongoose models in
+-- backend/src/models/. This file exists only to point to the real schema:
+--
+--   database/schema.json          generated reference of all 28 collections
+--                                 (fields, types, refs, enums, defaults, indexes)
+--   backend/scripts/initDb.js     creates every collection and index from scratch
+--
+-- Create the database from scratch:
+--   npm --prefix backend run db:init
+--
+-- See database/README.md for details.

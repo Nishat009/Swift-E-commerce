@@ -8,6 +8,7 @@ All notable changes to SwiftCart are listed here, newest first.
 - Frontend `.env.example`.
 - `npm run package:zip`, which builds a submission ZIP from git so `.env` files, `node_modules` and build output are never included.
 - Complete project guide in `docs/PROJECT_OVERVIEW.md`.
+- `database/` folder: generated `schema.json` for all collections, plus `npm --prefix backend run db:init` to create the database and indexes from scratch.
 
 ### Removed
 - Personal AI-tool notes (`codex.md`, `antigravity.md`).
