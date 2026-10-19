@@ -3,6 +3,8 @@
 A fashion store with a customer storefront, an admin panel, online payments, and AI shopping helpers.
 The frontend is **Next.js** and the backend is an **Express + MongoDB** REST API.
 
+For a complete, human-readable explanation of the project, read the [Complete Project Guide](docs/PROJECT_OVERVIEW.md). It covers the features, workflows, architecture, database, setup, configuration, testing, and current limitations.
+
 | | Link |
 | :--- | :--- |
 | 🌐 **Live site** | **https://swift-e-commerce-eta.vercel.app** |
