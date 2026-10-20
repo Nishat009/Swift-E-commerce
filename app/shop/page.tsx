@@ -22,7 +22,7 @@ const PERKS = [
   { icon: Headphones, label: 'Real support' },
 ];
 
-export default function Home() {
+export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryTile[]>([]);
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('new');

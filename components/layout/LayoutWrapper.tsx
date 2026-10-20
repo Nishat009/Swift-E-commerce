@@ -23,7 +23,10 @@ export default function LayoutWrapper({ children }: Props) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/auth/") ||
-    pathname === "/auth";
+    pathname === "/auth" ||
+    pathname === "/admin/login" ||
+    // The landing page has its own header and footer
+    pathname === "/";
 
   if (hideHeaderFooter) {
     return <main className="flex-1">{children}</main>;

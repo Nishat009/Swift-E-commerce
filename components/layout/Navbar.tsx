@@ -421,7 +421,7 @@ export default function Navbar() {
 
             {/* Row 1 Middle / Center: SWIFTCART Logo */}
             <div className="flex-none text-center my-auto">
-              <Link href="/" className="inline-block group py-1">
+              <Link href="/shop" className="inline-block group py-1">
                 <span className="text-xl sm:text-3xl font-serif font-extrabold tracking-[0.12em] sm:tracking-widest text-[#8b6f47] dark:text-[#c9a96b] group-hover:opacity-90 transition-opacity uppercase inline-block leading-none">
                   SWIFTCART
                 </span>

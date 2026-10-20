@@ -255,7 +255,7 @@ function AdminDashboardContent() {
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
-        router.push('/auth/login?redirect=/admin');
+        router.push('/admin/login');
       } else if (user.role !== 'admin') {
         router.push('/dashboard'); // Redirect non-admins
       }
@@ -746,7 +746,7 @@ function AdminDashboardContent() {
           <p className="text-sm text-gray-400 mt-2">
             You do not possess the required administrator credentials to access this dashboard.
           </p>
-          <Button onClick={() => router.push('/')} className="mt-6 w-full">Return home</Button>
+          <Button onClick={() => router.push('/shop')} className="mt-6 w-full">Return home</Button>
         </div>
       </div>
     );
@@ -803,7 +803,7 @@ function AdminDashboardContent() {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/"
+              href="/shop"
               className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800 rounded-2xl py-2 px-3.5 text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
             >
               <Store className="w-4 h-4 text-[#8b6f47] dark:text-[#c9a96b]" />
@@ -880,7 +880,7 @@ function AdminDashboardContent() {
             <RefreshCw className="w-3.5 h-3.5" /> Refresh Dashboard
           </Button>
 
-          <Link href="/" className="w-full">
+          <Link href="/shop" className="w-full">
             <Button variant="outline" className="w-full text-xs font-bold flex items-center justify-center gap-2 py-2.5 mt-1">
               <Store className="w-3.5 h-3.5" /> Return to Storefront
             </Button>
