@@ -9,6 +9,7 @@ const AuthChallenge = require('../models/AuthChallenge');
 const { noteSignIn, cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendPasswordReset, sendLoginOtp } = require('../services/emailService');
 const { validateAddress, cleanAddress } = require('../utils/address');
+const { isDemoAccount } = require('./demoAuthController');
 const DEFAULT_COUNTRY = process.env.DEFAULT_COUNTRY || 'Bangladesh';
 
 // 422 with per-field messages when an address is incomplete or obviously fake
@@ -374,6 +375,9 @@ const resetPassword = async (req, res, next) => {
     }).select('+passwordResetToken +passwordResetExpires');
     if (!user) {
       return sendError(res, 'Reset token is invalid or expired', 400);
+    }
+    if (isDemoAccount(user)) {
+      return sendError(res, 'The demo account password cannot be changed.', 403);
     }
 
     user.password = newPassword;

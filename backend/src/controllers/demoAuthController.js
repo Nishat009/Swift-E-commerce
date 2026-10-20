@@ -2,6 +2,8 @@
 // Off unless DEMO_LOGIN_ENABLED=true. DEMO_LOGIN_ROLES limits which buttons work
 // (default "customer,admin"). Anyone who can open the site can use these accounts,
 // so never point them at real customer data or a real admin account.
+// DEMO_PASSWORD (optional, 8+ characters) also lets the demo accounts sign in with the normal
+// form, so the credentials can be shared. Without it they get a random, unusable password.
 const crypto = require('crypto');
 const User = require('../models/User');
 const { sendSuccess, sendError } = require('../utils/response');
@@ -18,10 +20,38 @@ const enabledRoles = () => {
     .split(',').map((r) => r.trim()).filter((r) => DEMO_ACCOUNTS[r]);
 };
 
-// @desc    Which demo buttons the login page should show
+const demoPassword = () => (process.env.DEMO_PASSWORD || '').length >= 8 ? process.env.DEMO_PASSWORD : '';
+
+// Finds or creates a demo account, keeping its password equal to DEMO_PASSWORD when that is set
+const findOrCreateDemoUser = async (role) => {
+  const account = DEMO_ACCOUNTS[role]();
+  const password = demoPassword();
+  const user = await User.findOne({ email: account.email }).select('+password');
+  if (!user) {
+    return User.create({ ...account, password: password || crypto.randomBytes(24).toString('hex') });
+  }
+  if (password && user.role === account.role && !(user.password && await user.matchPassword(password))) {
+    user.password = password;
+    await user.save();
+  }
+  return user;
+};
+
+// Creates the enabled demo accounts at startup so the shared credentials work before anyone clicks a button
+const ensureDemoAccounts = async () => {
+  if (!demoPassword()) return;
+  for (const role of enabledRoles()) await findOrCreateDemoUser(role);
+};
+
+// @desc    Which demo buttons the login page should show, plus the shared credentials when DEMO_PASSWORD is set
 // @route   GET /api/auth/demo-login
 // @access  Public
-const getDemoLoginStatus = (req, res) => sendSuccess(res, 'Demo login status', { roles: enabledRoles() });
+const getDemoLoginStatus = (req, res) => {
+  const roles = enabledRoles();
+  const password = demoPassword();
+  const credentials = password ? roles.map((role) => ({ role, email: DEMO_ACCOUNTS[role]().email, password })) : [];
+  return sendSuccess(res, 'Demo login status', { roles, credentials });
+};
 
 // @desc    Sign in to the shared demo customer or demo admin account
 // @route   POST /api/auth/demo-login   body: { role: 'customer' | 'admin' }
@@ -33,12 +63,7 @@ const demoLogin = async (req, res, next) => {
       return sendError(res, 'Demo login is not available.', 404);
     }
     const account = DEMO_ACCOUNTS[role]();
-
-    let user = await User.findOne({ email: account.email });
-    if (!user) {
-      // Random password: the demo account is only reachable through this button
-      user = await User.create({ ...account, password: crypto.randomBytes(24).toString('hex') });
-    }
+    const user = await findOrCreateDemoUser(role);
     if (user.role !== account.role) {
       return sendError(res, 'The demo account is misconfigured. Check DEMO_CUSTOMER_EMAIL / DEMO_ADMIN_EMAIL.', 409);
     }
@@ -62,4 +87,4 @@ const blockDemoAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { getDemoLoginStatus, demoLogin, enabledRoles, isDemoAccount, blockDemoAdmin };
+module.exports = { getDemoLoginStatus, demoLogin, enabledRoles, ensureDemoAccounts, isDemoAccount, blockDemoAdmin };

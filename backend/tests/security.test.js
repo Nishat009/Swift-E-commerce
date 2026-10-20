@@ -177,9 +177,39 @@ test('demo login: off by default, signs in to fixed demo accounts only when enab
     process.env.DEMO_LOGIN_ROLES = 'customer,admin';
     const admin = await api('POST', '/api/auth/demo-login', null, { role: 'admin' });
     assert.equal(admin.json.data.user.role, 'admin');
+    assert.deepEqual((await api('GET', '/api/auth/demo-login')).json.data.credentials, [], 'no shared password, no credentials');
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
     delete process.env.DEMO_LOGIN_ROLES;
+  }
+});
+
+test('demo login with DEMO_PASSWORD: shared credentials work in the form and cannot be reset', async () => {
+  process.env.DEMO_LOGIN_ENABLED = 'true';
+  process.env.DEMO_PASSWORD = 'demo-pass-123';
+  try {
+    const { ensureDemoAccounts } = require('../src/controllers/demoAuthController');
+    await ensureDemoAccounts();
+    const { credentials } = (await api('GET', '/api/auth/demo-login')).json.data;
+    assert.deepEqual(credentials.map((c) => [c.role, c.email, c.password]), [
+      ['customer', 'guest@swiftcart.demo', 'demo-pass-123'],
+      ['admin', 'admin@swiftcart.demo', 'demo-pass-123'],
+    ]);
+    const form = await api('POST', '/api/auth/login', null, { email: 'admin@swiftcart.demo', password: 'demo-pass-123' });
+    assert.equal(form.status, 200, 'demo admin can sign in with the shared password');
+    assert.equal(form.json.data.user.role, 'admin');
+
+    const User = mongoose.model('User');
+    const token = 'a'.repeat(64);
+    await User.updateOne({ email: 'admin@swiftcart.demo' }, {
+      passwordResetToken: require('crypto').createHash('sha256').update(token).digest('hex'),
+      passwordResetExpires: Date.now() + 60000,
+    });
+    const reset = await api('POST', '/api/auth/reset-password', null, { token, newPassword: 'hijacked-pass' });
+    assert.equal(reset.status, 403);
+  } finally {
+    delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_PASSWORD;
   }
 });
 

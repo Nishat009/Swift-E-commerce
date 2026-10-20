@@ -28,6 +28,8 @@ const startServer = async () => {
   // Store account with its opening balance (STORE_WALLET_OPENING_BALANCE) on first start
   await require('./src/services/wallet').ensureWallet();
   await require('./src/utils/activityLog').backfillActorRoles();
+  // Shared demo accounts, when DEMO_LOGIN_ENABLED and DEMO_PASSWORD are set
+  await require('./src/controllers/demoAuthController').ensureDemoAccounts();
   server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   });
