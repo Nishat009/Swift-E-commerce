@@ -9,6 +9,10 @@ All notable changes to SwiftCart are listed here, newest first.
 - `npm run package:zip`, which builds a submission ZIP from git so `.env` files, `node_modules` and build output are never included.
 - Complete project guide in `docs/PROJECT_OVERVIEW.md`.
 - `database/` folder: generated `schema.json` for all collections, plus `npm --prefix backend run db:init` to create the database and indexes from scratch.
+- Landing page at `/` with a Live Demo button; the shop homepage moved to `/shop`.
+- Admin login page at `/admin/login` with one-click demo login, and an Admin Panel button in the footer.
+- Optional `DEMO_PASSWORD` so the demo accounts can also sign in with shared credentials.
+- Cover images in `docs/` (1920×1080 and 1080×1080).
 
 ### Removed
 - Personal AI-tool notes (`codex.md`, `antigravity.md`).
