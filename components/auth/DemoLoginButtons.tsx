@@ -6,20 +6,34 @@ import apiClient from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 
-type DemoRole = 'customer' | 'admin';
+export type DemoRole = 'customer' | 'admin';
+export type DemoCredential = { role: DemoRole; email: string; password: string };
+
+// Which demo accounts the backend allows, plus their shared credentials when DEMO_PASSWORD is set
+export function useDemoAccess() {
+  const [access, setAccess] = useState<{ roles: DemoRole[]; credentials: DemoCredential[] }>({ roles: [], credentials: [] });
+
+  useEffect(() => {
+    apiClient.get('/auth/demo-login')
+      .then((res) => {
+        const data = res.data?.data;
+        setAccess({
+          roles: Array.isArray(data?.roles) ? data.roles : [],
+          credentials: Array.isArray(data?.credentials) ? data.credentials : [],
+        });
+      })
+      .catch(() => setAccess({ roles: [], credentials: [] }));
+  }, []);
+
+  return access;
+}
 
 // "Guest login" / "Admin login" one-click buttons. Hidden unless the backend has demo login enabled.
 export default function DemoLoginButtons({ disabled = false }: { disabled?: boolean }) {
   const { demoLogin } = useAuth();
   const toast = useToast();
-  const [roles, setRoles] = useState<DemoRole[]>([]);
+  const { roles, credentials } = useDemoAccess();
   const [busy, setBusy] = useState<DemoRole | null>(null);
-
-  useEffect(() => {
-    apiClient.get('/auth/demo-login')
-      .then((res) => setRoles(Array.isArray(res.data?.data?.roles) ? res.data.data.roles : []))
-      .catch(() => setRoles([]));
-  }, []);
 
   if (!roles.length) return null;
 
@@ -66,6 +80,15 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
           </button>
         )}
       </div>
+      {credentials.length > 0 && (
+        <ul className="space-y-0.5 text-center text-[10px] text-gray-500">
+          {credentials.map((c) => (
+            <li key={c.role}>
+              {c.role === 'admin' ? 'Admin' : 'Customer'}: <span className="font-mono">{c.email}</span> / <span className="font-mono">{c.password}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

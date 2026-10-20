@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingCart } from 'lucide-react';
+import { ShieldCheck, ShoppingCart } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { cachedGet, peekCached } from '@/lib/cachedGet';
 
@@ -45,7 +45,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <Link href="/" className="flex items-center space-x-2 mb-4">
+            <Link href="/shop" className="flex items-center space-x-2 mb-4">
               <ShoppingCart className="w-6 h-6 text-primary" />
               <span className="text-lg font-bold text-foreground">SwiftCart</span>
             </Link>
@@ -146,6 +146,12 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
+            <Link
+              href="/admin/login"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#8b6f47] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#725a38] dark:bg-[#c9a96b] dark:text-gray-950"
+            >
+              <ShieldCheck className="h-4 w-4" /> Admin Panel
+            </Link>
           </div>
         </div>
         <div className="mt-8 pt-8 border-t border-border-theme text-center">
