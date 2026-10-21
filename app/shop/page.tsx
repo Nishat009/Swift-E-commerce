@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Headphones, RotateCcw, ShieldCheck, Truck } from 'lucide-react';
 import ProductCard from '@/components/ui/ProductCard';
+import { ProductSkeleton } from '@/components/ui/Skeleton';
 import CategoryGrid, { CategoryTile } from '@/components/ui/CategoryGrid';
 import CinematicFashionHero from '@/components/ui/CinematicFashionHero';
 import { fetchProducts } from '@/lib/api';
@@ -26,14 +27,17 @@ export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryTile[]>([]);
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('new');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     Promise.all([
-      fetchProducts({ limit: 100 }).catch(() => ({ products: [] as Product[] })),
+      fetchProducts({ limit: 100 }).catch(() => null),
       cachedGet('/categories').catch(() => null),
     ]).then(([res, cats]) => {
       const prods = res?.products || [];
       setProducts(prods);
+      setStatus(res ? 'ready' : 'error');
       const fromApi = Array.isArray(cats?.data)
         ? cats.data.filter((c: any) => c && typeof c === 'object' && c.name && c.slug)
         : [];
@@ -51,7 +55,7 @@ export default function ShopHome() {
       }
       setCategories(Array.from(seen.values()));
     });
-  }, []);
+  }, [attempt]);
 
   const picked = tab === 'new' ? products.filter((p) => p.newArrival) : products.filter((p) => p.bestSeller);
   const shown = (picked.length ? picked : products).slice(0, 8);
@@ -89,11 +93,26 @@ export default function ShopHome() {
             Shop all <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
-          {shown.map((product, index) => (
-            <ProductCard key={product.id} product={product} index={index} />
-          ))}
-        </div>
+        {status === 'loading' && (
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4" aria-busy="true" aria-label="Loading products">
+            {Array.from({ length: 4 }, (_, i) => <ProductSkeleton key={i} />)}
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="rounded-2xl bg-[#f3f1ed] px-6 py-10 text-center dark:bg-gray-900">
+            <p className="text-sm text-gray-600 dark:text-gray-400">We couldn’t load the products. The server may be waking up.</p>
+            <button type="button" onClick={() => { setStatus('loading'); setAttempt((n) => n + 1); }} className="mt-4 rounded-full bg-gray-900 px-5 py-2.5 text-sm text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900">
+              Try again
+            </button>
+          </div>
+        )}
+        {status === 'ready' && (
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            {shown.map((product, index) => (
+              <ProductCard key={product.id} product={product} index={index} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
