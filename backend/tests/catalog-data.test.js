@@ -36,10 +36,16 @@ test('local product and category images exist in public/', () => {
   for (const src of local) assert.ok(fs.existsSync(path.join(publicDir, src)), `missing ${src}`);
 });
 
-test('buildProduct produces a valid Product document', () => {
+test('buildProduct produces a valid Product document with a unique SKU', () => {
   const Product = require('../src/models/Product');
-  products.forEach((p, i) => {
-    const error = new Product(buildProduct(p, i)).validateSync();
+  const taken = new Set(['SC-TOP-1000']);
+  const skus = new Set();
+  products.forEach((p) => {
+    const doc = buildProduct(p, taken);
+    assert.ok(!skus.has(doc.SKU), `duplicate SKU ${doc.SKU}`);
+    skus.add(doc.SKU);
+    const error = new Product(doc).validateSync();
     assert.equal(error, undefined, `${p.slug}: ${error && error.message}`);
   });
+  assert.ok(!skus.has('SC-TOP-1000'), 'reused a SKU that was already taken');
 });

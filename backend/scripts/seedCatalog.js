@@ -11,12 +11,21 @@ const fashionProductsData = require('./fashionProductsData');
 const fashionCategories = require('./fashionCategories');
 const { deriveFilterSpecs } = require('./filterMetadata');
 
-const buildProduct = (product, index) => {
+// SKUs are unique in the database, so skip any number that is already taken.
+const nextSku = (category, taken) => {
+  const prefix = `SC-${category.toUpperCase().slice(0, 3)}-`;
+  let n = 1000;
+  while (taken.has(prefix + n)) n += 1;
+  taken.add(prefix + n);
+  return prefix + n;
+};
+
+const buildProduct = (product, taken = new Set()) => {
   const specs = { ...product.specifications };
   Object.assign(specs, deriveFilterSpecs({ title: product.title, category: product.category, specifications: specs }));
   return {
     ...product,
-    SKU: `SC-${product.category.toUpperCase().slice(0, 3)}-${1000 + index}`,
+    SKU: nextSku(product.category, taken),
     specifications: new Map(Object.entries(specs)),
     totalReviews: 0,
     active: true,
@@ -41,10 +50,10 @@ const seedCatalog = async () => {
     const existingSlugs = new Set(
       (await Product.find({ slug: { $in: fashionProductsData.map((p) => p.slug) } }).select('slug').lean()).map((p) => p.slug)
     );
+    const takenSkus = new Set((await Product.distinct('SKU')).filter(Boolean));
     const missing = fashionProductsData
-      .map((product, index) => ({ product, index }))
-      .filter(({ product }) => !existingSlugs.has(product.slug))
-      .map(({ product, index }) => buildProduct(product, index));
+      .filter((product) => !existingSlugs.has(product.slug))
+      .map((product) => buildProduct(product, takenSkus));
     if (missing.length) await Product.create(missing);
 
     console.log(`Added ${addedCategories} categories and ${missing.length} products (${existingSlugs.size} products already existed).`);
