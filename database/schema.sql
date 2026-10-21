@@ -6,6 +6,7 @@
 --   database/schema.json          generated reference of all 28 collections
 --                                 (fields, types, refs, enums, defaults, indexes)
 --   backend/scripts/initDb.js     creates every collection and index from scratch
+--   database/seed.sql             demo categories and products as plain SQL
 --
 -- Create the database from scratch:
 --   npm --prefix backend run db:init
