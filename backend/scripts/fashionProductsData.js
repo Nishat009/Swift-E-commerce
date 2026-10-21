@@ -996,4 +996,15 @@ const fashionProductsData = [
   }
 ];
 
-module.exports = fashionProductsData;
+// The storefront rails ("New in", "Bestsellers") read these flags, not the tags. A piece sits in one
+// rail only, so the two rails show different products.
+const hasTag = (product, tag) => product.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
+
+module.exports = fashionProductsData.map((product) => {
+  const bestSeller = hasTag(product, 'Bestseller');
+  return {
+    ...product,
+    bestSeller,
+    newArrival: hasTag(product, 'New') && !bestSeller,
+  };
+});
