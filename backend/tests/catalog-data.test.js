@@ -49,3 +49,19 @@ test('buildProduct produces a valid Product document with a unique SKU', () => {
   });
   assert.ok(!skus.has('SC-TOP-1000'), 'reused a SKU that was already taken');
 });
+
+test('database/seed.sql is up to date and loads into a real SQL database', () => {
+  const { buildSeedSql, OUT } = require('../scripts/exportSeedSql');
+  const onDisk = fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n');
+  assert.equal(onDisk, buildSeedSql(), 'database/seed.sql is stale: run npm --prefix backend run db:seed-sql');
+
+  const { DatabaseSync } = require('node:sqlite');
+  const db = new DatabaseSync(':memory:');
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec(onDisk);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM categories').get().n, categories.length);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM products').get().n, products.length);
+  assert.ok(db.prepare('SELECT COUNT(*) AS n FROM products WHERE new_arrival').get().n >= RAIL_SIZE);
+  assert.ok(db.prepare('SELECT COUNT(*) AS n FROM products WHERE best_seller').get().n >= RAIL_SIZE);
+  db.close();
+});
