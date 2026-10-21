@@ -22,6 +22,7 @@ npm run lint                                  # frontend lint
 npm --prefix backend test                     # backend tests (node --test)
 npm --prefix backend run seed                 # demo data (local DB only)
 npm --prefix backend run seed:admin           # demo admin + customer accounts
+npm --prefix backend run seed:catalog         # fashion products only, insert-only (safe on a live DB)
 npm run package:zip                           # submission ZIP from git HEAD
 ```
 

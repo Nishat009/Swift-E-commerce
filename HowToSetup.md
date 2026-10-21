@@ -53,10 +53,11 @@ Load the demo data:
 ```bash
 npm --prefix backend run seed          # categories, products, coupons, demo content
 npm --prefix backend run seed:admin    # demo admin and customer accounts
+npm --prefix backend run seed:catalog  # fashion products only; adds what is missing, deletes nothing
 node backend/scripts/seed_campaigns.js # optional: lucky-draw campaigns
 ```
 
-The seed scripts **delete and replace** existing data. They refuse to run against a remote database unless you add `--force`, and they never run when `NODE_ENV=production`.
+`seed:catalog` never deletes, so it is the one to use on a live database that has no products (point `MONGO_URI` at it). The other seed scripts **delete and replace** existing data. They refuse to run against a remote database unless you add `--force`, and they never run when `NODE_ENV=production`.
 
 ## 5. Run the app
 

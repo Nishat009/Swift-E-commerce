@@ -2,6 +2,14 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-21
+### Added
+- `npm --prefix backend run seed:catalog`: adds the fashion demo catalog to any database without deleting anything.
+- Loading placeholders and a "Try again" button for the shop homepage product rails.
+
+### Fixed
+- "New in" and "Bestsellers" rails were empty because seeded products never had the `newArrival` / `bestSeller` flags set.
+
 ## 2026-10-20
 ### Added
 - `HowToSetup.md`, `CLAUDE.md` and this changelog.
