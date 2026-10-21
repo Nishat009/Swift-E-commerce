@@ -10,9 +10,10 @@
     "test:draw": "node --test tests/draw-flow.test.js",
     "seed": "node scripts/seed.js",
     "seed:admin": "node scripts/seedAdmin.js",
+    "seed:catalog": "node scripts/seedCatalog.js",
     "db:init": "node scripts/initDb.js",
     "db:schema": "node scripts/initDb.js --dump --dump-only",
-    "test": "node --test tests/google-auth.test.js tests/draw-flow.test.js tests/security.test.js tests/order-flow.test.js tests/features.test.js",
+    "test": "node --test tests/google-auth.test.js tests/draw-flow.test.js tests/security.test.js tests/order-flow.test.js tests/features.test.js tests/catalog-data.test.js",
     "test:security": "node --test tests/security.test.js"
   },
   "dependencies": {
