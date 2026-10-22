@@ -27,9 +27,12 @@ function LoginFormContent() {
     }
   }, [resetTokenParam]);
 
+  // Arriving from the landing page's Live Demo button: stay here so the demo logins are visible
+  const isDemoEntry = searchParams?.get('demo') === '1';
+
   // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && !isDemoEntry) {
       const safePath = safeRedirectPath(redirectUrl);
       if (safePath) {
         router.push(safePath);
@@ -39,7 +42,7 @@ function LoginFormContent() {
         router.push('/dashboard');
       }
     }
-  }, [user, authLoading, router, redirectUrl]);
+  }, [user, authLoading, router, redirectUrl, isDemoEntry]);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -404,6 +407,14 @@ function LoginFormContent() {
                   ) : (
                     <p className="text-xs text-gray-455 mt-2">
                       Welcome back! Choose your preferred login method.
+                    </p>
+                  )}
+                  {isDemoEntry && user && (
+                    <p className="mt-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] text-gray-600 dark:text-gray-300">
+                      You&apos;re signed in as <span className="font-bold">{user.email}</span>. Sign in below to switch accounts, or{' '}
+                      <Link href={user.role === 'admin' ? '/admin' : '/dashboard'} className="text-emerald-700 font-bold hover:underline dark:text-emerald-500">
+                        continue to your account
+                      </Link>.
                     </p>
                   )}
                 </div>
