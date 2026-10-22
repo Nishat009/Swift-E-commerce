@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Fonts are self-hosted via @fontsource (see app/layout.tsx), not fetched from Google at build time. */
+:root {
+  --font-inter: 'Inter';
+  --font-playfair: 'Playfair Display';
+  --font-cormorant: 'Cormorant Garamond';
+}
+
 .fashion-stage { isolation: isolate; }
 .fashion-stage::after {
   content: ''; position: absolute; inset: 0; z-index: 40; pointer-events: none;
