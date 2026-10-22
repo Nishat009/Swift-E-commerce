@@ -14,11 +14,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "5.3.0",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/playfair-display": "5.3.0",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.25",
     "lucide-react": "^0.556.0",
-    "next": "16.0.7",
+    "next": "16.4.2",
     "next-auth": "^4.24.13",
     "qrcode": "^1.5.4",
     "react": "19.2.0",
@@ -38,7 +41,7 @@
     "@types/three": "^0.185.1",
     "concurrently": "^10.0.5",
     "eslint": "^9",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
