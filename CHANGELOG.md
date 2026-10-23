@@ -2,6 +2,10 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-23
+### Fixed
+- Shop collections now request New and Bestseller products directly, so matching items beyond the first catalog page can appear. If a collection request fails, the shop also recognizes badge tags in the loaded catalog.
+
 ## 2026-10-22
 ### Fixed
 - The landing page's Live Demo button now always opens the sign-in page with the demo logins, even for visitors who are already signed in (previously they were sent straight to their account).

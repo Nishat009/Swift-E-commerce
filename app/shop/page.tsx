@@ -10,6 +10,7 @@ import CinematicFashionHero from '@/components/ui/CinematicFashionHero';
 import { fetchProducts } from '@/lib/api';
 import { cachedGet } from '@/lib/cachedGet';
 import { Product } from '@/types';
+import { matchesBadge } from '@/utils/productUtils';
 
 const TABS = [
   { key: 'new', label: 'New in' },
@@ -25,6 +26,7 @@ const PERKS = [
 
 export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [collections, setCollections] = useState<{ new: Product[] | null; best: Product[] | null }>({ new: null, best: null });
   const [categories, setCategories] = useState<CategoryTile[]>([]);
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('new');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -34,10 +36,13 @@ export default function ShopHome() {
     Promise.all([
       fetchProducts({ limit: 100 }).catch(() => null),
       cachedGet('/categories').catch(() => null),
-    ]).then(([res, cats]) => {
+      fetchProducts({ tag: 'New', limit: 8 }).catch(() => null),
+      fetchProducts({ tag: 'Bestseller', limit: 8 }).catch(() => null),
+    ]).then(([res, cats, arrivals, bestsellers]) => {
       const prods = res?.products || [];
       setProducts(prods);
-      setStatus(res ? 'ready' : 'error');
+      setCollections({ new: arrivals?.products ?? null, best: bestsellers?.products ?? null });
+      setStatus(res || arrivals || bestsellers ? 'ready' : 'error');
       const fromApi = Array.isArray(cats?.data)
         ? cats.data.filter((c: any) => c && typeof c === 'object' && c.name && c.slug)
         : [];
@@ -57,7 +62,7 @@ export default function ShopHome() {
     });
   }, [attempt]);
 
-  const picked = tab === 'new' ? products.filter((p) => p.newArrival) : products.filter((p) => p.bestSeller);
+  const picked = collections[tab] ?? products.filter((p) => matchesBadge(p, tab === 'new' ? 'New' : 'Bestseller'));
   const shown = (picked.length ? picked : products).slice(0, 8);
 
   return (
