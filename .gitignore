@@ -33,3 +33,7 @@ antigravity.md
 
 # Submission archive
 submission.zip
+
+# Runtime image uploads (production uses Cloudinary); the demo catalog images live in public/images
+backend/uploads/*
+!backend/uploads/.gitkeep
