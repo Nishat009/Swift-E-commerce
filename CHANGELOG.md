@@ -12,6 +12,8 @@ All notable changes to SwiftCart are listed here, newest first.
 - Deleting a customer also removes their notifications, stock alerts, wardrobe and pending sign-in challenges. Orders, tickets and reviews are kept.
 - Node.js 20.9 or newer is required (`engines` in both package.json files); the setup guide now lists versions and how to start and check MongoDB.
 - `backend/uploads/` is no longer tracked in git.
+- Admin panel: "Refresh Dashboard" now reloads whichever tab is open, and "Inspect Session" shows a customer's orders without first opening the Orders tab.
+- Sign-up form errors are shown in red again.
 - Cover images redesigned around real screenshots, with the Vibe96 badge.
 
 ## 2026-10-23
