@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { safeRedirectPath } from '@/lib/safeRedirect';
+import { requiredError, newPasswordError } from '@/lib/formValidation';
 import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
@@ -64,17 +65,14 @@ function RegisterFormContent() {
     setLoading(true);
 
     // Validation
-    const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (!formData.password.trim()) newErrors.password = 'Password is required';
-    if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    if (!formData.agreeTerms) {
-      newErrors.agreeTerms = 'You must agree to the Terms & Conditions';
-    }
+    const fieldErrors: Record<string, string> = {
+      name: requiredError(formData.name, 'Name'),
+      email: requiredError(formData.email, 'Email'),
+      password: newPasswordError(formData.password),
+      confirmPassword: formData.password !== formData.confirmPassword ? 'Passwords do not match' : '',
+      agreeTerms: formData.agreeTerms ? '' : 'You must agree to the Terms & Conditions',
+    };
+    const newErrors = Object.fromEntries(Object.entries(fieldErrors).filter(([, message]) => message));
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -165,7 +163,7 @@ function RegisterFormContent() {
                   required
                   className="w-full px-4 py-2 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
                 />
-                {errors.name && <p className="text-[10px] text-red-505 font-bold">{errors.name}</p>}
+                {errors.name && <p className="text-[10px] text-red-500 font-bold">{errors.name}</p>}
               </div>
 
               {/* Email */}
@@ -181,7 +179,7 @@ function RegisterFormContent() {
                   required
                   className="w-full px-4 py-2 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
                 />
-                {errors.email && <p className="text-[10px] text-red-505 font-bold">{errors.email}</p>}
+                {errors.email && <p className="text-[10px] text-red-500 font-bold">{errors.email}</p>}
               </div>
 
               {/* Password */}
@@ -217,7 +215,7 @@ function RegisterFormContent() {
                     </div>
                   </div>
                 )}
-                {errors.password && <p className="text-[10px] text-red-505 font-bold">{errors.password}</p>}
+                {errors.password && <p className="text-[10px] text-red-500 font-bold">{errors.password}</p>}
               </div>
 
               {/* Confirm Password */}
@@ -242,7 +240,7 @@ function RegisterFormContent() {
                     {formData.showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {errors.confirmPassword && <p className="text-[10px] text-red-505 font-bold">{errors.confirmPassword}</p>}
+                {errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold">{errors.confirmPassword}</p>}
               </div>
 
               {/* Agree terms */}
@@ -258,7 +256,7 @@ function RegisterFormContent() {
                   I agree to the <Link href="/terms" target="_blank" className="underline font-bold">Terms & Conditions</Link> of this store.
                 </label>
               </div>
-              {errors.agreeTerms && <p className="text-[10px] text-red-505 font-bold">{errors.agreeTerms}</p>}
+              {errors.agreeTerms && <p className="text-[10px] text-red-500 font-bold">{errors.agreeTerms}</p>}
 
               {/* Register Submit Button */}
               <button 

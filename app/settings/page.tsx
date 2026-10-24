@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import { ShieldCheck, Key } from 'lucide-react';
 import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
+import { newPasswordError } from '@/lib/formValidation';
 
 export default function SettingsPage() {
   const { user, updateProfile, refreshUser } = useAuth();
@@ -39,8 +40,9 @@ export default function SettingsPage() {
       toast.error('Please enter your current password.');
       return;
     }
-    if (!passwordData.newPassword || passwordData.newPassword.length < 8) {
-      toast.error('New password must be at least 8 characters long.');
+    const passwordProblem = newPasswordError(passwordData.newPassword);
+    if (passwordProblem) {
+      toast.error(passwordProblem);
       return;
     }
     if (passwordData.newPassword !== passwordData.confirmPassword) {

@@ -9,6 +9,7 @@ import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import DemoLoginButtons from '@/components/auth/DemoLoginButtons';
 import { safeRedirectPath } from '@/lib/safeRedirect';
+import { requiredError, newPasswordError } from '@/lib/formValidation';
 
 // The backend only returns dev codes when ALLOW_DEV_AUTH_CODES is on outside production;
 // a production build never shows them either way.
@@ -133,9 +134,11 @@ function LoginFormContent() {
     setErrors({});
     setLoading(true);
 
-    const newErrors: Record<string, string> = {};
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (!formData.password.trim()) newErrors.password = 'Password is required';
+    const fieldErrors: Record<string, string> = {
+      email: requiredError(formData.email, 'Email'),
+      password: requiredError(formData.password, 'Password'),
+    };
+    const newErrors = Object.fromEntries(Object.entries(fieldErrors).filter(([, message]) => message));
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -278,8 +281,9 @@ function LoginFormContent() {
       toast.error('Please enter the reset token');
       return;
     }
-    if (!newPassword || newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    const passwordProblem = newPasswordError(newPassword);
+    if (passwordProblem) {
+      toast.error(passwordProblem);
       return;
     }
     if (newPassword !== confirmNewPassword) {
