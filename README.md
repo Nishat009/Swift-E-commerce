@@ -147,7 +147,7 @@ All routes start with `/api`. See the full list in [Swagger](https://swift-e-com
 
 ## 🚀 Run it locally
 
-**You need:** Node.js 18+ and MongoDB (local or Atlas).
+**You need:** Node.js 20.9+ and MongoDB 6+ (local or Atlas).
 
 ```bash
 # 1. Clone
@@ -180,8 +180,10 @@ npm run dev
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| Admin | `admin@email.com` | `12345678` |
-| Customer | `user@email.com` | `12345678` |
+| Admin | `admin@email.com` | `SEED_PASSWORD` from `backend/.env` |
+| Customer | `user@email.com` | `SEED_PASSWORD` from `backend/.env` |
+
+No password is built in: if `SEED_PASSWORD` is empty, the seed picks a random one and prints it. These accounts are for local demos only; never seed them into a production database.
 
 ---
 
@@ -193,8 +195,9 @@ npm run dev
 PORT=5000
 NODE_ENV=development
 MONGO_URI=mongodb://127.0.0.1:27017/swiftcart
-JWT_SECRET=change_me
-JWT_REFRESH_SECRET=change_me_too
+JWT_SECRET=<random string, 32+ characters>
+JWT_REFRESH_SECRET=<a different random string, 32+ characters>
+SEED_PASSWORD=<8+ characters, for the demo accounts>   # optional
 FRONTEND_URL=http://localhost:3001
 BACKEND_URL=http://localhost:5000
 

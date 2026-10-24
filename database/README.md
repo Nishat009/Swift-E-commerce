@@ -32,3 +32,13 @@ A backend test fails if `seed.sql` is out of date.
 ```bash
 npm --prefix backend run db:schema
 ```
+
+## Related records and deletes
+
+MongoDB has no foreign keys, so the app handles references itself. Every reference used in a lookup has an index (see `indexes` in `schema.json`).
+
+| Deleted | What happens to related data |
+| :--- | :--- |
+| Customer account | Cart, wishlist, notifications, stock alerts, wardrobe and pending sign-in challenges are deleted. Orders, lucky-draw tickets, reviews and logs are kept as store records and show "Deleted user". Admin accounts must be demoted first. |
+| Product | Never removed: it is archived (`status: archived`, `active: false`), so orders and reviews keep a valid reference. |
+| Category | Refused while active products still use it. |

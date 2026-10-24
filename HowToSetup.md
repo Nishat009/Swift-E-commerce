@@ -4,10 +4,27 @@ These steps take a clean machine to a running shop with demo data.
 
 ## 1. Prerequisites
 
-- **Node.js 18 or newer** (includes npm)
-- **MongoDB 6 or newer**, running locally on `mongodb://127.0.0.1:27017`, or a MongoDB Atlas connection string
+- **Node.js 20.9 or newer** (includes npm), required by Next.js 16. Check with `node -v`. Download: https://nodejs.org
+- **MongoDB 6 or newer** (MongoDB 8 recommended), running locally on `mongodb://127.0.0.1:27017`, or a MongoDB Atlas connection string. Download: https://www.mongodb.com/try/download/community
 
 No other services are required. Payments, Google sign-in, email and image hosting are optional and stay off until you add their keys.
+
+### Start MongoDB and check it is running
+
+| System | Start MongoDB |
+| :--- | :--- |
+| Windows | Installed as a service by default. Otherwise run `net start MongoDB` in an admin terminal |
+| macOS (Homebrew) | `brew services start mongodb-community` |
+| Linux | `sudo systemctl start mongod` |
+| Any (manual) | `mongod --dbpath <an empty folder>` |
+
+Check the connection (this prints `{ ok: 1 }`):
+
+```bash
+mongosh "mongodb://127.0.0.1:27017" --eval "db.runCommand({ ping: 1 })"
+```
+
+Using MongoDB Atlas instead? Put its connection string in `MONGO_URI` (step 3) and skip this check.
 
 ## 2. Install packages
 
@@ -42,11 +59,15 @@ You can generate one with:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-If MongoDB is not at the default local address, also change `MONGO_URI`. Leave everything else as it is.
+If MongoDB is not at the default local address, also change `MONGO_URI`. To choose the demo accounts' password, set `SEED_PASSWORD` (8+ characters); otherwise the seed prints a random one. Leave everything else as it is.
 
 ## 4. Create the database and load demo data
 
-MongoDB creates the database and collections automatically. The schema is defined by the Mongoose models in `backend/src/models/`. Indexes are built when the server starts.
+There is no separate "create database" step: MongoDB creates the `swiftcart` database the first time it is written to. The schema is defined by the Mongoose models in `backend/src/models/`. To create every collection and index up front (safe to re-run, deletes nothing):
+
+```bash
+npm --prefix backend run db:init
+```
 
 Load the demo data:
 
@@ -78,8 +99,10 @@ This starts the frontend and the backend together.
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| Admin | `admin@email.com` | `12345678` |
-| Customer | `user@email.com` | `12345678` |
+| Admin | `admin@email.com` | your `SEED_PASSWORD`, or the random one `seed:admin` printed |
+| Customer | `user@email.com` | your `SEED_PASSWORD`, or the random one `seed:admin` printed |
+
+These accounts are for local demos only. Never run the seed scripts against a production database.
 
 ## 7. Run the tests (optional)
 

@@ -2,6 +2,18 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-24
+### Security
+- Seed scripts no longer contain fixed passwords. The demo accounts use `SEED_PASSWORD` from `backend/.env`, or a random password printed by the seed; sample customers get random passwords.
+- All npm audit advisories fixed (frontend 16, backend 11), including nodemailer 10 and sharp 0.35.
+- Production builds never show the dev-mode login or reset codes on the sign-in page.
+
+### Changed
+- Deleting a customer also removes their notifications, stock alerts, wardrobe and pending sign-in challenges. Orders, tickets and reviews are kept.
+- Node.js 20.9 or newer is required (`engines` in both package.json files); the setup guide now lists versions and how to start and check MongoDB.
+- `backend/uploads/` is no longer tracked in git.
+- Cover images redesigned around real screenshots, with the Vibe96 badge.
+
 ## 2026-10-23
 ### Fixed
 - Shop collections now request New and Bestseller products directly, so matching items beyond the first catalog page can appear. If a collection request fails, the shop also recognizes badge tags in the loaded catalog.
