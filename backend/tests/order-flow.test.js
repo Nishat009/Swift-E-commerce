@@ -165,6 +165,54 @@ test('two simultaneous cancels give the stock back only once', async () => {
   assert.equal((await Product.findById(p.id)).stock, 5);
 });
 
+test('a customer cannot read or change another customer\'s order or notifications', async () => {
+  const p = await makeProduct('Brooch', 30, 5);
+  const placed = await order(tokens.alice, [{ product: p.id, quantity: 1 }]);
+  const id = placed.json.data.id;
+
+  assert.equal((await api('GET', `/api/orders/${id}`, tokens.bob)).status, 403);
+  assert.equal((await api('PUT', `/api/orders/${id}/cancel`, tokens.bob)).status, 403);
+  assert.equal((await api('POST', `/api/orders/${id}/return-request`, tokens.bob, { reason: 'Other', details: 'not my order at all' })).status, 403);
+  assert.equal((await api('POST', `/api/orders/${id}/return-request/respond`, tokens.bob, { accept: true })).status, 403);
+  assert.ok(!(await api('GET', '/api/orders', tokens.bob)).json.data.some((o) => o.id === id), 'not in the other customer\'s list');
+  assert.equal((await api('GET', `/api/orders/${id}`, tokens.alice)).status, 200);
+  assert.equal((await api('GET', `/api/orders/${id}`, tokens.admin)).status, 200);
+  assert.equal((await Order.findById(id)).orderStatus, placed.json.data.orderStatus, 'untouched');
+
+  const User = require('../src/models/User');
+  const Notification = require('../src/models/Notification');
+  const alice = await User.findOne({ email: 'alice@test.dev' });
+  const note = await Notification.create({ user: alice._id, title: 'Private', message: 'For Alice only' });
+  assert.equal((await api('PUT', `/api/notifications/${note.id}/read`, tokens.bob)).status, 404);
+  assert.ok(!(await api('GET', '/api/notifications', tokens.bob)).text.includes('For Alice only'));
+  assert.equal((await Notification.findById(note.id)).isRead, false);
+});
+
+test('deleting a customer removes their personal data and keeps their orders', async () => {
+  const User = require('../src/models/User');
+  const Notification = require('../src/models/Notification');
+  const StockAlert = require('../src/models/StockAlert');
+  const Wardrobe = require('../src/models/Wardrobe');
+  const Cart = require('../src/models/Cart');
+  const { generateAccessToken } = require('../src/utils/generateTokens');
+  const carol = await User.create({ name: 'carol', email: 'carol@test.dev', password: 'Password123!', role: 'customer' });
+  const p = await makeProduct('Glove', 12, 5);
+  const placed = await order(generateAccessToken(carol), [{ product: p.id, quantity: 1 }]);
+  assert.equal(placed.status, 201, JSON.stringify(placed.json));
+  await Promise.all([
+    Notification.create({ user: carol._id, title: 'Hi', message: 'x' }),
+    StockAlert.create({ user: carol._id, product: p._id, email: carol.email }),
+    Wardrobe.create({ user: carol._id }),
+    Cart.create({ user: carol._id, products: [] }),
+  ]);
+
+  assert.equal((await api('DELETE', `/api/admin/users/${carol.id}`, tokens.admin)).status, 200);
+  for (const Model of [Notification, StockAlert, Wardrobe, Cart]) {
+    assert.equal(await Model.countDocuments({ user: carol._id }), 0, `${Model.modelName} removed`);
+  }
+  assert.ok(await Order.findById(placed.json.data.id), 'the order stays as a sales record');
+});
+
 test('admin status changes follow the allowed transitions', async () => {
   const p = await makeProduct('Hat', 15, 5);
   const id = (await order(tokens.alice, [{ product: p.id, quantity: 1 }])).json.data.id;

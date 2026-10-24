@@ -3,6 +3,10 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const Wishlist = require('../models/Wishlist');
+const Notification = require('../models/Notification');
+const StockAlert = require('../models/StockAlert');
+const Wardrobe = require('../models/Wardrobe');
+const AuthChallenge = require('../models/AuthChallenge');
 const { sendSuccess } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
 const { isDemoAccount } = require('./demoAuthController');
@@ -177,9 +181,16 @@ const deleteUser = async (req, res, next) => {
     if (user.role === 'admin') {
       return res.status(400).json({ success: false, message: 'Demote this admin to customer before deleting the account' });
     }
+    // MongoDB has no foreign keys, so remove the account's personal data here. Orders, lucky-draw
+    // tickets, reviews, chat logs and audit logs are kept on purpose: they are store records
+    // (sales, refunds, product ratings) and the UI shows a missing customer as "Deleted user".
     await Promise.all([
       Cart.deleteMany({ user: user._id }),
-      Wishlist.deleteMany({ user: user._id })
+      Wishlist.deleteMany({ user: user._id }),
+      Notification.deleteMany({ user: user._id }),
+      StockAlert.deleteMany({ user: user._id }),
+      Wardrobe.deleteMany({ user: user._id }),
+      AuthChallenge.deleteMany({ user: user._id })
     ]);
     await user.deleteOne();
     await logAudit(req, 'User', user._id, `Deleted account ${user.email}`, { email: user.email, name: user.name, role: user.role }, { deleted: true });
