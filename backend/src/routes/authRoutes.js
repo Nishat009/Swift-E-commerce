@@ -1,25 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const {
-  register,
-  login,
-  logout,
-  getProfile,
-  updateProfile,
-  refreshToken,
-  forgotPassword,
-  resetPassword,
-  setup2FA,
-  verifyAndEnable2FA,
-  disable2FA,
-  regenerateRecoveryCodes,
-  verify2FA,
-  requestOTP,
-  verifyOTP,
-  addAddress,
-  updateAddress,
-  deleteAddress
-} = require('../controllers/authController');
+const { register, login, logout, refreshToken, requestOTP, verifyOTP } = require('../controllers/authController');
+const { getProfile, updateProfile, addAddress, updateAddress, deleteAddress } = require('../controllers/profileController');
+const { forgotPassword, resetPassword } = require('../controllers/passwordController');
+const { setup2FA, verifyAndEnable2FA, disable2FA, regenerateRecoveryCodes, verify2FA } = require('../controllers/twoFactorController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
 const {

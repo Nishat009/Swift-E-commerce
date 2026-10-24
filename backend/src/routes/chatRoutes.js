@@ -1,12 +1,9 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
 const ChatMessage = require('../models/ChatMessage');
-const User = require('../models/User');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
-const { getRequiredSecret } = require('../utils/generateTokens');
 const { advise } = require('../services/stylistService');
 
 const router = express.Router();
@@ -21,21 +18,8 @@ const chatLimiter = rateLimit({
   message: { success: false, message: 'Too many chat messages. Please wait a moment and try again.' },
 });
 
-// Authentication is optional for customers: logged-in identity is recorded when available.
-const optionalUser = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
-    if (token) {
-      const decoded = jwt.verify(token, getRequiredSecret('JWT_SECRET'));
-      req.chatUser = await User.findById(decoded.id).select('name email');
-    }
-  } catch {
-    // An expired optional token must not stop a guest from using the assistant.
-  }
-  next();
-};
-
-router.post('/', chatLimiter, optionalUser, async (req, res, next) => {
+// Sign-in is optional: a signed-in customer's identity is recorded with the message
+router.post('/', chatLimiter, optionalAuth, async (req, res, next) => {
   try {
     const message = clean(req.body.message);
     const sessionId = clean(req.body.sessionId);
@@ -45,9 +29,9 @@ router.post('/', chatLimiter, optionalUser, async (req, res, next) => {
     const reply = await advise(message);
     const doc = await ChatMessage.create({
       sessionId,
-      user: req.chatUser?._id || null,
-      name: req.chatUser?.name || 'Guest',
-      email: req.chatUser?.email || '',
+      user: req.user?._id || null,
+      name: req.user?.name || 'Guest',
+      email: req.user?.email || '',
       message,
       assistantReply: reply.text,
       suggestedProducts: reply.products,
@@ -59,10 +43,10 @@ router.post('/', chatLimiter, optionalUser, async (req, res, next) => {
   }
 });
 
-router.get('/mine', optionalUser, async (req, res, next) => {
+router.get('/mine', optionalAuth, async (req, res, next) => {
   try {
-    if (!req.chatUser) return res.status(401).json({ success: false, message: 'Sign in to sync chat history.' });
-    const messages = await ChatMessage.find({ user: req.chatUser._id }).sort({ createdAt: 1 }).limit(100);
+    if (!req.user) return res.status(401).json({ success: false, message: 'Sign in to sync chat history.' });
+    const messages = await ChatMessage.find({ user: req.user._id }).sort({ createdAt: 1 }).limit(100);
     res.json({ success: true, data: messages });
   } catch (error) { next(error); }
 });
