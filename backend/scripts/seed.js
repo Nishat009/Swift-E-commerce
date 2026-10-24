@@ -1,5 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { assertSafeToSeed } = require('./safety');
+const { ADMIN_EMAIL, CUSTOMER_EMAIL, seedPassword, randomPassword, passwordHint } = require('./seedConfig');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -650,8 +651,8 @@ const seed = async () => {
     // Create 1 Admin
     usersToCreate.push({
       name: 'Admin User',
-      email: 'admin@email.com',
-      password: '12345678',
+      email: ADMIN_EMAIL,
+      password: seedPassword(),
       phone: '+1 800 555 0199',
       role: 'admin',
       addresses: [
@@ -669,8 +670,8 @@ const seed = async () => {
     // Create 1 Test User (Demo user)
     usersToCreate.push({
       name: 'Test User',
-      email: 'user@email.com',
-      password: '12345678',
+      email: CUSTOMER_EMAIL,
+      password: seedPassword(),
       phone: '+1 555 019 2831',
       role: 'customer',
       addresses: [
@@ -695,7 +696,7 @@ const seed = async () => {
       usersToCreate.push({
         name,
         email,
-        password: 'password123',
+        password: randomPassword(),
         phone: `+1 555 01${10 + i}`,
         role: 'customer',
         addresses: [
@@ -801,6 +802,7 @@ const seed = async () => {
       }
     }
     console.log('Seeding successfully completed!');
+    console.log(`Sign in as ${ADMIN_EMAIL} or ${CUSTOMER_EMAIL} with ${passwordHint()}.`);
   } catch (error) {
     console.error('Seeding Failed:', error);
   } finally {

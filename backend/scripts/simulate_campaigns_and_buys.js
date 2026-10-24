@@ -1,5 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { assertSafeToSeed } = require('./safety');
+const { randomPassword } = require('./seedConfig');
 const mongoose = require('mongoose');
 const Campaign = require('../src/models/Campaign');
 const Ticket = require('../src/models/Ticket');
@@ -18,19 +19,20 @@ const run = async () => {
     if (customers.length < requiredMockCount) {
       console.log(`Currently only ${customers.length} customers exist. Creating additional mock users...`);
       const mockUsersData = [
-        { name: 'John Doe', email: 'john@email.com', password: 'password123', phone: '111-222-3333' },
-        { name: 'Sarah Connor', email: 'sarah@email.com', password: 'password123', phone: '222-333-4444' },
-        { name: 'Bruce Wayne', email: 'bruce@email.com', password: 'password123', phone: '333-444-5555' },
-        { name: 'Tony Stark', email: 'tony@email.com', password: 'password123', phone: '444-555-6666' },
-        { name: 'Peter Parker', email: 'peter@email.com', password: 'password123', phone: '555-666-7777' },
-        { name: 'Clark Kent', email: 'clark@email.com', password: 'password123', phone: '666-777-8888' },
-        { name: 'Diana Prince', email: 'diana@email.com', password: 'password123', phone: '777-888-9999' }
+        { name: 'John Doe', email: 'john@email.com', phone: '111-222-3333' },
+        { name: 'Sarah Connor', email: 'sarah@email.com', phone: '222-333-4444' },
+        { name: 'Bruce Wayne', email: 'bruce@email.com', phone: '333-444-5555' },
+        { name: 'Tony Stark', email: 'tony@email.com', phone: '444-555-6666' },
+        { name: 'Peter Parker', email: 'peter@email.com', phone: '555-666-7777' },
+        { name: 'Clark Kent', email: 'clark@email.com', phone: '666-777-8888' },
+        { name: 'Diana Prince', email: 'diana@email.com', phone: '777-888-9999' }
       ];
 
+      // Simulated buyers never sign in, so each gets a random password nobody knows
       for (const userData of mockUsersData) {
         const existing = await User.findOne({ email: userData.email });
         if (!existing) {
-          await User.create(userData);
+          await User.create({ ...userData, password: randomPassword() });
         }
       }
       customers = await User.find({ role: 'customer' });

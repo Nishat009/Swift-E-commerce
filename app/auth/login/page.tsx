@@ -10,6 +10,10 @@ import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import DemoLoginButtons from '@/components/auth/DemoLoginButtons';
 import { safeRedirectPath } from '@/lib/safeRedirect';
 
+// The backend only returns dev codes when ALLOW_DEV_AUTH_CODES is on outside production;
+// a production build never shows them either way.
+const SHOW_DEV_CODES = process.env.NODE_ENV !== 'production';
+
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -212,7 +216,7 @@ function LoginFormContent() {
       const res = await requestOTP(formData.email);
       setOtpSent(true);
       toast.success('If an eligible account exists, a login code has been emailed to you.');
-      if (res && res.testOtp) {
+      if (SHOW_DEV_CODES && res && res.testOtp) {
         setTestOtpNotice(`[Dev mode] Login code: ${res.testOtp}`);
       }
     } catch (error: any) {
@@ -257,7 +261,7 @@ function LoginFormContent() {
     try {
       const res = await forgotPassword(forgotEmail);
       toast.success('If an account exists for that email, we have sent reset instructions. Check your inbox (and spam).');
-      if (res && res.testOtp) {
+      if (SHOW_DEV_CODES && res && res.testOtp) {
         setForgotTestNotice(`[Dev mode] Reset token: ${res.testOtp}`);
       }
       setForgotStep('reset');

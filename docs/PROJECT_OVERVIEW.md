@@ -503,10 +503,10 @@ The fixed local accounts created by `seed:admin` are:
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Administrator | `admin@email.com` | `12345678` |
-| Customer | `user@email.com` | `12345678` |
+| Administrator | `admin@email.com` | `SEED_PASSWORD` from `backend/.env` |
+| Customer | `user@email.com` | `SEED_PASSWORD` from `backend/.env` |
 
-These credentials are for local demonstrations.
+No password is built into the code: when `SEED_PASSWORD` is empty, the seed generates a random one and prints it. These credentials are for local demonstrations.
 
 ### Step 5: Start the application
 

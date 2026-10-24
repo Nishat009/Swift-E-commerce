@@ -15,6 +15,11 @@ const AuditTrail = require('../src/models/AuditTrail');
 const ActivityLog = require('../src/models/ActivityLog');
 
 const base = process.env.TEST_API_URL || 'http://localhost:5000/api';
+const adminPassword = () => {
+  const password = process.env.TEST_ADMIN_PASSWORD || process.env.SEED_PASSWORD;
+  if (!password) throw new Error('Set TEST_ADMIN_PASSWORD (or SEED_PASSWORD) to the admin account password.');
+  return password;
+};
 let token;
 let productId;
 let orderId;
@@ -45,7 +50,7 @@ const lineFor = (cart) => cart.products.find((item) => String(item.product?.id |
 async function main() {
   const login = await request('POST', '/auth/login', {
     email: process.env.TEST_ADMIN_EMAIL || 'admin@email.com',
-    password: process.env.TEST_ADMIN_PASSWORD || '12345678',
+    password: adminPassword(),
   });
   token = login.accessToken;
   userId = login.user.id;

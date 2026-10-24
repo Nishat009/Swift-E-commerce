@@ -16,6 +16,11 @@ const Notification = require('../src/models/Notification');
 const AuditTrail = require('../src/models/AuditTrail');
 const ActivityLog = require('../src/models/ActivityLog');
 const base = process.env.TEST_API_URL || 'http://localhost:5000/api';
+const adminPassword = () => {
+  const password = process.env.TEST_ADMIN_PASSWORD || process.env.SEED_PASSWORD;
+  if (!password) throw new Error('Set TEST_ADMIN_PASSWORD (or SEED_PASSWORD) to the admin account password.');
+  return password;
+};
 const marker = Date.now();
 const title = `Dashboard test ${marker}`;
 const email = `dashboard-test-${marker}@example.com`;
@@ -41,7 +46,7 @@ async function main() {
   try {
     const admin = await api('POST', '/auth/login', {
       email: process.env.TEST_ADMIN_EMAIL || 'admin@email.com',
-      password: process.env.TEST_ADMIN_PASSWORD || '12345678',
+      password: adminPassword(),
     }, null);
     // Wishlist, cart and checkout only accept storefront products: published, public, active, in stock
     const product = await api('POST', '/products', {
