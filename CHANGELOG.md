@@ -2,6 +2,10 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-25
+### Fixed
+- Sign-in, Google sign-in and demo login no longer fail with a cancelled request when the backend is waking up; API requests now wait up to 60 seconds instead of 10.
+
 ## 2026-10-24
 ### Security
 - Seed scripts no longer contain fixed passwords. The demo accounts use `SEED_PASSWORD` from `backend/.env`, or a random password printed by the seed; sample customers get random passwords.

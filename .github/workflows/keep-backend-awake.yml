@@ -1,6 +1,8 @@
 # Render's free plan puts the API to sleep after 15 minutes without traffic, and the first visitor
 # then waits ~30 s while it wakes. Pinging the health check every 10 minutes keeps it awake.
 # (One always-on free service fits in Render's 750 free hours a month.)
+# GitHub delays frequent schedules heavily (in practice this runs every 2-5 hours), so it is only a
+# backstop: point an external monitor such as UptimeRobot or cron-job.org at the same URL for real coverage.
 # Set the repository variable BACKEND_HEALTH_URL to point somewhere else.
 name: Keep backend awake
 

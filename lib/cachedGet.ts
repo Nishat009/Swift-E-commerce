@@ -15,8 +15,6 @@ type Entry = { at: number; body: unknown };
 const memory = new Map<string, Entry>();
 const inflight = new Map<string, Promise<unknown>>();
 const STORAGE_PREFIX = 'swiftcart:cache:';
-// A sleeping free-tier backend can take ~30 s to wake; don't give up on public data before then
-const TIMEOUT_MS = 35000;
 
 const readStored = (url: string): Entry | undefined => {
   try {
@@ -50,7 +48,7 @@ export function cachedGet<T = any>(url: string, { maxAge = 60_000 }: { maxAge?: 
   if (pending) return pending as Promise<T>;
 
   const request = apiClient
-    .get(url, { timeout: TIMEOUT_MS })
+    .get(url)
     .then((res) => {
       const entry = { at: Date.now(), body: res.data };
       memory.set(url, entry);

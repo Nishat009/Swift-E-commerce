@@ -27,7 +27,9 @@ export const getAccessToken = () => {
 const apiClient = axios.create({
   baseURL: '/api/backend',
   withCredentials: true, // Crucial for sending/receiving HTTP-Only cookies (refreshToken)
-  timeout: 10000,
+  // The free-tier backend sleeps when idle and takes 30-60 s to wake; a shorter timeout cancels
+  // the first sign-in, Google challenge or page load after a quiet spell.
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
