@@ -3,6 +3,9 @@
 All notable changes to SwiftCart are listed here, newest first.
 
 ## 2026-10-25
+### Changed
+- The storefront homepage (`/shop`) is back to the full design: lookbook slider, curated wardrobe tabs, AI picks, runway edit, banners, perks and newsletter. The landing page at `/` is unchanged.
+
 ### Fixed
 - Sign-in, Google sign-in and demo login no longer fail with a cancelled request when the backend is waking up; API requests now wait up to 60 seconds instead of 10.
 
