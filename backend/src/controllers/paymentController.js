@@ -4,6 +4,7 @@ const { expireUnpaidOrders } = require('../services/orderLifecycle');
 const TicketPurchase = require('../models/TicketPurchase');
 const { sendSuccess, sendError } = require('../utils/response');
 const payments = require('../services/paymentService');
+const { mockCheckoutPage } = require('../views/mockCheckoutPage');
 
 // @desc    Which payment methods are enabled
 // @route   GET /api/payments/methods
@@ -167,8 +168,6 @@ const stripeWebhook = async (req, res) => {
   }
 };
 
-const escapeHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
 // @desc    Fake gateway page (development only): choose Pay or Fail for a mock payment session
 // @route   GET /api/payments/mock/checkout?session=
 // @access  Public, only when PAYMENT_MOCK=true and not production
@@ -192,17 +191,8 @@ const mockCheckout = async (req, res) => {
     ? `${base}/bkash/callback?paymentID=${sessionId}&status=failure`
     : `${base}/card/return?session_id=${sessionId}&cancelled=1`;
 
-  res.set('Content-Type', 'text/html; charset=utf-8').send(`<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mock payment</title>
-<style>body{font-family:system-ui,sans-serif;background:#f4f4f5;display:grid;place-items:center;min-height:100vh;margin:0}
-.card{background:#fff;border-radius:16px;padding:32px;max-width:380px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,.1);text-align:center}
-.tag{display:inline-block;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px}
-.amt{font-size:34px;font-weight:800;margin:12px 0 4px}a{display:block;padding:12px;border-radius:10px;margin-top:12px;font-weight:700;text-decoration:none}
-.pay{background:#16a34a;color:#fff}.fail{background:#fee2e2;color:#b91c1c}</style></head>
-<body><div class="card"><span class="tag">TEST MODE - no real money</span>
-<h2>${isBkash ? 'bKash' : 'Card'} mock payment</h2><div>${escapeHtml(label)}</div>
-<div class="amt">$${Number(amount).toFixed(2)}</div>
-<a class="pay" href="${payUrl}">Pay successfully</a><a class="fail" href="${failUrl}">Fail / cancel payment</a></div></body></html>`);
+  res.set('Content-Type', 'text/html; charset=utf-8')
+    .send(mockCheckoutPage({ gatewayName: isBkash ? 'bKash' : 'Card', label, amount, payUrl, failUrl }));
 };
 
 module.exports = { getMethods, initiateOrderPayment, bkashCallback, cardReturn, stripeWebhook, mockCheckout };

@@ -24,26 +24,12 @@ export function getEffectivePrice(product: Pick<Product, 'price' | 'discountPerc
 export const BADGE_FILTERS = ['Bestseller', 'New', 'Low Stock', 'Sale', 'Featured'] as const;
 
 /**
- * Whether a product carries a storefront badge. Badges come from product data
- * (discount, stock, flags), not only from free-form tags.
- * Keep in sync with BADGE_CONDITIONS in backend/src/controllers/productController.js.
+ * Whether a product carries a storefront badge. The API computes the badges (one set of rules in
+ * backend/src/utils/productBadges.js, also used by the ?tag= filter), so the counts shown next to
+ * the filters always match the filtered results.
  */
 export function matchesBadge(product: Product, badge: string): boolean {
-  const tagged = (product.tags || []).some((t) => t.toLowerCase() === badge.toLowerCase());
-  switch (badge) {
-    case 'Sale':
-      return (product.discountPercentage || 0) > 0;
-    case 'Low Stock':
-      return product.stock > 0 && product.stock <= (product.lowStockThreshold ?? 5);
-    case 'Featured':
-      return tagged || Boolean(product.featured);
-    case 'Bestseller':
-      return tagged || Boolean(product.bestSeller);
-    case 'New':
-      return tagged || Boolean(product.newArrival);
-    default:
-      return tagged;
-  }
+  return (product.badges || []).includes(badge);
 }
 
 /**

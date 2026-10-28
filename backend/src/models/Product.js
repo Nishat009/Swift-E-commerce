@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { badgesFor } = require('../utils/productBadges');
 
 const ProductSchema = new mongoose.Schema(
   {
@@ -245,6 +246,8 @@ ProductSchema.set('toJSON', {
     ret.id = ret._id.toString();
     ret.productImage = ret.productImage || ret.thumbnail || (ret.images && ret.images[0]) || '';
     ret.modelWearingImage = ret.modelWearingImage || null;
+    // Storefront badges from one set of rules (utils/productBadges.js); the frontend only displays them
+    ret.badges = badgesFor(ret);
     delete ret._id;
     delete ret.__v;
     return ret;

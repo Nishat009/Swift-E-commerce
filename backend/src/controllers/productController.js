@@ -9,206 +9,22 @@ const { pickProductFields, csvToProducts, prepareImported } = require('../servic
 
 const { isAdmin } = require('../middleware/authMiddleware');
 
-const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const { escapeRegex } = require('../utils/productBadges');
+const { PUBLIC_FILTER, EFFECTIVE_PRICE, buildFilter, buildSort, buildPage } = require('../services/productQuery');
 
-const PUBLIC_FILTER = { active: true, status: 'published', visibility: 'public' };
-const SORTABLE_FIELDS = ['createdAt', 'updatedAt', 'price', 'title', 'rating', 'soldCount', 'stock'];
-
-// What the shopper pays: list price minus the product-level discount (same formula as utils/pricing.js)
-const EFFECTIVE_PRICE = {
-  $multiply: ['$price', { $subtract: [1, { $divide: [{ $ifNull: ['$discountPercentage', 0] }, 100] }] }]
-};
-const exactMatch = (value) => new RegExp(`^${escapeRegex(value)}$`, 'i');
-// One entry of a comma separated list such as "XS, S, M" (so "S" doesn't match "XS")
-const listEntry = (value) => new RegExp(`(^|,)\\s*${escapeRegex(value)}\\s*(,|$)`, 'i');
-
-// Storefront badges are derived from product data, not only from free-form tags
-// (keep in sync with matchesBadge in utils/productUtils.ts)
-const BADGE_CONDITIONS = {
-  sale: () => ({ discountPercentage: { $gt: 0 } }),
-  'low stock': () => ({
-    $expr: { $and: [{ $gt: ['$stock', 0] }, { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 5] }] }] }
-  }),
-  featured: () => ({ $or: [{ featured: true }, { tags: exactMatch('Featured') }] }),
-  bestseller: () => ({ $or: [{ bestSeller: true }, { tags: exactMatch('Bestseller') }] }),
-  new: () => ({ $or: [{ newArrival: true }, { tags: exactMatch('New') }] }),
-};
-const tagCondition = (tag) => {
-  const badge = BADGE_CONDITIONS[tag.toLowerCase()];
-  return badge ? badge() : { tags: exactMatch(tag) };
-};
-const MAX_PAGE_SIZE = 500;
 const AUDITED_FIELDS = ['title', 'price', 'discountPercentage', 'stock', 'status', 'category', 'brand', 'visibility', 'active', 'featured'];
 const auditFields = (product) => Object.fromEntries(AUDITED_FIELDS.map((k) => [k, product.get(k)]));
 
 // @desc    Get all products with search, filter, pagination, sorting
 // @route   GET /api/products
-// @access  Public
+// @access  Public (drafts and hidden products only with ?all=true for an admin)
 const getProducts = async (req, res, next) => {
   try {
-    const {
-      page = 1,
-      limit = 12,
-      skip,
-      category,
-      subcategory,
-      search,
-      priceMin,
-      priceMax,
-      brand,
-      rating,
-      availability,
-      featured,
-      trending,
-      newArrival,
-      bestSeller,
-      status,
-      visibility,
-      stockStatus,
-      newest,
-      sort,
-      order,
-      sortBy,
-      color,
-      size,
-      all
-    } = req.query;
-
-    // Only admins may see drafts, archived, hidden or inactive products
-    const adminView = all === 'true' && isAdmin(req);
-    const query = adminView ? {} : { ...PUBLIC_FILTER };
-    // Filters that need their own $or / $expr are AND-ed together at the end
-    const andClauses = [];
-
-    if (adminView && status && status !== 'all') {
-      query.status = status;
-    }
-
-    if (adminView && visibility && visibility !== 'all') {
-      query.visibility = visibility;
-    }
-
-    // Category Filter
-    if (category && category !== 'all') {
-      query.category = category.toLowerCase();
-    }
-
-    // Subcategory Filter
-    if (subcategory && subcategory !== 'all') {
-      query.subcategory = subcategory.toLowerCase();
-    }
-
-    // Stock Status Filter
-    if (stockStatus && stockStatus !== 'all') {
-      query.stockStatus = stockStatus;
-    }
-
-    // Full-Text Search (Title, Brand, Category, SKU, Barcode, Tags, Description)
-    if (search) {
-      const searchRegex = new RegExp(escapeRegex(search), 'i');
-      query.$or = [
-        { title: searchRegex },
-        { brand: searchRegex },
-        { category: searchRegex },
-        { subcategory: searchRegex },
-        { sku: searchRegex },
-        { SKU: searchRegex },
-        { barcode: searchRegex },
-        { description: searchRegex },
-        { tags: searchRegex }
-      ];
-    }
-
-    // Price Filtering on the discounted price the shopper actually pays
-    const priceBounds = [];
-    if (priceMin !== undefined && priceMin !== '' && Number.isFinite(Number(priceMin))) {
-      priceBounds.push({ $gte: [EFFECTIVE_PRICE, Number(priceMin)] });
-    }
-    if (priceMax !== undefined && priceMax !== '' && Number.isFinite(Number(priceMax))) {
-      priceBounds.push({ $lte: [EFFECTIVE_PRICE, Number(priceMax)] });
-    }
-    if (priceBounds.length) andClauses.push({ $expr: { $and: priceBounds } });
-
-    // Brand Filter
-    if (brand) {
-      const brands = String(brand).split(',').map(b => b.trim()).filter(Boolean);
-      if (brands.length) query.brand = brands.length > 1 ? { $in: brands } : brands[0];
-    }
-
-    // Tag / badge Filter (comma separated, matches any)
-    if (req.query.tag) {
-      const tagList = String(req.query.tag).split(',').map(t => t.trim()).filter(Boolean);
-      if (tagList.length) andClauses.push({ $or: tagList.map(tagCondition) });
-    }
-
-    // Rating Filter
-    if (rating) {
-      query.rating = { $gte: Number(rating) };
-    }
-
-    // Color Filter (specification or a Color variant option)
-    if (color) {
-      const colors = String(color).split(',').map(c => c.trim()).filter(Boolean).map(exactMatch);
-      if (colors.length) {
-        andClauses.push({
-          $or: [
-            { 'specifications.ColorName': { $in: colors } },
-            { variants: { $elemMatch: { name: /^colou?r$/i, 'options.value': { $in: colors } } } }
-          ]
-        });
-      }
-    }
-
-    // Size Filter (entry of the Sizes specification or a Size variant option)
-    if (size) {
-      const sizes = String(size).split(',').map(s => s.trim()).filter(Boolean);
-      if (sizes.length) {
-        andClauses.push({
-          $or: [
-            { 'specifications.Sizes': { $in: sizes.map(listEntry) } },
-            { variants: { $elemMatch: { name: /^size$/i, 'options.value': { $in: sizes.map(exactMatch) } } } }
-          ]
-        });
-      }
-    }
-
-    // Availability Filter
-    if (availability === 'in-stock') {
-      query.stock = { $gt: 0 };
-    } else if (availability === 'out-of-stock') {
-      query.stock = 0;
-    }
-
-    // Flag Filters
-    if (featured === 'true' || featured === true) query.featured = true;
-    if (trending === 'true' || trending === true) query.trending = true;
-    if (newArrival === 'true' || newArrival === true) query.newArrival = true;
-    if (bestSeller === 'true' || bestSeller === true) query.bestSeller = true;
-
-    if (andClauses.length) query.$and = andClauses;
-
-    // Sorting definition
-    let sortOptions = {};
-    // Storefront price sorts follow the discounted price, not the list price
-    let effectivePriceOrder = 0;
-
-    if (newest === 'true') {
-      sortOptions = { createdAt: -1 };
-    } else if (sortBy) {
-      if (sortBy === 'price-asc') effectivePriceOrder = 1;
-      else if (sortBy === 'price-desc') effectivePriceOrder = -1;
-      else if (sortBy === 'rating') sortOptions = { rating: -1 };
-      else if (sortBy === 'sold') sortOptions = { soldCount: -1 };
-      else sortOptions = { createdAt: -1 };
-    } else if (sort && SORTABLE_FIELDS.includes(sort)) {
-      sortOptions[sort] = order === 'desc' ? -1 : 1;
-    } else {
-      sortOptions = { createdAt: -1 };
-    }
-
-    const pageNum = Math.max(1, Math.floor(Number(page)) || 1);
-    const limitNum = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(Number(limit)) || 12));
-    const skipNum = skip !== undefined ? Math.max(0, Math.floor(Number(skip)) || 0) : (pageNum - 1) * limitNum;
+    const adminView = req.query.all === 'true' && isAdmin(req);
+    const query = buildFilter(req.query, adminView);
+    const { sort: sortOptions, effectivePriceOrder } = buildSort(req.query);
+    const { pageNum, limitNum, skipNum } = buildPage(req.query, isAdmin(req));
+    const { search } = req.query;
 
     const total = await Product.countDocuments(query);
     let products;
@@ -255,7 +71,7 @@ const getProducts = async (req, res, next) => {
   }
 };
 
-// @desc    Get single product by ID, numeric ID, SKU, or slug
+// @desc    Get single product by ObjectId, slug, SKU, barcode or exact title
 // @route   GET /api/products/:id
 // @access  Public
 const getProductById = async (req, res, next) => {
@@ -282,41 +98,6 @@ const getProductById = async (req, res, next) => {
           { title: new RegExp(`^${escapeRegex(id.replace(/-/g, ' '))}$`, 'i') }
         ]
       }).populate('relatedProducts').populate('bundles');
-    }
-
-    // 3. If ID is numeric (e.g. 104, 101), map to catalog title or index
-    if (!product && /^\d+$/.test(id)) {
-      const numId = parseInt(id, 10);
-      const catalogTitleMap = {
-        101: 'Cropped Ribbed Knit Tank',
-        102: 'Cozy Cable Knit Sweater',
-        103: 'High-Rise Denim Jeans',
-        104: 'Tailored Linen Trouser',
-        105: 'Floral Silk Slip Dress',
-        106: 'Oversized Classic Trench Coat',
-        107: 'Minimalist Leather Shoulder Bag',
-        108: 'Gold Hoop Earrings & Necklace Set',
-        201: 'Premium Heavyweight Cotton Tee',
-        202: 'Relaxed Oxford Cotton Shirt',
-        203: 'Streetwear Cargo Utility Pants',
-        204: 'Classic Relaxed Chino',
-        205: 'Eco-Leather Bomber Jacket',
-        206: 'Retro Denim Trucker Jacket',
-        207: 'Air Platform Sneakers',
-        208: 'Classic Leather Chelsea Boots',
-        301: 'Premium Wool Felt Fedora',
-        302: 'Canvas Sport Baseball Cap',
-        303: 'Retro Oval Acetate Sunglasses',
-      };
-
-      if (catalogTitleMap[numId]) {
-        product = await Product.findOne({ ...visible, title: catalogTitleMap[numId] }).populate('relatedProducts').populate('bundles');
-      }
-
-      // Nth live product, fetched alone instead of loading the whole catalogue
-      if (!product && numId < 10000) {
-        product = await Product.findOne({ active: true, ...visible }).sort({ _id: 1 }).skip(numId);
-      }
     }
 
     if (!product) {
@@ -564,25 +345,7 @@ const subscribeBackInStock = async (req, res, next) => {
   }
 };
 
-// @desc    Editable title, descriptions, tags and SEO text built from a few product attributes
-// @route   POST /api/admin/copy-draft
-// @access  Private/Admin (input checked by copyDraftRules)
-const generateCopyDraft = (req, res) => {
-  const { category, material, color, brand } = req.body;
-  const title = `${color} ${material} ${category} by ${brand}`;
-  const keywords = [category, material, color, brand].map((value) => value.toLowerCase());
-  return sendSuccess(res, 'Copy draft created', {
-    title,
-    shortDescription: `${brand} ${category} in ${color}, made with ${material}. Review fit and care details before publishing.`,
-    seoDescription: `Explore the ${title}. See product details, available sizes and delivery information at SwiftCart.`,
-    highlights: [`Material: ${material}`, `Color: ${color}`, `Category: ${category}`],
-    tags: keywords,
-    metaKeywords: keywords,
-  });
-};
-
 module.exports = {
-  generateCopyDraft,
   importProducts,
   searchSuggestions,
   trendingSearches,

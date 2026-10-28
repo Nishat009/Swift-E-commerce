@@ -156,6 +156,8 @@ export interface Product {
   totalStock?: number;
   reservedStock?: number;
   lowStockThreshold?: number;
+  /** Storefront badges computed by the API (backend/src/utils/productBadges.js), e.g. ['Sale', 'New'] */
+  badges?: string[];
   warehouse?: string;
   stockStatus?: 'in_stock' | 'low_stock' | 'out_of_stock';
   maxOrderQuantity?: number;

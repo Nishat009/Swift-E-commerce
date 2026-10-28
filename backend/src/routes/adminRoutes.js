@@ -23,7 +23,7 @@ const { sendCustomerEmail, listCustomerEmails } = require('../controllers/custom
 const { getPaymentSettings, updatePaymentSettings, testPaymentGateway } = require('../controllers/paymentSettingsController');
 const { paymentSettingsRules } = require('../validations/paymentSettingsValidation');
 const { validate } = require('../middleware/validationMiddleware');
-const { generateCopyDraft } = require('../controllers/productController');
+const { generateCopyDraft } = require('../controllers/copyDraftController');
 const { copyDraftRules } = require('../validations/productValidation');
 
 // Secure all admin routes

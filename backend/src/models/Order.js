@@ -102,6 +102,8 @@ OrderSchema.index({ user: 1, createdAt: -1 });
 OrderSchema.index({ orderStatus: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ 'returnRequest.status': 1 });
+// Unpaid online orders past their payment window (orderLifecycle.expireUnpaidOrders)
+OrderSchema.index({ orderStatus: 1, paymentStatus: 1, paymentMethod: 1, createdAt: 1 });
 
 OrderSchema.set('toJSON', {
   virtuals: true,
