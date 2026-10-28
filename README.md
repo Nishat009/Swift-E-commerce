@@ -264,6 +264,8 @@ not part of `npm test`: start the API (`npm --prefix backend run dev`), set `TES
 
 ## 🔒 Security
 
+**Route-by-route table with file and line for every route that changes data: [SECURITY.md](SECURITY.md).**
+
 ### Who can call what
 
 Every route that creates, changes or deletes data requires a signed-in user (`protect`), and every

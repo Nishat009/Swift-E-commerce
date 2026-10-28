@@ -17,7 +17,8 @@
     "test": "node --test tests/google-auth.test.js tests/draw-flow.test.js tests/security.test.js tests/order-flow.test.js tests/features.test.js tests/catalog-data.test.js tests/route-guards.test.js",
     "test:security": "node --test tests/security.test.js",
     "test:routes": "node --test tests/route-guards.test.js",
-    "test:live": "node tests/commerce-flow.live.cjs && node tests/user-dashboard.live.cjs"
+    "test:live": "node tests/commerce-flow.live.cjs && node tests/user-dashboard.live.cjs",
+    "routes:doc": "node scripts/routeReport.js --write"
   },
   "engines": {
     "node": ">=20.9.0"

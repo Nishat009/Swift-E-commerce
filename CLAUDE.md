@@ -44,7 +44,7 @@ npm run package:zip                           # submission ZIP from git HEAD
 
 ## Rules
 
-- **Auth on every mutating route.** Any route that creates, updates or deletes data must use `protect`, and admin routes must also use `authorize('admin')`. Public exceptions (login, register, contact form, newsletter, chat, back-in-stock notify, Stripe webhook) are deliberate and rate-limited.
+- **Auth on every mutating route.** Any route that creates, updates or deletes data must use `protect`, and admin routes must also use `authorize('admin')`. Public exceptions (login, register, contact form, newsletter, chat, back-in-stock notify, Stripe webhook) are deliberate and rate-limited. Every new route goes in `backend/src/config/routePolicy.js`; then run `npm --prefix backend run routes:doc` to refresh [SECURITY.md](SECURITY.md) (the route-guard test fails otherwise).
 - **Validate input** with `express-validator` rules and the `validate` middleware.
 - **Never commit secrets.** Real values go in `backend/.env` / `.env.local` (gitignored). Add new variables to the matching `.env.example` with a blank or placeholder value.
 - **Prices are stored in USD**; bKash converts using `BDT_PER_USD`.
