@@ -184,6 +184,75 @@ test('demo login: off by default, signs in to fixed demo accounts only when enab
   }
 });
 
+test('the demo admin cannot change order status, email customers or call payment gateways', async () => {
+  process.env.DEMO_LOGIN_ENABLED = 'true';
+  try {
+    const demo = (await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).json.data.accessToken;
+    const someId = new mongoose.Types.ObjectId().toString();
+    for (const [method, path, body] of [
+      ['PUT', `/api/admin/orders/${someId}/status`, { orderStatus: 'Shipped' }],
+      ['PUT', `/api/orders/${someId}/status`, { orderStatus: 'Shipped' }],
+      ['POST', `/api/admin/users/${someId}/email`, { subject: 'Hi', message: 'Hello' }],
+      ['POST', '/api/admin/payment-settings/test/card'],
+      ['PUT', '/api/admin/payment-settings', { cod: { enabled: true } }],
+      ['POST', '/api/admin/wallet/adjust', { amount: 10, type: 'credit', note: 'x' }],
+    ]) {
+      assert.equal((await api(method, path, demo, body)).status, 403, `${method} ${path}`);
+    }
+    assert.equal((await api('GET', '/api/admin/orders', demo)).status, 200, 'the demo admin can still look around');
+  } finally {
+    delete process.env.DEMO_LOGIN_ENABLED;
+  }
+});
+
+test('product copy draft: validated input, built by the controller', async () => {
+  const missing = await api('POST', '/api/admin/copy-draft', tokens.admin, { category: 'Coat', material: '', color: 'Camel', brand: 'Swift' });
+  assert.equal(missing.status, 422);
+  assert.equal(missing.json.errors.material, 'Category, material, color and brand are required.');
+  assert.equal((await api('POST', '/api/admin/copy-draft', tokens.admin, { category: { $ne: 1 }, material: 'Wool', color: 'Camel', brand: 'Swift' })).status, 422);
+  assert.equal((await api('POST', '/api/admin/copy-draft', tokens.alice, { category: 'Coat', material: 'Wool', color: 'Camel', brand: 'Swift' })).status, 403);
+
+  const draft = await api('POST', '/api/admin/copy-draft', tokens.admin, { category: ' Coat ', material: 'Wool', color: 'Camel', brand: 'Swift' });
+  assert.equal(draft.status, 200);
+  assert.equal(draft.json.data.title, 'Camel Wool Coat by Swift');
+  assert.deepEqual(draft.json.data.tags, ['coat', 'wool', 'camel', 'swift']);
+});
+
+test("a customer cannot start a payment for someone else's order", async () => {
+  const Order = require('../src/models/Order');
+  const User = require('../src/models/User');
+  const owner = await User.findOne({ email: 'admin@test.dev' });
+  const order = await Order.collection.insertOne({ user: owner._id, paymentMethod: 'card', paymentStatus: 'Pending', orderStatus: 'Pending', totalPrice: 10, createdAt: new Date() });
+  const res = await api('POST', `/api/payments/orders/${order.insertedId}/initiate`, tokens.alice);
+  assert.equal(res.status, 404);
+});
+
+test('in production, gateway keys need their own PAYMENT_SETTINGS_KEY (no JWT_SECRET fallback)', () => {
+  const settings = require('../src/services/paymentSettings');
+  const saved = { NODE_ENV: process.env.NODE_ENV, PAYMENT_SETTINGS_KEY: process.env.PAYMENT_SETTINGS_KEY };
+  try {
+    delete process.env.PAYMENT_SETTINGS_KEY;
+    process.env.NODE_ENV = 'test';
+    assert.equal(settings.canStoreCredentials(), true, 'development and tests fall back to JWT_SECRET');
+    const stored = settings.encrypt('sk_test_secret');
+    assert.equal(settings.decrypt(stored), 'sk_test_secret');
+
+    process.env.NODE_ENV = 'production';
+    assert.equal(settings.canStoreCredentials(), false);
+    assert.throws(() => settings.encrypt('sk_test_secret'));
+    assert.equal(settings.decrypt(stored), '', 'a JWT_SECRET-encrypted value is not readable in production');
+
+    process.env.PAYMENT_SETTINGS_KEY = 'p'.repeat(40);
+    assert.equal(settings.canStoreCredentials(), true);
+    assert.equal(settings.decrypt(settings.encrypt('sk_live_secret')), 'sk_live_secret');
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
 test('demo login with DEMO_PASSWORD: shared credentials work in the form and cannot be reset', async () => {
   process.env.DEMO_LOGIN_ENABLED = 'true';
   process.env.DEMO_PASSWORD = 'demo-pass-123';
