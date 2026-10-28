@@ -43,10 +43,6 @@ export default function WishlistPage() {
   const [removingProductId, setRemovingProductId] = useState<string | number | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
-  useEffect(() => {
-    fetchWishlist();
-  }, []);
-
   // Keep the shared wishlist store (hearts on product cards) in sync with this page
   useEffect(() => {
     if (!loading && !loadError) {
@@ -78,6 +74,10 @@ export default function WishlistPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchWishlist();
+  }, []);
 
   // Mutations that return the full wishlist details
   const updateDetails = async (request: Promise<any>, successMessage?: string) => {

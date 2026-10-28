@@ -113,16 +113,6 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMessage, setCouponMessage] = useState('');
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('applied_coupon');
-      if (stored) {
-        setCouponCode(stored);
-        validateAndApplyCoupon(stored);
-      }
-    }
-  }, []);
-
   const validateAndApplyCoupon = async (codeToTest: string) => {
     const code = codeToTest.trim().toUpperCase();
     if (!code) return;
@@ -152,6 +142,16 @@ export default function CheckoutPage() {
       setCouponLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('applied_coupon');
+      if (stored) {
+        setCouponCode(stored);
+        validateAndApplyCoupon(stored);
+      }
+    }
+  }, []);
 
   const isCod = paymentMethod === 'cod';
   const isDhakaAddress = /dhaka|ঢাকা/i.test(address.city);

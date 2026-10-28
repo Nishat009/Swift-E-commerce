@@ -19,12 +19,6 @@ function EditProductPageContent() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (productId) {
-      loadProduct();
-    }
-  }, [productId]);
-
   const loadProduct = async () => {
     setLoading(true);
     try {
@@ -42,6 +36,12 @@ function EditProductPageContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (productId) {
+      loadProduct();
+    }
+  }, [productId]);
 
   if (loading) {
     return (

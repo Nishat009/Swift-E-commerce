@@ -22,17 +22,7 @@ function LoginFormContent() {
   const { user, loading: authLoading, login, verify2FA, requestOTP, verifyOTP, forgotPassword, resetPassword } = useAuth();
   const toast = useToast();
 
-  // Open the reset form pre-filled when arriving from the emailed reset link
-  const resetTokenParam = searchParams?.get('resetToken') || '';
-  useEffect(() => {
-    if (resetTokenParam) {
-      setForgotOtp(resetTokenParam);
-      setForgotStep('reset');
-      setShowForgotModal(true);
-    }
-  }, [resetTokenParam]);
-
-  // Arriving from the landing page's Live Demo button: stay here so the demo logins are visible
+  // Arriving from the landing page's customer demo login links: stay here so the demo logins are visible
   const isDemoEntry = searchParams?.get('demo') === '1';
 
   // Redirect if already logged in
@@ -77,6 +67,16 @@ function LoginFormContent() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotTestNotice, setForgotTestNotice] = useState('');
+
+  // Open the reset form pre-filled when arriving from the emailed reset link
+  const resetTokenParam = searchParams?.get('resetToken') || '';
+  useEffect(() => {
+    if (resetTokenParam) {
+      setForgotOtp(resetTokenParam);
+      setForgotStep('reset');
+      setShowForgotModal(true);
+    }
+  }, [resetTokenParam]);
 
 
   // QR Code Scanner states

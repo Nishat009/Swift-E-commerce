@@ -121,24 +121,6 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
     };
   }, []);
 
-  useEffect(() => {
-    loadProducts();
-  }, [
-    page,
-    limit,
-    search,
-    categoryFilter,
-    brandFilter,
-    statusFilter,
-    stockStatusFilter,
-    minPrice,
-    maxPrice,
-    featuredOnly,
-    newArrivalOnly,
-    bestsellerOnly,
-    sortBy,
-  ]);
-
   const loadProducts = async () => {
     setLoading(true);
     try {
@@ -168,6 +150,24 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadProducts();
+  }, [
+    page,
+    limit,
+    search,
+    categoryFilter,
+    brandFilter,
+    statusFilter,
+    stockStatusFilter,
+    minPrice,
+    maxPrice,
+    featuredOnly,
+    newArrivalOnly,
+    bestsellerOnly,
+    sortBy,
+  ]);
 
   const handleClearFilters = () => {
     setSearch('');

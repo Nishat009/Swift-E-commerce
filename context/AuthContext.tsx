@@ -48,6 +48,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const checkSession = async () => {
+    try {
+      // No access token yet: try the httpOnly refresh cookie before asking for the profile
+      if (!getAccessToken()) {
+        const refreshed = await apiClient.post('/auth/refresh');
+        const token = refreshed.data?.data?.accessToken;
+        if (!token) throw new Error('No session');
+        setAccessToken(token);
+        localStorage.setItem('accessToken', token);
+      }
+      sessionStorage.setItem('session_active', 'true');
+      // Trigger profile retrieval which will hit token-refresh interceptor if access token is not set
+      const response = await apiClient.get('/auth/profile');
+      if (response.data?.success) {
+        setUser(response.data.data.user);
+        // Automatically load cart on success
+        useCartStore.getState().loadCart();
+      }
+    } catch (err) {
+      // Only a rejected session signs the user out; a rate limit or network blip must not
+      const status = isAxiosError(err) ? err.response?.status : undefined;
+      if (status === 401 || status === 403 || status === undefined && !isAxiosError(err)) {
+        console.log('No active session.');
+        setAccessToken(null);
+        localStorage.removeItem('accessToken');
+        setUser(null);
+      } else {
+        console.warn('Could not check the session right now:', status ?? 'network error');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const initSession = async () => {
       if (typeof window !== 'undefined') {
@@ -87,40 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('auth:session-expired', onExpired);
     return () => window.removeEventListener('auth:session-expired', onExpired);
   }, []);
-
-  const checkSession = async () => {
-    try {
-      // No access token yet: try the httpOnly refresh cookie before asking for the profile
-      if (!getAccessToken()) {
-        const refreshed = await apiClient.post('/auth/refresh');
-        const token = refreshed.data?.data?.accessToken;
-        if (!token) throw new Error('No session');
-        setAccessToken(token);
-        localStorage.setItem('accessToken', token);
-      }
-      sessionStorage.setItem('session_active', 'true');
-      // Trigger profile retrieval which will hit token-refresh interceptor if access token is not set
-      const response = await apiClient.get('/auth/profile');
-      if (response.data?.success) {
-        setUser(response.data.data.user);
-        // Automatically load cart on success
-        useCartStore.getState().loadCart();
-      }
-    } catch (err) {
-      // Only a rejected session signs the user out; a rate limit or network blip must not
-      const status = isAxiosError(err) ? err.response?.status : undefined;
-      if (status === 401 || status === 403 || status === undefined && !isAxiosError(err)) {
-        console.log('No active session.');
-        setAccessToken(null);
-        localStorage.removeItem('accessToken');
-        setUser(null);
-      } else {
-        console.warn('Could not check the session right now:', status ?? 'network error');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const redirectUser = (role?: string, redirectUrl?: string) => {
     const safePath = safeRedirectPath(redirectUrl);

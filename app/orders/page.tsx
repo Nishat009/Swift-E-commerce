@@ -61,19 +61,6 @@ function OrdersHistoryContent() {
   // Selected Order for Timeline
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Result of an online payment (the server already verified it with the gateway)
-    if (typeof window !== 'undefined') {
-      const q = new URLSearchParams(window.location.search);
-      const result = q.get('payment');
-      if (result === 'success') toast.success('Payment received. Thank you!');
-      else if (result === 'failed') toast.error('Payment was not completed. You can retry with "Pay now".');
-      if (result && !q.get('order')) window.history.replaceState({}, '', '/orders');
-    }
-    fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Links from notifications / checkout (?order=<id>) open that order's details,
   // also when the user is already on this page
   const searchParams = useSearchParams();
@@ -121,6 +108,19 @@ function OrdersHistoryContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Result of an online payment (the server already verified it with the gateway)
+    if (typeof window !== 'undefined') {
+      const q = new URLSearchParams(window.location.search);
+      const result = q.get('payment');
+      if (result === 'success') toast.success('Payment received. Thank you!');
+      else if (result === 'failed') toast.error('Payment was not completed. You can retry with "Pay now".');
+      if (result && !q.get('order')) window.history.replaceState({}, '', '/orders');
+    }
+    fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCancelOrder = async () => {
     if (!cancellingOrderId) return;

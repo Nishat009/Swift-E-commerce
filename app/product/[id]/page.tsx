@@ -133,20 +133,11 @@ export default function ProductDetailPage() {
   }, [product, relatedProducts]);
 
   useEffect(() => {
-    if (productId) {
-      loadProduct();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
-
-  useEffect(() => {
     if (product) {
       try {
         const stored = localStorage.getItem('recently-viewed');
-        let list: Product[] = stored ? JSON.parse(stored) : [];
-        list = list.filter((p) => String(p.id) !== String(product.id));
-        list.unshift(product);
-        list = list.slice(0, 4);
+        const previous: Product[] = stored ? JSON.parse(stored) : [];
+        const list = [product, ...previous.filter((p) => String(p.id) !== String(product.id))].slice(0, 4);
         localStorage.setItem('recently-viewed', JSON.stringify(list));
         setRecentlyViewed(list.filter((p) => String(p.id) !== String(product.id)));
       } catch (e) {
@@ -207,6 +198,13 @@ export default function ProductDetailPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (productId) {
+      loadProduct();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
 
   // Calculate current price (incorporating variant price delta if any)
   const calculatedPrice = useMemo(() => {

@@ -42,12 +42,6 @@ function ProductDetailPageContent() {
   const [loading, setLoading] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (productId) {
-      loadProduct();
-    }
-  }, [productId]);
-
   const loadProduct = async () => {
     setLoading(true);
     try {
@@ -65,6 +59,12 @@ function ProductDetailPageContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (productId) {
+      loadProduct();
+    }
+  }, [productId]);
 
   const handleDuplicate = async () => {
     if (!product) return;

@@ -26,10 +26,6 @@ export default function DashboardOverviewPage() {
   const [loadError, setLoadError] = useState(false);
   const cartItems = useCartStore((state) => state.items);
 
-  useEffect(() => {
-    loadDashboardStats();
-  }, []);
-
   const loadDashboardStats = async () => {
     setLoading(true);
     setLoadError(false);
@@ -52,6 +48,10 @@ export default function DashboardOverviewPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadDashboardStats();
+  }, []);
 
   const memberYear = user?.createdAt
     ? new Date(user.createdAt).getFullYear()
