@@ -38,7 +38,7 @@
 
 The project also includes a virtual dressing room, shopping assistants, product recommendations, and paid campaign tickets. These features extend the shopping experience beyond a basic product listing and checkout.
 
-Although fashion is a major focus, the catalog structure and seed data also accommodate home and lifestyle products, including furniture, lighting, and decor.
+SwiftCart is a fashion store: the seed data, the live demo and the storefront all use one fashion catalog (9 categories, 31 products: tops, pants, dresses, jackets, shoes, hats, bags, jewelry and glasses). The product model itself is generic, so other product types can be added from the admin panel.
 
 The application has two main parts:
 

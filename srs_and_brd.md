@@ -19,7 +19,7 @@ The primary business objectives are:
 ---
 
 ## 2. Target Audience & Stakeholders
-- **Consumers (End Users)**: Style-centric shoppers purchasing premium apparel, lighting, decor, and furniture.
+- **Consumers (End Users)**: Style-centric shoppers purchasing premium apparel, shoes and accessories.
 - **E-commerce Merchants (Admins / Sellers)**: Product managers, copywriters, and administrators managing catalogs, configuring pricing/variant matrices, reviewing sessions, and auditing system changes.
 - **Development Team**: Frontend and backend engineers building, updating, and scaling the codebase.
 

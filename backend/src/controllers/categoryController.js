@@ -2,13 +2,20 @@ const Category = require('../models/Category');
 const Product = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
+const { isAdmin } = require('../middleware/authMiddleware');
+const { PUBLIC_FILTER } = require('../services/productQuery');
 
-// @desc    Get all categories
+// @desc    Get categories: shoppers see the ones with at least one public product, an admin
+//          with ?all=true sees every category (including empty or retired ones)
 // @route   GET /api/categories
 // @access  Public
 const getCategories = async (req, res, next) => {
   try {
-    const categories = await Category.find();
+    let categories = await Category.find();
+    if (!(req.query.all === 'true' && isAdmin(req))) {
+      const stocked = new Set((await Product.distinct('category', PUBLIC_FILTER)).map((c) => String(c).toLowerCase()));
+      categories = categories.filter((c) => stocked.has(String(c.slug).toLowerCase()) || stocked.has(String(c.name).toLowerCase()));
+    }
     // Return simple array of names if query indicates frontend categories fetch compatibility
     const { format } = req.query;
     if (format === 'names') {

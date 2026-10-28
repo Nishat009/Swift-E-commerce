@@ -257,7 +257,7 @@ export default function Navbar() {
                         <div>
                           <span className="block text-[9px] font-black uppercase tracking-wider text-text-muted dark:text-gray-400 mb-1.5">Popular Searches</span>
                           <div className="flex flex-wrap gap-1.5">
-                            {['Hoodie', 'Jacket', 'Shoes', 'Watch', 'Sofa'].map((q, idx) => (
+                            {['Hoodie', 'Jacket', 'Shoes', 'Dress', 'Bag'].map((q, idx) => (
                               <button
                                 key={idx}
                                 onClick={() => executeSearch(q)}

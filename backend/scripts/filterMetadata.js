@@ -12,7 +12,7 @@ const sizesFor = (category) => {
   if (APPAREL.includes(c)) return APPAREL_SIZES;
   if (c === 'shoes') return SHOE_SIZES;
   if (ONE_SIZE.includes(c)) return 'One Size';
-  return null; // furniture, decor, ... have no size options
+  return null; // bags, jewelry, glasses, ... have no size options
 };
 
 // Colour words in a title win over the swatch hex (a "denim" jacket is Blue even if its hex is dark)

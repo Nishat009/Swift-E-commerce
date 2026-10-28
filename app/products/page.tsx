@@ -82,7 +82,7 @@ function ProductsPageContent() {
   const [originalSearchQuery, setOriginalSearchQuery] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   // Most searched terms from the API, with a fixed list until it answers
-  const [trendingSearches, setTrendingSearches] = useState<string[]>(['Sofa', 'Jacket', 'Chair', 'Denim', 'Sneakers']);
+  const [trendingSearches, setTrendingSearches] = useState<string[]>(['Jacket', 'Dress', 'Denim', 'Sneakers', 'Bag']);
   useEffect(() => {
     apiClient.get('/products/search/trending')
       .then((res) => {

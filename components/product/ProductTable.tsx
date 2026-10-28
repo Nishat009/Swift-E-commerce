@@ -104,7 +104,7 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
     (async () => {
       try {
         const [catRes, prodRes] = await Promise.all([
-          apiClient.get('/categories'),
+          apiClient.get('/categories', { params: { all: true } }),
           apiClient.get('/products', { params: { all: true, limit: 500 } }),
         ]);
         if (cancelled) return;

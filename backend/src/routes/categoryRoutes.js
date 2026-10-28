@@ -7,10 +7,11 @@ const {
   updateCategory,
   deleteCategory
 } = require('../controllers/categoryController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
-router.get('/', getCategories);
+// optionalAuth: an admin may ask for every category with ?all=true
+router.get('/', optionalAuth, getCategories);
 router.get('/:id', getCategoryById);
 
 router.post('/', protect, authorize('admin'), createCategory);

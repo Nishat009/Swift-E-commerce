@@ -418,3 +418,15 @@ test('products carry their badges, the badge filter uses the same rules, and num
   assert.equal((await api('GET', '/api/products?limit=1000')).json.limit, 200, 'public pages are capped at 200');
   assert.equal((await api('GET', '/api/products?limit=1000&all=true', tokens.admin)).json.limit, 500);
 });
+
+test('shoppers only see categories that have products; an admin with ?all=true sees every category', async () => {
+  const Category = require('../src/models/Category');
+  await Category.create({ name: 'Sofa', slug: 'sofa', image: 'x.png' });
+  await Category.create({ name: 'Tops', slug: 'tops', image: 'x.png' }); // products.live is in "tops"
+  const names = (res) => res.json.data.map((c) => c.name);
+  const publicList = names(await api('GET', '/api/categories'));
+  assert.ok(publicList.includes('Tops'));
+  assert.ok(!publicList.includes('Sofa'), 'an empty category is hidden from the store');
+  assert.ok(!names(await api('GET', '/api/categories?all=true', tokens.alice)).includes('Sofa'), 'customers cannot ask for all');
+  assert.ok(names(await api('GET', '/api/categories?all=true', tokens.admin)).includes('Sofa'), 'admins manage every category');
+});

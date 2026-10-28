@@ -254,7 +254,7 @@ Storefront extras: multi-currency (USD, EUR, GBP, BDT), language switcher, dark 
 
 **Images:** category images are stored in the database as paths such as `/images/categories/dress.jpg`. Product images come from product records.
 
-**Seed data (`npm run seed`) — warning: it deletes existing users, products, categories, coupons and reviews first.** It creates 17 categories (9 fashion plus home/furniture), fashion products plus sample furniture, 20 users (including `admin@email.com` and `user@email.com`, whose password is `SEED_PASSWORD` or a printed random one), 3 coupons, and random reviews.
+**Seed data (`npm run seed`) — warning: it deletes existing users, products, categories, coupons and reviews first.** It creates the 9 fashion categories and 31 fashion products (the same catalog as `seed:catalog` and the live demo), 20 users (including `admin@email.com` and `user@email.com`, whose password is `SEED_PASSWORD` or a printed random one), 3 coupons, and random reviews.
 
 ## A7. Main database collections
 | Collection | Purpose |

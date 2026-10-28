@@ -222,7 +222,7 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   useEffect(() => {
     let cancelled = false;
     apiClient
-      .get('/categories')
+      .get('/categories', { params: { all: true } })
       .then((res) => {
         if (cancelled) return;
         const list: any[] = Array.isArray(res.data?.data) ? res.data.data : [];
