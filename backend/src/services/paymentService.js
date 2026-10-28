@@ -7,30 +7,35 @@ const Notification = require('../models/Notification');
 const emailService = require('./emailService');
 const { notifyStaff } = require('./orderLifecycle');
 const wallet = require('./wallet');
+const settings = require('./paymentSettings');
 
 const STRIPE_API = 'https://api.stripe.com/v1';
-const BKASH_SANDBOX_URL = 'https://tokenized.sandbox.bka.sh/v1.2.0-beta';
+const BKASH_SANDBOX_URL = settings.BKASH_URLS.sandbox;
 const PURCHASE_HOLD_MINUTES = 30;
 
 // ---------------------------------------------------------------- config ---
 const backendUrl = () => (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
 const frontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:3001').split(',')[0].trim().replace(/\/$/, '');
-const bdtPerUsd = () => (Number(process.env.BDT_PER_USD) > 0 ? Number(process.env.BDT_PER_USD) : 120);
-const bkashBaseUrl = () => (process.env.BKASH_BASE_URL || BKASH_SANDBOX_URL).replace(/\/$/, '');
+// Gateway credentials, switches and the BDT rate come from the admin payment settings (env as fallback)
+const bdtPerUsd = settings.bdtPerUsd;
+const bkashBaseUrl = settings.bkashBaseUrl;
+const bkashCredential = (field) => settings.credential('bkash', field);
+const stripeCredential = (field) => settings.credential('card', field);
 
 const isBkashConfigured = () =>
-  Boolean(process.env.BKASH_APP_KEY && process.env.BKASH_APP_SECRET && process.env.BKASH_USERNAME && process.env.BKASH_PASSWORD);
-const isStripeConfigured = () => Boolean(process.env.STRIPE_SECRET_KEY);
+  Boolean(bkashCredential('appKey') && bkashCredential('appSecret') && bkashCredential('username') && bkashCredential('password'));
+const isStripeConfigured = () => Boolean(stripeCredential('secretKey'));
 
 // Mock gateway for local development / testing flows (e.g. the lucky draw) without real
 // bKash or Stripe accounts. Never active in production.
 const isMockMode = () => String(process.env.PAYMENT_MOCK).toLowerCase() === 'true' && ['development', 'test', undefined, ''].includes(process.env.NODE_ENV);
 const isMockSession = (sessionId) => isMockMode() && /^mock_(bkash|card)_[0-9a-f]{16}$/.test(String(sessionId || ''));
 
+// A gateway is offered when the admin has it switched on and it has credentials (or mock mode is on)
 const getEnabledMethods = () => ({
-  cod: true,
-  bkash: isMockMode() || isBkashConfigured(),
-  card: isMockMode() || isStripeConfigured()
+  cod: settings.isGatewayEnabled('cod'),
+  bkash: settings.isGatewayEnabled('bkash') && (isMockMode() || isBkashConfigured()),
+  card: settings.isGatewayEnabled('card') && (isMockMode() || isStripeConfigured())
 });
 
 const isOnlineMethod = (method) => method === 'bkash' || method === 'card';
@@ -41,7 +46,7 @@ const getPublicConfig = () => ({
   mock: isMockMode(),
   bdtPerUsd: bdtPerUsd(),
   bkashSandbox: isBkashConfigured() && bkashBaseUrl() === BKASH_SANDBOX_URL,
-  stripeTestMode: isStripeConfigured() && String(process.env.STRIPE_SECRET_KEY).startsWith('sk_test_')
+  stripeTestMode: isStripeConfigured() && stripeCredential('secretKey').startsWith('sk_test_')
 });
 
 // ----------------------------------------------------------------- bKash ---
@@ -63,8 +68,8 @@ const bkashRequest = async (path, { headers = {}, body }) => {
 const getBkashToken = async () => {
   if (bkashTokenCache.token && bkashTokenCache.expiresAt > Date.now() + 30000) return bkashTokenCache.token;
   const data = await bkashRequest('/tokenized/checkout/token/grant', {
-    headers: { username: process.env.BKASH_USERNAME, password: process.env.BKASH_PASSWORD },
-    body: { app_key: process.env.BKASH_APP_KEY, app_secret: process.env.BKASH_APP_SECRET }
+    headers: { username: bkashCredential('username'), password: bkashCredential('password') },
+    body: { app_key: bkashCredential('appKey'), app_secret: bkashCredential('appSecret') }
   });
   if (!data.id_token) throw new Error(data.statusMessage || 'bKash token grant failed');
   bkashTokenCache = { token: data.id_token, expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 };
@@ -73,7 +78,7 @@ const getBkashToken = async () => {
 
 const bkashAuthHeaders = async () => ({
   Authorization: await getBkashToken(),
-  'X-APP-Key': process.env.BKASH_APP_KEY
+  'X-APP-Key': bkashCredential('appKey')
 });
 
 const toBdt = (usd) => (Math.round(usd * bdtPerUsd() * 100) / 100).toFixed(2);
@@ -113,7 +118,7 @@ const stripeRequest = async (method, path, form) => {
   const res = await fetch(`${STRIPE_API}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      Authorization: `Bearer ${stripeCredential('secretKey')}`,
       ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {})
     },
     body: form ? new URLSearchParams(form).toString() : undefined
@@ -153,7 +158,7 @@ const verifyStripeSession = async (sessionId) => {
 
 // Verifies Stripe-Signature (t=...,v1=...) against the raw body; returns parsed event or null.
 const verifyStripeWebhook = (rawBody, signatureHeader) => {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = stripeCredential('webhookSecret');
   if (!secret || !rawBody || !signatureHeader) return null;
   const parts = {};
   String(signatureHeader).split(',').forEach((kv) => {
@@ -171,6 +176,27 @@ const verifyStripeWebhook = (rawBody, signatureHeader) => {
   } catch {
     return null;
   }
+};
+
+// Called after the admin saves new credentials, so the next bKash call asks for a fresh token
+const resetGatewayCache = () => {
+  bkashTokenCache = { token: null, expiresAt: 0 };
+};
+
+// Admin "Test connection": a harmless authenticated call with the current credentials
+const testGatewayConnection = async (method) => {
+  if (method === 'bkash') {
+    if (!isBkashConfigured()) throw new Error('bKash credentials are not set');
+    resetGatewayCache();
+    await getBkashToken();
+    return `Connected to bKash (${bkashBaseUrl() === settings.BKASH_URLS.live ? 'live' : 'sandbox'}).`;
+  }
+  if (method === 'card') {
+    if (!isStripeConfigured()) throw new Error('The Stripe secret key is not set');
+    const balance = await stripeRequest('GET', '/balance');
+    return `Connected to Stripe (${balance.livemode ? 'live' : 'test'} mode).`;
+  }
+  throw new Error('Only bKash and Stripe can be tested');
 };
 
 // --------------------------------------------------------------- generic ---
@@ -346,6 +372,8 @@ module.exports = {
   isMethodEnabled,
   isMockMode,
   isMockSession,
+  resetGatewayCache,
+  testGatewayConnection,
   startGatewayPayment,
   verifyGatewayPayment,
   verifyStripeWebhook,

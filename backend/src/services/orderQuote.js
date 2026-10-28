@@ -24,7 +24,7 @@ const DELIVERY_ZONES = {
   inside_dhaka: { label: 'Inside Dhaka', feeBdt: envFee('COD_FEE_INSIDE_DHAKA_BDT', 60) },
   outside_dhaka: { label: 'Outside Dhaka', feeBdt: envFee('COD_FEE_OUTSIDE_DHAKA_BDT', 120) },
 };
-const bdtPerUsd = () => (Number(process.env.BDT_PER_USD) > 0 ? Number(process.env.BDT_PER_USD) : 120);
+const { bdtPerUsd } = require('./paymentSettings');
 const isDeliveryZone = (zone) => Object.prototype.hasOwnProperty.call(DELIVERY_ZONES, zone);
 
 // Does this address city count as Dhaka? ("Inside Dhaka" is only accepted for Dhaka addresses)

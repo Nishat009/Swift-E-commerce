@@ -14,7 +14,9 @@ let server;
 const startHousekeeping = () => {
   const { expireUnpaidOrders } = require('./src/services/orderLifecycle');
   const { expireStalePurchases } = require('./src/services/paymentService');
-  const run = () => Promise.all([expireUnpaidOrders(), expireStalePurchases()])
+  const { load: reloadPaymentSettings } = require('./src/services/paymentSettings');
+  // Payment settings are reloaded too, in case another server instance saved new ones
+  const run = () => Promise.all([expireUnpaidOrders(), expireStalePurchases(), reloadPaymentSettings()])
     .catch((err) => console.error('[housekeeping]', err.message));
   setInterval(run, 5 * 60 * 1000).unref();
   run();
@@ -30,6 +32,11 @@ const startServer = async () => {
   await require('./src/utils/activityLog').backfillActorRoles();
   // Shared demo accounts, when DEMO_LOGIN_ENABLED and DEMO_PASSWORD are set
   await require('./src/controllers/demoAuthController').ensureDemoAccounts();
+  // Payment gateway switches and keys saved from the admin panel
+  await require('./src/services/paymentSettings').load();
+  // Demo catalog when the store has no public product (an empty live database)
+  await require('./scripts/seedCatalog').ensureCatalog()
+    .catch((err) => console.error('[catalog]', err.message));
   server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   });

@@ -245,7 +245,7 @@ const advise = async (message) => {
   const query = message.toLowerCase();
   const statedBudget = parseBudget(query);
   const inTaka = /(?:taka|bdt|৳|\btk\b)/i.test(query);
-  const exchangeRate = Number(process.env.BDT_PER_USD) > 0 ? Number(process.env.BDT_PER_USD) : 120;
+  const exchangeRate = require('./paymentSettings').bdtPerUsd();
   const budget = statedBudget && inTaka ? statedBudget / exchangeRate : statedBudget;
   const money = (usd) => `$${usd.toFixed(2)}${inTaka ? ` / ${Math.round(usd * exchangeRate).toLocaleString('en-US')} taka` : ''}`;
   const budgetLabel = statedBudget ? (inTaka ? `${statedBudget.toLocaleString('en-US')} taka` : `$${statedBudget}`) : '';

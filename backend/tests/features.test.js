@@ -296,3 +296,57 @@ test('a second review of the same product is refused', async () => {
   const edit = await api('PUT', `/api/reviews/${results.find((r) => r.status === 201).json.data.id}`, tokens.alice, { rating: 4 });
   assert.equal(edit.status, 200, 'rating-only edit is allowed');
 });
+
+test('payment settings: switches and keys from the admin panel, secrets never sent back', async () => {
+  const PaymentSettings = require('../src/models/PaymentSettings');
+  const before = await api('GET', '/api/admin/payment-settings', tokens.admin);
+  assert.equal(before.status, 200);
+  assert.equal(before.json.data.cod.enabled, true);
+  assert.equal(before.json.data.card.credentials.secretKey.set, false);
+  assert.equal((await api('GET', '/api/admin/payment-settings', tokens.alice)).status, 403, 'customers cannot read it');
+
+  assert.equal((await api('PUT', '/api/admin/payment-settings', tokens.admin, { card: { credentials: { secretKey: 'not-a-key' } } })).status, 422);
+  assert.equal((await api('PUT', '/api/admin/payment-settings', tokens.admin, { cod: { enabled: false }, bkash: { enabled: false }, card: { enabled: false } })).status, 400);
+
+  const key = 'sk_test_abcdefghijklmnop1234';
+  const saved = await api('PUT', '/api/admin/payment-settings', tokens.admin, { card: { credentials: { secretKey: key } }, bdtPerUsd: 125 });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.json.data.card.credentials.secretKey.source, 'admin');
+  assert.equal(saved.json.data.card.credentials.secretKey.hint, '••••1234');
+  assert.equal(saved.json.data.card.testMode, true);
+  assert.equal(saved.json.data.bdtPerUsd, 125);
+  assert.ok(!JSON.stringify(saved.json).includes(key), 'the key is never returned');
+  const stored = await PaymentSettings.findOne({ key: 'default' }).lean();
+  assert.ok(!stored.card.credentials.secretKey.includes(key), 'the key is stored encrypted');
+
+  // Card is now configured: checkout offers it, until the admin switches it (and COD) off
+  assert.equal((await api('GET', '/api/payments/methods')).json.data.methods.card, true);
+  await api('PUT', '/api/admin/payment-settings', tokens.admin, { cod: { enabled: false }, card: { enabled: false } });
+  const methods = (await api('GET', '/api/payments/methods')).json.data.methods;
+  assert.equal(methods.card, false);
+  assert.equal(methods.cod, false);
+
+  // Clearing the key falls back to the (empty) environment value; restore defaults for other tests
+  const cleared = await api('PUT', '/api/admin/payment-settings', tokens.admin, { cod: { enabled: true }, card: { enabled: true, credentials: { secretKey: null } }, bdtPerUsd: null });
+  assert.equal(cleared.json.data.card.credentials.secretKey.set, false);
+  assert.equal(cleared.json.data.bdtPerUsd, 120);
+});
+
+test('an empty store gets the demo catalog at startup; a store with public products is left alone', async () => {
+  const { ensureCatalog } = require('../scripts/seedCatalog');
+  const fashionProductsData = require('../scripts/fashionProductsData');
+  await Product.deleteMany({});
+  await makeProduct('Hidden Old Lamp', { status: 'draft' });
+
+  const result = await ensureCatalog();
+  assert.equal(result.addedProducts, fashionProductsData.length);
+  const listed = await api('GET', '/api/products?limit=12&skip=0&priceMin=0&priceMax=5000');
+  assert.equal(listed.json.total, fashionProductsData.length, 'the public list shows the catalog');
+
+  // Hidden demo products are published again when nothing is public
+  await Product.updateMany({}, { $set: { status: 'draft' } });
+  const again = await ensureCatalog();
+  assert.equal(again.addedProducts, 0);
+  assert.equal(again.published, fashionProductsData.length);
+  assert.equal(await ensureCatalog(), null, 'nothing to do once products are public');
+});

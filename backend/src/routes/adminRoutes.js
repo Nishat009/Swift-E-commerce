@@ -20,6 +20,9 @@ const { getWallet, exportStatement, adjustWallet } = require('../controllers/wal
 const { blockDemoAdmin } = require('../controllers/demoAuthController');
 const { getInsights } = require('../controllers/insightController');
 const { sendCustomerEmail, listCustomerEmails } = require('../controllers/customerEmailController');
+const { getPaymentSettings, updatePaymentSettings, testPaymentGateway } = require('../controllers/paymentSettingsController');
+const { paymentSettingsRules } = require('../validations/paymentSettingsValidation');
+const { validate } = require('../middleware/validationMiddleware');
 
 const customerEmailLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -62,6 +65,11 @@ router.post('/users/:id/email', customerEmailLimiter, sendCustomerEmail);
 router.get('/wallet', getWallet);
 router.get('/wallet/statement.csv', exportStatement);
 router.post('/wallet/adjust', requireSuperAdmin, adjustWallet);
+
+// Payment gateways: any admin can view and test; only a super admin can change switches or keys
+router.get('/payment-settings', getPaymentSettings);
+router.put('/payment-settings', requireSuperAdmin, paymentSettingsRules, validate, updatePaymentSettings);
+router.post('/payment-settings/test/:method', testPaymentGateway);
 
 // Admin orders management routes
 router.get('/orders', getAllOrders);

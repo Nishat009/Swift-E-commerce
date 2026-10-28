@@ -56,7 +56,11 @@ export default function CheckoutPage() {
       .get('/payments/methods')
       .then((res) => {
         const m = res.data?.data?.methods;
-        if (m) setEnabledMethods({ cod: true, bkash: Boolean(m.bkash), card: Boolean(m.card) });
+        if (!m) return;
+        const next = { cod: m.cod !== false, bkash: Boolean(m.bkash), card: Boolean(m.card) };
+        setEnabledMethods(next);
+        // Cash on delivery can be switched off in the admin panel: start on a method that is offered
+        if (!next.cod) setPaymentMethod((current) => (next[current as keyof typeof next] ? current : (next.card ? 'card' : 'bkash')));
       })
       .catch(() => {});
   }, []);
@@ -64,7 +68,7 @@ export default function CheckoutPage() {
   const paymentOptions = [
     { id: 'card', label: 'Credit / Debit Card', hint: 'Pay securely with Stripe', enabled: enabledMethods.card },
     { id: 'bkash', label: 'bKash', hint: 'Pay with your bKash wallet', enabled: enabledMethods.bkash },
-    { id: 'cod', label: 'Cash on Delivery', hint: 'Pay when your order arrives', enabled: true },
+    { id: 'cod', label: 'Cash on Delivery', hint: 'Pay when your order arrives', enabled: enabledMethods.cod },
   ].filter((o) => o.enabled);
   // Cash on delivery: where the parcel goes decides the delivery charge (the server prices it)
   const [deliveryZone, setDeliveryZone] = useState<DeliveryZone | ''>('');

@@ -138,7 +138,7 @@ const cardReturn = async (req, res) => {
 // @route   POST /api/payments/stripe/webhook
 // @access  Public (signature verified)
 const stripeWebhook = async (req, res) => {
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  if (!require('../services/paymentSettings').credential('card', 'webhookSecret')) {
     return res.status(404).json({ success: false, message: 'Webhook not configured' });
   }
   const event = payments.verifyStripeWebhook(req.rawBody, req.headers['stripe-signature']);
