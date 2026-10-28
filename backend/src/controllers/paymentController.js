@@ -17,8 +17,11 @@ const initiateOrderPayment = async (req, res, next) => {
   try {
     // Orders whose payment window has passed are cancelled first, so they cannot be paid late
     await expireUnpaidOrders();
-    const order = mongoose.isValidObjectId(req.params.orderId) ? await Order.findById(req.params.orderId) : null;
-    if (!order || order.user.toString() !== req.user.id) {
+    // Scoped to the caller: another customer's order is simply not found
+    const order = mongoose.isValidObjectId(req.params.orderId)
+      ? await Order.findOne({ _id: req.params.orderId, user: req.user.id })
+      : null;
+    if (!order) {
       return sendError(res, 'Order not found', 404);
     }
     if (['Cancelled', 'Returned'].includes(order.orderStatus)) {

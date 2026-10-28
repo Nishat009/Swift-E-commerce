@@ -17,6 +17,7 @@ const {
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize, requireSuperAdmin } = require('../middleware/roleMiddleware');
+const { blockDemoAdmin } = require('../controllers/demoAuthController');
 const { validate } = require('../middleware/validationMiddleware');
 const { orderRules, quoteRules } = require('../validations/orderValidation');
 
@@ -36,7 +37,7 @@ router.get('/:id/refund-quote', authorize('admin'), getRefundQuote);
 router.post('/:id/return-request/respond', respondToRefundOffer);
 
 // Admin routes
-router.put('/:id/status', authorize('admin'), updateOrderStatus);
+router.put('/:id/status', authorize('admin'), blockDemoAdmin, updateOrderStatus);
 // Super admin only: set any status at any stage, and refund a cancelled / returned paid order
 router.put('/:id/override-status', authorize('admin'), requireSuperAdmin, overrideOrderStatus);
 router.post('/:id/refund', authorize('admin'), requireSuperAdmin, refundOrder);

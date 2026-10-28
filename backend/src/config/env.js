@@ -9,6 +9,10 @@ const validateEnv = () => {
     }
   }
 
+  if (process.env.PAYMENT_SETTINGS_KEY && process.env.PAYMENT_SETTINGS_KEY.length < 32) {
+    problems.push('PAYMENT_SETTINGS_KEY must be at least 32 characters');
+  }
+
   if (isProd) {
     if (!process.env.MONGO_URI) problems.push('MONGO_URI must be set in production');
     if (!process.env.FRONTEND_URL) problems.push('FRONTEND_URL must be set in production');
@@ -22,6 +26,10 @@ const validateEnv = () => {
   }
   if (isProd && !process.env.BACKEND_URL) {
     console.warn('[config] BACKEND_URL is not set: payment callbacks and upload links may point to the wrong address.');
+  }
+
+  if (isProd && !process.env.PAYMENT_SETTINGS_KEY) {
+    console.warn('[config] PAYMENT_SETTINGS_KEY is not set: gateway keys cannot be saved from the admin panel (environment keys still work).');
   }
 
   if (isProd && String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() === 'true' && String(process.env.DEMO_LOGIN_ROLES || 'customer,admin').includes('admin')) {

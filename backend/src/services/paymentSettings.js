@@ -20,12 +20,23 @@ const GATEWAYS = ['cod', 'bkash', 'card'];
 let cache = null;
 
 // ------------------------------------------------------------ encryption ---
-// AES-256-GCM with a key derived from PAYMENT_SETTINGS_KEY (or JWT_SECRET). If that secret changes,
-// stored credentials can no longer be read and count as empty, so the env values take over.
-const encryptionKey = () =>
-  crypto.createHash('sha256').update(String(process.env.PAYMENT_SETTINGS_KEY || process.env.JWT_SECRET || '')).digest();
+// AES-256-GCM with a random IV and a key derived from PAYMENT_SETTINGS_KEY. Production needs that
+// dedicated secret, so one leaked JWT_SECRET cannot also unlock gateway keys; in development and
+// tests JWT_SECRET stands in. If the secret changes, stored credentials can no longer be read and
+// count as empty, so the env values take over.
+const MIN_KEY_LENGTH = 32;
+const encryptionSecret = () => {
+  if (process.env.PAYMENT_SETTINGS_KEY) return process.env.PAYMENT_SETTINGS_KEY;
+  return process.env.NODE_ENV === 'production' ? '' : String(process.env.JWT_SECRET || '');
+};
+
+/** Whether gateway keys can be saved from the admin panel (an encryption secret is configured). */
+const canStoreCredentials = () => encryptionSecret().length >= MIN_KEY_LENGTH;
+
+const encryptionKey = () => crypto.createHash('sha256').update(encryptionSecret()).digest();
 
 const encrypt = (plain) => {
+  if (!canStoreCredentials()) throw new Error('PAYMENT_SETTINGS_KEY is not set');
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
   const data = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
@@ -33,7 +44,7 @@ const encrypt = (plain) => {
 };
 
 const decrypt = (stored) => {
-  if (!stored) return '';
+  if (!stored || !canStoreCredentials()) return '';
   try {
     const [version, iv, tag, data] = String(stored).split(':');
     if (version !== 'v1') return '';
@@ -88,6 +99,7 @@ const adminView = () => {
   view.bkash.mode = cache?.bkash?.mode || '';
   view.bkash.effectiveMode = bkashBaseUrl() === BKASH_URLS.live ? 'live' : (bkashBaseUrl() === BKASH_URLS.sandbox ? 'sandbox' : 'custom');
   view.card.testMode = credential('card', 'secretKey').startsWith('sk_test_');
+  view.canStoreCredentials = canStoreCredentials();
   view.updatedAt = cache?.updatedAt || null;
   view.updatedByName = cache?.updatedByName || '';
   return view;
@@ -128,6 +140,7 @@ module.exports = {
   isGatewayEnabled,
   bkashBaseUrl,
   bdtPerUsd,
+  canStoreCredentials,
   adminView,
   update,
   encrypt,

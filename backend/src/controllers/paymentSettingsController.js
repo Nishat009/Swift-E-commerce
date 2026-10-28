@@ -28,6 +28,13 @@ const updatePaymentSettings = async (req, res, next) => {
       typeof changes[gateway]?.enabled === 'boolean' ? changes[gateway].enabled : settings.isGatewayEnabled(gateway));
     if (!stillOn) return sendError(res, 'Keep at least one payment method switched on.', 400);
 
+    // New gateway keys are only stored encrypted; without a configured secret they are refused
+    const savesCredential = ['bkash', 'card'].some((gateway) =>
+      Object.values(changes[gateway]?.credentials || {}).some((value) => typeof value === 'string' && value.trim()));
+    if (savesCredential && !settings.canStoreCredentials()) {
+      return sendError(res, 'Gateway keys cannot be saved until PAYMENT_SETTINGS_KEY (32+ characters) is set on the server. Switches and the Taka rate can still be changed.', 400);
+    }
+
     const view = await settings.update(changes, req.user);
     payments.resetGatewayCache();
 

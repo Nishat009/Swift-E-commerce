@@ -20,6 +20,7 @@ interface Settings {
   available: Record<Gateway, boolean>;
   mock: boolean;
   canEdit: boolean;
+  canStoreCredentials: boolean;
   updatedAt: string | null;
   updatedByName: string;
 }
@@ -125,6 +126,11 @@ export default function PaymentSettingsAdmin() {
       {!canEdit && (
         <p className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
           <Lock className="w-4 h-4 flex-shrink-0" /> View only: a super admin can change payment settings (the shared demo admin cannot).
+        </p>
+      )}
+      {canEdit && !settings.canStoreCredentials && (
+        <p className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
+          <Lock className="w-4 h-4 flex-shrink-0" /> Saving gateway keys needs PAYMENT_SETTINGS_KEY on the server. Switches and the Taka rate work without it, and keys from the server environment are still used.
         </p>
       )}
       {settings.mock && (
