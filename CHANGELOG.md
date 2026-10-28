@@ -2,6 +2,16 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-28 (third update)
+### Security
+- New [SECURITY.md](SECURITY.md) at the repository root: how requests are authorized, how ownership is checked, and a generated table of all 101 routes that change data with their guard and source file and line. A test fails if the table no longer matches the routers.
+- The route-guard policy (public / signed-in / admin) lives in `backend/src/config/routePolicy.js`, shared by the test and the table generator (`npm --prefix backend run routes:doc`).
+
+### Changed
+- The store's public category list only shows categories that have products, so old categories without products (such as furniture left in the live database) no longer appear in the menu. Admins still see every category in the admin panel.
+- `npm run seed` creates only the fashion catalog (the same 9 categories and 31 products as `seed:catalog` and the live demo); the sample furniture is gone, and search suggestions no longer offer "Sofa" or "Chair".
+- AGENTS.md describes the project; `tsconfig.tsbuildinfo` (a build cache) is no longer tracked in git.
+
 ## 2026-10-28 (second update)
 ### Security
 - Sign-in sessions are stored on the server: the refresh cookie's secret is kept only as a hash, rotates on every refresh, and is revoked on logout. Replaying an old refresh token signs that user out everywhere. Existing sessions from before this change need to sign in once more.
