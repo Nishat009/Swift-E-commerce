@@ -591,7 +591,8 @@ The repository records these deployment addresses:
 
 | Component | Recorded address |
 | --- | --- |
-| Frontend | `https://swift-e-commerce-eta.vercel.app` |
+| Live demo (store) | `https://swift-e-commerce-eta.vercel.app/shop` |
+| Frontend (landing page) | `https://swift-e-commerce-eta.vercel.app` |
 | Backend API | `https://swift-e-commerce.onrender.com/api` |
 
 These addresses are configuration references; their availability has not been checked for this guide.

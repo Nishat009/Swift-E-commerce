@@ -7,7 +7,8 @@ For a complete, human-readable explanation of the project, read the [Complete Pr
 
 | | Link |
 | :--- | :--- |
-| 🌐 **Live site** | **https://swift-e-commerce-eta.vercel.app** |
+| 🌐 **Live demo (store)** | **https://swift-e-commerce-eta.vercel.app/shop** |
+| 🏠 Landing page | https://swift-e-commerce-eta.vercel.app |
 | ⚙️ **Live API** | https://swift-e-commerce.onrender.com/api |
 | 📘 **API docs (Swagger)** | https://swift-e-commerce.onrender.com/api-docs |
 

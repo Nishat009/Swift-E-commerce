@@ -23,6 +23,8 @@ import { useDemoAccess } from '@/components/auth/DemoLoginButtons';
 
 // ?demo=1 keeps the sign-in page (and its demo logins) on screen even for a visitor who is already signed in
 const DEMO_LOGIN_HREF = '/auth/login?demo=1';
+// Live Demo opens the store itself; visitors can browse without signing in
+const LIVE_DEMO_HREF = '/shop';
 
 const NAV = [
   { href: '#features', label: 'Features' },
@@ -99,7 +101,7 @@ export default function LandingPage() {
             <Link href="/admin/login" className="rounded-full border border-white/20 px-4 py-2 text-xs font-bold transition-colors hover:border-[#c9a96b] hover:text-[#c9a96b]">
               Admin Panel
             </Link>
-            <Link href={DEMO_LOGIN_HREF} className="rounded-full bg-[#c9a96b] px-5 py-2 text-xs font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80]">
+            <Link href={LIVE_DEMO_HREF} className="rounded-full bg-[#c9a96b] px-5 py-2 text-xs font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80]">
               Live Demo
             </Link>
           </div>
@@ -114,7 +116,7 @@ export default function LandingPage() {
             ))}
             <div className="flex gap-2 pt-2">
               <Link href="/admin/login" className="flex-1 rounded-full border border-white/20 py-2.5 text-center text-xs font-bold">Admin Panel</Link>
-              <Link href={DEMO_LOGIN_HREF} className="flex-1 rounded-full bg-[#c9a96b] py-2.5 text-center text-xs font-bold text-[#17110f]">Live Demo</Link>
+              <Link href={LIVE_DEMO_HREF} className="flex-1 rounded-full bg-[#c9a96b] py-2.5 text-center text-xs font-bold text-[#17110f]">Live Demo</Link>
             </div>
           </div>
         )}
@@ -135,14 +137,14 @@ export default function LandingPage() {
               Stripe and bKash payments, and an admin panel that runs the whole business.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={DEMO_LOGIN_HREF} className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-7 py-3.5 text-sm font-bold text-[#17110f] shadow-lg shadow-[#c9a96b]/20 transition-colors hover:bg-[#d8bb80]">
+              <Link href={LIVE_DEMO_HREF} className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-7 py-3.5 text-sm font-bold text-[#17110f] shadow-lg shadow-[#c9a96b]/20 transition-colors hover:bg-[#d8bb80]">
                 Live Demo <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link href="/admin/login" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-7 py-3.5 text-sm font-bold transition-colors hover:border-[#c9a96b] hover:text-[#c9a96b]">
                 <ShieldCheck className="h-4 w-4" /> Admin Panel
               </Link>
-              <Link href="/shop" className="inline-flex items-center justify-center gap-2 px-3 py-3.5 text-sm font-bold text-[#d9cdbd] underline-offset-4 hover:text-white hover:underline">
-                Browse the store
+              <Link href={DEMO_LOGIN_HREF} className="inline-flex items-center justify-center gap-2 px-3 py-3.5 text-sm font-bold text-[#d9cdbd] underline-offset-4 hover:text-white hover:underline">
+                Customer demo login
               </Link>
             </div>
             <dl className="mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-white/10 pt-6">
@@ -250,7 +252,7 @@ export default function LandingPage() {
           </div>
           <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
             {[
-              { role: 'customer' as const, icon: UserIcon, title: 'Customer demo', text: 'Browse, try on, add to cart, check out and track orders.', href: DEMO_LOGIN_HREF, cta: 'Live Demo' },
+              { role: 'customer' as const, icon: UserIcon, title: 'Customer demo', text: 'Browse, try on, add to cart, check out and track orders.', href: DEMO_LOGIN_HREF, cta: 'Sign in as customer' },
               { role: 'admin' as const, icon: ShieldCheck, title: 'Admin demo', text: 'Dashboard, products, orders, campaigns, customers and reports.', href: '/admin/login', cta: 'Open Admin Panel' },
             ].map(({ role, icon: Icon, title, text, href, cta }) => {
               const cred = credentialFor(role);
@@ -280,8 +282,8 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm sm:flex-row sm:px-6 lg:px-8">
           <span className="font-serif font-extrabold uppercase tracking-widest text-[#c9a96b]">SwiftCart</span>
           <nav className="flex flex-wrap items-center justify-center gap-5" aria-label="Footer">
-            <Link href="/shop" className="hover:text-white">Shop</Link>
-            <Link href={DEMO_LOGIN_HREF} className="hover:text-white">Live Demo</Link>
+            <Link href={LIVE_DEMO_HREF} className="hover:text-white">Live Demo</Link>
+            <Link href={DEMO_LOGIN_HREF} className="hover:text-white">Customer login</Link>
             <Link href="/admin/login" className="inline-flex items-center gap-1.5 rounded-full border border-[#c9a96b]/40 px-3 py-1.5 text-[#c9a96b] hover:bg-[#c9a96b]/10">
               <ShieldCheck className="h-3.5 w-3.5" /> Admin Panel
             </Link>
