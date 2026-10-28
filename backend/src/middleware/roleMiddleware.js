@@ -2,7 +2,7 @@ const { sendError } = require('../utils/response');
 const { isDemoAccount } = require('../controllers/demoAuthController');
 
 const authorize = (...roles) => {
-  return (req, res, next) => {
+  const guard = (req, res, next) => {
     if (!req.user) {
       return sendError(res, 'Authorization failed, user not authenticated', 401);
     }
@@ -17,6 +17,9 @@ const authorize = (...roles) => {
 
     next();
   };
+  // Lets tests/route-guards.test.js read which roles a route requires
+  guard.roles = roles;
+  return guard;
 };
 
 // The user model only has 'customer' and 'admin', so "super admin" is the strictest admin: a real

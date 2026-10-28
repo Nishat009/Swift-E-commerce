@@ -132,7 +132,7 @@ test('admins still see every product', async () => {
   const all = await api('GET', '/api/products?all=true', tokens.admin);
   assert.equal(all.json.data.length, 3);
   assert.equal((await api('GET', `/api/products/${products.draft.id}`, tokens.admin)).status, 200);
-  assert.equal((await api('GET', '/api/products?limit=999999')).json.limit, 500, 'page size is capped');
+  assert.equal((await api('GET', '/api/products?limit=999999')).json.limit, 200, 'public page size is capped');
 });
 
 test('draft campaigns are hidden from guests, private ones are unlisted, sales close at the draw date', async () => {
@@ -329,4 +329,92 @@ test('the demo admin can browse but cannot change roles, delete users or touch d
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
   }
+});
+
+// ---- Refresh sessions: stored server-side, rotated, revoked on logout, replay ends every session
+const cookieCall = async (path, cookie) => {
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: '{}' });
+  const set = (res.headers.getSetCookie?.() || []).find((c) => c.startsWith('refreshToken='));
+  const value = set ? set.split(';')[0] : null;
+  return { status: res.status, json: await res.json().catch(() => null), cookie: value && value !== 'refreshToken=' ? value : null };
+};
+const signIn = async () => {
+  const res = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'refresh@test.dev', password: 'Password123!' }) });
+  return (res.headers.getSetCookie?.() || []).find((c) => c.startsWith('refreshToken=')).split(';')[0];
+};
+
+test('refresh tokens rotate, and logout ends the session on the server', async () => {
+  const User = require('../src/models/User');
+  const RefreshSession = require('../src/models/RefreshSession');
+  await User.create({ name: 'Refresh', email: 'refresh@test.dev', password: 'Password123!', role: 'customer' });
+
+  const first = await signIn();
+  const session = await RefreshSession.findOne({}).sort({ createdAt: -1 }).lean();
+  assert.ok(session.tokenHash && !first.includes(session.tokenHash), 'only a hash of the secret is stored');
+
+  const rotated = await cookieCall('/api/auth/refresh', first);
+  assert.equal(rotated.status, 200);
+  assert.ok(rotated.cookie && rotated.cookie !== first, 'a new refresh token every time');
+
+  assert.equal((await cookieCall('/api/auth/logout', rotated.cookie)).status, 200);
+  assert.equal((await cookieCall('/api/auth/refresh', rotated.cookie)).status, 401, 'a logged-out cookie no longer works');
+  assert.ok((await RefreshSession.findById(session._id)).revokedAt);
+});
+
+test('replaying an old refresh token ends every session of that user', async () => {
+  const User = require('../src/models/User');
+  const RefreshSession = require('../src/models/RefreshSession');
+  const stolen = await signIn();
+  const otherDevice = await signIn();
+  const current = (await cookieCall('/api/auth/refresh', stolen)).cookie;
+  assert.ok(current);
+
+  // A second tab that refreshed with the same cookie a moment ago still gets through
+  assert.equal((await cookieCall('/api/auth/refresh', stolen)).status, 200, 'grace window for parallel tabs');
+
+  // Outside the grace window the same old cookie is a replay
+  await RefreshSession.updateMany({}, { $set: { rotatedAt: new Date(Date.now() - 5 * 60 * 1000) } });
+  const versionBefore = (await User.findOne({ email: 'refresh@test.dev' })).tokenVersion || 0;
+  assert.equal((await cookieCall('/api/auth/refresh', stolen)).status, 401);
+  assert.equal((await cookieCall('/api/auth/refresh', otherDevice)).status, 401, 'other sessions are revoked too');
+  assert.equal((await User.findOne({ email: 'refresh@test.dev' })).tokenVersion, versionBefore + 1, 'access tokens are invalidated as well');
+});
+
+test('the demo admin sees customer contact details masked and cannot read email history or export statements', async () => {
+  const User = require('../src/models/User');
+  await User.create({ name: 'Carla Customer', email: 'carla.private@test.dev', password: 'Password123!', role: 'customer', phone: '+8801712345678' });
+  process.env.DEMO_LOGIN_ENABLED = 'true';
+  try {
+    const demo = (await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).json.data.accessToken;
+    const users = JSON.stringify((await api('GET', '/api/admin/users?limit=200', demo)).json);
+    assert.ok(!users.includes('carla.private@test.dev'), 'email is masked');
+    assert.ok(users.includes('c•••@test.dev'));
+    assert.ok(!users.includes('Carla Customer') && users.includes('Carla C.'), 'surname is masked');
+    assert.ok(!users.includes('12345678'), 'phone is masked');
+
+    const real = JSON.stringify((await api('GET', '/api/admin/users?limit=200', tokens.admin)).json);
+    assert.ok(real.includes('carla.private@test.dev'), 'a real admin sees the real details');
+    const own = (await api('GET', '/api/auth/profile', demo)).json.data;
+    assert.equal((own.user || own).email, 'admin@swiftcart.demo', 'the demo admin still sees its own profile');
+
+    const carla = await User.findOne({ email: 'carla.private@test.dev' });
+    assert.equal((await api('GET', `/api/admin/users/${carla.id}/emails`, demo)).status, 403);
+    assert.equal((await fetch(`${BASE}/api/admin/wallet/statement.csv`, { headers: { Authorization: `Bearer ${demo}` } })).status, 403);
+  } finally {
+    delete process.env.DEMO_LOGIN_ENABLED;
+  }
+});
+
+test('products carry their badges, the badge filter uses the same rules, and numeric ids are not guessed', async () => {
+  const Product = require('../src/models/Product');
+  const sale = await Product.create(productFields('Badge Sale Tee', { discountPercentage: 20, stock: 2, newArrival: true }));
+  const listed = (await api('GET', '/api/products?tag=Sale&limit=50')).json.products;
+  const found = listed.find((p) => p.id === sale.id);
+  assert.ok(found, 'the Sale filter finds the discounted product');
+  assert.deepEqual(found.badges, ['Sale', 'Low Stock', 'New']);
+  assert.ok(listed.every((p) => p.badges.includes('Sale')), 'every Sale result carries the Sale badge');
+
+  assert.equal((await api('GET', '/api/products/1')).status, 404, 'no positional lookup by number');
+  assert.equal((await api('GET', '/api/products?limit=1000')).json.limit, 200, 'public pages are capped at 200');
+  assert.equal((await api('GET', '/api/products?limit=1000&all=true', tokens.admin)).json.limit, 500);
 });
