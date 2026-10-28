@@ -2,6 +2,21 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-27
+### Added
+- Admin panel **Cancellations & Returns** tab: cancelled orders, return requests and refunds in one place, with filters, totals and a button to open each order and act on it.
+- Admin panel **Payment Settings** tab: switch cash on delivery, bKash and card on or off, choose bKash sandbox or live, set the Taka rate, save gateway keys (encrypted, never shown again) and test the connection. Only a super admin can save changes; keys left empty use the server environment values.
+
+### Fixed
+- The store no longer shows 0 products on a database without public products: the backend adds the fashion catalog at startup when no product is visible (insert-only; `AUTO_SEED_CATALOG=false` turns it off).
+- "Explore Full Catalog" / All Products: one request per filter change (no second request when the catalog arrives), stale answers are ignored, and a "waking up the server" note appears during a slow first load.
+- The shop header and footer no longer appear inside the admin panel; the admin header now has its own notifications bell and dark-mode toggle.
+- Checkout hides cash on delivery when it is switched off in Payment Settings.
+- Shop homepage categories only list categories that have products.
+
+### Changed
+- The Live Demo links (landing page and README) open the store at `/shop` instead of the sign-in page.
+
 ## 2026-10-25
 ### Changed
 - The storefront homepage (`/shop`) is back to the full design: lookbook slider, curated wardrobe tabs, AI picks, runway edit, banners, perks and newsletter. The landing page at `/` is unchanged.
