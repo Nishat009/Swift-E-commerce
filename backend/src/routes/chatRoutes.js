@@ -1,6 +1,7 @@
 const express = require('express');
 const { chatLimiter } = require('../config/rateLimits');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const ChatMessage = require('../models/ChatMessage');
 const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -9,6 +10,8 @@ const { advise } = require('../services/stylistService');
 const router = express.Router();
 const statuses = ['unread', 'read', 'archived'];
 const clean = (value) => (typeof value === 'string' ? value.trim() : '');
+// Keyed hash, so the stored value cannot be turned back into the address
+const hashIp = (ip) => (ip ? crypto.createHmac('sha256', String(process.env.JWT_SECRET)).update(String(ip)).digest('hex').slice(0, 32) : '');
 
 // Sign-in is optional: a signed-in customer's identity is recorded with the message
 router.post('/', chatLimiter, optionalAuth, async (req, res, next) => {
@@ -27,7 +30,7 @@ router.post('/', chatLimiter, optionalAuth, async (req, res, next) => {
       message,
       assistantReply: reply.text,
       suggestedProducts: reply.products,
-      ip: req.ip || '',
+      ipHash: hashIp(req.ip),
     });
     res.status(201).json({ success: true, data: { ...doc.toJSON(), reply } });
   } catch (error) {

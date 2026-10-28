@@ -8,6 +8,8 @@ const path = require('path');
 
 const setupSwagger = require('./utils/swagger');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { apiLimiter } = require('./config/rateLimits');
+const { maskForDemoAdmin } = require('./middleware/demoPrivacy');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -112,12 +114,15 @@ app.use((req, res, next) => {
 // 5. Rate Limiter (protect against brute force attacks)
 // General API limit. A single page load makes 10-20 calls, so this is sized for real browsing;
 // sign-in, OTP and payment routes keep their own much stricter limiters.
-app.use('/api', require('./config/rateLimits').apiLimiter);
+app.use('/api', apiLimiter);
 
 // 6. Static files mapping (local uploads fallback folder)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // 7. Route bindings
+// The shared demo admin never receives real customer contact details
+app.use('/api', maskForDemoAdmin);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);

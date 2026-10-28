@@ -34,17 +34,18 @@ router.get('/dashboard', getDashboardStats);
 router.get('/insights', getInsights);
 router.post('/copy-draft', copyDraftRules, validate, generateCopyDraft);
 router.get('/users', getAllUsers);
-// The shared demo admin can look around but not change accounts, email customers or call gateways
+// The shared demo admin can look around (with customer contact details masked, see demoPrivacy.js)
+// but not change accounts, read or send customer emails, export statements or call gateways
 router.put('/users/:id/role', blockDemoAdmin, updateUserRole);
 router.delete('/users/:id', blockDemoAdmin, deleteUser);
 router.get('/users/:id/cart', getUserCart);
 router.get('/users/:id/wishlist', getUserWishlist);
-router.get('/users/:id/emails', listCustomerEmails);
+router.get('/users/:id/emails', blockDemoAdmin, listCustomerEmails);
 router.post('/users/:id/email', blockDemoAdmin, customerEmailLimiter, sendCustomerEmail);
 
 // Store wallet (account statement); only a super admin can add or withdraw funds by hand
 router.get('/wallet', getWallet);
-router.get('/wallet/statement.csv', exportStatement);
+router.get('/wallet/statement.csv', blockDemoAdmin, exportStatement);
 router.post('/wallet/adjust', requireSuperAdmin, adjustWallet);
 
 // Payment gateways: any admin can view and test; only a super admin can change switches or keys

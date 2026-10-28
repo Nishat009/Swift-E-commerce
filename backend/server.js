@@ -32,6 +32,8 @@ const startServer = async () => {
   await require('./src/utils/activityLog').backfillActorRoles();
   // Shared demo accounts, when DEMO_LOGIN_ENABLED and DEMO_PASSWORD are set
   await require('./src/controllers/demoAuthController').ensureDemoAccounts();
+  // Chat logs from before IPs were hashed: drop the plain address
+  await require('./src/models/ChatMessage').updateMany({ ip: { $exists: true } }, { $unset: { ip: 1 } }, { strict: false });
   // Payment gateway switches and keys saved from the admin panel
   await require('./src/services/paymentSettings').load();
   // Demo catalog when the store has no public product (an empty live database)
