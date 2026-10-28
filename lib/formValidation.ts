@@ -11,3 +11,7 @@ export const newPasswordError = (password: string) => {
   if (password.length < MIN_PASSWORD_LENGTH) return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
   return '';
 };
+
+/** '' when the confirmation matches the password, otherwise the message to show. */
+export const passwordMatchError = (password: string, confirmation: string) =>
+  (password === confirmation ? '' : 'Passwords do not match');

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { safeRedirectPath } from '@/lib/safeRedirect';
-import { requiredError, newPasswordError } from '@/lib/formValidation';
+import { requiredError, newPasswordError, passwordMatchError } from '@/lib/formValidation';
 import { useToast } from '@/context/ToastContext';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
@@ -69,7 +69,7 @@ function RegisterFormContent() {
       name: requiredError(formData.name, 'Name'),
       email: requiredError(formData.email, 'Email'),
       password: newPasswordError(formData.password),
-      confirmPassword: formData.password !== formData.confirmPassword ? 'Passwords do not match' : '',
+      confirmPassword: passwordMatchError(formData.password, formData.confirmPassword),
       agreeTerms: formData.agreeTerms ? '' : 'You must agree to the Terms & Conditions',
     };
     const newErrors = Object.fromEntries(Object.entries(fieldErrors).filter(([, message]) => message));

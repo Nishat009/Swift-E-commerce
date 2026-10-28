@@ -11,7 +11,7 @@ import Input from '@/components/ui/Input';
 import { ShieldCheck, Key } from 'lucide-react';
 import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
-import { newPasswordError } from '@/lib/formValidation';
+import { newPasswordError, passwordMatchError } from '@/lib/formValidation';
 
 export default function SettingsPage() {
   const { user, updateProfile, refreshUser } = useAuth();
@@ -45,8 +45,9 @@ export default function SettingsPage() {
       toast.error(passwordProblem);
       return;
     }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match.');
+    const matchProblem = passwordMatchError(passwordData.newPassword, passwordData.confirmPassword);
+    if (matchProblem) {
+      toast.error(matchProblem);
       return;
     }
     

@@ -120,10 +120,8 @@ export default function ProductDetailPage() {
   };
 
 
-  // Normalize product payload cleanly
-  const product = useMemo(() => {
-    return rawProduct ? normalizeProduct(rawProduct) : null;
-  }, [rawProduct]);
+  // loadProduct stores the product already normalized
+  const product = rawProduct;
 
   const [checkedBundleIds, setCheckedBundleIds] = useState<string[]>([]);
   useEffect(() => {
@@ -206,25 +204,18 @@ export default function ProductDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
-  // Calculate current price (incorporating variant price delta if any)
-  const calculatedPrice = useMemo(() => {
-    if (!product) return 0;
-    let base = product.price;
-    Object.values(selectedVariants).forEach((opt) => {
-      if (opt.priceDelta) base += opt.priceDelta;
-    });
-    return base;
-  }, [product, selectedVariants]);
+  // Current price: base price plus the selected variants' price deltas (a cheap number, no memo needed)
+  const calculatedPrice = product
+    ? Object.values(selectedVariants).reduce((sum, opt) => sum + (opt.priceDelta || 0), product.price)
+    : 0;
 
-  // Calculate available stock for current selection
-  const currentStock = useMemo(() => {
-    if (!product) return 0;
-    const selectedOptionsList = Object.values(selectedVariants);
-    if (selectedOptionsList.length > 0) {
-      return selectedOptionsList[0].stock;
-    }
-    return product.totalStock || product.stock;
-  }, [product, selectedVariants]);
+  // Available stock for the current selection
+  const selectedOptionsList = Object.values(selectedVariants);
+  const currentStock = !product
+    ? 0
+    : selectedOptionsList.length > 0
+      ? selectedOptionsList[0].stock
+      : product.totalStock || product.stock;
 
   // Determine active variant image override if any
   const activeVariantImage = useMemo(() => {
