@@ -14,14 +14,16 @@
     "db:seed-sql": "node scripts/exportSeedSql.js",
     "db:init": "node scripts/initDb.js",
     "db:schema": "node scripts/initDb.js --dump --dump-only",
-    "test": "node --test tests/google-auth.test.js tests/draw-flow.test.js tests/security.test.js tests/order-flow.test.js tests/features.test.js tests/catalog-data.test.js",
-    "test:security": "node --test tests/security.test.js"
+    "test": "node --test tests/google-auth.test.js tests/draw-flow.test.js tests/security.test.js tests/order-flow.test.js tests/features.test.js tests/catalog-data.test.js tests/route-guards.test.js",
+    "test:security": "node --test tests/security.test.js",
+    "test:routes": "node --test tests/route-guards.test.js",
+    "test:live": "node tests/commerce-flow.live.cjs && node tests/user-dashboard.live.cjs"
   },
   "engines": {
     "node": ">=20.9.0"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
@@ -31,7 +33,7 @@
     "express-rate-limit": "^7.5.1",
     "express-validator": "^7.3.2",
     "google-auth-library": "^11.3.1",
-    "helmet": "^7.2.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.7",
     "morgan": "^1.12.1",
