@@ -10,7 +10,7 @@ const {
   registerRules, loginRules, profileRules, forgotPasswordRules, resetPasswordRules,
   requestOtpRules, verifyOtpRules, verify2FARules
 } = require('../validations/authValidation');
-const { signInLimiter, verifyLimiter, otpRequestLimiter } = require('../config/rateLimits');
+const { signInLimiter, verifyLimiter, otpRequestLimiter, sessionLimiter } = require('../config/rateLimits');
 const { getDemoLoginStatus, demoLogin, isDemoAccount, blockDemoAdmin } = require('../controllers/demoAuthController');
 
 // Demo users may edit their name/address, but not the email or password everyone signs in with
@@ -32,8 +32,8 @@ router.post('/demo-login', signInLimiter, demoLogin);
 
 router.post('/register', signInLimiter, registerRules, validate, register);
 router.post('/login', signInLimiter, loginRules, validate, login);
-router.post('/logout', logout);
-router.post('/refresh', refreshToken);
+router.post('/logout', sessionLimiter, logout);
+router.post('/refresh', sessionLimiter, refreshToken);
 router.post('/forgot-password', otpRequestLimiter, forgotPasswordRules, validate, forgotPassword);
 router.post('/reset-password', verifyLimiter, resetPasswordRules, validate, resetPassword);
 

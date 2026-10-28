@@ -1,11 +1,10 @@
 // Sign-in and session: register, password login, email-code login, refresh and logout.
 // Profile, password reset and two-factor settings live in their own controllers.
 const User = require('../models/User');
-const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
+const { generateAccessToken } = require('../utils/generateTokens');
+const { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } = require('../services/refreshSessions');
 const { sendSuccess, sendError } = require('../utils/response');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { getRequiredSecret } = require('../utils/generateTokens');
 const AuthChallenge = require('../models/AuthChallenge');
 const { noteSignIn, cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendLoginOtp } = require('../services/emailService');
@@ -46,7 +45,7 @@ const register = async (req, res, next) => {
 
     noteSignIn(res, user, 'Registered');
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user, true);
+    const refreshToken = await issueRefreshToken(user, true, req);
 
     // Store refresh token in HttpOnly cookie
     res.cookie('refreshToken', refreshToken, cookieOptions(true));
@@ -87,7 +86,7 @@ const login = async (req, res, next) => {
 
     noteSignIn(res, user, 'Signed in with password');
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user, !!rememberMe);
+    const refreshToken = await issueRefreshToken(user, !!rememberMe, req);
 
     // Store refresh token in HttpOnly cookie
     // Only set maxAge when "Remember Me" is checked; otherwise use a session cookie
@@ -112,6 +111,8 @@ const logout = async (req, res, next) => {
     await AuthChallenge.deleteOne(challengeQuery(req, 'google'));
     clearChallenge(res, 'two-factor');
     clearChallenge(res, 'google');
+    // The server-side session ends too, so a copied refresh cookie stops working
+    await revokeRefreshToken(req.cookies.refreshToken || req.body?.refreshToken);
   } catch (error) {
     return next(error);
   }
@@ -131,24 +132,19 @@ const refreshToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, getRequiredSecret('JWT_REFRESH_SECRET'));
-    const user = await User.findById(decoded.id);
-
-    // Unknown user, or the password changed after this session started
-    if (!user || (decoded.v || 0) !== (user.tokenVersion || 0)) {
+    // Rotates the session secret; null for an invalid, expired, revoked or replayed token
+    const session = await rotateRefreshToken(token);
+    if (!session) {
       res.clearCookie('refreshToken', cookieOptions());
       return sendError(res, 'Invalid refresh token', 401);
     }
 
-    const accessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user, decoded.rm);
-
     // Same lifetime as the original sign-in: persistent only when "remember me" was ticked
-    res.cookie('refreshToken', newRefreshToken, cookieOptions(Boolean(decoded.rm)));
+    res.cookie('refreshToken', session.token, cookieOptions(session.rememberMe));
 
-    return sendSuccess(res, 'Access token refreshed successfully', { accessToken });
+    return sendSuccess(res, 'Access token refreshed successfully', { accessToken: generateAccessToken(session.user) });
   } catch (error) {
-    return sendError(res, 'Invalid or expired refresh token', 401);
+    return next(error);
   }
 };
 
@@ -224,7 +220,7 @@ const verifyOTP = async (req, res, next) => {
 
     noteSignIn(res, user, 'Signed in with email code');
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user, !!rememberMe);
+    const refreshToken = await issueRefreshToken(user, !!rememberMe, req);
 
     res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
 

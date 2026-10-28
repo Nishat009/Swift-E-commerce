@@ -97,7 +97,7 @@ const googleLogin = async (req, res, next) => {
       user = await User.findByIdAndUpdate(user._id, { avatar: identity.avatar }, { new: true });
     }
     if (user.twoFactorEnabled) return await requestSecondFactor(req, res, user, req.body.rememberMe === true);
-    return sendSession(res, user, req.body.rememberMe === true, 'Signed in with Google');
+    return await sendSession(res, user, req.body.rememberMe === true, 'Signed in with Google');
   } catch (error) {
     if (error.code === 11000) return sendError(res, 'This account was just updated. Please try signing in again.', 409);
     next(error);

@@ -1,6 +1,7 @@
 // The signed-in user's own profile and saved addresses.
 const User = require('../models/User');
-const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
+const { generateAccessToken } = require('../utils/generateTokens');
+const { issueRefreshToken } = require('../services/refreshSessions');
 const { sendSuccess, sendError } = require('../utils/response');
 const jwt = require('jsonwebtoken');
 const { cookieOptions } = require('../utils/authSession');
@@ -117,7 +118,7 @@ const updateProfile = async (req, res, next) => {
     let accessToken;
     if (passwordChanged) {
       const remember = Boolean(jwt.decode(req.cookies?.refreshToken || '')?.rm);
-      res.cookie('refreshToken', generateRefreshToken(updatedUser, remember), cookieOptions(remember));
+      res.cookie('refreshToken', await issueRefreshToken(updatedUser, remember, req), cookieOptions(remember));
       accessToken = generateAccessToken(updatedUser);
     }
 

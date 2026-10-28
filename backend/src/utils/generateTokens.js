@@ -16,17 +16,8 @@ const generateAccessToken = (user) => {
   );
 };
 
-// rememberMe is kept in the token so a refresh keeps the same cookie lifetime
-const generateRefreshToken = (user, rememberMe = false) => {
-  return jwt.sign(
-    { id: user.id || user._id, v: user.tokenVersion || 0, rm: Boolean(rememberMe) },
-    getRequiredSecret('JWT_REFRESH_SECRET'),
-    { expiresIn: '7d' }
-  );
-};
-
+// Refresh tokens are issued by services/refreshSessions.js (server-side, rotated, revocable)
 module.exports = {
   generateAccessToken,
-  generateRefreshToken,
   getRequiredSecret,
 };

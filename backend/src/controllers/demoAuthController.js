@@ -70,7 +70,7 @@ const demoLogin = async (req, res, next) => {
     if (user.twoFactorEnabled) {
       return sendError(res, 'Two-factor authentication is on for the demo account. Sign in with the form instead.', 409);
     }
-    return sendSession(res, user, false, role === 'admin' ? 'Signed in as the demo admin' : 'Signed in as a guest shopper');
+    return await sendSession(res, user, false, role === 'admin' ? 'Signed in as the demo admin' : 'Signed in as a guest shopper');
   } catch (error) {
     next(error);
   }

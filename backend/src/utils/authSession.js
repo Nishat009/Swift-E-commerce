@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const AuthChallenge = require('../models/AuthChallenge');
-const { generateAccessToken, generateRefreshToken } = require('./generateTokens');
+const { generateAccessToken } = require('./generateTokens');
+const { issueRefreshToken } = require('../services/refreshSessions');
 const { sendSuccess } = require('./response');
 
 const cookieOptions = (rememberMe = false) => ({
@@ -54,10 +55,11 @@ const noteSignIn = (res, user, message) => {
   require('./activityLog').logActivity({ user, ip: res.req?.ip }, 'Signed In', `${user.email}: ${message}`, 'auth');
 };
 
-const sendSession = (res, user, rememberMe, message = 'Logged in successfully') => {
+const sendSession = async (res, user, rememberMe, message = 'Logged in successfully') => {
+  const refreshToken = await issueRefreshToken(user, rememberMe, res.req);
   res.set('Cache-Control', 'no-store');
   noteSignIn(res, user, message);
-  res.cookie('refreshToken', generateRefreshToken(user, rememberMe), cookieOptions(rememberMe));
+  res.cookie('refreshToken', refreshToken, cookieOptions(rememberMe));
   return sendSuccess(res, message, { user: publicUser(user), accessToken: generateAccessToken(user) });
 };
 

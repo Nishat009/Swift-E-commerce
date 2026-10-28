@@ -1,6 +1,7 @@
 // Two-factor authentication: setup, enable/disable, recovery codes and the sign-in check.
 const User = require('../models/User');
-const { generateAccessToken, generateRefreshToken } = require('../utils/generateTokens');
+const { generateAccessToken } = require('../utils/generateTokens');
+const { issueRefreshToken } = require('../services/refreshSessions');
 const { sendSuccess, sendError } = require('../utils/response');
 const crypto = require('crypto');
 const { generateSecret, verifyTOTP, generateRecoveryCodes } = require('../utils/totp');
@@ -186,7 +187,7 @@ const verify2FA = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user, challenge.rememberMe);
+    const refreshToken = await issueRefreshToken(user, challenge.rememberMe, req);
 
     res.cookie('refreshToken', refreshToken, cookieOptions(challenge.rememberMe));
 
