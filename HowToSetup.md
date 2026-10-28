@@ -112,9 +112,21 @@ These accounts are for local demos only. Never run the seed scripts against a pr
 
 ## 7. Run the tests (optional)
 
+MongoDB must be running. The tests use their own `swiftcart_*_test` databases and never touch `swiftcart`.
+
 ```bash
-npm --prefix backend test
+npm --prefix backend test          # all backend tests, including the route-guard policy check
+npm run lint                       # frontend lint
 ```
+
+Two end-to-end checks run against a running local backend instead. Start it with `npm --prefix backend run dev`, then:
+
+```bash
+# TEST_ADMIN_PASSWORD (or SEED_PASSWORD) = the seeded admin's password; the API defaults to http://localhost:5000/api
+npm --prefix backend run test:live
+```
+
+They create a temporary product, order and customer and delete them again at the end.
 
 ## Production build
 

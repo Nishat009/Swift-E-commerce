@@ -2,6 +2,23 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-28 (second update)
+### Security
+- Sign-in sessions are stored on the server: the refresh cookie's secret is kept only as a hash, rotates on every refresh, and is revoked on logout. Replaying an old refresh token signs that user out everywhere. Existing sessions from before this change need to sign in once more.
+- `/api/auth/refresh` and `/api/auth/logout` are rate-limited.
+- The shared demo admin sees customer emails, phone numbers, street addresses, IPs and surnames masked, and can no longer read customer email history or export the wallet statement.
+- A route-guard test checks every POST/PUT/PATCH/DELETE route against an explicit public / signed-in / admin policy.
+- Chat messages store a keyed hash of the sender's IP instead of the address and are deleted after `CHAT_RETENTION_DAYS` (default 180).
+- Dependencies: bcryptjs 3.0 and helmet 8.3. `npm audit` (dev dependencies included): 0 vulnerabilities in the frontend and the backend.
+
+### Changed
+- Products are looked up only by id, slug, SKU, barcode or exact title; the hard-coded numeric id map and the "Nth product" fallback are gone. Public product pages are capped at 200 items (admins 500).
+- Product badges (Sale, Low Stock, Featured, Bestseller, New) are computed once by the API and sent with each product; the catalog filter uses the same rules, so the frontend no longer repeats them.
+- productController's filter and sort building moved to `services/productQuery.js`, the copy draft to `copyDraftController.js`, and the mock checkout page to `views/mockCheckoutPage.js`.
+- Indexes for the unpaid-order sweep and a customer's chat history. Deleting a customer also removes their sign-in sessions.
+- Removed the unused `data/fashionCatalog.ts` and `data/mockData.ts` (the catalog lives only in `backend/scripts/fashionProductsData.js`).
+- README: complete local setup in one place (MongoDB 6.0+, both env files, secrets, `npm ci`, `db:init`, ports), the live test scripts (`npm --prefix backend run test:live`), and the new session and privacy notes.
+
 ## 2026-10-28
 ### Security
 - The shared demo admin can no longer change order status, email customers or test payment gateways (role changes, deletions, payment settings and wallet adjustments were already blocked).

@@ -163,26 +163,37 @@ All routes start with `/api`. See the full list in [Swagger](https://swift-e-com
 
 ## 🚀 Run it locally
 
-**You need:** Node.js 20.9+ and MongoDB 6+ (local or Atlas).
+**You need:** Node.js 20.9+ (with npm) and MongoDB 6.0+ (tested with 8.0), either a local `mongod` that is **running before you seed** or a MongoDB Atlas connection string. Full step-by-step guide with troubleshooting: [HowToSetup.md](HowToSetup.md).
 
 ```bash
 # 1. Clone
 git clone https://github.com/Nishat009/Swift-E-commerce.git
 cd Swift-E-commerce
 
-# 2. Install dependencies (frontend + backend)
-npm install
-npm --prefix backend install
+# 2. Install dependencies, root (frontend) and backend. npm ci uses the committed lockfiles.
+npm ci
+npm --prefix backend ci
 
-# 3. Create backend/.env (see the next section)
+# 3. Environment files (on Windows use "copy" instead of "cp")
+cp backend/.env.example backend/.env    # required
+cp .env.example .env.local              # optional (frontend defaults work locally)
 
-# 4. Add demo data
+# 4. Generate the two REQUIRED secrets and paste them into backend/.env as
+#    JWT_SECRET=... and JWT_REFRESH_SECRET=... (the server refuses to start without them)
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+#    MONGO_URI defaults to mongodb://127.0.0.1:27017/swiftcart; change it for Atlas.
+
+# 5. Create the collections and indexes, then add demo data
+npm --prefix backend run db:init
 npm --prefix backend run seed
-npm --prefix backend run seed:admin
+npm --prefix backend run seed:admin    # demo admin + customer accounts
 
-# 5. Start frontend and backend together
+# 6. Start frontend (port 3001) and backend (port 5000) together
 npm run dev
 ```
+
+The frontend runs on **3001**, not Next.js's usual 3000 (`next dev -p 3001`); `FRONTEND_URL` in `backend/.env` already matches. On first start the backend also adds the fashion catalog if the database has no public product (`AUTO_SEED_CATALOG=false` turns that off).
 
 | Service | URL |
 | :--- | :--- |
@@ -237,10 +248,17 @@ NEXT_PUBLIC_APP_URL=http://localhost:3001
 ## 🧪 Tests
 
 ```bash
-npm --prefix backend test      # Backend: auth, security, orders, lucky draw, features
+npm --prefix backend test      # Backend: auth, security, orders, lucky draw, features, route guards (75 tests)
+npm --prefix backend run test:routes   # Only the route-guard policy check
 npm run test:auth:browser      # Browser test for Google login (Playwright)
 npm run lint                   # Lint the frontend
 ```
+
+`npm --prefix backend test` needs a running MongoDB (it uses its own `swiftcart_*_test` databases and
+drops them afterwards). Two end-to-end checks run against a **running local backend** instead and are
+not part of `npm test`: start the API (`npm --prefix backend run dev`), set `TEST_ADMIN_PASSWORD` (or
+`SEED_PASSWORD`) to the seeded admin's password, then run `npm --prefix backend run test:live`
+(`TEST_API_URL` defaults to `http://localhost:5000/api`). They remove everything they create.
 
 ---
 
@@ -249,7 +267,9 @@ npm run lint                   # Lint the frontend
 ### Who can call what
 
 Every route that creates, changes or deletes data requires a signed-in user (`protect`), and every
-store-management route also requires `authorize('admin')`. Checked against `backend/src/routes/`:
+store-management route also requires `authorize('admin')`. This is enforced by a test:
+[backend/tests/route-guards.test.js](backend/tests/route-guards.test.js) walks every router and fails if a
+POST/PUT/PATCH/DELETE route is missing its guard or is not on the explicit public / signed-in list.
 
 | Routers | Guard |
 | :--- | :--- |
@@ -265,6 +285,16 @@ Records that belong to a customer are checked against the signed-in user: orders
 return), reviews (edit, delete), notifications, cart, wishlist and wardrobe. Another customer's record
 answers 404 or 403. All rate limits live in [backend/src/config/rateLimits.js](backend/src/config/rateLimits.js).
 
+### Sessions
+
+Access tokens live 15 minutes. The refresh token is an httpOnly cookie backed by a server-side session
+([backend/src/services/refreshSessions.js](backend/src/services/refreshSessions.js)): only a SHA-256 of its
+one-time secret is stored, every refresh rotates it, logout revokes it, and replaying an old token
+revokes all of that user's sessions and access tokens. Changing the password signs out other devices.
+`/auth/refresh` and `/auth/logout` are rate-limited. Deleting a customer removes their sessions, cart,
+wishlist, wardrobe, notifications, stock alerts and sign-in challenges; orders, reviews and tickets are
+kept as store records.
+
 ### Payments
 
 - The Stripe webhook is accepted only with a valid `Stripe-Signature` (HMAC-SHA256 over the raw body with `STRIPE_WEBHOOK_SECRET`, 5-minute tolerance).
@@ -275,14 +305,23 @@ answers 404 or 403. All rate limits live in [backend/src/config/rateLimits.js](b
 ### Demo accounts
 
 The one-click demo admin can view the admin panel but cannot change roles, delete users, change order
-status, email customers, test gateways, change payment settings or adjust the wallet. A real admin
-account has none of these limits.
+status, read or send customer emails, export the wallet statement, test gateways, change payment
+settings or adjust the wallet. Everything it is sent has customer emails, phone numbers, street
+addresses, IPs and surnames masked ([backend/src/middleware/demoPrivacy.js](backend/src/middleware/demoPrivacy.js)).
+A real admin account has none of these limits.
+
+### Stored personal data
+
+Chat messages keep only a keyed hash of the sender's IP and are deleted automatically after
+`CHAT_RETENTION_DAYS` (default 180). The admin chat inbox needs `protect, authorize('admin')`; a customer
+reads only their own chat history, and guests cannot read any.
 
 ### Dependencies
 
 `npm audit` (including dev dependencies) reports **0 vulnerabilities** for both the frontend and the
-backend as of 2026-10-28 (Next.js 16.4.3, Express 4.22.3, multer 2.5.0, nodemailer 10.2.1, sharp 0.35.5,
-jsonwebtoken 9.0.3). Both packages commit a `package-lock.json`; use `npm ci` for deploys. Re-check with:
+backend as of 2026-10-28 (Next.js 16.4.3, React 19.2, Express 4.22.3, helmet 8.3, bcryptjs 3.0, multer 2.5,
+nodemailer 10.2, sharp 0.35, jsonwebtoken 9.0). No dependency uses `*` or `latest`. Express stays on
+the patched 4.x line; moving to Express 5 is planned separately. Both packages commit a `package-lock.json`; use `npm ci` for deploys. Re-check with:
 
 ```bash
 npm audit && npm --prefix backend audit
