@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -33,3 +34,10 @@ export const useThemeStore = create<ThemeStore>()(
   )
 );
 
+
+/** Keep the `dark` class on <html> in step with the saved theme (pages without the shop navbar call this too). */
+export const useApplyTheme = (theme: 'light' | 'dark') => {
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+};

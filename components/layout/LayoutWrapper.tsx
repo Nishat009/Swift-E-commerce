@@ -24,7 +24,9 @@ export default function LayoutWrapper({ children }: Props) {
     pathname.startsWith("/register") ||
     pathname.startsWith("/auth/") ||
     pathname === "/auth" ||
-    pathname === "/admin/login" ||
+    // The admin panel has its own header and navigation
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
     // The landing page has its own header and footer
     pathname === "/";
 

@@ -21,6 +21,10 @@ import MonitoringAdmin from '@/components/admin/MonitoringAdmin';
 import ReportsAdmin from '@/components/admin/ReportsAdmin';
 import ContactMessages, { useContactUnread } from '@/components/admin/ContactMessages';
 import ChatMessages from '@/components/admin/ChatMessages';
+import ReturnsAdmin from '@/components/admin/ReturnsAdmin';
+import PaymentSettingsAdmin from '@/components/admin/PaymentSettingsAdmin';
+import NotificationBell from '@/components/layout/NotificationBell';
+import { useThemeStore, useApplyTheme } from '@/stores/themeStore';
 import ProductTable from '@/components/product/ProductTable';
 import Button from '@/components/ui/Button';
 import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
@@ -45,11 +49,15 @@ import {
   LogOut,
   Store,
   Wallet,
+  RotateCcw,
+  CreditCard,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import Link from 'next/link';
 
 // Each tab is its own component in components/admin/ that loads its own data.
-type AdminTab = 'overview' | 'hero' | 'ai_suite' | 'products' | 'orders' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'coupons' | 'categories' | 'messages' | 'accounts';
+type AdminTab = 'overview' | 'hero' | 'ai_suite' | 'products' | 'orders' | 'returns' | 'payments' | 'users' | 'newsletter' | 'reviews' | 'campaigns' | 'monitoring' | 'reports' | 'logs' | 'security' | 'currencies' | 'coupons' | 'categories' | 'messages' | 'accounts';
 
 // useSearchParams (notification deep links) needs a Suspense boundary in the App Router
 export default function AdminDashboardPage() {
@@ -82,6 +90,9 @@ function AdminDashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [focusOrderId, setFocusOrderId] = useState<string | null>(null);
   const refreshTab = () => setRefreshKey((key) => key + 1);
+  // The admin panel has no shop navbar, so it applies the saved theme itself
+  const { theme, toggleTheme } = useThemeStore();
+  useApplyTheme(theme);
 
   // Verify Admin role
   useEffect(() => {
@@ -158,6 +169,17 @@ function AdminDashboardContent() {
               <span>View Storefront</span>
             </Link>
 
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800 rounded-2xl p-2 transition shadow-xs"
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <NotificationBell className="relative bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800 rounded-2xl p-2 transition shadow-xs [&>svg]:w-4 [&>svg]:h-4" />
 
 
             <div className="hidden sm:flex bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-2 px-4 shadow-sm items-center gap-3">
@@ -184,6 +206,8 @@ function AdminDashboardContent() {
             { id: 'ai_suite', label: 'AI Commerce Suite', icon: Sparkles },
             { id: 'products', label: 'Products Catalog', icon: Shirt },
             { id: 'orders', label: 'Customer Orders', icon: ShoppingBag },
+            { id: 'returns', label: 'Cancellations & Returns', icon: RotateCcw },
+            { id: 'payments', label: 'Payment Settings', icon: CreditCard },
             { id: 'accounts', label: 'Accounts & Wallet', icon: Wallet },
             { id: 'categories', label: 'Categories', icon: Shirt },
             { id: 'coupons', label: 'Coupons', icon: Gift },
@@ -271,6 +295,8 @@ function AdminDashboardContent() {
             {adminTab === 'overview' && <OverviewAdmin />}
             {adminTab === 'products' && <ProductTable />}
             {adminTab === 'orders' && <OrdersAdmin focusOrderId={focusOrderId} onFocusHandled={() => setFocusOrderId(null)} />}
+            {adminTab === 'returns' && <ReturnsAdmin />}
+            {adminTab === 'payments' && <PaymentSettingsAdmin />}
             {adminTab === 'users' && <UsersAdmin />}
             {adminTab === 'newsletter' && <NewsletterAdmin />}
             {adminTab === 'reviews' && <ReviewsAdmin />}
