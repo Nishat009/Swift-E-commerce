@@ -2,6 +2,21 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-10-28
+### Security
+- The shared demo admin can no longer change order status, email customers or test payment gateways (role changes, deletions, payment settings and wallet adjustments were already blocked).
+- In production, payment gateway keys saved in the admin panel are encrypted only with their own `PAYMENT_SETTINGS_KEY`, never with `JWT_SECRET`; without it, keys cannot be saved (switches and the Taka rate still work). A `PAYMENT_SETTINGS_KEY` shorter than 32 characters stops the server at startup.
+- Starting an online payment looks the order up together with its owner, so another customer's order is never loaded.
+- Dependencies: Next.js 16.4.3 and multer 2.5.0; `npm audit` reports 0 vulnerabilities in both packages.
+
+### Changed
+- All rate limits are defined in one file (`backend/src/config/rateLimits.js`).
+- The product copy draft (`POST /api/admin/copy-draft`) moved from the route file to a controller with input validation; the admin form shows which field is missing.
+- The sign-in page's forgot-password flow is its own component (`components/auth/ForgotPasswordModal.tsx`); unused camera-scanner code was removed.
+- Sign-up, password reset and settings share one "passwords do not match" check.
+- Database indexes for the audit trail and the campaign list.
+- README: demo access for the live site, and a Security section (route guards, payment checks, demo limits, audit result). HowToSetup: `PAYMENT_SETTINGS_KEY`, frontend port 3001, the first-start demo catalog.
+
 ## 2026-10-27
 ### Added
 - Admin panel **Cancellations & Returns** tab: cancelled orders, return requests and refunds in one place, with filters, totals and a button to open each order and act on it.

@@ -61,6 +61,10 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 If MongoDB is not at the default local address, also change `MONGO_URI`. To choose the demo accounts' password, set `SEED_PASSWORD` (8+ characters); otherwise the seed prints a random one. Leave everything else as it is.
 
+Optional, but required in production if you want to save payment gateway keys from **Admin → Payment Settings**: set `PAYMENT_SETTINGS_KEY` to a third random string (32+ characters, same command as above). Locally it falls back to `JWT_SECRET`.
+
+The frontend's `.env.local` is optional: by default the frontend talks to the backend at `http://localhost:5000/api` (`BACKEND_API_URL`).
+
 ## 4. Create the database and load demo data
 
 There is no separate "create database" step: MongoDB creates the `swiftcart` database the first time it is written to. The schema is defined by the Mongoose models in `backend/src/models/`. To create every collection and index up front (safe to re-run, deletes nothing):
@@ -86,7 +90,9 @@ node backend/scripts/seed_campaigns.js # optional: lucky-draw campaigns
 npm run dev
 ```
 
-This starts the frontend and the backend together.
+This starts the frontend and the backend together. The frontend runs on port **3001** (not Next.js's usual 3000); use `http://localhost:3001` as the authorized origin if you set up Google sign-in.
+
+On first start, if the database has no public product, the backend adds the fashion demo catalog (insert-only, nothing is deleted), so the shop is never empty. Set `AUTO_SEED_CATALOG=false` in `backend/.env` to turn this off on a real shop.
 
 | Service | URL |
 | :--- | :--- |

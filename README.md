@@ -14,6 +14,20 @@ For a complete, human-readable explanation of the project, read the [Complete Pr
 
 > The backend runs on Render's free tier, so the **first request after a while can take 30–60 seconds** while the server wakes up.
 
+### 🔑 Demo access (live site)
+
+The live site uses **one-click demo logins**, so no password is needed:
+
+| Role | Where | What to click |
+| :--- | :--- | :--- |
+| Shopper | https://swift-e-commerce-eta.vercel.app/auth/login | **Guest login** |
+| Admin | https://swift-e-commerce-eta.vercel.app/admin/login | **Admin login** |
+
+Browsing the store at `/shop` needs no login at all. The demo admin can open every admin page but is
+read-mostly: role changes, deletions, order status changes, customer emails, gateway tests, payment
+settings and wallet adjustments are refused with "This action is disabled for demo accounts".
+Locally, the seeded `admin@email.com` / `user@email.com` accounts have full access (see [HowToSetup.md](HowToSetup.md#6-demo-accounts)).
+
 ---
 
 ## 📌 Contents
@@ -25,7 +39,8 @@ For a complete, human-readable explanation of the project, read the [Complete Pr
 5. [Run it locally](#-run-it-locally)
 6. [Environment variables](#-environment-variables)
 7. [Tests](#-tests)
-8. [More docs](#-more-docs)
+8. [Security](#-security)
+9. [More docs](#-more-docs)
 
 ---
 
@@ -225,6 +240,52 @@ NEXT_PUBLIC_APP_URL=http://localhost:3001
 npm --prefix backend test      # Backend: auth, security, orders, lucky draw, features
 npm run test:auth:browser      # Browser test for Google login (Playwright)
 npm run lint                   # Lint the frontend
+```
+
+---
+
+## 🔒 Security
+
+### Who can call what
+
+Every route that creates, changes or deletes data requires a signed-in user (`protect`), and every
+store-management route also requires `authorize('admin')`. Checked against `backend/src/routes/`:
+
+| Routers | Guard |
+| :--- | :--- |
+| `admin`, `languages` | `router.use(protect)` + `router.use(authorize('admin'))` on the whole router |
+| `cart`, `wishlist`, `wardrobe`, `orders` | `router.use(protect)` on the whole router; order status, returns decisions and refunds add `authorize('admin')` (refunds and status overrides also need a super admin) |
+| `products`, `categories`, `coupons`, `currencies`, `hero`, `campaigns`, `uploads`, `image-assets` | Reads are public; every write has `protect, authorize('admin')`, except buying a campaign ticket (`protect`) and the public, rate-limited back-in-stock alert |
+| `reviews`, `notifications` | Every write has `protect` |
+| `chat`, `contact`, `newsletter` | Public send/subscribe (rate-limited); reading and managing messages needs `protect, authorize('admin')` |
+| `auth` | Sign-in, register, OTP and password reset are public and rate-limited; profile, 2FA and Google linking need `protect` |
+| `payments` | Starting a payment needs `protect`; gateway callbacks and the Stripe webhook are public by design (below) |
+
+Records that belong to a customer are checked against the signed-in user: orders (view, cancel, pay,
+return), reviews (edit, delete), notifications, cart, wishlist and wardrobe. Another customer's record
+answers 404 or 403. All rate limits live in [backend/src/config/rateLimits.js](backend/src/config/rateLimits.js).
+
+### Payments
+
+- The Stripe webhook is accepted only with a valid `Stripe-Signature` (HMAC-SHA256 over the raw body with `STRIPE_WEBHOOK_SECRET`, 5-minute tolerance).
+- bKash callbacks and Stripe returns never trust the status in the URL: the order is marked paid only after the server asks the gateway (bKash execute/query, Stripe session retrieve) and the paid amount matches the order total.
+- The mock gateway exists only when `PAYMENT_MOCK=true` and `NODE_ENV` is not `production`.
+- Gateway keys saved in **Admin → Payment Settings** are encrypted with AES-256-GCM using `PAYMENT_SETTINGS_KEY` (required in production, never returned to the browser).
+
+### Demo accounts
+
+The one-click demo admin can view the admin panel but cannot change roles, delete users, change order
+status, email customers, test gateways, change payment settings or adjust the wallet. A real admin
+account has none of these limits.
+
+### Dependencies
+
+`npm audit` (including dev dependencies) reports **0 vulnerabilities** for both the frontend and the
+backend as of 2026-10-28 (Next.js 16.4.3, Express 4.22.3, multer 2.5.0, nodemailer 10.2.1, sharp 0.35.5,
+jsonwebtoken 9.0.3). Both packages commit a `package-lock.json`; use `npm ci` for deploys. Re-check with:
+
+```bash
+npm audit && npm --prefix backend audit
 ```
 
 ---
