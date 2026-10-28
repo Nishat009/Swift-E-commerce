@@ -62,6 +62,9 @@ const CampaignSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Public listing and winners page: filter by visibility and status, newest first
+CampaignSchema.index({ visibility: 1, status: 1, createdAt: -1 });
+
 CampaignSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {

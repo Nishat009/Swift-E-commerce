@@ -4,15 +4,7 @@ const Newsletter = require('../models/Newsletter');
 const { fire: fireEmail, sendNewsletterConfirmation } = require('../services/emailService');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
-const rateLimit = require('express-rate-limit');
-
-const subscribeLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests. Please try again later.' },
-});
+const { subscribeLimiter } = require('../config/rateLimits');
 
 // Same answer whether or not the email was already on the list, so the list cannot be probed
 const SUBSCRIBED = { success: true, message: 'Thanks! You are subscribed to our newsletter.' };

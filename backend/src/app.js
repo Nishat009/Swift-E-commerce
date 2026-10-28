@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
 const path = require('path');
 
 const setupSwagger = require('./utils/swagger');
@@ -113,14 +112,7 @@ app.use((req, res, next) => {
 // 5. Rate Limiter (protect against brute force attacks)
 // General API limit. A single page load makes 10-20 calls, so this is sized for real browsing;
 // sign-in, OTP and payment routes keep their own much stricter limiters.
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: Number(process.env.API_RATE_LIMIT) || 2000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests from this IP, please try again in a few minutes' }
-});
-app.use('/api', limiter);
+app.use('/api', require('./config/rateLimits').apiLimiter);
 
 // 6. Static files mapping (local uploads fallback folder)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

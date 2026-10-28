@@ -1,5 +1,5 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+const { chatLimiter } = require('../config/rateLimits');
 const mongoose = require('mongoose');
 const ChatMessage = require('../models/ChatMessage');
 const { protect, optionalAuth } = require('../middleware/authMiddleware');
@@ -9,14 +9,6 @@ const { advise } = require('../services/stylistService');
 const router = express.Router();
 const statuses = ['unread', 'read', 'archived'];
 const clean = (value) => (typeof value === 'string' ? value.trim() : '');
-
-const chatLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many chat messages. Please wait a moment and try again.' },
-});
 
 // Sign-in is optional: a signed-in customer's identity is recorded with the message
 router.post('/', chatLimiter, optionalAuth, async (req, res, next) => {

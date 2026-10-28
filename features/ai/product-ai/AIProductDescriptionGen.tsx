@@ -30,7 +30,9 @@ export default function AIProductDescriptionGen({ onApplyGenerated }: AIProductD
         onApplyGenerated(output);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Could not create a copy draft.');
+      // A validation answer lists the problem per field; show the first one
+      const fieldErrors = Object.values(err.response?.data?.errors || {}) as string[];
+      setError(fieldErrors[0] || err.response?.data?.message || 'Could not create a copy draft.');
     } finally {
       setIsGenerating(false);
     }

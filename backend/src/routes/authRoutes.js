@@ -10,7 +10,7 @@ const {
   registerRules, loginRules, profileRules, forgotPasswordRules, resetPasswordRules,
   requestOtpRules, verifyOtpRules, verify2FARules
 } = require('../validations/authValidation');
-const rateLimit = require('express-rate-limit');
+const { signInLimiter, verifyLimiter, otpRequestLimiter } = require('../config/rateLimits');
 const { getDemoLoginStatus, demoLogin, isDemoAccount, blockDemoAdmin } = require('../controllers/demoAuthController');
 
 // Demo users may edit their name/address, but not the email or password everyone signs in with
@@ -22,30 +22,6 @@ const blockDemoCredentialChange = (req, res, next) => {
   next();
 };
 const { requireGoogleOrigin, googleChallenge, verifyGoogleCredential, googleLogin, linkGoogle } = require('../controllers/googleAuthController');
-
-const signInLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many sign-in attempts. Please try again in ten minutes.' },
-});
-
-const verifyLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many verification attempts. Please try again later.' },
-});
-
-const otpRequestLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests. Please try again later.' },
-});
 
 router.post('/google/challenge', signInLimiter, requireGoogleOrigin, googleChallenge);
 router.post('/google', signInLimiter, requireGoogleOrigin, verifyGoogleCredential, googleLogin);

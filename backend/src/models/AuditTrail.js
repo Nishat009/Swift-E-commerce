@@ -12,6 +12,10 @@ const AuditTrailSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// History of one record (enterpriseController), and everything one admin changed
+AuditTrailSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
+AuditTrailSchema.index({ changedBy: 1, createdAt: -1 });
+
 AuditTrailSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {

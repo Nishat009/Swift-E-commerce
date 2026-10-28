@@ -1,5 +1,5 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+const { contactLimiter } = require('../config/rateLimits');
 const mongoose = require('mongoose');
 const router = express.Router();
 const ContactMessage = require('../models/ContactMessage');
@@ -8,14 +8,6 @@ const { authorize } = require('../middleware/roleMiddleware');
 
 const STATUSES = ['unread', 'read', 'replied', 'archived'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const contactLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many messages sent. Please try again in an hour.' }
-});
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 

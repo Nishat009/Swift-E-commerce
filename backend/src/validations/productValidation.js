@@ -49,6 +49,21 @@ const productRules = [
     .withMessage('Tags must be an array of strings')
 ];
 
+// Admin product copy draft: four short attributes, all required
+const copyDraftRules = ['category', 'material', 'color', 'brand'].map((field) =>
+  body(field)
+    .isString()
+    .withMessage('Category, material, color and brand are required.')
+    .bail()
+    .trim()
+    .notEmpty()
+    .withMessage('Category, material, color and brand are required.')
+    .bail()
+    .isLength({ max: 80 })
+    .withMessage(`${field.charAt(0).toUpperCase() + field.slice(1)} must be 80 characters or fewer.`)
+);
+
 module.exports = {
   productRules,
+  copyDraftRules,
 };
