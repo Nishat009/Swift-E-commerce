@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import ProductCard from '@/components/ui/ProductCard';
 import Image from 'next/image';
@@ -126,7 +126,7 @@ function ProductsPageContent() {
       brands: matchedBrands.slice(0, 3),
       products: matchedProds.slice(0, 5),
     };
-  }, [searchInput, allCatalogProducts, allCatalogProducts]);
+  }, [searchInput, allCatalogProducts]);
 
   // A11y Focus Trap inside Mobile Filters Drawer
   useEffect(() => {
@@ -165,8 +165,25 @@ function ProductsPageContent() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // The free-tier API can take up to a minute to wake: say so instead of showing silent skeletons
+  const [slowLoad, setSlowLoad] = useState(false);
+  // Only the newest request may update the list (an older, slower answer must not overwrite it)
+  const latestRequest = useRef(0);
 
   const productsPerPage = 12;
+
+  // Typo suggestions need the full catalog, but only while searching: without a search the list
+  // does not depend on it, so it is not fetched again when the catalog arrives
+  const typoCatalog = useMemo(() => (searchQuery ? allCatalogProducts : []), [searchQuery, allCatalogProducts]);
+
+  useEffect(() => {
+    if (!loading) {
+      setSlowLoad(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowLoad(true), 4000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Persist & Retrieve ViewMode from localStorage
   useEffect(() => {
@@ -240,6 +257,7 @@ function ProductsPageContent() {
 
   // Fetch / Filter products (Server API call with client-side fallback)
   const loadProducts = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setLoading(true);
     setError(null);
     try {
@@ -250,7 +268,7 @@ function ProductsPageContent() {
       if (searchQuery) {
         const q = searchQuery.toLowerCase().trim();
         // Check if query yields any matches in titles, categories, or brands
-        const directMatches = allCatalogProducts.some((p) =>
+        const directMatches = typoCatalog.some((p) =>
           p.title.toLowerCase().includes(q) ||
           p.brand.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
@@ -260,7 +278,7 @@ function ProductsPageContent() {
         if (!directMatches) {
           // Collect candidates
           const candidates = new Set<string>();
-          allCatalogProducts.forEach((p) => {
+          typoCatalog.forEach((p) => {
             candidates.add(p.category.toLowerCase());
             candidates.add(p.brand.toLowerCase());
             p.title.split(' ').forEach((w) => {
@@ -309,6 +327,7 @@ function ProductsPageContent() {
       if (selectedBrands.length > 0) apiParams.brand = selectedBrands.join(',');
 
       const res = await fetchProducts(apiParams);
+      if (requestId !== latestRequest.current) return;
       if (res && res.products && Array.isArray(res.products)) {
         const fetched = res.products.map(normalizeProduct);
 
@@ -319,15 +338,16 @@ function ProductsPageContent() {
         throw new Error('Invalid product payload structure');
       }
     } catch (err) {
+      if (requestId !== latestRequest.current) return;
       console.error('Failed to load products:', err);
       setProducts([]);
       setTotalProducts(0);
       setTotalPages(1);
       setError('We could not load products right now. Please check your connection and try again.');
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
-  }, [allCatalogProducts, selectedCategory, searchQuery, priceRange, selectedColors, selectedSizes, selectedTags, selectedBrands, sortBy, currentPage, productsPerPage]);
+  }, [typoCatalog, selectedCategory, searchQuery, priceRange, selectedColors, selectedSizes, selectedTags, selectedBrands, sortBy, currentPage, productsPerPage]);
 
   useEffect(() => {
     loadProducts();
@@ -1007,10 +1027,17 @@ function ProductsPageContent() {
 
           {/* Products Listing Container */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <LoadingSkeleton key={i} />
-              ))}
+            <div>
+              {slowLoad && (
+                <p role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
+                  Waking up the store server. The first visit after a quiet spell can take up to a minute.
+                </p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <LoadingSkeleton key={i} />
+                ))}
+              </div>
             </div>
           ) : error ? (
             <div className="py-16 bg-white dark:bg-gray-900 rounded-[32px] border border-red-200 dark:border-red-900/40 text-center px-4">

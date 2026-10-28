@@ -32,31 +32,51 @@ const buildProduct = (product, taken = new Set()) => {
   };
 };
 
+// Insert the categories and products that are missing; needs an open connection
+const addMissingCatalog = async () => {
+  let addedCategories = 0;
+  for (const category of fashionCategories) {
+    const exists = await Category.exists({ $or: [{ slug: category.slug }, { name: category.name }] });
+    if (!exists) {
+      await Category.create(category);
+      addedCategories += 1;
+    }
+  }
+
+  const existingSlugs = new Set(
+    (await Product.find({ slug: { $in: fashionProductsData.map((p) => p.slug) } }).select('slug').lean()).map((p) => p.slug)
+  );
+  const takenSkus = new Set((await Product.distinct('SKU')).filter(Boolean));
+  const missing = fashionProductsData
+    .filter((product) => !existingSlugs.has(product.slug))
+    .map((product) => buildProduct(product, takenSkus));
+  if (missing.length) await Product.create(missing);
+
+  return { addedCategories, addedProducts: missing.length, existingProducts: existingSlugs.size };
+};
+
+const PUBLIC_PRODUCT = { active: true, status: 'published', visibility: 'public' };
+
+// Server start: a store with no product a shopper can see gets the demo catalog, so /shop and
+// /products are never empty. Demo products that are present but hidden are published again.
+// A store with at least one public product is left alone. AUTO_SEED_CATALOG=false turns this off.
+const ensureCatalog = async () => {
+  if (String(process.env.AUTO_SEED_CATALOG).toLowerCase() === 'false') return null;
+  if (await Product.exists(PUBLIC_PRODUCT)) return null;
+  const result = await addMissingCatalog();
+  const restored = await Product.updateMany({ slug: { $in: fashionProductsData.map((p) => p.slug) } }, { $set: PUBLIC_PRODUCT });
+  console.log(`[catalog] The store had no public products: added ${result.addedCategories} categories and ${result.addedProducts} products, published ${restored.modifiedCount} hidden ones.`);
+  return { ...result, published: restored.modifiedCount };
+};
+
 const seedCatalog = async () => {
   try {
     const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/swiftcart';
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB.');
 
-    let addedCategories = 0;
-    for (const category of fashionCategories) {
-      const exists = await Category.exists({ $or: [{ slug: category.slug }, { name: category.name }] });
-      if (!exists) {
-        await Category.create(category);
-        addedCategories += 1;
-      }
-    }
-
-    const existingSlugs = new Set(
-      (await Product.find({ slug: { $in: fashionProductsData.map((p) => p.slug) } }).select('slug').lean()).map((p) => p.slug)
-    );
-    const takenSkus = new Set((await Product.distinct('SKU')).filter(Boolean));
-    const missing = fashionProductsData
-      .filter((product) => !existingSlugs.has(product.slug))
-      .map((product) => buildProduct(product, takenSkus));
-    if (missing.length) await Product.create(missing);
-
-    console.log(`Added ${addedCategories} categories and ${missing.length} products (${existingSlugs.size} products already existed).`);
+    const { addedCategories, addedProducts, existingProducts } = await addMissingCatalog();
+    console.log(`Added ${addedCategories} categories and ${addedProducts} products (${existingProducts} products already existed).`);
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
@@ -67,4 +87,4 @@ const seedCatalog = async () => {
 
 if (require.main === module) seedCatalog();
 
-module.exports = { buildProduct };
+module.exports = { buildProduct, addMissingCatalog, ensureCatalog };

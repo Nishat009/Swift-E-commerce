@@ -70,9 +70,12 @@ export default function ShopHome() {
             }
           });
           const derivedCats = Array.from(categoryMap.values());
-          const apiCategories = catsRes.data?.data;
-          if (catsRes.data?.success && Array.isArray(apiCategories) && apiCategories.some((category: any) => typeof category === 'object' && category?.name && category?.slug)) {
-            setDynamicCategories(apiCategories.filter((category: any) => typeof category === 'object' && category?.name && category?.slug));
+          // Admin categories that have products in the catalog (empty or legacy ones are skipped)
+          const apiCategories = Array.isArray(catsRes.data?.data) ? catsRes.data.data : [];
+          const stockedCategories = apiCategories.filter((category: any) =>
+            typeof category === 'object' && category?.name && category?.slug && categoryMap.has(String(category.slug).toLowerCase()));
+          if (catsRes.data?.success && stockedCategories.length > 0) {
+            setDynamicCategories(stockedCategories);
           } else {
             setDynamicCategories(derivedCats);
           }
