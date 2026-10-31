@@ -20,6 +20,9 @@ const apiHostPattern: NonNullable<NonNullable<NextConfig['images']>['remotePatte
 })();
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   async rewrites() {
     return [{ source: '/api/backend/:path*', destination: `${backendApiUrl.replace(/\/$/, '')}/:path*` }];
   },

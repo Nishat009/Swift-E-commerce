@@ -58,6 +58,7 @@ graph TD
 
 ### Tech Stack Details:
 - **Frontend Framework**: Next.js 16 (React 19, Turbopack compiler, App Router).
+- **Operational startup requirement**: the frontend project root must be pinned explicitly in `next.config.ts` and the backend must not include a self-referential `file:..` dependency, otherwise the local dev server can form a symlink loop and fail when routing authenticated pages.
 - **Frontend Animation**: Framer Motion 12 (interactive spring physics, motion values).
 - **Styling**: Tailwind CSS v4 (inline theme parameters, native CSS variables).
 - **State Management**: Zustand 5 (persistent cart drawer storage, auth caching, currency configs, compare store).

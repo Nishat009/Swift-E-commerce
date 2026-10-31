@@ -202,8 +202,10 @@ cd Swift-E-commerce
    ```bash
    npm run dev
    ```
-   * The API server will be available at: **[http://localhost:5000](http://localhost:5000)**
-   * Swagger Documentation is mounted at: **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**
+   * The API server will be available at: **[http://localhost:5001](http://localhost:5001)** in this workspace configuration (or the value of `PORT` in `backend/.env`)
+   * Swagger Documentation is mounted at: **[http://localhost:5001/api-docs](http://localhost:5001/api-docs)**
+
+> Note: the frontend dev server is configured with an explicit Turbopack root and the backend must not keep a self-referential `swiftcart` dependency from `file:..`. Otherwise Next.js can loop on a symlinked project root and fail to render `/auth/login`.
 
 ---
 
@@ -230,7 +232,11 @@ After installing dependencies in both the root and `backend` directories and con
 npm run dev
 ```
 
-This starts the frontend at **http://localhost:3001** and the backend at **http://localhost:5000** (unless `PORT` is overridden). MongoDB must be available using the configured `MONGO_URI`. Press `Ctrl+C` to stop both servers. Stop any separately running development servers first to avoid port conflicts.
+This starts the frontend at **http://localhost:3001** and the backend at **http://localhost:5001** for this workspace (unless `PORT` is overridden in `backend/.env`). MongoDB must be available using the configured `MONGO_URI`.
+
+If a symlinked backend dependency is created again, remove it before starting the frontend (`backend/node_modules/swiftcart` should not point back to the repo root). The project also pins the frontend to its actual workspace root in `next.config.ts` so Turbopack does not recurse into the backend dependency tree.
+
+Press `Ctrl+C` to stop both servers. Stop any separately running development servers first to avoid port conflicts.
 
 To run either service separately from the project root, use `npm run dev:frontend` or `npm run dev:backend`.
 
