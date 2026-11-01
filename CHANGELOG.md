@@ -2,6 +2,10 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-11-02
+### Fixed
+- Dressing Room: garments photographed on a model or against a busy/non-studio background (most of the current catalog's stock photos) no longer get smeared across the mannequin as a messy collage. The cutout detector now also checks how much of the photo's border actually sits on a plain backdrop, not just how smooth that border is, so busy real-world photos correctly fall back to the plain-fabric silhouette instead of being treated as a flat-lay.
+
 ## 2026-10-28 (third update)
 ### Security
 - New [SECURITY.md](SECURITY.md) at the repository root: how requests are authorized, how ownership is checked, and a generated table of all 101 routes that change data with their guard and source file and line. A test fails if the table no longer matches the routers.

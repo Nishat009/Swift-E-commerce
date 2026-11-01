@@ -134,20 +134,28 @@ export function analyzeGarmentImage(img: HTMLImageElement): GarmentImage {
   // shadows change slowly and are followed; the garment outline is an edge and stops it. Each
   // pixel also stays within reach of the colour of the border pixel it came from.
   let fg = new Uint8Array(N).fill(1);
-  const plainBackdrop = noise < 3.5;
+  let plainBackdrop = noise < 3.5;
+  let borderCoverage = 0;
   if (plainBackdrop) {
     const ref = new Float32Array(N * 3);
     const queue = new Int32Array(N);
     let head = 0;
     let tail = 0;
+    let borderSeeded = 0;
     for (const i of borderIdx) {
       if (fg[i] && dist(i) < tol && grad[i] < edgeAt) {
         fg[i] = 0;
         for (let c = 0; c < 3; c++) ref[i * 3 + c] = soft[i * 3 + c];
         queue[tail++] = i;
+        borderSeeded++;
       }
     }
-    while (head < tail) {
+    // A genuine studio backdrop fills nearly the whole border ring. When most of the border
+    // already touches real content (a busy scene, a person reaching the frame edge), this isn't
+    // a flat-lay/packshot no matter how low the border's own noise happens to be.
+    borderCoverage = borderSeeded / borderIdx.length;
+    if (borderCoverage < 0.55) plainBackdrop = false;
+    while (plainBackdrop && head < tail) {
       const i = queue[head++];
       const x = i % W;
       for (let n = 0; n < 4; n++) {
@@ -233,6 +241,17 @@ export function analyzeGarmentImage(img: HTMLImageElement): GarmentImage {
       }
     }
     if (skin > inBand * 0.3 && bandWidth < maxWidth * 0.36) usable = false;
+
+    // A flat-lay or packshot has ~0% skin anywhere in the cutout. Real photography of a person
+    // (a lifestyle or editorial shot, not just a head-and-shoulders crop) can show skin lower
+    // down too (face turned, hands, legs): catch those even when the head-band check above misses.
+    if (usable) {
+      let skinTotal = 0;
+      for (let i = 0; i < N; i++) {
+        if (fg[i] && isSkin(i)) skinTotal++;
+      }
+      if (skinTotal > area * 0.06) usable = false;
+    }
   }
 
   const sample = (x0: number, x1: number, y0: number, y1: number, needMask: boolean) => {
