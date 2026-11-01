@@ -7,6 +7,12 @@ const { createChallenge, clearChallenge, challengeQuery, sendSession, requestSec
 
 const googleClient = new OAuth2Client();
 
+// Shared between the challenge and verify steps so both refuse the same way when unconfigured.
+const getGoogleClientId = () => {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  return clientId && clientId.endsWith('.apps.googleusercontent.com') ? clientId : null;
+};
+
 // GIS uses a JS callback, so we enforce our own origin + browser-bound nonce checks.
 const requireGoogleOrigin = (req, res, next) => {
   const origins = (process.env.FRONTEND_URL || 'http://localhost:3001').split(',').map(value => value.trim().replace(/\/$/, ''));
@@ -19,8 +25,8 @@ const requireGoogleOrigin = (req, res, next) => {
 
 const googleChallenge = async (req, res, next) => {
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-    if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) {
+    const clientId = getGoogleClientId();
+    if (!clientId) {
       return sendError(res, 'Google sign-in is not available yet. Please use email sign-in.', 503);
     }
     const nonce = crypto.randomBytes(32).toString('hex');
@@ -33,8 +39,8 @@ const googleChallenge = async (req, res, next) => {
 
 const verifyGoogleCredential = async (req, res, next) => {
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-    if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) {
+    const clientId = getGoogleClientId();
+    if (!clientId) {
       return sendError(res, 'Google sign-in is not available yet. Please use email sign-in.', 503);
     }
     if (typeof req.body.credential !== 'string' || req.body.credential.length > 10000 ||
