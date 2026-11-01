@@ -61,33 +61,33 @@ export function refundSteps(order: Order): Step[] {
 }
 
 const DOT: Record<StepState, string> = {
-  done: 'bg-[#8b6f47] border-[#8b6f47] text-white',
-  current: 'bg-amber-50 border-amber-400 text-amber-600 dark:bg-amber-950/30',
-  upcoming: 'bg-white border-gray-200 text-gray-300 dark:bg-gray-900 dark:border-gray-700',
-  failed: 'bg-red-50 border-red-400 text-red-600 dark:bg-red-950/30',
+  done: 'bg-ink border-ink text-paper',
+  current: 'bg-transparent border-ink text-ink',
+  upcoming: 'bg-transparent border-line text-stone-300 dark:text-stone-600',
+  failed: 'bg-transparent border-red-600 text-red-600 dark:border-red-400 dark:text-red-400',
 };
 
 export default function RefundStatus({ order }: { order: Order }) {
   const steps = refundSteps(order);
   if (!steps.length) return null;
   return (
-    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850/20 p-4">
-      <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Return &amp; refund</h5>
+    <div className="rounded-lg border border-line p-5">
+      <h5 className="text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 mb-4">Return &amp; refund</h5>
       <ol className="space-y-0">
         {steps.map((step, i) => (
           <li key={`${step.label}-${i}`} className="relative flex gap-3 pb-4 last:pb-0">
-            {i < steps.length - 1 && <span className="absolute left-[11px] top-6 bottom-0 w-px bg-gray-200 dark:bg-gray-700" aria-hidden />}
+            {i < steps.length - 1 && <span className="absolute left-[11px] top-6 bottom-0 w-px bg-line" aria-hidden />}
             <span className={`relative z-10 mt-0.5 w-6 h-6 shrink-0 rounded-full border flex items-center justify-center ${DOT[step.state]}`}>
               {step.state === 'done' && <Check className="w-3.5 h-3.5" />}
               {step.state === 'current' && <Clock className="w-3.5 h-3.5" />}
               {step.state === 'failed' && <X className="w-3.5 h-3.5" />}
             </span>
             <div className="min-w-0 text-xs">
-              <p className={`font-bold ${step.state === 'upcoming' ? 'text-gray-400' : step.state === 'failed' ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+              <p className={`font-medium ${step.state === 'upcoming' ? 'text-stone-400' : step.state === 'failed' ? 'text-red-600 dark:text-red-400' : 'text-ink'}`}>
                 {step.label}
-                {step.date && <span className="ml-2 font-normal text-[10px] text-gray-400">{new Date(step.date).toLocaleDateString()}</span>}
+                {step.date && <span className="ml-2 font-normal text-[11px] text-stone-500 dark:text-stone-400">{new Date(step.date).toLocaleDateString()}</span>}
               </p>
-              {step.detail && <p className="text-gray-500 dark:text-gray-400 leading-snug mt-0.5 break-words">{step.detail}</p>}
+              {step.detail && <p className="text-stone-600 dark:text-stone-400 leading-snug mt-0.5 break-words">{step.detail}</p>}
             </div>
           </li>
         ))}

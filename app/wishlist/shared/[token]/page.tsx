@@ -31,7 +31,7 @@ export default function SharedWishlistPage() {
 
   if (error) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 py-16">
         <EmptyState icon={Heart} title="Wishlist not available" description={error} actionText="Browse Shop" actionLink="/products" />
       </div>
     );
@@ -41,12 +41,13 @@ export default function SharedWishlistPage() {
   const products = data ? (collection ? data.products.filter((p) => collection.productIds.includes(String(p.id))) : data.products) : [];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-serif text-gray-900 dark:text-white">
+    <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 py-10 sm:py-14 space-y-8">
+      <div className="border-b border-line pb-6">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 mb-3">Shared wishlist</p>
+        <h1 className="text-4xl sm:text-5xl font-serif font-medium tracking-tight text-ink">
           {data ? `${data.owner}'s wishlist` : 'Shared wishlist'}
         </h1>
-        <p className="text-xs text-text-muted mt-1">A read-only list of saved products.</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400 mt-3">A read-only list of saved products.</p>
       </div>
 
       {data && data.collections.length > 0 && (
@@ -55,9 +56,9 @@ export default function SharedWishlistPage() {
             <button
               key={name}
               onClick={() => setActive(name)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${active === name
-                ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
-                : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}
+              className={`px-3.5 py-1.5 rounded-full text-xs border transition-colors cursor-pointer ${active === name
+                ? 'bg-ink text-paper border-ink'
+                : 'text-stone-600 dark:text-stone-300 border-line hover:border-ink'}`}
             >
               {name === 'all' ? 'All' : name}
             </button>
@@ -66,7 +67,7 @@ export default function SharedWishlistPage() {
       )}
 
       {!data ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10">
           <ProductSkeleton />
           <ProductSkeleton />
           <ProductSkeleton />
@@ -75,7 +76,7 @@ export default function SharedWishlistPage() {
       ) : products.length === 0 ? (
         <EmptyState icon={Heart} title="Nothing here yet" description="This wishlist has no available products right now." actionText="Browse Shop" actionLink="/products" />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10">
           {products.map((product, index) => (
             <ProductCard key={product.id} product={product} index={index} />
           ))}

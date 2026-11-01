@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { ShieldCheck, Key } from 'lucide-react';
 import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import { newPasswordError, passwordMatchError } from '@/lib/formValidation';
@@ -79,42 +78,39 @@ export default function SettingsPage() {
 
   return (
     <AccountLayout activeTabName="/settings">
-      <div className="space-y-8">
-        
+      <div className="space-y-10">
+
         {/* Title */}
-        <div className="border-b border-gray-100 dark:border-gray-800 pb-4">
-          <h2 className="text-xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider">
+        <div className="border-b border-line pb-5">
+          <h2 className="text-2xl font-serif font-medium tracking-tight text-ink">
             Security Settings
           </h2>
-          <p className="text-xs text-text-muted mt-1">
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5">
             Manage your account security, passwords, and multi-factor authentication preferences.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8">
-          <div className="border border-gray-200 dark:border-gray-800 rounded-3xl p-6 space-y-4">
-            <h3 className="font-serif font-bold">Google account</h3>
+        <div className="grid grid-cols-1 gap-10 max-w-2xl">
+          <div className="space-y-4">
+            <h3 className="text-xl font-serif font-medium tracking-tight text-ink">Google account</h3>
             {user?.googleConnected ? (
-              <p className="text-sm text-emerald-600">Google is connected. You can sign in using your Google account.</p>
+              <p className="text-sm text-green-700 dark:text-green-400">Google is connected. You can sign in using your Google account.</p>
             ) : (
               <>
-                <p className="text-sm text-text-muted">Connect Google using the same email as your account ({user?.email}). Your orders, cart and security settings will stay with this account.</p>
+                <p className="text-sm text-stone-600 dark:text-stone-400">Connect Google using the same email as your account ({user?.email}). Your orders, cart and security settings will stay with this account.</p>
                 {user && <GoogleSignIn mode="link" />}
               </>
             )}
           </div>
           
           {/* Two-Factor Authentication Box */}
-          <div className="border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] p-6 space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#8b6f47] to-[#c9a96b] flex items-center justify-center text-white shadow-inner">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
+          <div className="border-t border-line pt-10 space-y-6">
+            <div>
               <div>
-                <h3 className="font-serif font-bold text-gray-900 dark:text-white">
+                <h3 className="text-xl font-serif font-medium tracking-tight text-ink">
                   Two-Factor Authentication (2FA)
                 </h3>
-                <p className="text-[10px] text-text-muted">
+                <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
                   Adds an additional layer of security to prevent unauthorized access.
                 </p>
               </div>
@@ -124,16 +120,13 @@ export default function SettingsPage() {
           </div>
 
           {/* Change Password Box */}
-          <div className="border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] p-6 space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#8b6f47] to-[#c9a96b] flex items-center justify-center text-white shadow-inner">
-                <Key className="w-5 h-5" />
-              </div>
+          <div className="border-t border-line pt-10 space-y-6">
+            <div>
               <div>
-                <h3 className="font-serif font-bold text-gray-900 dark:text-white">
+                <h3 className="text-xl font-serif font-medium tracking-tight text-ink">
                   Change Password
                 </h3>
-                <p className="text-[10px] text-text-muted">
+                <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
                   Update your login password regularly to protect access.
                 </p>
               </div>
@@ -148,7 +141,7 @@ export default function SettingsPage() {
                   onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                   required
                   disabled={changingPassword}
-                  className="rounded-xl text-xs"
+                  className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
                 />
               )}
               <Input
@@ -158,7 +151,7 @@ export default function SettingsPage() {
                 onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                 required
                 disabled={changingPassword}
-                className="rounded-xl text-xs"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               <Input
                 label="Confirm New Password"
@@ -167,14 +160,10 @@ export default function SettingsPage() {
                 onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                 required
                 disabled={changingPassword}
-                className="rounded-xl text-xs"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
 
-              <Button
-                type="submit"
-                loading={changingPassword}
-                className="bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full font-bold px-6 shadow-md text-xs"
-              >
+              <Button type="submit" loading={changingPassword}>
                 Change Password
               </Button>
             </form>

@@ -63,29 +63,29 @@ export default function FaqPage() {
       title="Frequently Asked Questions"
       intro="Quick answers to the things customers ask us most. Cannot find yours? Send us a message."
     >
-      <div className="relative mb-4">
-        <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+      <div className="relative mb-5">
+        <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search questions..."
           aria-label="Search questions"
-          className="w-full text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-2xl pl-11 pr-4 py-3 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/30 focus:border-[#8b6f47]"
+          className="h-11 w-full rounded-md border border-line bg-transparent pl-10 pr-3.5 text-sm text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none"
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+      <div className="no-scrollbar flex gap-5 overflow-x-auto border-b border-line mb-2">
         {CATS.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => setCat(c.id)}
             className={cn(
-              'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap transition-colors cursor-pointer',
+              'py-3 -mb-px text-sm border-b whitespace-nowrap transition-colors cursor-pointer',
               cat === c.id
-                ? 'bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950 border-transparent'
-                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:text-[#8b6f47] dark:hover:text-[#c9a96b]'
+                ? 'border-ink text-ink font-medium'
+                : 'border-transparent text-stone-500 dark:text-stone-400 hover:text-ink'
             )}
           >
             {c.label}
@@ -93,11 +93,11 @@ export default function FaqPage() {
         ))}
       </div>
 
-      <div className="space-y-3" aria-live="polite">
+      <div aria-live="polite">
         {results.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[32px] p-8 text-center text-sm text-text-muted">
+          <div className="py-12 text-center text-sm text-stone-500 dark:text-stone-400">
             No questions match your search. Try different words or{' '}
-            <Link href="/contact" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">contact us</Link>.
+            <Link href="/contact" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">contact us</Link>.
           </div>
         ) : (
           results.map((f) => (
@@ -108,10 +108,10 @@ export default function FaqPage() {
         )}
       </div>
 
-      <p className="text-xs text-text-muted mt-8">
+      <p className="text-sm text-stone-500 dark:text-stone-400 mt-10">
         Still need help?{' '}
-        <Link href="/contact" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">Contact our team</Link>{' '}
-        or read the <Link href="/shipping-returns" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">Shipping &amp; Returns</Link> policy.
+        <Link href="/contact" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">Contact our team</Link>{' '}
+        or read the <Link href="/shipping-returns" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">Shipping &amp; Returns</Link> policy.
       </p>
     </InfoPage>
   );

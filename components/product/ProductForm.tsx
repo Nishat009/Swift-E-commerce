@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import apiClient from '@/lib/apiClient';
 import {
   Product,
@@ -17,12 +16,11 @@ import {
 } from '@/types';
 import { productService } from '@/services/productService';
 import { useToast } from '@/context/ToastContext';
-import { selectClass } from '@/components/ui/Select';
 import NumberInput from '@/components/ui/NumberInput';
 import PreviewImage from '@/components/ui/PreviewImage';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { AdminButton, AdminEmpty, Pill, SectionHeader, table } from '@/components/admin/AdminUI';
+import { cn } from '@/lib/utils';
 import {
   Save,
   Send,
@@ -32,26 +30,67 @@ import {
   Upload,
   Image as ImageIcon,
   Sparkles,
-  RefreshCw,
-  Eye,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  DollarSign,
-  Package,
-  Layers,
-  Globe,
   Tag,
-  Sliders,
   MoveUp,
   MoveDown,
   Video,
-  Box,
   Star,
-  Check,
-  ChevronRight,
   Info
 } from 'lucide-react';
+
+const inputClass =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const compactInputClass =
+  'h-8 rounded-lg border border-line bg-surface px-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const textareaClass =
+  'w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const selectInputClass =
+  'h-9 w-full cursor-pointer appearance-none rounded-lg border border-line bg-surface pl-3 pr-9 text-sm text-stone-900 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark] ' +
+  'bg-no-repeat bg-[right_0.65rem_center] bg-[length:1rem_1rem] ' +
+  'bg-[url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27%239ca3af%27%20stroke-width=%272.5%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3E%3Cpath%20d=%27m6%209%206%206%206-6%27/%3E%3C/svg%3E)]';
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const checkboxClass = 'size-4 shrink-0 cursor-pointer rounded accent-[#8b6f47] dark:[color-scheme:dark]';
+const checkboxLabelClass = 'flex cursor-pointer items-center gap-2 text-sm text-stone-700 dark:text-stone-300';
+const uploadLabelClass =
+  'inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed border-stone-300 bg-surface px-3.5 text-sm font-medium text-stone-700 transition-colors hover:border-[#8b6f47]/60 hover:text-[#8b6f47] dark:border-white/15 dark:text-stone-200 dark:hover:border-[#c9a96b]/60 dark:hover:text-[#c9a96b]';
+const mediaIconButtonClass =
+  'inline-flex size-7 items-center justify-center rounded-md border border-line bg-surface text-stone-500 transition-colors hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-30 dark:text-stone-400 dark:hover:text-white cursor-pointer';
+
+/** One block of the form: a heading row and its fields. */
+function FormSection({ title, description, actions, children }: { title: string; description?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-line bg-surface p-5">
+      <SectionHeader title={title} description={description} actions={actions} className="mb-5 border-b border-line pb-4" />
+      <div className="space-y-5">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, htmlFor, required, hint, action, className, children }: { label: string; htmlFor?: string; required?: boolean; hint?: string; action?: React.ReactNode; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={className}>
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <label htmlFor={htmlFor} className="text-xs font-medium text-stone-600 dark:text-stone-300">
+          {label}
+          {required && <span className="ml-0.5 text-red-500">*</span>}
+        </label>
+        {action && <div className="text-xs leading-4">{action}</div>}
+      </div>
+      {children}
+      {hint && <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">{hint}</p>}
+    </div>
+  );
+}
+
+function SummaryCell({ label, value, hint, className }: { label: string; value: string; hint?: string; className?: string }) {
+  return (
+    <div className="bg-stone-50 px-4 py-3 dark:bg-[#1b1a18]">
+      <dt className="text-xs text-stone-500 dark:text-stone-400">{label}</dt>
+      <dd className={cn('mt-1 text-base font-semibold tabular-nums text-stone-900 dark:text-white', className)}>{value}</dd>
+      {hint && <dd className="mt-0.5 text-[11px] tabular-nums text-stone-500 dark:text-stone-400">{hint}</dd>}
+    </div>
+  );
+}
 
 interface ProductFormProps {
   initialData?: Product | null;
@@ -737,114 +776,42 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      
-      {/* Sticky Action Header */}
-      <div className="sticky top-4 z-30 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md p-4 rounded-2xl border border-gray-150/80 dark:border-gray-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/products"
-              className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
-            >
-              ← Products
-            </Link>
-            <span className="text-gray-300 dark:text-gray-700">/</span>
-            <span className="text-xs text-text-muted capitalize">
-              {isEditMode ? 'Edit Product' : 'Create Product'}
-            </span>
-          </div>
-          <h1 className="text-xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wide mt-1">
-            {isEditMode ? `Edit: ${initialData?.title || 'Product'}` : 'Create New Product'}
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCancel}
-            className="rounded-xl border-gray-200 dark:border-gray-800"
-          >
-            Cancel
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSaveDraft}
-            disabled={submitting}
-            className="rounded-xl border-gray-200 dark:border-gray-800 flex items-center gap-2"
-          >
-            <Save className="w-4 h-4 text-amber-500" />
-            <span>Save Draft</span>
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handlePublish}
-            disabled={submitting}
-            className="rounded-xl bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] text-white font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-          >
-            <Send className="w-4 h-4" />
-            <span>{isEditMode ? 'Save Changes' : 'Publish Product'}</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Validation missing fields summary banner */}
+    <div>
+      {/* Fields still needed before the product can be published */}
       {missingRequiredFields.length > 0 && (
-        <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-300">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span>
-              <strong>Completion: {completionPercentage}%</strong> — Missing required fields for publish:{' '}
-              {missingRequiredFields.join(', ')}
-            </span>
-          </div>
+        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+          <Info className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p>
+            <span className="font-semibold">Needed before publishing:</span>{' '}
+            <span className="text-amber-800 dark:text-amber-300/90">{missingRequiredFields.join(', ')}</span>
+          </p>
         </div>
       )}
 
-      {/* Two-Column Responsive Layout (Main 70% | Sidebar 30%) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left / Main Content Area (~70%) */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* SECTION 1: Basic Information */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#8b6f47]" />
-                Basic Information
-              </h2>
-              <span className="text-[11px] text-text-muted font-medium">* Required</span>
-            </div>
-
-            {/* Product Title */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                Product Name <span className="text-rose-500">*</span>
-              </label>
-              <Input
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Main column */}
+        <div className="space-y-6 lg:col-span-8">
+          {/* Basic information */}
+          <FormSection
+            title="Basic information"
+            description="Name, identifiers and how the product is described."
+            actions={<span className="text-xs text-stone-500 dark:text-stone-400"><span className="text-red-500">*</span> Required</span>}
+          >
+            <Field label="Product name" htmlFor="pf-title" required>
+              <input
+                id="pf-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Premium Organic Cotton T-Shirt"
-                className="w-full text-sm font-serif"
+                className={inputClass}
               />
-            </div>
+            </Field>
 
-            {/* Slug & SKU & Barcode */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              
-              {/* Slug */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  URL Slug
-                </label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="URL slug" htmlFor="pf-slug">
                 <input
+                  id="pf-slug"
                   type="text"
                   value={slug}
                   onChange={(e) => {
@@ -852,80 +819,69 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     setIsSlugManuallyEdited(true);
                   }}
                   placeholder="premium-cotton-tshirt"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              {/* SKU */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                    SKU
-                  </label>
+              <Field
+                label="SKU"
+                htmlFor="pf-sku"
+                action={
                   <button
                     type="button"
                     onClick={() => {
                       const generated = `SCT-${category.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
                       setSku(generated);
                     }}
-                    className="text-[10px] text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline"
+                    className="text-xs font-medium text-stone-500 hover:text-[#8b6f47] dark:text-stone-400 dark:hover:text-[#c9a96b] cursor-pointer"
                   >
-                    Auto-Generate
+                    Auto-generate
                   </button>
-                </div>
+                }
+              >
                 <input
+                  id="pf-sku"
                   type="text"
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="SCT-TSH-001"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-mono"
+                  className={`${inputClass} font-mono`}
                 />
-              </div>
+              </Field>
 
-              {/* Barcode */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Barcode (UPC / EAN)
-                </label>
+              <Field label="Barcode (UPC / EAN)" htmlFor="pf-barcode">
                 <input
+                  id="pf-barcode"
                   type="text"
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
                   placeholder="BC-984021482014"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-mono"
+                  className={`${inputClass} font-mono`}
                 />
-              </div>
+              </Field>
             </div>
 
-            {/* Brand, Category & Subcategory */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              
-              {/* Brand */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Brand
-                </label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Brand" htmlFor="pf-brand" required>
                 <input
+                  id="pf-brand"
                   type="text"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
                   placeholder="SwiftCart Signature"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              {/* Category */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Category <span className="text-rose-500">*</span>
-                </label>
+              <Field label="Category" htmlFor="pf-category" required>
                 <select
+                  id="pf-category"
                   value={category}
                   onChange={(e) => {
                     setCategory(e.target.value);
                     setSubcategory('');
                   }}
-                  className={`${selectClass} w-full`}
+                  className={selectInputClass}
                 >
                   <option value="">Select category</option>
                   {category && !categoryOptions.some((o) => o.value === category.toLowerCase()) && (
@@ -937,54 +893,51 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
 
-              {/* Subcategory */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Subcategory
-                </label>
+              <Field label="Subcategory" htmlFor="pf-subcategory">
                 <input
+                  id="pf-subcategory"
                   type="text"
                   list="subcategory-suggestions"
                   value={subcategory}
                   onChange={(e) => setSubcategory(e.target.value)}
                   placeholder="Optional, e.g. Jeans"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                  className={inputClass}
                 />
                 <datalist id="subcategory-suggestions">
                   {(subcategoryOptions[category.charAt(0).toUpperCase() + category.slice(1)] || []).map((sub) => (
                     <option key={sub} value={sub} />
                   ))}
                 </datalist>
-              </div>
+              </Field>
             </div>
 
-            {/* Product Tags */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                Tags & Keywords
-              </label>
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                {tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-800 dark:text-gray-200"
-                  >
-                    <Tag className="w-3 h-3 text-[#8b6f47]" />
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 text-gray-400 hover:text-rose-500"
+            <Field label="Tags" htmlFor="pf-tag" hint="Press Enter or Add after each tag.">
+              {tags.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 rounded-md bg-stone-100 py-1 pl-2 pr-1 text-xs font-medium text-stone-700 dark:bg-white/[0.06] dark:text-stone-200"
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+                      <Tag className="size-3 text-stone-400" />
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-0.5 inline-flex size-4 items-center justify-center rounded text-stone-400 hover:bg-stone-200 hover:text-stone-700 dark:hover:bg-white/10 dark:hover:text-stone-200 cursor-pointer"
+                        aria-label={`Remove tag ${tag}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <input
+                  id="pf-tag"
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
@@ -994,89 +947,61 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                       handleAddTag();
                     }
                   }}
-                  placeholder="Add tag (e.g. summer, cotton) and press Enter"
-                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  placeholder="e.g. summer, cotton"
+                  className={inputClass}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddTag}
-                  className="rounded-xl"
-                >
-                  Add
-                </Button>
+                <AdminButton onClick={handleAddTag}>
+                  <Plus className="size-4" /> Add
+                </AdminButton>
               </div>
-            </div>
+            </Field>
 
-            {/* Short Description */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                Short Description
-              </label>
+            <Field label="Short description" htmlFor="pf-short" hint="Shown on product cards and in search results.">
               <textarea
+                id="pf-short"
                 rows={2}
                 value={shortDescription}
                 onChange={(e) => setShortDescription(e.target.value)}
-                placeholder="Brief summary displayed on product cards and search results..."
-                className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                placeholder="A one or two line summary"
+                className={textareaClass}
               />
-            </div>
+            </Field>
 
-            {/* Full Description */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                Detailed Product Description
-              </label>
+            <Field label="Description" htmlFor="pf-description" required>
               <textarea
+                id="pf-description"
                 rows={6}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Detailed specifications, features, washing guidelines, craftsmanship..."
-                className="w-full p-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs leading-relaxed"
+                placeholder="Materials, fit, features, care instructions..."
+                className={`${textareaClass} leading-relaxed`}
               />
-            </div>
-          </div>
+            </Field>
+          </FormSection>
 
-          {/* SECTION 2: Media Management */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-[#8b6f47]" />
-                Media Gallery
-              </h2>
-              <span className="text-xs text-text-muted">
-                Supported formats: JPG, PNG, WEBP
-              </span>
-            </div>
-
-            {/* Add Image URL Form */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block">
-                Add Image URL
-              </label>
-              <div className="flex items-center gap-2">
+          {/* Media */}
+          <FormSection
+            title="Media"
+            description="Product images, an optional video and the Dress Room model image."
+            actions={<span className="text-xs text-stone-500 dark:text-stone-400">JPG, PNG, WebP or GIF</span>}
+          >
+            <Field label="Add an image by URL" htmlFor="pf-image-url">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
+                  id="pf-image-url"
                   type="text"
                   value={newImageUrl}
                   onChange={(e) => setNewImageUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800"
-                  className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={inputClass}
                 />
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleAddMediaUrl}
-                  className="rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Image</span>
-                </Button>
+                <AdminButton onClick={handleAddMediaUrl}>
+                  <Plus className="size-4" /> Add image
+                </AdminButton>
               </div>
-              <div className="flex items-center gap-2 pt-1">
-                <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#8b6f47] text-[#8b6f47] text-xs font-bold cursor-pointer hover:bg-[#8b6f47]/5">
-                  <Upload className="w-4 h-4" />
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <label className={uploadLabelClass}>
+                  <Upload className="size-4" />
                   {uploadingMedia ? 'Uploading...' : 'Upload from device'}
                   <input
                     type="file"
@@ -1090,74 +1015,66 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                     }}
                   />
                 </label>
-                <span className="text-[11px] text-text-muted">JPG, PNG, WebP or GIF, max 5 MB each</span>
+                <span className="text-xs text-stone-500 dark:text-stone-400">Max 5 MB each</span>
               </div>
               {newImageUrl.trim() && (
-                <div className="flex items-center gap-3 pt-1">
-                  <PreviewImage src={newImageUrl.trim()} className="w-20 h-20 rounded-xl object-cover border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900" />
-                  <span className="text-[11px] text-text-muted">Preview. Click &quot;Add Image&quot; to put it in the gallery.</span>
+                <div className="mt-3 flex items-center gap-3">
+                  <PreviewImage src={newImageUrl.trim()} className="size-20 rounded-lg border border-line bg-stone-100 object-cover dark:bg-white/5" />
+                  <span className="text-xs text-stone-500 dark:text-stone-400">Preview. Click &quot;Add image&quot; to put it in the gallery.</span>
                 </div>
               )}
-              {mediaError && (
-                <p className="text-[11px] text-rose-500 font-medium">{mediaError}</p>
-              )}
-            </div>
+              {mediaError && <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">{mediaError}</p>}
+            </Field>
 
-            {/* Media Items List & Cards */}
             {mediaList.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                 {mediaList.map((media, idx) => (
                   <div
                     key={media.id || idx}
-                    className={`relative rounded-2xl border overflow-hidden group bg-gray-50 dark:bg-gray-800 p-2 space-y-2 transition-all ${
-                      media.isPrimary
-                        ? 'border-[#8b6f47] ring-2 ring-[#8b6f47]/30'
-                        : 'border-gray-200 dark:border-gray-700'
+                    className={`space-y-2 rounded-lg border bg-stone-50 p-2 dark:bg-white/[0.03] ${
+                      media.isPrimary ? 'border-[#8b6f47]/70 ring-1 ring-[#8b6f47]/30 dark:border-[#c9a96b]/60 dark:ring-[#c9a96b]/25' : 'border-line'
                     }`}
                   >
-                    <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-900">
-                      <PreviewImage
-                        src={media.url}
-                        alt={media.alt || 'Product'}
-                        className="w-full h-full object-cover"
-                      />
-
+                    <div className="relative aspect-square overflow-hidden rounded-md bg-stone-100 dark:bg-white/5">
+                      <PreviewImage src={media.url} alt={media.alt || 'Product'} className="h-full w-full object-cover" />
                       {media.isPrimary && (
-                        <span className="absolute top-2 left-2 bg-[#8b6f47] text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-md shadow-xs">
-                          Primary Image
+                        <span className="absolute left-1.5 top-1.5 rounded-md bg-[#8b6f47] px-1.5 py-0.5 text-[11px] font-medium text-white dark:bg-[#c9a96b] dark:text-stone-900">
+                          Primary
                         </span>
                       )}
                     </div>
 
-                    {/* Always-visible controls (works on touch too) */}
-                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-[10px] text-text-muted px-0.5">
-                      <span className="font-bold">#{idx + 1}</span>
+                    <div className="flex items-center justify-between gap-1 px-0.5">
+                      <span className="text-xs tabular-nums text-stone-500 dark:text-stone-400">#{idx + 1}</span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           disabled={idx === 0}
                           onClick={() => handleMoveMedia(idx, 'up')}
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                          className={mediaIconButtonClass}
                           title="Move earlier"
+                          aria-label="Move earlier"
                         >
-                          <MoveUp className="w-3 h-3" />
+                          <MoveUp className="size-3.5" />
                         </button>
                         <button
                           type="button"
                           disabled={idx === mediaList.length - 1}
                           onClick={() => handleMoveMedia(idx, 'down')}
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                          className={mediaIconButtonClass}
                           title="Move later"
+                          aria-label="Move later"
                         >
-                          <MoveDown className="w-3 h-3" />
+                          <MoveDown className="size-3.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveMedia(idx)}
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                          className={`${mediaIconButtonClass} hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/30 dark:hover:text-red-400`}
                           title="Delete image"
+                          aria-label="Delete image"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="size-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1165,252 +1082,199 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                       <button
                         type="button"
                         onClick={() => handleSetPrimaryMedia(idx)}
-                        className="w-full h-8 rounded-lg border border-[#8b6f47]/50 text-[#8b6f47] text-[10px] font-bold uppercase tracking-wide whitespace-nowrap hover:bg-[#8b6f47]/10 transition-colors"
+                        className="h-8 w-full rounded-md border border-line bg-surface text-xs font-medium text-stone-700 transition-colors hover:border-[#8b6f47]/50 hover:text-[#8b6f47] dark:text-stone-200 dark:hover:border-[#c9a96b]/50 dark:hover:text-[#c9a96b] cursor-pointer"
                         title="Set as primary"
                       >
-                        Set Primary
+                        Set as primary
                       </button>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl text-text-muted space-y-2">
-                <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                <p className="text-xs font-medium">No media uploaded yet.</p>
-                <p className="text-[11px] text-text-muted">
-                  Add at least one product image to publish.
-                </p>
+              <div className="rounded-lg border border-dashed border-line">
+                <AdminEmpty icon={ImageIcon} title="No images yet" description="Add at least one product image to publish." />
               </div>
             )}
 
-            {/* Optional Video URL */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                Product Video URL (Optional)
-              </label>
-              <div className="flex items-center gap-2">
-                <Video className="w-4 h-4 text-gray-400" />
+            <Field label="Product video URL" htmlFor="pf-video" hint="Optional. A YouTube link or an MP4 URL.">
+              <div className="relative">
+                <Video className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
                 <input
+                  id="pf-video"
                   type="text"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
                   placeholder="https://youtube.com/watch?v=sample or MP4 URL"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${inputClass} pl-9`}
                 />
               </div>
-            </div>
+            </Field>
 
-            {/* DEDICATED DRESS ROOM / MODEL IMAGE SECTION */}
-            <div className="pt-6 border-t border-gray-200/80 dark:border-gray-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#8b6f47] dark:text-[#c9a96b]" />
-                    Dress Room / Model Wearing Image
+            {/* Dress Room model image */}
+            <div className="space-y-4 rounded-lg border border-line p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    <Sparkles className="size-4 text-[#8b6f47] dark:text-[#c9a96b]" />
+                    Dress Room model image
                   </h3>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 max-w-xl">
-                    <strong className="text-gray-700 dark:text-gray-300">Product Image:</strong> The standard image displayed throughout the store (cards, details, cart).<br />
-                    <strong className="text-gray-700 dark:text-gray-300">Model Wearing Image:</strong> An image showing a model wearing this exact product, used inside the Dress Room.
+                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-stone-500 dark:text-stone-400">
+                    The product image is used everywhere in the store (cards, details, cart). The model image shows a model wearing this exact product and is used inside the Dress Room.
                   </p>
                 </div>
-                {modelWearingImage ? (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-500/20">
-                    Model Preview Configured
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-500/20">
-                    Optional (Not Set)
-                  </span>
-                )}
+                {modelWearingImage ? <Pill tone="success" dot>Model image set</Pill> : <Pill tone="neutral">Optional, not set</Pill>}
               </div>
 
-              {/* Model Image URL Input */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block">
-                  Model Image URL
-                </label>
-                <div className="flex items-center gap-2">
+              <Field label="Model image URL" htmlFor="pf-model">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
+                    id="pf-model"
                     type="text"
                     value={modelWearingImage}
                     onChange={(e) => setModelWearingImage(e.target.value)}
                     placeholder="https://... or /images/dress-room/shirt-model.jpg"
-                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                    className={inputClass}
                   />
-                  <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#8b6f47] text-[#8b6f47] text-xs font-bold cursor-pointer hover:bg-[#8b6f47]/5 whitespace-nowrap">
-                    <Upload className="w-4 h-4" />
-                    {uploadingModel ? 'Uploading...' : 'Upload'}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="sr-only"
-                      disabled={uploadingModel}
-                      onChange={(e) => {
-                        void handleUploadModelImage(e.target.files);
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
-                  {modelWearingImage && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setModelWearingImage('')}
-                      className="rounded-xl text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-950/20 flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove</span>
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <label className={uploadLabelClass}>
+                      <Upload className="size-4" />
+                      {uploadingModel ? 'Uploading...' : 'Upload'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        disabled={uploadingModel}
+                        onChange={(e) => {
+                          void handleUploadModelImage(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {modelWearingImage && (
+                      <AdminButton variant="danger" onClick={() => setModelWearingImage('')}>
+                        <Trash2 className="size-4" /> Remove
+                      </AdminButton>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Field>
 
-              {/* Live Preview Card */}
               {modelWearingImage ? (
-                <div className="p-4 bg-[#8b6f47]/5 dark:bg-[#8b6f47]/10 rounded-2xl border border-[#8b6f47]/20 flex flex-col sm:flex-row items-center gap-4">
-                  <div className="relative w-24 h-32 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-[#8b6f47]/30 shrink-0 shadow-sm">
+                <div className="flex items-center gap-4 rounded-lg bg-stone-50 p-3 dark:bg-white/[0.03]">
+                  <div className="h-28 w-20 shrink-0 overflow-hidden rounded-md border border-line bg-stone-100 dark:bg-white/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={modelWearingImage}
-                      alt="Model Wearing Preview"
-                      className="w-full h-full object-cover"
+                      alt="Model wearing preview"
+                      className="h-full w-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLElement).style.display = 'none';
                       }}
                     />
                   </div>
-                  <div className="space-y-1 text-left flex-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#8b6f47] dark:text-[#c9a96b]">
-                      Dress Room Preview Live
-                    </span>
-                    <h4 className="text-xs font-bold text-gray-900 dark:text-white">
-                      Model Wearing &quot;{title || 'This Product'}&quot;
-                    </h4>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                      When shoppers open the Dress Room and select &quot;Model&quot;, this image will seamlessly display without page reloads.
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs font-medium text-[#8b6f47] dark:text-[#c9a96b]">Dress Room preview</p>
+                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Model wearing &quot;{title || 'this product'}&quot;</p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      When shoppers open the Dress Room and choose &quot;Model&quot;, this image is shown without a page reload.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 text-center border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl text-gray-400 space-y-1">
-                  <p className="text-xs font-medium">No model-wearing image specified.</p>
-                  <p className="text-[10px] text-gray-400">
-                    If omitted, the Dress Room will gracefully default to the standard product image with the Model toggle disabled.
-                  </p>
-                </div>
+                <p className="rounded-lg border border-dashed border-line px-4 py-3 text-xs text-stone-500 dark:text-stone-400">
+                  No model image yet. Without one, the Dress Room uses the standard product image and the Model toggle is turned off.
+                </p>
               )}
             </div>
-          </div>
+          </FormSection>
 
-          {/* SECTION 3: Pricing */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-[#8b6f47]" />
-                Pricing Strategy
-              </h2>
-              <span className="text-xs text-text-muted">Currency: {currency}</span>
-            </div>
-
-            {/* Price Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              
-              {/* Selling Price */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Selling Price <span className="text-rose-500">*</span>
-                </label>
+          {/* Pricing */}
+          <FormSection
+            title="Pricing"
+            description="What shoppers pay, the list price and your unit cost."
+            actions={<span className="text-xs text-stone-500 dark:text-stone-400">Currency: {currency}</span>}
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Selling price" htmlFor="pf-price" required>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
-                    $
-                  </span>
-                  <NumberInput emptyWhenZero placeholder="0.00"
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">$</span>
+                  <NumberInput
+                    id="pf-price"
+                    emptyWhenZero
+                    placeholder="0.00"
                     min="0"
                     step="0.01"
                     value={price}
                     onValueChange={(n) => setPrice(n || 0)}
-                    className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                    className={`${inputClass} pl-7 tabular-nums`}
                   />
                 </div>
-              </div>
+              </Field>
 
-              {/* Original Price */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Original Price (MSRP)
-                </label>
+              <Field label="Original price (MSRP)" htmlFor="pf-original">
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
-                    $
-                  </span>
-                  <NumberInput emptyWhenZero placeholder="0.00"
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">$</span>
+                  <NumberInput
+                    id="pf-original"
+                    emptyWhenZero
+                    placeholder="0.00"
                     min="0"
                     step="0.01"
                     value={originalPrice}
                     onValueChange={(n) => setOriginalPrice(n || 0)}
-                    className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                    className={`${inputClass} pl-7 tabular-nums`}
                   />
                 </div>
-              </div>
+              </Field>
 
-              {/* Cost Price */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Cost Price (Unit Cost)
-                </label>
+              <Field label="Cost price (per unit)" htmlFor="pf-cost">
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
-                    $
-                  </span>
-                  <NumberInput emptyWhenZero placeholder="0.00"
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-stone-400">$</span>
+                  <NumberInput
+                    id="pf-cost"
+                    emptyWhenZero
+                    placeholder="0.00"
                     min="0"
                     step="0.01"
                     value={costPrice}
                     onValueChange={(n) => setCostPrice(n || 0)}
-                    className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                    className={`${inputClass} pl-7 tabular-nums`}
                   />
                 </div>
-              </div>
+              </Field>
             </div>
 
-            {/* Tax & Discount Type */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Tax Rate (%)
-                </label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Tax rate (%)" htmlFor="pf-tax">
                 <NumberInput
+                  id="pf-tax"
                   min="0"
                   max="100"
                   value={taxRate}
                   onValueChange={(n) => setTaxRate(n || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${inputClass} tabular-nums`}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Discount Type
-                </label>
+              <Field label="Discount type" htmlFor="pf-discount-type">
                 <select
+                  id="pf-discount-type"
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value as any)}
-                  className={`${selectClass} w-full`}
+                  className={selectInputClass}
                 >
                   <option value="percentage">Percentage (%)</option>
-                  <option value="fixed">Fixed Amount ($)</option>
+                  <option value="fixed">Fixed amount ($)</option>
                 </select>
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Currency
-                </label>
+              <Field label="Currency" htmlFor="pf-currency">
                 <select
+                  id="pf-currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className={`${selectClass} w-full`}
+                  className={selectInputClass}
                 >
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
@@ -1418,253 +1282,193 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                   <option value="CAD">CAD ($)</option>
                   <option value="AUD">AUD ($)</option>
                 </select>
-              </div>
+              </Field>
             </div>
 
-            {/* Live Pricing Summary Box */}
-            <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl border border-emerald-150 dark:border-emerald-900/40 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
-                  Selling Price
-                </span>
-                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
-                  ${price}
-                </p>
-              </div>
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-4">
+              <SummaryCell label="Selling price" value={`$${(Number(price) || 0).toFixed(2)}`} />
+              <SummaryCell
+                label="Discount"
+                value={`${calculatedDiscountPercentage}% off`}
+                hint={`$${calculatedDiscountAmount.toFixed(2)} below list price`}
+              />
+              <SummaryCell
+                label="Estimated profit"
+                value={`$${estimatedProfit.toFixed(2)}`}
+                className={estimatedProfit < 0 ? 'text-red-600 dark:text-red-400' : undefined}
+              />
+              <SummaryCell label="Profit margin" value={`${profitMargin}%`} />
+            </dl>
+          </FormSection>
 
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
-                  Calculated Discount
-                </span>
-                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
-                  {calculatedDiscountPercentage}% OFF (${calculatedDiscountAmount.toFixed(2)})
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
-                  Estimated Profit
-                </span>
-                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
-                  ${estimatedProfit.toFixed(2)}
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
-                  Profit Margin
-                </span>
-                <p className="text-base font-bold font-serif text-emerald-900 dark:text-emerald-200">
-                  {profitMargin}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 4: Inventory Management */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Package className="w-5 h-5 text-[#8b6f47]" />
-                Inventory Control
-              </h2>
-              
-              {/* Derived status badge */}
-              {calculatedStockStatus === 'out_of_stock' ? (
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
-                  Out of Stock
-                </span>
+          {/* Inventory */}
+          <FormSection
+            title="Inventory"
+            description="Stock levels, order limits and backorders."
+            actions={
+              calculatedStockStatus === 'out_of_stock' ? (
+                <Pill tone="danger" dot>Out of stock</Pill>
               ) : calculatedStockStatus === 'low_stock' ? (
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                  Low Stock
-                </span>
+                <Pill tone="warning" dot>Low stock</Pill>
               ) : (
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                  In Stock
-                </span>
-              )}
-            </div>
-
-            {/* Inventory Controls Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              
-              {/* Total Stock */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Stock Quantity <span className="text-rose-500">*</span>
-                </label>
-                <NumberInput integer
+                <Pill tone="success" dot>In stock</Pill>
+              )
+            }
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Stock quantity" htmlFor="pf-stock" required>
+                <NumberInput
+                  id="pf-stock"
+                  integer
                   min="0"
                   value={stock}
                   onValueChange={(n) => setStock(n || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                  className={`${inputClass} tabular-nums`}
                 />
-              </div>
+              </Field>
 
-              {/* Reserved Stock */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Reserved Stock
-                </label>
-                <NumberInput integer
+              <Field label="Reserved stock" htmlFor="pf-reserved">
+                <NumberInput
+                  id="pf-reserved"
+                  integer
                   min="0"
                   value={reservedStock}
                   onValueChange={(n) => setReservedStock(n || 0)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${inputClass} tabular-nums`}
                 />
-              </div>
+              </Field>
 
-              {/* Low Stock Threshold */}
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Low Stock Threshold
-                </label>
-                <NumberInput integer
+              <Field label="Low-stock threshold" htmlFor="pf-threshold">
+                <NumberInput
+                  id="pf-threshold"
+                  integer
                   min="1"
                   value={lowStockThreshold}
                   onValueChange={(n) => setLowStockThreshold(n || 10)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${inputClass} tabular-nums`}
                 />
-              </div>
+              </Field>
             </div>
 
-            {/* Warehouse & Order Limits */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Warehouse Location
-                </label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Warehouse location" htmlFor="pf-warehouse">
                 <input
+                  id="pf-warehouse"
                   type="text"
                   value={warehouse}
                   onChange={(e) => setWarehouse(e.target.value)}
                   placeholder="Main Hub - NY"
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={inputClass}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Min Order Qty
-                </label>
-                <NumberInput integer
+              <Field label="Min order quantity" htmlFor="pf-min-qty">
+                <NumberInput
+                  id="pf-min-qty"
+                  integer
                   min="1"
                   value={minOrderQuantity}
                   onValueChange={(n) => setMinOrderQuantity(n || 1)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${inputClass} tabular-nums`}
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5">
-                  Max Order Qty
-                </label>
-                <NumberInput integer
+              <Field label="Max order quantity" htmlFor="pf-max-qty">
+                <NumberInput
+                  id="pf-max-qty"
+                  integer
                   min="1"
                   value={maxOrderQuantity}
                   onValueChange={(n) => setMaxOrderQuantity(n || 10)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  className={`${inputClass} tabular-nums`}
                 />
-              </div>
+              </Field>
             </div>
 
-            {/* Toggles */}
-            <div className="flex items-center gap-6 pt-2">
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <label className={checkboxLabelClass}>
                 <input
                   type="checkbox"
                   checked={trackInventory}
                   onChange={(e) => setTrackInventory(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                  className={checkboxClass}
                 />
-                <span>Track Stock Quantity</span>
+                Track stock quantity
               </label>
-
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
+              <label className={checkboxLabelClass}>
                 <input
                   type="checkbox"
                   checked={allowBackorder}
                   onChange={(e) => setAllowBackorder(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                  className={checkboxClass}
                 />
-                <span>Allow Backorders</span>
+                Allow backorders
               </label>
             </div>
-          </div>
+          </FormSection>
 
-          {/* SECTION 5: Variant Foundation */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <div>
-                <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-[#8b6f47]" />
-                  Product Variants Matrix
-                </h2>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Define variant options (Color, Size, Material) to generate SKU combinations.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateVariants}
-                className="rounded-xl flex items-center gap-1.5 whitespace-nowrap shrink-0 border-[#8b6f47] text-[#8b6f47] dark:text-[#c9a96b]"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Generate Combinations</span>
-              </Button>
-            </div>
-
-            {/* Generated Variant Table */}
+          {/* Variants */}
+          <FormSection
+            title="Variants"
+            description="Define options such as colour, size or material, then generate a SKU for each combination."
+            actions={
+              <AdminButton size="sm" onClick={handleGenerateVariants}>
+                <Sparkles className="size-3.5" /> Generate combinations
+              </AdminButton>
+            }
+          >
             {variantCombinations.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-[10px] uppercase font-bold text-gray-500">
-                      <th className="py-2.5 px-3">Variant</th>
-                      <th className="py-2.5 px-3">SKU</th>
-                      <th className="py-2.5 px-3">Price</th>
-                      <th className="py-2.5 px-3">Stock</th>
-                      <th className="py-2.5 px-3">Status</th>
+              <div className={table.wrap}>
+                <table className={table.table}>
+                  <thead className={table.thead}>
+                    <tr>
+                      <th className={table.th}>Variant</th>
+                      <th className={table.th}>SKU</th>
+                      <th className={table.th}>Price</th>
+                      <th className={table.th}>Stock</th>
+                      <th className={table.th}>Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  <tbody className={table.tbody}>
                     {variantCombinations.map((comb, idx) => (
-                      <tr key={comb.id || idx}>
-                        <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-white">
-                          {Object.entries(comb.attributes)
-                            .map(([k, v]) => `${v}`)
-                            .join(' / ')}
+                      <tr key={comb.id || idx} className={table.tr}>
+                        <td className={`${table.td} whitespace-nowrap font-medium text-stone-900 dark:text-stone-100`}>
+                          {Object.values(comb.attributes).join(' / ')}
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className={table.td}>
                           <input
                             type="text"
                             value={comb.sku}
                             onChange={(e) => handleUpdateVariantRow(idx, 'sku', e.target.value)}
-                            className="w-32 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono"
+                            className={`${compactInputClass} w-40 font-mono text-xs`}
+                            aria-label="Variant SKU"
                           />
                         </td>
-                        <td className="py-2.5 px-3">
-                          <NumberInput emptyWhenZero placeholder="0.00"
+                        <td className={table.td}>
+                          <NumberInput
+                            emptyWhenZero
+                            placeholder="0.00"
                             value={comb.price}
                             onValueChange={(n) => handleUpdateVariantRow(idx, 'price', n || 0)}
-                            className="w-20 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                            className={`${compactInputClass} w-24 text-right tabular-nums`}
+                            aria-label="Variant price"
                           />
                         </td>
-                        <td className="py-2.5 px-3">
-                          <NumberInput integer
+                        <td className={table.td}>
+                          <NumberInput
+                            integer
                             value={comb.stock}
                             onValueChange={(n) => handleUpdateVariantRow(idx, 'stock', n || 0)}
-                            className="w-20 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs"
+                            className={`${compactInputClass} w-20 text-right tabular-nums`}
+                            aria-label="Variant stock"
                           />
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className={table.td}>
                           <select
                             value={comb.status || 'active'}
                             onChange={(e) => handleUpdateVariantRow(idx, 'status', e.target.value as any)}
-                            className={`${selectClass} w-full`}
+                            className={`${selectInputClass} h-8 min-w-[110px]`}
+                            aria-label="Variant status"
                           >
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -1676,260 +1480,208 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
                 </table>
               </div>
             ) : (
-              <p className="text-xs text-text-muted italic">
-                No variants matrix generated yet. Click "Generate Combinations" above.
+              <p className="rounded-lg border border-dashed border-line px-4 py-6 text-center text-sm text-stone-500 dark:text-stone-400">
+                No combinations yet. Use &quot;Generate combinations&quot; to create them.
               </p>
             )}
-          </div>
+          </FormSection>
 
-          {/* SECTION 6: Custom Attributes */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
-            <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <Layers className="w-5 h-5 text-[#8b6f47]" />
-              Specifications & Custom Attributes
-            </h2>
+          {/* Specifications */}
+          <FormSection title="Specifications" description="Fabric, fit, care and other details shown on the product page.">
+            {attributes.length > 0 && (
+              <ul className="divide-y divide-line rounded-lg border border-line">
+                {attributes.map((attr, idx) => (
+                  <li key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      <span className="text-stone-500 dark:text-stone-400">{attr.name}</span>
+                      <span className="ml-2 font-medium text-stone-900 dark:text-stone-100">{attr.value}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttribute(idx)}
+                      className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400 cursor-pointer"
+                      aria-label={`Remove ${attr.name}`}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-            {/* List */}
-            <div className="space-y-2">
-              {attributes.map((attr, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs"
-                >
-                  <div>
-                    <span className="font-bold text-gray-900 dark:text-white">{attr.name}:</span>{' '}
-                    <span className="text-gray-700 dark:text-gray-300">{attr.value}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveAttribute(idx)}
-                    className="text-gray-400 hover:text-rose-500"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Add Custom Attribute */}
-            <div className="flex items-center gap-2 pt-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
               <input
                 type="text"
                 value={newAttrName}
                 onChange={(e) => setNewAttrName(e.target.value)}
-                placeholder="Attribute Name (e.g. Care)"
-                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                placeholder="Name, e.g. Care"
+                className={inputClass}
+                aria-label="Attribute name"
               />
               <input
                 type="text"
                 value={newAttrVal}
                 onChange={(e) => setNewAttrVal(e.target.value)}
-                placeholder="Attribute Value (e.g. Machine Wash Cold)"
-                className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                placeholder="Value, e.g. Machine wash cold"
+                className={inputClass}
+                aria-label="Attribute value"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddAttribute}
-                className="rounded-xl"
-              >
-                Add
-              </Button>
+              <AdminButton onClick={handleAddAttribute}>
+                <Plus className="size-4" /> Add
+              </AdminButton>
             </div>
-          </div>
+          </FormSection>
 
           {/* SECTION 7: Shipping & Logistics - hidden for now (backend keeps its defaults; payload still sends the existing/default values). */}
 
-          {/* SECTION 8: SEO Foundation */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4">
-            <h2 className="text-base font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-4 border-gray-100 dark:border-gray-800">
-              <Globe className="w-5 h-5 text-[#8b6f47]" />
-              SEO Engine Optimization
-            </h2>
-
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                Meta Title
-              </label>
+          {/* SEO */}
+          <FormSection title="SEO" description="How the product appears in search engine results.">
+            <Field label="Meta title" htmlFor="pf-meta-title">
               <input
+                id="pf-meta-title"
                 type="text"
                 value={metaTitle}
                 onChange={(e) => setMetaTitle(e.target.value)}
                 placeholder={title || 'Product Meta Title'}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={inputClass}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                Meta Description
-              </label>
+            <Field label="Meta description" htmlFor="pf-meta-description">
               <textarea
+                id="pf-meta-description"
                 rows={2}
                 value={metaDescription}
                 onChange={(e) => setMetaDescription(e.target.value)}
                 placeholder={shortDescription || 'Compelling search preview summary...'}
-                className="w-full p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                className={textareaClass}
               />
-            </div>
+            </Field>
 
-            {/* Google Search Visual Preview Card */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-200 dark:border-gray-700 space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-                Google Search Result Preview
-              </span>
-              <h3 className="text-sm font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer">
+            <div className="space-y-1 rounded-lg border border-line bg-stone-50 p-4 dark:bg-white/[0.03]">
+              <p className="mb-2 text-xs font-medium text-stone-500 dark:text-stone-400">Search result preview</p>
+              <p className="truncate text-base text-blue-700 dark:text-blue-400">
                 {metaTitle || title || 'Product Title | SwiftCart'}
-              </h3>
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
+              </p>
+              <p className="truncate font-mono text-xs text-emerald-700 dark:text-emerald-400">
                 https://swiftcart.com/products/{slug || 'product-slug'}
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
+              <p className="line-clamp-2 text-sm text-stone-600 dark:text-stone-300">
                 {metaDescription || shortDescription || description || 'Product description preview...'}
               </p>
             </div>
-          </div>
+          </FormSection>
         </div>
 
-        {/* Right Sidebar Area (~30%) */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* Status & Visibility Card */}
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-4 sticky top-24">
-            <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider pb-3 border-b border-gray-100 dark:border-gray-800">
-              Publish Status & Flags
-            </h3>
+        {/* Sidebar */}
+        <div className="lg:col-span-4">
+          <div className="space-y-6 lg:sticky lg:top-20">
+            <FormSection title="Status & visibility">
+              <Field label="Status" htmlFor="pf-status">
+                <select
+                  id="pf-status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  className={selectInputClass}
+                >
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </Field>
 
-            {/* Status Selector */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
-                className={`${selectClass} w-full`}
-              >
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
+              <Field label="Visibility" htmlFor="pf-visibility">
+                <select
+                  id="pf-visibility"
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value as any)}
+                  className={selectInputClass}
+                >
+                  <option value="public">Public (catalog)</option>
+                  <option value="private">Private (admin only)</option>
+                  <option value="hidden">Hidden (link only)</option>
+                </select>
+              </Field>
 
-            {/* Visibility Selector */}
-            <div>
-              <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1">
-                Visibility
-              </label>
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value as any)}
-                className={`${selectClass} w-full`}
-              >
-                <option value="public">Public (Catalog)</option>
-                <option value="private">Private (Admin only)</option>
-                <option value="hidden">Hidden (Link only)</option>
-              </select>
-            </div>
+              <fieldset>
+                <legend className={labelClass}>Badges</legend>
+                <div className="divide-y divide-line rounded-lg border border-line">
+                  {[
+                    { label: 'Featured product', checked: featured, set: setFeatured },
+                    { label: 'New arrival', checked: newArrival, set: setNewArrival },
+                    { label: 'Bestseller', checked: bestSeller, set: setBestSeller },
+                    { label: 'Trending', checked: trending, set: setTrending },
+                  ].map((flag) => (
+                    <label key={flag.label} className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-50 dark:text-stone-300 dark:hover:bg-white/[0.02]">
+                      <span>{flag.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={flag.checked}
+                        onChange={(e) => flag.set(e.target.checked)}
+                        className={checkboxClass}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </FormSection>
 
-            {/* Feature Toggles */}
-            <div className="space-y-2.5 pt-2">
-              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
-                <span>Featured Product</span>
-                <input
-                  type="checkbox"
-                  checked={featured}
-                  onChange={(e) => setFeatured(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
-                <span>New Arrival</span>
-                <input
-                  type="checkbox"
-                  checked={newArrival}
-                  onChange={(e) => setNewArrival(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
-                <span>Bestseller Badge</span>
-                <input
-                  type="checkbox"
-                  checked={bestSeller}
-                  onChange={(e) => setBestSeller(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                />
-              </label>
-
-              <label className="flex items-center justify-between text-xs font-medium text-gray-800 dark:text-gray-200 cursor-pointer">
-                <span>Trending Badge</span>
-                <input
-                  type="checkbox"
-                  checked={trending}
-                  onChange={(e) => setTrending(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                />
-              </label>
-            </div>
-
-            {/* LIVE PRODUCT CARD PREVIEW PANEL */}
-            <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                Live Product Card Preview
-              </span>
-              
-              <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm p-3 space-y-2">
-                <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
+            <FormSection title="Card preview" description="How the product card looks in the shop.">
+              <div className="overflow-hidden rounded-lg border border-line">
+                <div className="relative aspect-square bg-stone-100 dark:bg-white/5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={primaryMedia?.url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80'}
                     alt={title || 'Product Preview'}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                   {calculatedDiscountPercentage > 0 && (
-                    <span className="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                    <span className="absolute left-2 top-2 rounded-md bg-red-600 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-white">
                       -{calculatedDiscountPercentage}%
                     </span>
                   )}
                 </div>
-
-                <div>
-                  <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider">
-                    {brand}
-                  </span>
-                  <h4 className="font-serif font-bold text-sm text-gray-900 dark:text-white truncate">
-                    {title || 'Product Title'}
-                  </h4>
-
-                  {/* Rating Stars Mock */}
-                  <div className="flex items-center gap-1 my-1">
+                <div className="space-y-1 p-3">
+                  {brand && <p className="text-xs text-stone-500 dark:text-stone-400">{brand}</p>}
+                  <p className="truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{title || 'Product Title'}</p>
+                  <div className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((s) => (
-                      <Star key={s} className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      <Star key={s} className="size-3 fill-amber-400 text-amber-400" />
                     ))}
-                    <span className="text-[10px] text-text-muted ml-1">(15)</span>
+                    <span className="ml-1 text-[11px] text-stone-500 dark:text-stone-400">(15)</span>
                   </div>
-
-                  {/* Pricing line */}
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="font-bold text-gray-900 dark:text-white font-serif text-sm">
-                      ${price}
-                    </span>
-                    {originalPrice > price && (
-                      <span className="text-xs text-text-muted line-through">
-                        ${originalPrice}
-                      </span>
-                    )}
+                  <div className="flex items-baseline gap-2 pt-0.5 tabular-nums">
+                    <span className="text-sm font-semibold text-stone-900 dark:text-white">${price}</span>
+                    {originalPrice > price && <span className="text-xs text-stone-400 line-through">${originalPrice}</span>}
                   </div>
                 </div>
               </div>
-            </div>
-
+            </FormSection>
           </div>
         </div>
+      </div>
 
+      {/* Save bar */}
+      <div className="sticky bottom-4 z-20 mt-6 flex flex-col gap-3 rounded-xl border border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="hidden items-center gap-3 sm:flex">
+          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-stone-100 dark:bg-white/[0.08]" aria-hidden>
+            <div className="h-full rounded-full bg-[#8b6f47] dark:bg-[#c9a96b]" style={{ width: `${completionPercentage}%` }} />
+          </div>
+          <span className="text-xs text-stone-500 dark:text-stone-400">
+            <span className="font-medium tabular-nums text-stone-900 dark:text-stone-100">{completionPercentage}%</span> complete
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <AdminButton variant="ghost" onClick={handleCancel}>
+            Cancel
+          </AdminButton>
+          <AdminButton onClick={handleSaveDraft} disabled={submitting}>
+            <Save className="size-4" /> Save draft
+          </AdminButton>
+          <AdminButton variant="primary" onClick={handlePublish} disabled={submitting}>
+            <Send className="size-4" /> {isEditMode ? 'Save changes' : 'Publish product'}
+          </AdminButton>
+        </div>
       </div>
 
       {/* Confirmation Modal when Leaving with Unsaved Changes */}
@@ -1941,12 +1693,11 @@ export default function ProductForm({ initialData, isEditMode = false }: Product
           setIsDirty(false);
           if (targetNavigationUrl) router.push(targetNavigationUrl);
         }}
-        title="Unsaved Changes"
-        message="You have unsaved changes on this product form. Are you sure you want to leave?"
-        confirmText="Leave Page"
+        title="Leave without saving?"
+        message="You have unsaved changes on this product. If you leave now, they will be lost."
+        confirmText="Leave page"
         variant="warning"
       />
-
     </div>
   );
 }

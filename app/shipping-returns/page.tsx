@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description: 'Delivery times, shipping fees, tax, returns and refunds at SwiftCart.',
 };
 
-const th = 'text-left text-[10px] font-bold uppercase tracking-wider text-text-muted py-2 pr-4';
-const td = 'py-2.5 pr-4 border-t border-gray-100 dark:border-gray-800 align-top';
+const th = 'text-left text-[11px] font-medium uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 py-2 pr-4';
+const td = 'py-2.5 pr-4 border-t border-line align-top';
 
 export default function ShippingReturnsPage() {
   return (
@@ -19,7 +19,7 @@ export default function ShippingReturnsPage() {
       intro="What it costs, how long it takes, and what to do if something is not right."
       updated={SITE.lastUpdated}
     >
-      <div className="space-y-6">
+      <div>
         <InfoCard title="Shipping fees">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -28,7 +28,7 @@ export default function ShippingReturnsPage() {
               </thead>
               <tbody>
                 <tr><td className={td}>Under ${SITE.freeShippingThreshold}</td><td className={td}>${SITE.shippingFee} flat rate</td></tr>
-                <tr><td className={td}>${SITE.freeShippingThreshold} or more</td><td className={td}><strong>Free</strong></td></tr>
+                <tr><td className={td}>${SITE.freeShippingThreshold} or more</td><td className={td}><span className="font-medium text-ink">Free</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -53,7 +53,7 @@ export default function ShippingReturnsPage() {
           <p>
             Orders are processed within one business day. Delivery times are estimates and may be longer during
             public holidays, sales or bad weather. You can follow your order status on the{' '}
-            <Link href="/orders" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">My Orders</Link> page.
+            <Link href="/orders" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">My Orders</Link> page.
           </p>
         </InfoCard>
 
@@ -66,14 +66,14 @@ export default function ShippingReturnsPage() {
         </InfoCard>
 
         <InfoCard title="Returns and exchanges">
-          <ul className="list-disc pl-5 space-y-1.5">
+          <ul className="list-disc pl-5 space-y-1.5 marker:text-stone-400">
             <li>You can request a return or exchange within 7 days of receiving your order.</li>
             <li>Items must be unworn, unwashed, undamaged and have original tags and packaging.</li>
             <li>Innerwear, swimwear, pierced jewelry and personalised items cannot be returned for hygiene reasons.</li>
             <li>Items bought through a Lucky Draw prize or on final-sale offers are not eligible unless faulty.</li>
           </ul>
           <p>
-            To start a return, <Link href="/contact" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">contact us</Link>{' '}
+            To start a return, <Link href="/contact" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">contact us</Link>{' '}
             with your order number and a photo if the item is damaged. We will confirm the next steps and arrange pickup or
             drop-off.
           </p>

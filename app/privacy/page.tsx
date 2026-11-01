@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'What personal information SwiftCart collects, how it is used and the choices you have.',
 };
 
-const link = 'text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline';
+const link = 'text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink';
 
 export default function PrivacyPage() {
   return (
@@ -18,9 +18,9 @@ export default function PrivacyPage() {
       intro={`We collect only what we need to run your orders and improve the shop. This page explains what that is and how ${SITE.name} handles it.`}
       updated={SITE.lastUpdated}
     >
-      <div className="space-y-6">
+      <div>
         <InfoCard title="Information we collect">
-          <ul className="list-disc pl-5 space-y-1.5">
+          <ul className="list-disc pl-5 space-y-1.5 marker:text-stone-400">
             <li><strong>Account details:</strong> name, email address and password (stored hashed, never in plain text). If you sign in with Google we receive your name, email and profile picture.</li>
             <li><strong>Order details:</strong> delivery addresses, phone number, items purchased and payment method used.</li>
             <li><strong>Messages and reviews:</strong> anything you send through the contact form or post as a review.</li>
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
         </InfoCard>
 
         <InfoCard title="How we use it">
-          <ul className="list-disc pl-5 space-y-1.5">
+          <ul className="list-disc pl-5 space-y-1.5 marker:text-stone-400">
             <li>To process and deliver orders and send order confirmations and status updates.</li>
             <li>To run your account, wishlist, cart and Lucky Draw tickets.</li>
             <li>To answer your questions and provide support.</li>

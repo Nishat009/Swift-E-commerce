@@ -33,15 +33,15 @@ export default function RefundOfferCard({ order, onUpdated }: { order: Order; on
   };
 
   return (
-    <div className="rounded-2xl border border-[#8b6f47]/30 bg-[#8b6f47]/5 p-4 text-xs">
-      <p className="text-[10px] font-black uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b] mb-1">Refund offer</p>
-      <p className="text-2xl font-extrabold text-gray-900 dark:text-white">{money(p.amount)}</p>
-      <div className="mt-2 space-y-0.5 text-gray-600 dark:text-gray-400">
+    <div className="rounded-lg border border-line bg-surface-muted p-5 text-xs">
+      <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 mb-1">Refund offer</p>
+      <p className="text-3xl font-serif font-medium tabular-nums text-ink">{money(p.amount)}</p>
+      <div className="mt-2 space-y-0.5 text-stone-600 dark:text-stone-400">
         <div className="flex justify-between max-w-xs"><span>Product price</span><span>{money(p.productAmount)}</span></div>
         {p.deduction > 0 && <div className="flex justify-between max-w-xs text-red-600 dark:text-red-400"><span>Handling charge</span><span>-{money(p.deduction)}</span></div>}
       </div>
-      {p.deduction > 0 && p.remarks && <p className="mt-2 text-gray-600 dark:text-gray-400">{p.remarks}</p>}
-      <p className="mt-2 text-[11px] text-gray-400">Delivery charges are not refundable.</p>
+      {p.deduction > 0 && p.remarks && <p className="mt-2 text-stone-600 dark:text-stone-400">{p.remarks}</p>}
+      <p className="mt-2 text-[11px] text-stone-500 dark:text-stone-400">Delivery charges are not refundable.</p>
 
       {declining && (
         <textarea
@@ -50,19 +50,19 @@ export default function RefundOfferCard({ order, onUpdated }: { order: Order; on
           maxLength={500}
           rows={2}
           placeholder="Tell us why (optional)"
-          className="mt-3 w-full text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/40"
+          className="mt-3 w-full rounded-md border border-line bg-transparent p-3 text-sm text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none"
         />
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         {declining ? (
           <>
-            <Button size="sm" variant="outline" onClick={() => setDeclining(false)} disabled={!!saving} className="rounded-full text-[11px] font-bold px-4">Back</Button>
-            <Button size="sm" onClick={() => answer(false)} loading={saving === 'decline'} className="rounded-full text-[11px] font-bold px-4 bg-red-600 hover:bg-red-700 text-white border-0">Decline offer</Button>
+            <Button size="sm" variant="outline" onClick={() => setDeclining(false)} disabled={!!saving} >Back</Button>
+            <Button size="sm" onClick={() => answer(false)} loading={saving === 'decline'} className="bg-red-700 text-white hover:bg-red-800 dark:bg-red-600 dark:hover:bg-red-500">Decline offer</Button>
           </>
         ) : (
           <>
-            <Button size="sm" onClick={() => answer(true)} loading={saving === 'accept'} disabled={!!saving} className="rounded-full text-[11px] font-bold px-5 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0">Accept {money(p.amount)}</Button>
-            <Button size="sm" variant="outline" onClick={() => setDeclining(true)} disabled={!!saving} className="rounded-full text-[11px] font-bold px-4">Decline</Button>
+            <Button size="sm" onClick={() => answer(true)} loading={saving === 'accept'} disabled={!!saving} >Accept {money(p.amount)}</Button>
+            <Button size="sm" variant="outline" onClick={() => setDeclining(true)} disabled={!!saving} >Decline</Button>
           </>
         )}
       </div>

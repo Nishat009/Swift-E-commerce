@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'The terms that apply when you browse, buy from or create an account with SwiftCart.',
 };
 
-const link = 'text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline';
+const link = 'text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink';
 
 export default function TermsPage() {
   return (
@@ -18,7 +18,7 @@ export default function TermsPage() {
       intro={`These terms apply to your use of the ${SITE.name} website and any purchase you make from us. By creating an account or placing an order you agree to them.`}
       updated={SITE.lastUpdated}
     >
-      <div className="space-y-6">
+      <div>
         <InfoCard title="1. Your account">
           <p>
             You must provide accurate information and keep your password secure. You are responsible for activity on your

@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Ticket, Award, RefreshCw, ChevronLeft, Calendar, FileText, X, Printer, Filter, Trophy, Clock, Hash, CreditCard, CheckCircle } from 'lucide-react';
+import { Gift, Ticket, RefreshCw, ChevronLeft, FileText, X, Printer } from 'lucide-react';
+import StatusPill, { PillTone } from '@/components/orders/StatusPill';
 import apiClient from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/context/ToastContext';
@@ -83,93 +84,84 @@ export default function MyTicketsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-gray-500 gap-3">
-        <RefreshCw className="w-10 h-10 animate-spin text-[#8b6f47]" />
-        <span className="text-sm font-semibold tracking-wider font-serif">Loading Ticket Registers...</span>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-stone-500 gap-3">
+        <RefreshCw className="w-6 h-6 animate-spin" strokeWidth={1.5} />
+        <span className="text-sm">Loading your tickets...</span>
       </div>
     );
   }
 
+  const eyebrow = 'text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400';
+  const ticketTone = (status: TicketRecord['status']): PillTone => (status === 'won' ? 'success' : status === 'lost' ? 'neutral' : 'accent');
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-10">
 
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/campaigns" className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-          <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+      <div>
+        <Link href="/campaigns" className="inline-flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400 hover:text-ink transition-colors">
+          <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} /> All draws
         </Link>
-        <div>
-          <h1 className="font-serif text-3xl font-bold text-gray-900 dark:text-[#f5f1eb]">My Draw Tickets</h1>
-          <p className="text-xs text-gray-500 mt-1">Review all your lucky draw entries and track results.</p>
-        </div>
+        <h1 className="mt-6 font-serif text-4xl sm:text-5xl font-medium tracking-tight text-ink">My Draw Tickets</h1>
+        <p className="text-sm text-stone-500 dark:text-stone-400 mt-3">Review all your lucky draw entries and track results.</p>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <dl className="grid grid-cols-2 sm:grid-cols-4 gap-y-6 border-y border-line py-6">
         {[
-          { icon: Ticket, value: tickets.length, label: 'Total Tickets', color: 'text-[#8b6f47]', bg: 'bg-[#8b6f47]/10' },
-          { icon: Clock, value: tickets.filter(t => t.status === 'active').length, label: 'Active Entries', color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/20' },
-          { icon: Trophy, value: tickets.filter(t => t.status === 'won').length, label: 'Won', color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-950/20' },
-          { icon: CreditCard, value: `$${tickets.reduce((a, t) => a + (t.purchaseAmount || 0), 0).toFixed(0)}`, label: 'Total Spent', color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/20' },
+          { value: tickets.length, label: 'Total Tickets' },
+          { value: tickets.filter(t => t.status === 'active').length, label: 'Active Entries' },
+          { value: tickets.filter(t => t.status === 'won').length, label: 'Won' },
+          { value: `$${tickets.reduce((a, t) => a + (t.purchaseAmount || 0), 0).toFixed(0)}`, label: 'Total Spent' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-[#181715] rounded-2xl border border-gray-100 dark:border-gray-800 p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
-              <stat.icon className={`w-4 h-4 ${stat.color}`} />
-            </div>
-            <div>
-              <span className="block text-lg font-black text-gray-900 dark:text-white">{stat.value}</span>
-              <span className="block text-[8px] text-gray-400 uppercase font-bold tracking-wider">{stat.label}</span>
-            </div>
+          <div key={i} className="sm:px-6 first:pl-0 sm:border-l sm:first:border-l-0 border-line">
+            <dd className="text-3xl font-serif font-medium tabular-nums text-ink">{stat.value}</dd>
+            <dt className={`${eyebrow} mt-1`}>{stat.label}</dt>
           </div>
         ))}
-      </div>
+      </dl>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 rounded-2xl flex items-center gap-3 border border-red-200 dark:border-red-800/30">
-          <Gift className="w-5 h-5 flex-shrink-0" />
-          <span className="text-xs font-bold">{error}</span>
+        <div className="p-4 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-3 border border-red-200 dark:border-red-900/50">
+          <Gift className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      <div className="no-scrollbar flex items-center gap-6 overflow-x-auto border-b border-line -mb-4">
         {filterTabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveFilter(tab.key)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+            className={`whitespace-nowrap py-3 -mb-px text-sm border-b transition-colors cursor-pointer ${
               activeFilter === tab.key
-                ? 'bg-[#8b6f47] text-white border-[#8b6f47] shadow-md'
-                : 'bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-800 hover:border-[#8b6f47]/30'
+                ? 'border-ink text-ink font-medium'
+                : 'border-transparent text-stone-500 dark:text-stone-400 hover:text-ink'
             }`}
           >
             {tab.label}
-            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-black ${
-              activeFilter === tab.key ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-            }`}>{tab.count}</span>
+            <span className="ml-1.5 text-xs tabular-nums text-stone-400">{tab.count}</span>
           </button>
         ))}
       </div>
 
       {/* Ticket Cards */}
       {filteredTickets.length === 0 ? (
-        <div className="p-16 text-center border border-dashed rounded-[32px] text-gray-500 bg-white dark:bg-[#181715]">
-          <Ticket className="w-16 h-16 mx-auto text-gray-300 mb-4 animate-pulse" />
-          <h3 className="text-lg font-bold text-gray-700 dark:text-gray-200">No Tickets Found</h3>
-          <p className="text-xs text-gray-400 mt-2 max-w-sm mx-auto leading-relaxed">
+        <div className="py-20 text-center">
+          <Ticket className="w-8 h-8 mx-auto text-stone-400 mb-4" strokeWidth={1.25} />
+          <h3 className="text-2xl font-serif font-medium tracking-tight text-ink">No tickets found</h3>
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-2 max-w-sm mx-auto leading-relaxed">
             {activeFilter === 'all'
               ? "You haven't participated in any draw campaigns yet."
               : `No tickets with status "${activeFilter}" found.`}
           </p>
-          <Link href="/campaigns" className="block mt-6">
-            <Button className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-6 py-2 border-0">
-              Browse Active Drawings
-            </Button>
+          <Link href="/campaigns" className="inline-block mt-8">
+            <Button>Browse Active Drawings</Button>
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <AnimatePresence mode="popLayout">
             {filteredTickets.map((t, idx) => {
               const isWinner = t.status === 'won';
@@ -179,85 +171,46 @@ export default function MyTicketsPage() {
                 <motion.div
                   key={t.id}
                   layout
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.03 }}
-                  className={`relative bg-white dark:bg-[#181715] rounded-[24px] border overflow-hidden shadow-sm hover:shadow-md transition-all ${
-                    isWinner ? 'border-yellow-300/50 dark:border-yellow-700/30' : 'border-gray-100 dark:border-gray-800'
-                  }`}
+                  className={`border rounded-lg p-5 transition-colors ${isWinner ? 'border-ink' : 'border-line hover:border-stone-400'}`}
                 >
-                  {/* Winner Glow */}
-                  {isWinner && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
-                  )}
+                  <div className="flex items-center justify-between mb-4">
+                    <span className={eyebrow}>Ticket serial</span>
+                    <StatusPill tone={ticketTone(t.status)}>
+                      {isWinner ? 'Winner' : isLost ? 'Unsuccessful' : 'Active'}
+                    </StatusPill>
+                  </div>
 
-                  <div className="p-5 relative">
-                    {/* Header Row */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                          isWinner ? 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-600' :
-                          isLost ? 'bg-gray-100 dark:bg-gray-800 text-gray-400' :
-                          'bg-blue-50 dark:bg-blue-950/20 text-blue-600'
-                        }`}>
-                          {isWinner ? <Trophy className="w-4 h-4" /> : isLost ? <X className="w-4 h-4" /> : <Ticket className="w-4 h-4" />}
-                        </div>
-                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          isWinner ? 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300/30' :
-                          isLost ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700' :
-                          'bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border border-blue-200/30'
-                        }`}>
-                          {isWinner ? '🏆 Winner' : isLost ? 'Unsuccessful' : '⏳ Active'}
-                        </span>
+                  <p className="font-serif text-2xl font-medium tabular-nums tracking-tight text-ink break-all">{t.ticketNumber}</p>
+
+                  <div className="mt-5 pt-4 border-t border-line space-y-3">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs text-stone-500 dark:text-stone-400 block">Campaign prize</span>
+                        <span className="text-sm text-ink truncate block">{t.campaign?.prizeName || 'Unknown'}</span>
+                        <span className="text-xs text-stone-500 dark:text-stone-400 truncate block">{t.campaign?.title}</span>
                       </div>
+                      <span className="text-sm font-medium tabular-nums text-ink flex-shrink-0">
+                        ${(t.purchaseAmount || t.campaign?.productPrice || 15).toFixed(2)}
+                      </span>
                     </div>
 
-                    {/* Ticket Number */}
-                    <div className="bg-gray-50 dark:bg-gray-900/60 rounded-xl p-3 mb-3 border border-gray-100 dark:border-gray-800">
-                      <span className="text-[8px] text-gray-400 uppercase font-black tracking-wider block mb-0.5">Ticket Serial</span>
-                      <span className="font-mono font-bold text-sm text-[#8b6f47] dark:text-[#c9a96b] tracking-wider">{t.ticketNumber}</span>
-                    </div>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      {new Date(t.createdAt).toLocaleDateString()} &middot; {t.paymentMethod || 'Online'}
+                    </p>
+                  </div>
 
-                    {/* Campaign Info */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[8px] text-gray-400 uppercase font-black tracking-wider block">Campaign Prize</span>
-                          <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">{t.campaign?.prizeName || 'Unknown'}</span>
-                          <span className="text-[10px] text-gray-400 truncate block">{t.campaign?.title}</span>
-                        </div>
-                        <span className="text-sm font-serif font-black text-[#8b6f47] dark:text-[#c9a96b] flex-shrink-0 ml-2">
-                          ${(t.purchaseAmount || t.campaign?.productPrice || 15).toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-[10px] text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(t.createdAt).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CreditCard className="w-3 h-3" />
-                          {t.paymentMethod || 'Online'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex gap-2">
-                      <button
-                        onClick={() => setSelectedTicketInvoice(t)}
-                        className="flex-1 text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:bg-[#8b6f47]/5 py-2 rounded-xl flex items-center justify-center gap-1 transition-colors"
-                      >
-                        <FileText className="w-3 h-3" /> Invoice
-                      </button>
-                      <Link href={`/campaigns/${t.campaign?.id}`} className="flex-1">
-                        <button className="w-full text-[10px] font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 py-2 rounded-xl flex items-center justify-center gap-1 transition-colors">
-                          <Gift className="w-3 h-3" /> Campaign
-                        </button>
-                      </Link>
-                    </div>
+                  {/* Actions */}
+                  <div className="mt-5 flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => setSelectedTicketInvoice(t)}>
+                      <FileText className="w-3.5 h-3.5" /> Invoice
+                    </Button>
+                    <Link href={`/campaigns/${t.campaign?.id}`} className="flex-1">
+                      <Button size="sm" variant="ghost" className="w-full">Campaign</Button>
+                    </Link>
                   </div>
                 </motion.div>
               );
@@ -269,33 +222,28 @@ export default function MyTicketsPage() {
       {/* Digital Invoice Modal */}
       <AnimatePresence>
         {selectedTicketInvoice && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.97, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[28px] w-full max-w-md overflow-hidden shadow-2xl relative"
+              exit={{ scale: 0.97, opacity: 0 }}
+              className="bg-surface border border-line rounded-lg w-full max-w-md overflow-hidden shadow-2xl relative"
             >
-              <button onClick={() => setSelectedTicketInvoice(null)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 text-gray-400 hover:text-gray-700 rounded-full">
+              <button onClick={() => setSelectedTicketInvoice(null)} aria-label="Close" className="absolute top-4 right-4 p-1.5 text-stone-400 hover:text-ink cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
 
               {/* Invoice Header */}
-              <div className="bg-gradient-to-r from-[#8b6f47]/10 to-[#c9a96b]/10 p-6 text-center border-b border-gray-100 dark:border-gray-800">
-                <div className="w-12 h-12 rounded-2xl bg-[#8b6f47]/10 flex items-center justify-center mx-auto mb-2">
-                  <FileText className="w-6 h-6 text-[#8b6f47]" />
-                </div>
-                <span className="text-xs font-serif font-black text-[#8b6f47] dark:text-[#c9a96b] tracking-widest uppercase block">
-                  SwiftCart Digital Invoice
-                </span>
-                <span className="text-[9px] text-gray-400 font-mono block mt-1">
+              <div className="p-6 border-b border-line">
+                <span className={`${eyebrow} block`}>SwiftCart Digital Invoice</span>
+                <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums block mt-1">
                   Receipt ID: INV-{selectedTicketInvoice.ticketNumber.substring(10)}
                 </span>
               </div>
 
               {/* Invoice Body */}
-              <div className="p-6 space-y-4">
-                <div className="space-y-3 text-xs">
+              <div className="p-6 space-y-5">
+                <div className="space-y-3 text-sm">
                   {[
                     { label: 'Campaign Prize', value: selectedTicketInvoice.campaign?.prizeName },
                     { label: 'Purchased Item', value: selectedTicketInvoice.campaign?.productTitle },
@@ -303,60 +251,43 @@ export default function MyTicketsPage() {
                     { label: 'Purchase Date', value: new Date(selectedTicketInvoice.createdAt).toLocaleString() },
                     { label: 'Payment Method', value: (selectedTicketInvoice.paymentMethod || 'online').toUpperCase() },
                   ].map((row, i) => (
-                    <div key={i} className="flex justify-between items-center">
-                      <span className="text-gray-400">{row.label}:</span>
-                      <span className={`font-bold ${row.highlight ? 'font-mono text-[#8b6f47] dark:text-[#c9a96b]' : 'text-gray-800 dark:text-gray-200'}`}>{row.value}</span>
+                    <div key={i} className="flex justify-between items-start gap-4">
+                      <span className="text-stone-500 dark:text-stone-400">{row.label}</span>
+                      <span className={`text-right tabular-nums ${row.highlight ? 'font-medium text-ink' : 'text-ink'}`}>{row.value}</span>
                     </div>
                   ))}
 
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Payment Status:</span>
-                    <span className="font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-200/20 uppercase tracking-widest text-[9px] flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" /> Paid
-                    </span>
+                    <span className="text-stone-500 dark:text-stone-400">Payment Status</span>
+                    <StatusPill tone="success">Paid</StatusPill>
                   </div>
                 </div>
 
-                <hr className="border-gray-100 dark:border-gray-800" />
-
-                <div className="flex justify-between text-sm">
-                  <span className="font-bold text-gray-800 dark:text-white">Amount Charged:</span>
-                  <span className="font-serif font-black text-lg text-[#8b6f47] dark:text-[#c9a96b]">
+                <div className="flex justify-between items-baseline pt-4 border-t border-line">
+                  <span className="text-sm font-medium text-ink">Amount Charged</span>
+                  <span className="text-xl font-medium tabular-nums text-ink">
                     ${(selectedTicketInvoice.purchaseAmount || selectedTicketInvoice.campaign?.productPrice || 0).toFixed(2)}
                   </span>
                 </div>
 
                 {/* Ticket Status */}
-                <div className={`p-3 rounded-xl text-center border ${
-                  selectedTicketInvoice.status === 'won'
-                    ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200/30'
-                    : selectedTicketInvoice.status === 'lost'
-                    ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                    : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200/30'
-                }`}>
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${
-                    selectedTicketInvoice.status === 'won' ? 'text-yellow-700 dark:text-yellow-400' :
-                    selectedTicketInvoice.status === 'lost' ? 'text-gray-500' : 'text-blue-700 dark:text-blue-400'
+                <div className="p-3 rounded-lg text-center bg-surface-muted">
+                  <span className={`text-sm font-medium ${
+                    selectedTicketInvoice.status === 'won' ? 'text-green-700 dark:text-green-400' : 'text-stone-600 dark:text-stone-300'
                   }`}>
-                    {selectedTicketInvoice.status === 'won' ? '🏆 WINNING TICKET' : selectedTicketInvoice.status === 'lost' ? 'Draw Completed — Not Selected' : '⏳ Awaiting Draw Result'}
+                    {selectedTicketInvoice.status === 'won' ? 'Winning ticket' : selectedTicketInvoice.status === 'lost' ? 'Draw completed. Not selected.' : 'Awaiting draw result'}
                   </span>
                 </div>
               </div>
 
               {/* Actions */}
               <div className="p-6 pt-0 flex gap-3">
-                <Button
-                  onClick={() => window.print()}
-                  className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
-                >
+                <Button onClick={() => window.print()} className="flex-1">
                   <Printer className="w-3.5 h-3.5" /> Print Invoice
                 </Button>
-                <button
-                  onClick={() => setSelectedTicketInvoice(null)}
-                  className="flex-1 text-xs font-bold py-2.5 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                >
+                <Button variant="outline" onClick={() => setSelectedTicketInvoice(null)} className="flex-1">
                   Close
-                </button>
+                </Button>
               </div>
             </motion.div>
           </div>

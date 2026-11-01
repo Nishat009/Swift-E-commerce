@@ -46,24 +46,24 @@ export default function ReturnRequestModal({ order, onClose, onSubmitted }: Prop
   return (
     <Modal isOpen onClose={onClose} title="Return or refund" size="md">
       <form onSubmit={submit} className="p-5 space-y-5">
-        <div className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-          Order <strong className="font-mono">#{order.orderNumber || order.id.slice(-8).toUpperCase()}</strong>
+        <div className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
+          Order <strong className="font-medium text-ink tabular-nums">#{order.orderNumber || order.id.slice(-8).toUpperCase()}</strong>
           {deadline && <> &middot; return window open until <strong>{deadline.toLocaleDateString()}</strong></>}
         </div>
 
         <fieldset>
-          <legend className="text-[10px] font-black uppercase tracking-wider text-gray-500 mb-2">Why are you returning it?</legend>
+          <legend className="text-xs font-medium text-stone-600 dark:text-stone-300 mb-2">Why are you returning it?</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {RETURN_REASONS.map((r) => (
               <label
                 key={r}
-                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold cursor-pointer transition-colors ${
+                className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm cursor-pointer transition-colors ${
                   reason === r
-                    ? 'border-[#8b6f47] bg-[#8b6f47]/10 text-[#8b6f47] dark:text-[#c9a96b]'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300'
+                    ? 'border-ink text-ink'
+                    : 'border-line text-stone-600 dark:text-stone-300 hover:border-stone-400'
                 }`}
               >
-                <input type="radio" name="return-reason" value={r} checked={reason === r} onChange={() => setReason(r)} className="accent-[#8b6f47]" />
+                <input type="radio" name="return-reason" value={r} checked={reason === r} onChange={() => setReason(r)} className="accent-[var(--ink)]" />
                 {r}
               </label>
             ))}
@@ -71,7 +71,7 @@ export default function ReturnRequestModal({ order, onClose, onSubmitted }: Prop
         </fieldset>
 
         <div>
-          <label htmlFor="return-details" className="block text-[10px] font-black uppercase tracking-wider text-gray-500 mb-2">
+          <label htmlFor="return-details" className="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-2">
             Details {reason === 'Other' ? '(required)' : '(optional)'}
           </label>
           <textarea
@@ -81,27 +81,27 @@ export default function ReturnRequestModal({ order, onClose, onSubmitted }: Prop
             maxLength={1000}
             rows={3}
             placeholder="E.g. which item, what is wrong, or the size you need instead"
-            className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/40"
+            className="w-full rounded-md border border-line bg-transparent p-3 text-sm text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none"
           />
         </div>
 
-        <div className="rounded-2xl bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-4 text-[11px] leading-relaxed text-gray-600 dark:text-gray-400 space-y-1">
+        <div className="rounded-lg bg-surface-muted p-4 text-xs leading-relaxed text-stone-600 dark:text-stone-400 space-y-1.5">
           <p>Keep the items unused, with their tags and original packaging. Innerwear, swimwear and personalised items cannot be returned.</p>
           <p>
             {paid
               ? `We refund the product price (the delivery charge is not refundable): in full if you ask within ${FULL_REFUND_DAYS} days of delivery, after that less a handling charge. We send you the exact amount to accept before anything is paid.`
               : 'Once approved, we will arrange the refund with you.'}{' '}
-            <Link href="/shipping-returns" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">Returns policy</Link>
+            <Link href="/shipping-returns" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">Returns policy</Link>
           </p>
         </div>
 
-        {error && <p role="alert" className="text-xs font-semibold text-red-600">{error}</p>}
+        {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="rounded-full text-xs font-bold px-5">
+          <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="submit" loading={submitting} className="bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full text-xs font-bold px-5">
+          <Button type="submit" loading={submitting}>
             Send return request
           </Button>
         </div>

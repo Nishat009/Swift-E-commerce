@@ -4,33 +4,45 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ui/ProductCard';
-import CategoryDesignSlider from '@/components/ui/CategoryDesignSlider';
-import { ShoppingBag, Truck, Shield, Star, Sparkles, ArrowRight, Mail, Heart, Shirt, Wand2, Eye, Play, X, Film } from 'lucide-react';
+import { Truck, RotateCcw, ShieldCheck, MessageCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fetchProducts } from '@/lib/api';
 import { Product } from '@/types';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import apiClient from '@/lib/apiClient';
 
-import AISmartSearch from '@/features/ai/search/AISmartSearch';
 import AIPicksForYou from '@/features/ai/recommendation/AIPicksForYou';
 import ZaraLookbookSection from '@/components/ui/ZaraLookbookSection';
 import CinematicFashionHero from '@/components/ui/CinematicFashionHero';
 
+// Tabs for the "New in" grid: each picks products from the catalog already loaded on the page
+const WARDROBE_TABS: { id: string; label: string; pick: (p: Product) => boolean }[] = [
+  { id: 'all', label: 'All', pick: () => true },
+  { id: 'new', label: 'New in', pick: (p) => Boolean(p.newArrival) },
+  { id: 'bestseller', label: 'Bestsellers', pick: (p) => Boolean(p.bestSeller) },
+  { id: 'tops', label: 'Tops', pick: (p) => p.category === 'top' },
+  { id: 'dresses', label: 'Dresses', pick: (p) => p.category === 'dress' },
+  { id: 'pants', label: 'Trousers', pick: (p) => p.category === 'pants' },
+  { id: 'outerwear', label: 'Outerwear', pick: (p) => p.category === 'jacket' },
+  { id: 'shoes', label: 'Shoes', pick: (p) => p.category === 'shoes' },
+  { id: 'accessories', label: 'Accessories', pick: (p) => ['bag', 'jewelry', 'hat', 'glasses'].includes(p.category) },
+];
+
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-80px' },
+  transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+};
+
+const eyebrow = 'text-[11px] uppercase tracking-[0.22em] text-stone-500';
+const sectionTitle = 'font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl';
+
 export default function ShopHome() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
-  const [bestsellers, setBestsellers] = useState<Product[]>([]);
-  const [bestDeals, setBestDeals] = useState<Product[]>([]);
   const [dynamicCategories, setDynamicCategories] = useState<any[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [showRunwayVideo, setShowRunwayVideo] = useState(false);
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const [newsletterMessage, setNewsletterMessage] = useState('');
-  const { scrollY } = useScroll();
-  const y1 = useTransform(scrollY, [0, 300], [0, 50]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -44,18 +56,6 @@ export default function ShopHome() {
         if (prods.length > 0) {
           setCatalogProducts(prods);
           setFeaturedProducts(prods.filter(p => p.featured).slice(0, 8));
-          setNewArrivals(prods.filter(p => p.newArrival).slice(0, 8));
-          
-          const best = prods
-            .filter(p => p.bestSeller)
-            .slice(0, 8);
-          setBestsellers(best);
-
-          const deals = prods
-            .filter(p => p.discountPercentage > 0)
-            .sort((a, b) => b.discountPercentage - a.discountPercentage)
-            .slice(0, 3);
-          setBestDeals(deals);
 
           // Derive all system categories from catalog products
           const categoryMap = new Map();
@@ -75,7 +75,8 @@ export default function ShopHome() {
           const stockedCategories = apiCategories.filter((category: any) =>
             typeof category === 'object' && category?.name && category?.slug && categoryMap.has(String(category.slug).toLowerCase()));
           if (catsRes.data?.success && stockedCategories.length > 0) {
-            setDynamicCategories(stockedCategories);
+            // Categories without their own image borrow one from their products
+            setDynamicCategories(stockedCategories.map((c: any) => ({ ...c, image: c.image || categoryMap.get(String(c.slug).toLowerCase())?.image })));
           } else {
             setDynamicCategories(derivedCats);
           }
@@ -88,634 +89,212 @@ export default function ShopHome() {
     loadData();
   }, []);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
-    },
-  };
+  const tab = WARDROBE_TABS.find((t) => t.id === activeTab) ?? WARDROBE_TABS[0];
+  const wardrobe = (catalogProducts.length > 0 ? catalogProducts : featuredProducts).filter(tab.pick).slice(0, 8);
+  const visibleTabs = WARDROBE_TABS.filter((t) => t.id === 'all' || catalogProducts.some(t.pick));
+  const categoryTiles = dynamicCategories.filter((c) => c.image).slice(0, 6);
 
   return (
-    <div className="classic-home min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <CinematicFashionHero />
 
-      {/* AI Feature Highlight Banner: AI Virtual Dressing Room */}
-      <section className="py-8 sm:py-10 bg-background border-y border-zinc-150/40 dark:border-zinc-800/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#FAF8F5] via-[#F5F1EB] to-[#FAF8F5] dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 border-2 border-[#8b6f47]/30 dark:border-[#c9a96b]/30 p-6 sm:p-8 md:p-10 shadow-sm"
-          >
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
-              <div className="flex items-start gap-4 sm:gap-5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#8b6f47] to-[#c9a96b] flex items-center justify-center text-white shrink-0 shadow-md">
-                  <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
-                </div>
-                <div className="space-y-1 text-left">
-                  <div className="inline-flex items-center gap-2">
-                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
-                      Featured Innovation
-                    </span>
-                  </div>
-                  <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
-                    AI Virtual Dressing Room
-                  </h3>
-                  <p className="text-xs sm:text-sm font-semibold text-[#8b6f47] dark:text-[#c9a96b]">
-                    See it. Style it. Wear it.
-                  </p>
-                  <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400 max-w-2xl pt-1">
-                    Choose a product and see how different colors, sizes and complete outfits look with your interactive 3D AI avatar before making a purchase.
-                  </p>
-                </div>
-              </div>
-
-              <div className="shrink-0 w-full lg:w-auto">
-                <Link href="/dressing-room" className="block w-full sm:w-auto">
-                  <Button className="w-full sm:w-auto bg-[#8b6f47] hover:bg-[#6b5435] text-white px-8 py-3.5 rounded-full font-bold text-xs sm:text-sm shadow-md hover:shadow-lg flex items-center justify-center gap-2 border-0">
-                    <Sparkles className="w-4 h-4" />
-                    Enter Dressing Room
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
-              </div>
+      {/* Shop by category */}
+      {categoryTiles.length > 0 && (
+        <section className="mx-auto max-w-[1440px] px-4 pb-4 pt-24 sm:px-6 lg:px-10">
+          <motion.div {...fadeUp} className="mb-10 flex items-end justify-between gap-4">
+            <div>
+              <p className={`${eyebrow} mb-3`}>Shop by category</p>
+              <h2 className={sectionTitle}>Find your next piece</h2>
             </div>
+            <Link href="/products" className="hidden text-sm text-ink underline underline-offset-4 sm:inline">
+              View all
+            </Link>
           </motion.div>
+          <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-6">
+            {categoryTiles.map((c, i) => (
+              <motion.div key={c.slug} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.05 }} className="w-[42vw] shrink-0 snap-start sm:w-auto">
+                <Link href={'/products?category=' + encodeURIComponent(c.slug)} className="group block">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-sm bg-stone-100 dark:bg-stone-900">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.image} alt="" className="size-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.04]" />
+                  </div>
+                  <p className="mt-3 flex items-center justify-between text-sm text-ink">
+                    {c.name}
+                    <ArrowRight className="size-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+                  </p>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* New in */}
+      <section className="mx-auto max-w-[1440px] px-4 py-20 sm:px-6 sm:py-24 lg:px-10">
+        <motion.div {...fadeUp} className="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className={`${eyebrow} mb-3`}>The wardrobe</p>
+            <h2 className={sectionTitle}>New this season</h2>
+          </div>
+          <div className="no-scrollbar -mx-4 flex gap-6 overflow-x-auto px-4 md:mx-0 md:px-0" role="tablist">
+            {visibleTabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`shrink-0 border-b pb-1.5 text-[13px] tracking-wide transition-colors cursor-pointer ${
+                  activeTab === t.id ? 'border-ink text-ink' : 'border-transparent text-stone-500 hover:text-ink'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {wardrobe.length > 0 ? (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4">
+            {wardrobe.map((product, idx) => (
+              <ProductCard key={`${activeTab}-${product.id}`} product={product} index={idx} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4" aria-hidden>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="animate-pulse space-y-3">
+                <div className="aspect-[3/4] rounded-sm bg-stone-200/70 dark:bg-stone-800" />
+                <div className="h-3 w-1/3 rounded bg-stone-200/70 dark:bg-stone-800" />
+                <div className="h-3 w-2/3 rounded bg-stone-200/70 dark:bg-stone-800" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-14 text-center">
+          <Link href="/products">
+            <Button variant="outline" size="lg">
+              Shop all{catalogProducts.length > 0 ? ` ${catalogProducts.length} pieces` : ''}
+            </Button>
+          </Link>
         </div>
       </section>
 
-      {/* Core Experience Explainer Row (Shop → AI Try-On → AI Style) */}
-      <section className="py-10 bg-white dark:bg-gray-900 border-b border-zinc-150/40 dark:border-zinc-800/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8"
-          >
-            {/* Experience 1: Shop */}
-            <motion.div
-              variants={itemVariants}
-              className="flex items-start gap-4 p-5 rounded-2xl bg-[#FAF8F5]/80 dark:bg-zinc-950/60 border border-[#e8e0d6]/60 dark:border-zinc-800"
-            >
-              <div className="w-11 h-11 rounded-xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b] shrink-0">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <div className="space-y-1 text-left">
-                <h4 className="font-serif text-lg font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
-                  1. Curated Fashion
-                </h4>
-                <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400">
-                  Browse handcrafted, luxury collections and trendsetting fashion products.
-                </p>
-              </div>
+      {/* Editorial pair */}
+      <section className="mx-auto max-w-[1440px] px-4 pb-24 sm:px-6 lg:px-10">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {[
+            { image: '/hero-fashion.jpg', alt: 'Women’s tailored coats and silks', eyebrow: 'Women', title: 'Tailored coats & silks', copy: 'Wool overcoats, fluid trousers and knitwear made to last.', href: '/products?category=dress', cta: 'Shop women' },
+            { image: '/banner-apparel.jpg', alt: 'Contemporary outerwear', eyebrow: 'Men', title: 'Contemporary outerwear', copy: 'Oversized blazers, leather and structured layers.', href: '/products?category=jacket', cta: 'Shop outerwear' },
+          ].map((b, i) => (
+            <motion.div key={b.title} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.1 }}>
+              <Link href={b.href} className="group relative block aspect-[4/5] overflow-hidden rounded-sm bg-stone-200 dark:bg-stone-900 sm:aspect-[5/6]">
+                <Image src={b.image} alt={b.alt} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover object-top transition-transform duration-[1200ms] group-hover:scale-[1.03]" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-10">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-white/80">{b.eyebrow}</p>
+                  <h3 className="mt-2 font-serif text-3xl font-medium sm:text-4xl">{b.title}</h3>
+                  <p className="mt-2 max-w-sm text-sm text-white/80">{b.copy}</p>
+                  <span className="mt-5 inline-flex items-center gap-2 border-b border-white/70 pb-0.5 text-xs font-medium uppercase tracking-[0.14em] transition-colors group-hover:border-white">
+                    {b.cta} <ArrowRight className="size-3.5" />
+                  </span>
+                </div>
+              </Link>
             </motion.div>
-
-            {/* Experience 2: AI Try-On */}
-            <motion.div
-              variants={itemVariants}
-              className="flex items-start gap-4 p-5 rounded-2xl bg-[#FAF8F5]/80 dark:bg-zinc-950/60 border border-[#e8e0d6]/60 dark:border-zinc-800"
-            >
-              <div className="w-11 h-11 rounded-xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b] shrink-0">
-                <Shirt className="w-5 h-5" />
-              </div>
-              <div className="space-y-1 text-left">
-                <h4 className="font-serif text-lg font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
-                  2. AI Try-On
-                </h4>
-                <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400">
-                  Use the 3D Virtual Dressing Room to visualize styles on customized avatars.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Experience 3: AI Style */}
-            <motion.div
-              variants={itemVariants}
-              className="flex items-start gap-4 p-5 rounded-2xl bg-[#FAF8F5]/80 dark:bg-zinc-950/60 border border-[#e8e0d6]/60 dark:border-zinc-800"
-            >
-              <div className="w-11 h-11 rounded-xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b] shrink-0">
-                <Wand2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1 text-left">
-                <h4 className="font-serif text-lg font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
-                  3. AI Styling
-                </h4>
-                <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400">
-                  Receive personalized outfit recommendations and automated style pairing.
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* 1. Zara-Style Editorial Lookbook Section ("Quiet Luxury & Architectural Silhouettes") */}
+      {/* Lookbook */}
       <ZaraLookbookSection />
 
-      {/* 2. Curated Editorial Collection Grid ("Curated Wardrobe") */}
-      <section className="relative py-16 sm:py-24 bg-[#faf8f5] dark:bg-zinc-950 border-t border-zinc-200/60 dark:border-zinc-800 overflow-hidden">
-        
-        {/* Luxury Architectural / Plaster Texture Background Image */}
-        <div className="absolute inset-0 pointer-events-none select-none z-0">
-          <Image
-            src="/hero-atelier-fabric.webp"
-            alt="Atelier Background Texture"
-            fill
-            className="object-cover opacity-20 dark:opacity-15 mix-blend-multiply dark:mix-blend-overlay"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#faf8f5]/60 dark:via-zinc-950/60 to-[#faf8f5] dark:to-zinc-950"></div>
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header & Filter Tabs */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 sm:mb-16">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 border border-[#8b6f47]/20 dark:border-[#c9a96b]/20 mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-[#8b6f47] dark:text-[#c9a96b]" />
-                <span className="text-[11px] font-bold tracking-widest uppercase text-[#8b6f47] dark:text-[#c9a96b]">
-                  The Atelier Collection
-                </span>
-              </div>
-              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium text-zinc-900 dark:text-zinc-50 mt-1">
-                Curated Wardrobe
-              </h2>
+      {/* 3D dressing room feature */}
+      <section className="mx-auto max-w-[1440px] px-4 py-24 sm:px-6 lg:px-10">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-20">
+          {/* The piece on its own, then the same piece worn */}
+          <motion.div {...fadeUp} className="grid grid-cols-5 items-end gap-3 sm:gap-4">
+            <div className="relative col-span-2 aspect-[3/4] overflow-hidden rounded-sm bg-stone-100 dark:bg-stone-900">
+              <Image src="/images/dress-room/camel-wool-trench-product.jpg" alt="Camel wool trench coat" fill sizes="(max-width: 1024px) 40vw, 20vw" className="object-cover" />
             </div>
-
-            {/* Category / Collection Tabs */}
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { id: 'all', label: 'All Pieces' },
-                { id: 'new', label: 'New Arrivals' },
-                { id: 'bestseller', label: 'Bestsellers' },
-                { id: 'tops', label: 'Tops & Shirts' },
-                { id: 'dresses', label: 'Dresses' },
-                { id: 'pants', label: 'Trousers' },
-                { id: 'outerwear', label: 'Jackets & Coats' },
-                { id: 'shoes', label: 'Footwear' },
-                { id: 'accessories', label: 'Accessories' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                    activeTab === tab.id
-                      ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md scale-105'
-                      : 'bg-white/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border border-zinc-250 dark:border-zinc-800 hover:border-[#8b6f47]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="relative col-span-3 aspect-[3/4] overflow-hidden rounded-sm bg-stone-100 dark:bg-stone-900">
+              <Image src="/images/dress-room/camel-wool-trench-model.jpg" alt="The camel trench coat styled and worn" fill sizes="(max-width: 1024px) 60vw, 30vw" className="object-cover object-top" />
             </div>
-          </div>
-
-          {/* Clean 3-Column Wide Minimalist Grid */}
-          <motion.div
-            layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10"
-          >
-            <AnimatePresence mode="popLayout">
-              {(
-                activeTab === 'new'
-                  ? (catalogProducts.filter(p => p.newArrival).slice(0, 9))
-                  : activeTab === 'bestseller'
-                  ? (catalogProducts.filter(p => p.bestSeller).slice(0, 9))
-                  : activeTab === 'tops'
-                  ? (catalogProducts.filter(p => p.category === 'top').slice(0, 9))
-                  : activeTab === 'dresses'
-                  ? (catalogProducts.filter(p => p.category === 'dress').slice(0, 9))
-                  : activeTab === 'pants'
-                  ? (catalogProducts.filter(p => p.category === 'pants').slice(0, 9))
-                  : activeTab === 'outerwear'
-                  ? (catalogProducts.filter(p => p.category === 'jacket').slice(0, 9))
-                  : activeTab === 'shoes'
-                  ? (catalogProducts.filter(p => p.category === 'shoes').slice(0, 9))
-                  : activeTab === 'accessories'
-                  ? (catalogProducts.filter(p => ['bag', 'jewelry', 'hat', 'glasses'].includes(p.category)).slice(0, 9))
-                  : (catalogProducts.length > 0 ? catalogProducts.slice(0, 9) : featuredProducts.slice(0, 9))
-              ).map((product, idx) => (
-                <motion.div
-                  key={product.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ProductCard product={product} index={idx} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
           </motion.div>
-
-          {/* Minimal View Full Catalog CTA */}
-          <div className="text-center mt-12 sm:mt-16 pt-8 border-t border-zinc-150 dark:border-zinc-900">
-            <Link href="/products">
-              <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-zinc-950 hover:bg-[#8b6f47] dark:bg-white dark:hover:bg-[#c9a96b] text-white dark:text-zinc-950 dark:hover:text-zinc-950 text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md">
-                Explore Full Catalog{catalogProducts.length > 0 ? ` (${catalogProducts.length} Pieces)` : ''} <ArrowRight className="w-4 h-4" />
-              </span>
-            </Link>
-          </div>
-
+          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="max-w-lg">
+            <p className={`${eyebrow} mb-4 flex items-center gap-2`}>
+              <Sparkles className="size-3.5 text-[#8b6f47] dark:text-[#c9a96b]" /> Virtual dressing room
+            </p>
+            <h2 className={sectionTitle}>Try it on before it arrives</h2>
+            <p className="mt-5 text-base leading-relaxed text-stone-600 dark:text-stone-400">
+              Build an avatar with your measurements, then see colours, sizes and complete outfits on it in 3D. Fewer returns, more pieces you love.
+            </p>
+            <ul className="mt-6 space-y-2.5 text-sm text-stone-700 dark:text-stone-300">
+              {['Your measurements, your avatar', 'Mix pieces into complete outfits', 'Compare sizes and colours side by side'].map((t) => (
+                <li key={t} className="flex items-center gap-3">
+                  <span className="h-px w-5 bg-stone-400" /> {t}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/dressing-room">
+                <Button size="lg">Enter the dressing room</Button>
+              </Link>
+              <Link href="/products">
+                <Button size="lg" variant="ghost">Browse first</Button>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* 3. Dynamic Semi-Circular Category Design Slider */}
-      <section className="bg-background border-b border-zinc-150/30 dark:border-zinc-800/30">
-        <CategoryDesignSlider
-          categories={dynamicCategories}
-          allProducts={catalogProducts}
-        />
-      </section>
-
-      {/* 4. AI Recommendations Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Recommendations */}
+      <div className="mx-auto max-w-[1440px] border-t border-line px-4 sm:px-6 lg:px-10">
         <AIPicksForYou products={catalogProducts} />
       </div>
 
-      {/* 5. Big Zara / Nike Style Runway Editorial Banner */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: '-100px' }}
-        transition={{ duration: 0.8 }}
-        className="py-16 sm:py-20 md:py-24 relative overflow-hidden bg-black text-white"
-      >
-        {/* Background Visual / Video Layer */}
-        <div className="absolute inset-0">
-          <Image
-            src="/banner-runway.jpg"
-            alt="SwiftCart 2026 Fashion Runway Show"
-            fill
-            className="object-cover object-center opacity-70 scale-105 transition-transform duration-1000 hover:scale-100"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/70"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent"></div>
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#c9a96b] text-xs font-bold uppercase tracking-widest"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Autumn / Winter 2026 Runway Edit</span>
-            </motion.div>
-
-            <motion.h2
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.08]"
-            >
-              The Runway Edit.
-              <br />
-              <span className="italic font-serif text-[#c9a96b]">Wear the Future.</span>
-            </motion.h2>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="font-elegant text-lg sm:text-xl md:text-2xl text-gray-200 leading-relaxed max-w-2xl"
-            >
-              Architectural tailoring, flowing silk dresses, and statement outerwear. Designed for high fashion, fitted in 3D with your AI avatar.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-wrap items-center gap-4 pt-4"
-            >
-              <Link href="/products">
-                <Button size="lg" className="bg-[#8b6f47] hover:bg-[#6b5435] text-white rounded-full px-8 py-4 text-xs sm:text-sm font-bold tracking-wider uppercase border-0 shadow-xl flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4" />
-                  Shop The Runway
-                </Button>
-              </Link>
-
-              <button
-                onClick={() => setShowRunwayVideo(true)}
-                className="bg-white/15 hover:bg-white/25 text-white backdrop-blur-md border border-white/30 rounded-full px-7 py-3.5 text-xs sm:text-sm font-bold tracking-wider uppercase flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-current text-[#c9a96b]" />
-                Watch Runway Film
-              </button>
-
-              <Link href="/dressing-room">
-                <Button variant="outline" size="lg" className="border-2 border-white/80 text-white hover:bg-white hover:text-black rounded-full px-8 py-4 text-xs sm:text-sm font-bold tracking-wider uppercase backdrop-blur-sm flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Try On in 3D Studio
-                </Button>
-              </Link>
-            </motion.div>
+      {/* Runway banner */}
+      <section className="relative overflow-hidden bg-stone-950 text-white">
+        <Image src="/banner-runway.jpg" alt="SwiftCart runway collection" fill sizes="100vw" className="object-cover object-center opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
+        <motion.div {...fadeUp} className="relative mx-auto max-w-[1440px] px-4 py-28 sm:px-6 sm:py-36 lg:px-10">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-white/70">Autumn / Winter 2026</p>
+          <h2 className="mt-4 max-w-2xl font-serif text-5xl font-medium leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            The runway edit
+          </h2>
+          <p className="mt-6 max-w-md text-base leading-relaxed text-white/80">
+            Architectural tailoring, fluid silk and statement outerwear, ready to fit on your avatar in 3D.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            <Link href="/products">
+              <Button size="lg" className="bg-white text-stone-950 hover:bg-white/90">Shop the edit</Button>
+            </Link>
+            <Link href="/dressing-room">
+              <Button size="lg" variant="outline" className="border-white/50 text-white hover:border-white hover:bg-white hover:text-stone-950">
+                Try on in 3D
+              </Button>
+            </Link>
           </div>
-        </div>
-      </motion.section>
-
-      {/* 6. Nike / Zara Style Split Category Banners */}
-      <section className="py-12 sm:py-16 bg-white dark:bg-gray-950 border-b border-gray-150/40 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-            
-            {/* Banner 1: Women's Luxury Ready-to-Wear */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden group shadow-lg"
-            >
-              <Image
-                src="/hero-fashion.jpg"
-                alt="Women's Designer Collection"
-                fill
-                className="object-cover object-top group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"></div>
-              
-              <div className="absolute bottom-0 left-0 right-0 p-8 sm:p-10 text-white space-y-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#c9a96b]">
-                  Women's Atelier Drop
-                </span>
-                <h3 className="font-serif text-2xl sm:text-3xl lg:text-[34px] font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
-                  Tailored Coats & Silks
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-300 max-w-md">
-                  Premium wool overcoats, draped silk trousers, and timeless knit essentials.
-                </p>
-                <div className="pt-2">
-                  <Link href="/products?category=womens-dresses">
-                    <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-zinc-950 hover:bg-[#c9a96b] hover:text-white px-6 py-3 rounded-full transition-colors">
-                      Shop Women's Drop <ArrowRight className="w-4 h-4" />
-                    </span>
-                  </Link>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Banner 2: Men's Contemporary & Streetwear */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden group shadow-lg"
-            >
-              <Image
-                src="/banner-apparel.jpg"
-                alt="Men's Contemporary Streetwear"
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"></div>
-
-              <div className="absolute bottom-0 left-0 right-0 p-8 sm:p-10 text-white space-y-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#c9a96b]">
-                  Urban Luxury & Streetwear
-                </span>
-                <h3 className="font-serif text-2xl sm:text-3xl lg:text-[34px] font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
-                  Contemporary Outerwear
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-300 max-w-md">
-                  Oversized blazers, leather jackets, streetwear layers, and structured pants.
-                </p>
-                <div className="pt-2">
-                  <Link href="/products?category=mens-shirts">
-                    <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-zinc-950 hover:bg-[#c9a96b] hover:text-white px-6 py-3 rounded-full transition-colors">
-                      Shop Men's Drop <ArrowRight className="w-4 h-4" />
-                    </span>
-                  </Link>
-                </div>
-              </div>
-            </motion.div>
-
-          </div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* Classic Features Section */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: '-100px' }}
-        transition={{ duration: 0.8 }}
-        className="py-16 sm:py-20 md:py-24 bg-white dark:bg-gray-900"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.h2
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-center text-[#2c2c2c] dark:text-[#f5f1eb] mb-12 sm:mb-16"
-          >
-            Why Choose Us
-          </motion.h2>
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12"
-          >
-            {[
-              { icon: Truck, title: 'Fast Delivery', desc: 'Swift and secure shipping to your doorstep' },
-              { icon: Shield, title: 'Secure Payment', desc: 'Your information is always protected' },
-              { icon: Star, title: 'Quality Assured', desc: 'Only the finest products make it to you' },
-              { icon: Heart, title: 'Customer Care', desc: 'Dedicated support for your satisfaction' },
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                variants={itemVariants}
-                whileHover={{ y: -8 }}
-                transition={{ duration: 0.3 }}
-                className="text-center group"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ duration: 0.3 }}
-                  className="w-20 h-20 sm:w-24 sm:h-24 bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-[#8b6f47]/20 dark:group-hover:bg-[#c9a96b]/30 transition-colors"
-                >
-                  <feature.icon className="w-10 h-10 sm:w-12 sm:h-12 text-[#8b6f47] dark:text-[#c9a96b]" />
-                </motion.div>
-                <h3 className="font-serif text-xl sm:text-2xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-[#6b6b6b] dark:text-gray-400 leading-relaxed">
-                  {feature.desc}
-                </p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </motion.section>
-
-      {/* Classic Newsletter Section */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true, margin: '-100px' }}
-        transition={{ duration: 0.8 }}
-        className="py-16 sm:py-20 md:py-24 bg-white dark:bg-gray-900"
-      >
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="bg-[#f5f1eb] dark:bg-gray-950 rounded-2xl p-8 sm:p-12 md:p-16 border border-[#e8e0d6] dark:border-gray-800"
-          >
-            <motion.div
-              animate={{ rotate: [0, 5, -5, 5, 0] }}
-              transition={{ duration: 3, repeat: Infinity, repeatDelay: 5 }}
-              className="inline-block mb-6"
-            >
-              <Mail className="w-12 h-12 sm:w-16 sm:h-16 text-[#8b6f47] dark:text-[#c9a96b] mx-auto" />
-            </motion.div>
-            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-4">
-              Stay Connected
-            </h2>
-            <p className="font-elegant text-lg sm:text-xl text-[#6b6b6b] dark:text-gray-400 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              Be the first to discover new arrivals, exclusive offers, and special collections
-            </p>
-            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={async event => {
-              event.preventDefault();
-              try {
-                const response = await apiClient.post('/newsletter/subscribe', { email: newsletterEmail });
-                setNewsletterMessage(response.data?.message || 'Subscribed successfully.');
-                setNewsletterEmail('');
-              } catch {
-                setNewsletterMessage('Subscription failed. Please try again.');
-              }
-            }}>
-              <input
-                type="email"
-                required
-                value={newsletterEmail}
-                onChange={event => setNewsletterEmail(event.target.value)}
-                placeholder="Enter your email address"
-                className="flex-1 px-6 py-4 rounded-lg bg-white dark:bg-gray-900 border-2 border-[#e8e0d6] dark:border-gray-800 text-[#2c2c2c] dark:text-[#f5f1eb] placeholder-[#9b9b9b] focus:outline-none focus:border-[#8b6f47] dark:focus:border-[#c9a96b] transition-colors font-medium"
-              />
-              <Button
-                type="submit"
-                size="lg"
-                className="bg-[#8b6f47] hover:bg-[#6b5435] text-white border-0 px-8 py-4 font-medium tracking-wide"
-              >
-                Subscribe
-              </Button>
-            </form>
-            {newsletterMessage && <p className="mt-4 text-sm text-[#74323b]" role="status">{newsletterMessage}</p>}
-          </motion.div>
-        </div>
-      </motion.section>
-      {/* Luxury Runway Video Modal (Zara / Nike Style) */}
-      {showRunwayVideo && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 md:p-10 animate-fade-in">
-          <div className="relative w-full max-w-5xl bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-zinc-800/80 bg-zinc-900/60">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#c9a96b]/20 flex items-center justify-center text-[#c9a96b]">
-                  <Film className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg sm:text-xl font-bold text-white">
-                    Autumn / Winter 2026 Runway Show
-                  </h3>
-                  <p className="text-xs text-zinc-400">
-                    Live Catwalk & Couture Apparel Collection • High Fashion Editorial
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowRunwayVideo(false)}
-                className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* Service promises */}
+      <section>
+        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-y-10 px-4 py-14 sm:px-6 lg:grid-cols-4 lg:px-10">
+          {[
+            { icon: Truck, title: 'Free shipping', desc: 'On orders of $100 or more' },
+            { icon: RotateCcw, title: '30-day returns', desc: 'Changed your mind? Send it back' },
+            { icon: ShieldCheck, title: 'Secure payment', desc: 'Cards, bKash or cash on delivery' },
+            { icon: MessageCircle, title: 'Personal styling', desc: 'Ask our AI stylist anytime' },
+          ].map((f) => (
+            <div key={f.title} className="flex flex-col items-center px-2 text-center">
+              <f.icon className="mb-4 size-5 text-stone-500" strokeWidth={1.5} />
+              <h3 className="font-sans text-sm font-medium text-ink">{f.title}</h3>
+              <p className="mt-1 text-xs text-stone-500">{f.desc}</p>
             </div>
-
-            {/* Video Viewport */}
-            <div className="relative w-full aspect-video bg-black overflow-hidden group">
-              <Image
-                src="/banner-runway.jpg"
-                alt="Runway Show"
-                fill
-                className="object-cover animate-pulse"
-              />
-              
-              {/* Overlay styling & Runway tag */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between p-6 sm:p-8">
-                <div className="self-start px-3 py-1.5 rounded-full bg-red-600/90 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
-                  RUNWAY LIVE EDIT
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-widest text-[#c9a96b]">Featured Looks</span>
-                  <h4 className="font-serif text-2xl sm:text-3xl font-bold text-white">
-                    Structured Trench Coats, Velvet Tailoring & Silk Gowns
-                  </h4>
-                  <p className="text-xs sm:text-sm text-zinc-300 max-w-xl">
-                    Every piece seen on the runway is available for purchase and ready for 3D fitting in our interactive dressing room.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="p-4 sm:p-6 bg-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-xs text-zinc-400 text-center sm:text-left">
-                Ready to try these outfits on your customized AI avatar?
-              </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <Link href="/products" className="flex-1 sm:flex-initial" onClick={() => setShowRunwayVideo(false)}>
-                  <Button className="w-full bg-[#8b6f47] hover:bg-[#6b5435] text-white px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-0">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    Shop All Outfits
-                  </Button>
-                </Link>
-                <Link href="/dressing-room" className="flex-1 sm:flex-initial" onClick={() => setShowRunwayVideo(false)}>
-                  <Button variant="outline" className="w-full border-zinc-700 text-zinc-200 hover:bg-white hover:text-black px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Try In Dressing Room
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
-      )}
+      </section>
     </div>
   );
 }

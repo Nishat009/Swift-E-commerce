@@ -7,7 +7,7 @@ import AccountLayout from '@/components/layout/AccountLayout';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { ProfileFormSkeleton } from '@/components/ui/Skeleton';
-import { Edit2, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
@@ -86,15 +86,15 @@ export default function ProfilePage() {
 
   return (
     <AccountLayout activeTabName="/profile">
-      <div className="space-y-6">
-        
+      <div className="space-y-8">
+
         {/* Title / Section Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+        <div className="flex items-start sm:items-center justify-between gap-4 border-b border-line pb-5">
           <div>
-            <h2 className="text-xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider">
+            <h2 className="text-2xl font-serif font-medium tracking-tight text-ink">
               Profile Settings
             </h2>
-            <p className="text-xs text-text-muted mt-1">
+            <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5">
               Keep your contact information and default shipping details up to date.
             </p>
           </div>
@@ -102,9 +102,9 @@ export default function ProfilePage() {
             <Button
               onClick={() => setIsEditing(true)}
               variant="outline"
-              className="flex items-center gap-2 rounded-full text-xs font-bold shadow-xs px-5"
+              size="sm"
+              className="shrink-0"
             >
-              <Edit2 className="w-3.5 h-3.5" />
               Edit Profile
             </Button>
           )}
@@ -114,36 +114,35 @@ export default function ProfilePage() {
         {!user ? (
           <ProfileFormSkeleton />
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Profile Picture & Email Header */}
-            <div className="flex flex-row items-center gap-5 p-5 bg-[#faf9f6] dark:bg-gray-850 rounded-3xl border border-gray-150/40 dark:border-gray-800/80">
-              <div className="relative w-20 h-20 bg-gradient-to-br from-[#8b6f47] to-[#c9a96b] rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-md flex-shrink-0">
+            <div className="flex flex-row items-center gap-5">
+              <div className="relative w-20 h-20 bg-ink text-paper rounded-full flex items-center justify-center font-serif text-3xl flex-shrink-0 overflow-hidden">
                 {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover rounded-full" />
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   user.name.charAt(0).toUpperCase()
                 )}
               </div>
               <div className="min-w-0">
-                <h3 className="text-lg font-bold font-serif text-gray-900 dark:text-white truncate">
+                <h3 className="text-2xl font-serif font-medium tracking-tight text-ink truncate">
                   {user.name}
                 </h3>
-                <p className="text-xs text-text-muted mt-0.5 truncate">
+                <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5 truncate">
                   {user.email}
                 </p>
               </div>
             </div>
 
             {errorMsg && (
-              <div className="p-4 bg-red-500/10 dark:bg-red-500/5 text-red-600 dark:text-red-400 border border-red-500/20 rounded-2xl flex items-start gap-2.5 text-xs font-bold leading-normal">
+              <div className="p-4 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-lg flex items-start gap-2.5 text-sm leading-normal">
                 <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <p>{errorMsg}</p>
               </div>
             )}
 
             {/* Form Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
               <Input
                 label="Full Name"
                 type="text"
@@ -151,7 +150,7 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 disabled={!isEditing || submitting}
                 required
-                className="rounded-2xl"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               <Input
                 label="Email Address"
@@ -160,7 +159,7 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={!isEditing || submitting}
                 required
-                className="rounded-2xl"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               {isEditing && emailChanged && (
                 <Input
@@ -170,7 +169,7 @@ export default function ProfilePage() {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   disabled={submitting}
                   autoComplete="current-password"
-                  className="rounded-2xl"
+                  className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
                 />
               )}
               <Input
@@ -179,7 +178,7 @@ export default function ProfilePage() {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 disabled={!isEditing || submitting}
-                className="rounded-2xl"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               <Input
                 label="Street Address (Default)"
@@ -187,7 +186,7 @@ export default function ProfilePage() {
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 disabled={!isEditing || submitting}
-                className="rounded-2xl"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               <Input
                 label="City"
@@ -195,7 +194,7 @@ export default function ProfilePage() {
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 disabled={!isEditing || submitting}
-                className="rounded-2xl"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               <Input
                 label="State / Province"
@@ -203,7 +202,7 @@ export default function ProfilePage() {
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                 disabled={!isEditing || submitting}
-                className="rounded-2xl"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
               />
               <Input
                 label="Zip / Postal Code"
@@ -211,18 +210,14 @@ export default function ProfilePage() {
                 value={formData.zipCode}
                 onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
                 disabled={!isEditing || submitting}
-                className="rounded-2xl md:col-span-2"
+                className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink md:col-span-2"
               />
             </div>
 
             {/* Action Buttons */}
             {isEditing && (
-              <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <Button
-                  type="submit"
-                  loading={submitting}
-                  className="bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full font-bold px-6 shadow-md text-xs"
-                >
+              <div className="flex gap-3 pt-6 border-t border-line">
+                <Button type="submit" loading={submitting}>
                   Save Changes
                 </Button>
                 <Button
@@ -233,7 +228,6 @@ export default function ProfilePage() {
                     setIsEditing(false);
                     setErrorMsg(null);
                   }}
-                  className="rounded-full px-6 text-xs font-bold"
                 >
                   Cancel
                 </Button>

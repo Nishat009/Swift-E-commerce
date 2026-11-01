@@ -13,7 +13,8 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import EmptyState from '@/components/ui/EmptyState';
-import { MapPin, Plus, Edit, Trash2, CheckCircle } from 'lucide-react';
+import { MapPin } from 'lucide-react';
+import StatusPill from '@/components/orders/StatusPill';
 
 export default function AddressesPage() {
   const { user, refreshUser } = useAuth();
@@ -133,23 +134,19 @@ export default function AddressesPage() {
 
   return (
     <AccountLayout activeTabName="/addresses">
-      <div className="space-y-6">
-        
+      <div className="space-y-8">
+
         {/* Title */}
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+        <div className="flex items-start sm:items-center justify-between gap-4 border-b border-line pb-5">
           <div>
-            <h2 className="text-xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider">
+            <h2 className="text-2xl font-serif font-medium tracking-tight text-ink">
               Saved Addresses
             </h2>
-            <p className="text-xs text-text-muted mt-1">
+            <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5">
               Add or edit shipping addresses for faster checkout deliveries.
             </p>
           </div>
-          <Button
-            onClick={openAddModal}
-            className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-5 py-2 border-0 shadow-md flex items-center gap-1.5 text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
+          <Button onClick={openAddModal} size="sm" className="shrink-0">
             Add Address
           </Button>
         </div>
@@ -164,28 +161,26 @@ export default function AddressesPage() {
             onAction={openAddModal}
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {savedAddresses.map((addr: any, idx: number) => (
               <div
                 key={addr._id || addr.id || idx}
-                className={`border rounded-[28px] p-5 sm:p-6 bg-white dark:bg-gray-900 transition-all duration-300 relative flex flex-col justify-between group ${
+                className={`border rounded-lg p-5 sm:p-6 transition-colors relative flex flex-col justify-between ${
                   addr.isDefault
-                    ? 'border-[#8b6f47] dark:border-[#c9a96b] shadow-xs'
-                    : 'border-gray-150/40 dark:border-gray-850 hover:shadow-xs hover:border-gray-300'
+                    ? 'border-ink'
+                    : 'border-line hover:border-stone-400'
                 }`}
               >
                 <div>
-                  <div className="flex items-center gap-2 mb-3.5">
-                    <span className="font-serif font-bold text-sm text-gray-900 dark:text-white">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="font-serif text-lg font-medium text-ink">
                       Address {idx + 1}
                     </span>
                     {addr.isDefault && (
-                      <span className="px-2 py-0.5 bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded text-[9px] font-black uppercase tracking-wider">
-                        Default
-                      </span>
+                      <StatusPill tone="neutral">Default</StatusPill>
                     )}
                   </div>
-                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-sans">
+                  <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
                     {addr.street} <br />
                     {addr.city}, {addr.state} {addr.zipCode} <br />
                     {addr.country}
@@ -193,14 +188,12 @@ export default function AddressesPage() {
                 </div>
 
                 {/* Actions row */}
-                <div className="mt-6 pt-3 border-t border-gray-100 dark:border-gray-850 flex gap-2 justify-end">
+                <div className="mt-6 pt-4 border-t border-line flex flex-wrap gap-2 justify-end">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => openEditModal(addr)}
-                    className="rounded-full text-[10px] font-black px-3.5 flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-850"
                   >
-                    <Edit className="w-3.5 h-3.5" />
                     Edit
                   </Button>
                   {!addr.isDefault && (
@@ -208,22 +201,20 @@ export default function AddressesPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleSetDefault(addr)}
-                      className="rounded-full text-[10px] font-black px-3.5 flex items-center gap-1"
                     >
-                      <CheckCircle className="w-3.5 h-3.5" />
                       Make Default
                     </Button>
                   )}
                   {(
                     <Button
                       size="sm"
+                      variant="ghost"
                       onClick={() => {
                         setDeletingAddressId(addr._id || addr.id);
                         setIsDeleteOpen(true);
                       }}
-                      className="bg-red-50 hover:bg-red-100 text-red-650 border border-red-200/50 rounded-full text-[10px] font-black px-3.5 flex items-center gap-1"
+                      className="text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
                       Delete
                     </Button>
                   )}
@@ -250,7 +241,7 @@ export default function AddressesPage() {
             error={formErrors.street}
             required
             disabled={submitting}
-            className="rounded-xl text-xs"
+            className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -261,7 +252,7 @@ export default function AddressesPage() {
               error={formErrors.city}
               required
               disabled={submitting}
-              className="rounded-xl text-xs"
+              className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
             />
             <Input
               label="State / Province"
@@ -271,7 +262,7 @@ export default function AddressesPage() {
               error={formErrors.state}
               required
               disabled={submitting}
-              className="rounded-xl text-xs"
+              className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -283,7 +274,7 @@ export default function AddressesPage() {
               error={formErrors.zipCode}
               required
               disabled={submitting}
-              className="rounded-xl text-xs"
+              className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
             />
             <Input
               label="Country"
@@ -293,7 +284,7 @@ export default function AddressesPage() {
               error={formErrors.country}
               required
               disabled={submitting}
-              className="rounded-xl text-xs"
+              className="h-11 rounded-md bg-transparent focus:ring-0 focus:border-ink"
             />
           </div>
 
@@ -305,27 +296,22 @@ export default function AddressesPage() {
                 checked={formData.isDefault}
                 onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
                 disabled={submitting}
-                className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                className="w-4 h-4 accent-[var(--ink)]"
               />
-              <span className="text-xs text-gray-700 dark:text-gray-300">Set as default shipping address</span>
+              <span className="text-sm text-stone-600 dark:text-stone-300">Set as default shipping address</span>
             </label>
           )}
 
-          <div className="flex gap-2 justify-end pt-3 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex gap-2 justify-end pt-5 border-t border-line">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsFormOpen(false)}
               disabled={submitting}
-              className="rounded-full px-5 text-xs font-bold"
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              loading={submitting}
-              className="bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full font-bold px-6 shadow-md text-xs"
-            >
+            <Button type="submit" loading={submitting}>
               {editingAddress ? 'Save Changes' : 'Add Address'}
             </Button>
           </div>

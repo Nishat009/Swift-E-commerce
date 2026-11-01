@@ -29,14 +29,14 @@ export default function BackInStockForm({ productId }: { productId: string }) {
 
   if (done) {
     return (
-      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+      <p className="text-sm text-stone-600 dark:text-stone-300">
         Thanks! We&apos;ll email {email} as soon as this is back in stock.
       </p>
     );
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2 pt-1">
+    <form onSubmit={submit} className="flex flex-col gap-2 pt-1 sm:flex-row">
       <label htmlFor="back-in-stock-email" className="sr-only">Email address</label>
       <input
         id="back-in-stock-email"
@@ -45,12 +45,12 @@ export default function BackInStockForm({ productId }: { productId: string }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@example.com"
-        className="flex-1 min-w-0 px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-white"
+        className="h-11 min-w-0 flex-1 rounded-md border border-line bg-transparent px-3.5 text-sm text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none"
       />
       <button
         type="submit"
         disabled={saving}
-        className="px-5 py-2 rounded-full text-xs font-bold bg-[#8b6f47] hover:bg-[#725a38] text-white disabled:opacity-60"
+        className="h-11 cursor-pointer whitespace-nowrap rounded-full bg-ink px-6 text-xs font-semibold uppercase tracking-[0.08em] text-paper transition-colors hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving ? 'Saving…' : 'Email me when it’s back'}
       </button>

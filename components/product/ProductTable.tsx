@@ -1,17 +1,15 @@
 'use client';
 
-import { selectClass } from '@/components/ui/Select';
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Product } from '@/types';
 import { productService, GetProductsParams } from '@/services/productService';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
+import { AdminButton, AdminEmpty, Pill, table } from '@/components/admin/AdminUI';
+import { cn } from '@/lib/utils';
 import {
   Plus,
   Search,
@@ -22,34 +20,48 @@ import {
   Upload,
   RefreshCw,
   Eye,
-  CheckSquare,
-  Square,
-  ArrowUpDown,
-  Filter,
   MoreVertical,
-  Layers,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  FileText,
   Archive,
   X,
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
   Package,
-  Sparkles,
-  Tag
 } from 'lucide-react';
 
 interface ProductTableProps {
   onProductChange?: () => void;
 }
 
+const fieldClass =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const selectFieldClass =
+  'h-9 cursor-pointer appearance-none rounded-lg border border-line bg-surface pl-3 pr-9 text-sm text-stone-900 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark] ' +
+  'bg-no-repeat bg-[right_0.65rem_center] bg-[length:1rem_1rem] ' +
+  'bg-[url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27%239ca3af%27%20stroke-width=%272.5%27%20stroke-linecap=%27round%27%20stroke-linejoin=%27round%27%3E%3Cpath%20d=%27m6%209%206%206%206-6%27/%3E%3C/svg%3E)]';
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const checkboxClass = 'size-4 cursor-pointer rounded accent-[#8b6f47] dark:[color-scheme:dark]';
+const iconButtonClass =
+  'inline-flex size-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-white/[0.06] dark:hover:text-white cursor-pointer';
+const menuItemClass =
+  'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 transition-colors hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-white/[0.05] cursor-pointer';
+
+const money = (n: unknown) => `$${(Number(n) || 0).toFixed(2)}`;
+
+function SummaryStat({ label, value, tone, className }: { label: string; value: number; tone?: 'warning' | 'danger'; className?: string }) {
+  return (
+    <div className={cn('bg-surface px-3 py-3 sm:px-4', className)}>
+      <p className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
+        {tone && <span className={cn('size-1.5 rounded-full', tone === 'danger' ? 'bg-red-500' : 'bg-amber-500')} aria-hidden />}
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-stone-900 dark:text-white">{value}</p>
+    </div>
+  );
+}
+
 export default function ProductTable({ onProductChange }: ProductTableProps) {
   const toast = useToast();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
   // Data & Pagination state
   const [products, setProducts] = useState<Product[]>([]);
@@ -304,223 +316,106 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
   };
 
   return (
-    <div className="space-y-6">
-      
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-gray-150/60 dark:border-gray-800">
-        <div>
-          <h1 className="text-2xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wide flex items-center gap-2.5">
-            <Package className="w-6 h-6 text-[#8b6f47] dark:text-[#c9a96b]" />
-            Products
-          </h1>
-          <p className="text-xs text-text-muted mt-1">
-            Manage your store products, inventory, pricing, and catalog information.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-850"
-          >
-            <Upload className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            <span>Import</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="flex items-center gap-2 rounded-xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-850"
-          >
-            <Download className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            <span>Export</span>
-          </Button>
-
-          <Link href="/dashboard/products/create">
-            <Button
-              variant="primary"
-              size="sm"
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] text-white shadow-md hover:shadow-lg transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Product</span>
-            </Button>
-          </Link>
-        </div>
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-5">
+        <SummaryStat label="Total products" value={summary.totalProducts} />
+        <SummaryStat label="Published" value={summary.publishedCount} />
+        <SummaryStat label="Drafts" value={summary.draftCount} />
+        <SummaryStat label="Low stock" value={summary.lowStockCount} tone={summary.lowStockCount > 0 ? 'warning' : undefined} />
+        <SummaryStat label="Out of stock" value={summary.outOfStockCount} tone={summary.outOfStockCount > 0 ? 'danger' : undefined} className="col-span-2 sm:col-span-1" />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        
-        {/* Total Products */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">Total Products</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Layers className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold font-serif text-gray-900 dark:text-white mt-3">
-            {summary.totalProducts}
-          </p>
-        </div>
-
-        {/* Published */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">Published</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold font-serif text-emerald-600 dark:text-emerald-400 mt-3">
-            {summary.publishedCount}
-          </p>
-        </div>
-
-        {/* Drafts */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">Drafts</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <FileText className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold font-serif text-amber-600 dark:text-amber-400 mt-3">
-            {summary.draftCount}
-          </p>
-        </div>
-
-        {/* Low Stock */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">Low Stock</span>
-            <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold font-serif text-orange-600 dark:text-orange-400 mt-3">
-            {summary.lowStockCount}
-          </p>
-        </div>
-
-        {/* Out of Stock */}
-        <div className="col-span-2 sm:col-span-1 bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">Out of Stock</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-              <XCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold font-serif text-rose-600 dark:text-rose-400 mt-3">
-            {summary.outOfStockCount}
-          </p>
-        </div>
-      </div>
-
-      {/* Control Bar: Search, Filters Trigger, Sort & Bulk Actions */}
-      <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-          
-          {/* Search Box */}
-          <div className="relative w-full md:w-80">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="relative block w-full sm:w-72">
+            <span className="sr-only">Search products</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
-              placeholder="Search product, SKU, brand, tag..."
+              placeholder="Search name, SKU, brand or tag"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-10 pr-9 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-[#8b6f47]/30 text-gray-900 dark:text-white"
+              className={cn(fieldClass, 'pl-9 pr-8')}
             />
             {search && (
               <button
+                type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
+                aria-label="Clear search"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="size-3.5" />
               </button>
             )}
-          </div>
+          </label>
 
-          {/* Quick Filter & Sort Options */}
-          <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap justify-between md:justify-end">
-            
-            {/* Filter Toggle */}
-            <button
+          <div className="flex items-center gap-2">
+            <AdminButton
               onClick={() => setShowFilterDrawer(!showFilterDrawer)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-medium transition-all ${
-                hasActiveFilters
-                  ? 'border-[#8b6f47] text-[#8b6f47] dark:text-[#c9a96b] bg-[#8b6f47]/10'
-                  : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+              aria-expanded={showFilterDrawer}
+              className={cn(showFilterDrawer && 'bg-stone-50 dark:bg-white/[0.06]')}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Filters</span>
-              {hasActiveFilters && (
-                <span className="w-2 h-2 rounded-full bg-[#8b6f47] dark:bg-[#c9a96b]"></span>
-              )}
-            </button>
+              <SlidersHorizontal className="size-4" />
+              Filters
+              {hasActiveFilters && <span className="size-1.5 rounded-full bg-[#8b6f47] dark:bg-[#c9a96b]" aria-label="Filters active" />}
+            </AdminButton>
 
-            {/* Sort Select */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-text-muted hidden sm:inline">Sort:</span>
+            <label className="flex items-center gap-2">
+              <span className="sr-only">Sort by</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className={`${selectClass}`}
+                className={selectFieldClass}
               >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="price-asc">Price: Low → High</option>
-                <option value="price-desc">Price: High → Low</option>
-                <option value="name-asc">Name: A → Z</option>
-                <option value="name-desc">Name: Z → A</option>
-                <option value="popular">Most Popular</option>
-                <option value="stock-asc">Stock: Low → High</option>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="price-asc">Price: low to high</option>
+                <option value="price-desc">Price: high to low</option>
+                <option value="name-asc">Name: A to Z</option>
+                <option value="name-desc">Name: Z to A</option>
+                <option value="popular">Most popular</option>
+                <option value="stock-asc">Stock: low to high</option>
               </select>
-            </div>
-
-            {/* Page Size */}
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className={`${selectClass}`}
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-              <option value={100}>100 / page</option>
-            </select>
+            </label>
           </div>
         </div>
 
-        {/* Expandable Filter Drawer Panel */}
-        {showFilterDrawer && (
-          <div className="pt-4 mt-3 border-t border-gray-150 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-200">
-            
-            {/* Category Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminButton onClick={() => setIsImportModalOpen(true)} title="Import products from JSON or CSV">
+            <Upload className="size-4" /> Import
+          </AdminButton>
+          <AdminButton onClick={handleExport} title="Download the products on this page as a JSON file">
+            <Download className="size-4" /> Export
+          </AdminButton>
+          <Link href="/dashboard/products/create" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b6f47]/40">
+            <AdminButton variant="primary" tabIndex={-1}>
+              <Plus className="size-4" /> Add product
+            </AdminButton>
+          </Link>
+        </div>
+      </div>
+
+      {/* Filters */}
+      {showFilterDrawer && (
+        <div className="rounded-lg border border-line bg-stone-50/60 p-4 dark:bg-white/[0.02]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                Category
-              </label>
+              <label htmlFor="pt-category" className={labelClass}>Category</label>
               <select
+                id="pt-category"
                 value={categoryFilter}
                 onChange={(e) => {
                   setCategoryFilter(e.target.value);
                   setPage(1);
                 }}
-                className={`${selectClass} w-full`}
+                className={cn(selectFieldClass, 'w-full')}
               >
-                <option value="all">All Categories</option>
+                <option value="all">All categories</option>
                 {categoriesList.map((cat) => (
                   <option key={cat} value={cat.toLowerCase()}>
                     {cat}
@@ -529,20 +424,18 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
               </select>
             </div>
 
-            {/* Brand Filter */}
             <div>
-              <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                Brand
-              </label>
+              <label htmlFor="pt-brand" className={labelClass}>Brand</label>
               <select
+                id="pt-brand"
                 value={brandFilter}
                 onChange={(e) => {
                   setBrandFilter(e.target.value);
                   setPage(1);
                 }}
-                className={`${selectClass} w-full`}
+                className={cn(selectFieldClass, 'w-full')}
               >
-                <option value="all">All Brands</option>
+                <option value="all">All brands</option>
                 {brandsList.map((b) => (
                   <option key={b} value={b.toLowerCase()}>
                     {b}
@@ -551,420 +444,354 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
               </select>
             </div>
 
-            {/* Status Filter */}
             <div>
-              <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                Publish Status
-              </label>
+              <label htmlFor="pt-status" className={labelClass}>Publish status</label>
               <select
+                id="pt-status"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className={`${selectClass} w-full`}
+                className={cn(selectFieldClass, 'w-full')}
               >
-                <option value="all">All Statuses</option>
+                <option value="all">All statuses</option>
                 <option value="published">Published</option>
                 <option value="draft">Draft</option>
                 <option value="archived">Archived</option>
               </select>
             </div>
 
-            {/* Stock Status Filter */}
             <div>
-              <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                Stock Status
-              </label>
+              <label htmlFor="pt-stock" className={labelClass}>Stock level</label>
               <select
+                id="pt-stock"
                 value={stockStatusFilter}
                 onChange={(e) => {
                   setStockStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className={`${selectClass} w-full`}
+                className={cn(selectFieldClass, 'w-full')}
               >
-                <option value="all">All Stock Levels</option>
-                <option value="in_stock">In Stock</option>
-                <option value="low_stock">Low Stock</option>
-                <option value="out_of_stock">Out of Stock</option>
+                <option value="all">All stock levels</option>
+                <option value="in_stock">In stock</option>
+                <option value="low_stock">Low stock</option>
+                <option value="out_of_stock">Out of stock</option>
               </select>
             </div>
+          </div>
 
-            {/* Toggles */}
-            <div className="sm:col-span-2 lg:col-span-3 flex items-center gap-4 flex-wrap pt-2">
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
                 <input
                   type="checkbox"
                   checked={featuredOnly}
                   onChange={(e) => setFeaturedOnly(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                  className={checkboxClass}
                 />
-                <span>Featured Only</span>
+                Featured only
               </label>
-
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
                 <input
                   type="checkbox"
                   checked={newArrivalOnly}
                   onChange={(e) => setNewArrivalOnly(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                  className={checkboxClass}
                 />
-                <span>New Arrival</span>
+                New arrivals
               </label>
-
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
                 <input
                   type="checkbox"
                   checked={bestsellerOnly}
                   onChange={(e) => setBestsellerOnly(e.target.checked)}
-                  className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                  className={checkboxClass}
                 />
-                <span>Bestseller</span>
+                Bestsellers
               </label>
             </div>
-
-            {/* Reset Filters */}
-            <div className="flex items-center justify-end pt-2">
-              <button
-                onClick={handleClearFilters}
-                className="text-xs text-[#8b6f47] dark:text-[#c9a96b] hover:underline font-bold"
-              >
-                Clear all filters
-              </button>
-            </div>
+            <AdminButton size="sm" variant="ghost" onClick={handleClearFilters}>
+              Clear all filters
+            </AdminButton>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Bulk Action Toolbar */}
-        {selectedIds.length > 0 && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 flex items-center justify-between gap-4 animate-in fade-in">
-            <span className="text-xs font-bold text-amber-900 dark:text-amber-300">
-              {selectedIds.length} items selected
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleBulkAction('publish')}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all"
-              >
-                Bulk Publish
-              </button>
-              <button
-                onClick={() => handleBulkAction('archive')}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
-              >
-                Bulk Archive
-              </button>
-              <button
-                onClick={() => handleBulkAction('delete')}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all"
-              >
-                Bulk Delete
-              </button>
-            </div>
+      {/* Bulk actions */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#8b6f47]/25 bg-[#8b6f47]/[0.06] px-3 py-2 dark:border-[#c9a96b]/25 dark:bg-[#c9a96b]/[0.06]">
+          <span className="text-sm font-medium text-stone-800 dark:text-stone-200">
+            {selectedIds.length} selected
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminButton size="sm" onClick={() => handleBulkAction('publish')}>
+              Publish
+            </AdminButton>
+            <AdminButton size="sm" onClick={() => handleBulkAction('archive')}>
+              <Archive className="size-3.5" /> Archive
+            </AdminButton>
+            <AdminButton size="sm" variant="danger" onClick={() => handleBulkAction('delete')}>
+              <Trash2 className="size-3.5" /> Delete
+            </AdminButton>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Main Table Content */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs overflow-hidden">
+      {/* Table */}
+      <div className={cn(table.wrap, 'relative')}>
         {loading ? (
-          <div className="p-12 text-center text-text-muted space-y-3">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-[#8b6f47]" />
-            <p className="text-xs font-medium">Loading products catalog...</p>
+          <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-stone-500 dark:text-stone-400" role="status">
+            <RefreshCw className="size-4 animate-spin" />
+            Loading products...
           </div>
         ) : products.length === 0 ? (
-          <div className="p-12 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mx-auto flex items-center justify-center text-gray-400">
-              <Package className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-white font-serif">
-                No products found
-              </h3>
-              <p className="text-xs text-text-muted mt-1">
-                Try changing your search keywords or filter settings.
-              </p>
-            </div>
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearFilters}
-                className="rounded-xl"
-              >
-                Reset Filters
-              </Button>
-            )}
-          </div>
+          <AdminEmpty
+            icon={Package}
+            title="No products found"
+            description={hasActiveFilters ? 'Try a different search or clear the filters.' : 'Products you add will appear here.'}
+            action={
+              hasActiveFilters ? (
+                <AdminButton size="sm" onClick={handleClearFilters}>
+                  Clear filters
+                </AdminButton>
+              ) : undefined
+            }
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50/70 dark:bg-gray-850/50 border-b border-gray-150 dark:border-gray-800 text-[11px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
-                  <th className="py-3.5 px-4 w-10">
-                    <input
-                      type="checkbox"
-                      onChange={handleSelectAll}
-                      checked={selectedIds.length === products.length && products.length > 0}
-                      className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
-                    />
-                  </th>
-                  <th className="py-3.5 px-4">Product</th>
-                  <th className="py-3.5 px-4">SKU</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Price</th>
-                  <th className="py-3.5 px-4">Stock</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4">Created</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 text-xs">
-                {products.map((p) => {
-                  const isSelected = selectedIds.includes(String(p.id));
-                  const discountPct = p.discountPercentage || (p.originalPrice && p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0);
-                  const isLowStock = p.stock > 0 && p.stock <= (p.lowStockThreshold || 10);
-                  const isOutOfStock = p.stock <= 0;
+          <table className={table.table}>
+            <thead className={table.thead}>
+              <tr>
+                <th className={cn(table.th, 'w-10 pr-0')}>
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={selectedIds.length === products.length && products.length > 0}
+                    className={checkboxClass}
+                    aria-label="Select all products on this page"
+                  />
+                </th>
+                <th className={table.th}>Product</th>
+                <th className={table.th}>Category</th>
+                <th className={cn(table.th, 'text-right')}>Price</th>
+                <th className={table.th}>Stock</th>
+                <th className={table.th}>Status</th>
+                <th className={table.th}>Created</th>
+                <th className={table.th}><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody className={table.tbody}>
+              {products.map((p, rowIndex) => {
+                const isSelected = selectedIds.includes(String(p.id));
+                const discountPct = p.discountPercentage || (p.originalPrice && p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0);
+                const isLowStock = p.stock > 0 && p.stock <= (p.lowStockThreshold || 10);
+                const isOutOfStock = p.stock <= 0;
+                const hasOriginal = Number(p.originalPrice) > 0 && Number(p.originalPrice) > Number(p.price);
+                const openUpward = products.length > 3 && rowIndex >= products.length - 2;
 
-                  return (
-                    <tr
-                      key={p.id}
-                      className={`hover:bg-gray-50/80 dark:hover:bg-gray-850/40 transition-colors ${
-                        isSelected ? 'bg-[#8b6f47]/5 dark:bg-[#8b6f47]/10' : ''
-                      }`}
-                    >
-                      {/* Select */}
-                      <td className="py-3.5 px-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleSelectOne(p.id)}
-                          className="rounded text-[#8b6f47] focus:ring-[#8b6f47]"
+                return (
+                  <tr
+                    key={p.id}
+                    className={cn(table.tr, isSelected && 'bg-[#8b6f47]/[0.05] dark:bg-[#c9a96b]/[0.06]')}
+                  >
+                    <td className={cn(table.td, 'pr-0')}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleSelectOne(p.id)}
+                        className={checkboxClass}
+                        aria-label={`Select ${p.title || p.name}`}
+                      />
+                    </td>
+
+                    <td className={table.td}>
+                      <div className="flex min-w-[220px] items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.thumbnail || p.images?.[0] || ''}
+                          alt=""
+                          className="size-10 shrink-0 rounded-md border border-line bg-stone-100 object-cover dark:bg-white/5"
                         />
-                      </td>
-
-                      {/* Product details */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={p.thumbnail || p.images?.[0] || ''}
-                            alt={p.title}
-                            className="w-11 h-11 rounded-xl object-cover border border-gray-200/60 dark:border-gray-800 shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <Link
-                              href={`/dashboard/products/${p.id}`}
-                              className="font-bold text-gray-900 dark:text-white hover:text-[#8b6f47] dark:hover:text-[#c9a96b] truncate block font-serif text-sm"
-                            >
-                              {p.title || p.name}
-                            </Link>
-                            <p className="text-[10px] text-text-muted truncate mt-0.5">
-                              {p.brand || '-'}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* SKU */}
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-gray-600 dark:text-gray-400">
-                        {p.sku || p.SKU || 'N/A'}
-                      </td>
-
-                      {/* Category */}
-                      <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[11px] font-medium capitalize">
-                          {p.category}
-                        </span>
-                      </td>
-
-                      {/* Price */}
-                      <td className="py-3.5 px-4 font-semibold text-gray-900 dark:text-white">
-                        <div className="flex items-baseline gap-1.5">
-                          <span>${p.price}</span>
-                          {Number(p.originalPrice) > 0 && Number(p.originalPrice) > Number(p.price) && (
-                            <span className="text-[10px] text-text-muted line-through">
-                              ${p.originalPrice}
-                            </span>
-                          )}
-                        </div>
-                        {discountPct > 0 && (
-                          <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400">
-                            {discountPct}% OFF
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Stock Status Badge */}
-                      <td className="py-3.5 px-4">
-                        {isOutOfStock ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                            Out of Stock (0)
-                          </span>
-                        ) : isLowStock ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                            Low Stock ({p.stock})
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            In Stock ({p.stock})
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3.5 px-4">
-                        {p.status === 'draft' ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                            Draft
-                          </span>
-                        ) : p.status === 'archived' ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300">
-                            Archived
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300">
-                            Published
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Created */}
-                      <td className="py-3.5 px-4 text-text-muted text-[11px]">
-                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'Recent'}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 text-right relative">
-                        <div className="flex items-center justify-end gap-1">
-                          
-                          {/* Quick View Link */}
+                        <div className="min-w-0">
                           <Link
                             href={`/dashboard/products/${p.id}`}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            title="View product detail management page"
+                            className="block max-w-[300px] truncate font-medium text-stone-900 hover:text-[#8b6f47] dark:text-stone-100 dark:hover:text-[#c9a96b]"
                           >
-                            <Eye className="w-4 h-4" />
+                            {p.title || p.name}
                           </Link>
-
-                          {/* Quick Edit Link */}
-                          <Link
-                            href={`/dashboard/products/${p.id}/edit`}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-[#8b6f47] hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            title="Edit Product"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Link>
-
-                          {/* Action Dropdown Toggle */}
-                          <div className="relative">
-                            <button
-                              onClick={() => setActiveActionMenuId(activeActionMenuId === p.id ? null : p.id)}
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-
-                            {/* Dropdown Menu Popup */}
-                            {activeActionMenuId === p.id && (
-                              <div
-                                className="absolute right-0 top-8 w-44 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-150 dark:border-gray-800 py-1.5 z-30 text-left"
-                                onMouseLeave={() => setActiveActionMenuId(null)}
-                              >
-                                <button
-                                  onClick={() => {
-                                    setActiveActionMenuId(null);
-                                    handleDuplicate(p.id);
-                                  }}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
-                                >
-                                  <Copy className="w-3.5 h-3.5 text-blue-500" />
-                                  <span>Duplicate</span>
-                                </button>
-
-                                <button
-                                  onClick={() => {
-                                    setActiveActionMenuId(null);
-                                    handleArchive(p);
-                                  }}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
-                                >
-                                  <Archive className="w-3.5 h-3.5 text-amber-500" />
-                                  <span>{p.status === 'archived' ? 'Unarchive' : 'Archive'}</span>
-                                </button>
-
-                                <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
-
-                                <button
-                                  onClick={() => {
-                                    setActiveActionMenuId(null);
-                                    confirmDelete(p.id);
-                                  }}
-                                  className="w-full text-left px-3.5 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Delete Product</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          <p className="truncate text-xs text-stone-500 dark:text-stone-400">
+                            {p.brand || '-'} · <span className="font-mono">{p.sku || p.SKU || 'N/A'}</span>
+                          </p>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      </div>
+                    </td>
 
-        {/* Pagination Bar */}
-        {products.length > 0 && (
-          <div className="p-4 bg-gray-50/70 dark:bg-gray-850/50 border-t border-gray-150 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-text-muted">
-            <div>
-              Showing <span className="font-bold text-gray-900 dark:text-white">{(page - 1) * limit + 1}</span> to{' '}
-              <span className="font-bold text-gray-900 dark:text-white">
-                {Math.min(page * limit, total)}
-              </span>{' '}
-              of <span className="font-bold text-gray-900 dark:text-white">{total}</span> products
-            </div>
+                    <td className={cn(table.td, 'whitespace-nowrap capitalize text-stone-700 dark:text-stone-300')}>
+                      {p.category}
+                    </td>
 
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-                className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+                    <td className={cn(table.td, 'whitespace-nowrap text-right tabular-nums')}>
+                      <span className="font-medium text-stone-900 dark:text-white">{money(p.price)}</span>
+                      {(hasOriginal || discountPct > 0) && (
+                        <span className="block text-xs">
+                          {hasOriginal && <span className="text-stone-400 line-through">{money(p.originalPrice)}</span>}
+                          {discountPct > 0 && <span className="ml-1.5 font-medium text-red-600 first:ml-0 dark:text-red-400">-{discountPct}%</span>}
+                        </span>
+                      )}
+                    </td>
 
-              <span className="font-bold text-gray-900 dark:text-white px-2">
-                Page {page} of {totalPages}
-              </span>
+                    <td className={table.td}>
+                      {isOutOfStock ? (
+                        <Pill tone="danger" dot>Out of stock</Pill>
+                      ) : isLowStock ? (
+                        <Pill tone="warning" dot>Low stock · <span className="tabular-nums">{p.stock}</span></Pill>
+                      ) : (
+                        <Pill tone="success" dot>In stock · <span className="tabular-nums">{p.stock}</span></Pill>
+                      )}
+                    </td>
 
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage(page + 1)}
-                className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+                    <td className={table.td}>
+                      {p.status === 'draft' ? (
+                        <Pill tone="neutral">Draft</Pill>
+                      ) : p.status === 'archived' ? (
+                        <Pill tone="violet">Archived</Pill>
+                      ) : (
+                        <Pill tone="success">Published</Pill>
+                      )}
+                    </td>
+
+                    <td className={cn(table.td, 'whitespace-nowrap text-xs text-stone-500 dark:text-stone-400')}>
+                      {p.createdAt ? new Date(p.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
+                    </td>
+
+                    <td className={cn(table.td, 'text-right')}>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Link href={`/dashboard/products/${p.id}`} className={iconButtonClass} title="View product details" aria-label="View product details">
+                          <Eye className="size-4" />
+                        </Link>
+                        <Link href={`/dashboard/products/${p.id}/edit`} className={iconButtonClass} title="Edit product" aria-label="Edit product">
+                          <Edit2 className="size-4" />
+                        </Link>
+
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setActiveActionMenuId(activeActionMenuId === p.id ? null : p.id)}
+                            className={cn(iconButtonClass, activeActionMenuId === p.id && 'bg-stone-100 text-stone-900 dark:bg-white/[0.06] dark:text-white')}
+                            aria-label="More actions"
+                            aria-haspopup="menu"
+                            aria-expanded={activeActionMenuId === p.id}
+                          >
+                            <MoreVertical className="size-4" />
+                          </button>
+
+                          {activeActionMenuId === p.id && (
+                            <div
+                              role="menu"
+                              className={cn(
+                                'absolute right-0 z-30 w-44 overflow-hidden rounded-lg border border-line bg-surface py-1 text-left shadow-lg',
+                                openUpward ? 'bottom-9' : 'top-9'
+                              )}
+                              onMouseLeave={() => setActiveActionMenuId(null)}
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setActiveActionMenuId(null);
+                                  handleDuplicate(p.id);
+                                }}
+                                className={menuItemClass}
+                              >
+                                <Copy className="size-4 text-stone-400" />
+                                Duplicate
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setActiveActionMenuId(null);
+                                  handleArchive(p);
+                                }}
+                                className={menuItemClass}
+                              >
+                                <Archive className="size-4 text-stone-400" />
+                                {p.status === 'archived' ? 'Unarchive' : 'Archive'}
+                              </button>
+                              <div className="my-1 border-t border-line" />
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setActiveActionMenuId(null);
+                                  confirmDelete(p.id);
+                                }}
+                                className={cn(menuItemClass, 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30')}
+                              >
+                                <Trash2 className="size-4" />
+                                Delete product
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
+
+      {/* Pagination */}
+      {products.length > 0 && (
+        <div className="flex flex-col items-center justify-between gap-3 text-xs text-stone-500 dark:text-stone-400 sm:flex-row">
+          <p className="tabular-nums">
+            Showing <span className="font-medium text-stone-900 dark:text-white">{(page - 1) * limit + 1}</span>
+            {'–'}
+            <span className="font-medium text-stone-900 dark:text-white">{Math.min(page * limit, total)}</span> of{' '}
+            <span className="font-medium text-stone-900 dark:text-white">{total}</span> products
+          </p>
+
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2">
+              <span className="sr-only">Products per page</span>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className={cn(selectFieldClass, 'h-8 text-xs')}
+              >
+                <option value={10}>10 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+            </label>
+            <AdminButton size="sm" className="w-8 px-0" disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label="Previous page">
+              <ChevronLeft className="size-4" />
+            </AdminButton>
+            <span className="px-1 tabular-nums text-stone-700 dark:text-stone-300">
+              Page {page} of {totalPages}
+            </span>
+            <AdminButton size="sm" className="w-8 px-0" disabled={page >= totalPages} onClick={() => setPage(page + 1)} aria-label="Next page">
+              <ChevronRight className="size-4" />
+            </AdminButton>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleExecuteDelete}
-        title="Delete Product?"
-        message="This action cannot be undone. Permanent deletion will remove the product, inventory records, and images from the catalog."
-        confirmText="Delete Product"
+        title="Delete this product?"
+        message="It is removed from the store and archived. Past orders keep their history."
+        confirmText="Delete product"
         variant="danger"
       />
 
@@ -972,40 +799,31 @@ export default function ProductTable({ onProductChange }: ProductTableProps) {
       <Modal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        title="Import Products Catalog"
+        title="Import products"
       >
         <div className="space-y-4">
-          <p className="text-xs text-text-muted">
-            Paste a JSON array or CSV (first row = field names, e.g. title,description,category,brand,price,stock,images). Separate multiple images or tags with "|". Products without a status are imported as drafts.
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Paste a JSON array or CSV (first row = field names, e.g. title,description,category,brand,price,stock,images). Separate multiple images or tags with &quot;|&quot;. Products without a status are imported as drafts.
           </p>
-          <textarea
-            rows={8}
-            value={importJsonText}
-            onChange={(e) => setImportJsonText(e.target.value)}
-            placeholder="[ { &quot;title&quot;: &quot;Sample Product&quot;, &quot;price&quot;: 49.99, &quot;category&quot;: &quot;Clothing&quot; } ]"
-            className="w-full p-3 font-mono text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#8b6f47]"
-          />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsImportModalOpen(false)}
-              className="rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleImportSubmit}
-              className="rounded-xl bg-[#8b6f47] text-white"
-            >
-              Import Data
-            </Button>
+          <div>
+            <label htmlFor="pt-import" className={labelClass}>JSON or CSV</label>
+            <textarea
+              id="pt-import"
+              rows={8}
+              value={importJsonText}
+              onChange={(e) => setImportJsonText(e.target.value)}
+              placeholder="[ { &quot;title&quot;: &quot;Sample Product&quot;, &quot;price&quot;: 49.99, &quot;category&quot;: &quot;Clothing&quot; } ]"
+              className="w-full rounded-lg border border-line bg-surface px-3 py-2 font-mono text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100"
+            />
+          </div>
+          <div className="flex justify-end gap-2 border-t border-line pt-4">
+            <AdminButton onClick={() => setIsImportModalOpen(false)}>Cancel</AdminButton>
+            <AdminButton variant="primary" onClick={handleImportSubmit}>
+              <Upload className="size-4" /> Import
+            </AdminButton>
           </div>
         </div>
       </Modal>
-
     </div>
   );
 }

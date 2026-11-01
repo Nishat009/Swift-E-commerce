@@ -215,42 +215,35 @@ export default function WishlistPage() {
   };
 
   const tabClass = (active: boolean) =>
-    `px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${active
-      ? 'bg-[#8b6f47] text-white border-[#8b6f47]'
-      : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-[#8b6f47]'}`;
+    `px-3.5 py-1.5 rounded-full text-xs border transition-colors cursor-pointer ${active
+      ? 'bg-ink text-paper border-ink'
+      : 'text-stone-600 dark:text-stone-300 border-line hover:border-ink'}`;
+  const miniAlert = (on: boolean) =>
+    `inline-flex items-center gap-1 text-[11px] transition-colors cursor-pointer ${on ? 'text-ink' : 'text-stone-400 dark:text-stone-500'} hover:text-ink`;
 
   return (
     <AccountLayout activeTabName="/wishlist">
-      <div className="space-y-6">
+      <div className="space-y-8">
 
         {/* Title & Actions Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-line pb-5">
           <div>
-            <h2 className="text-xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider">
-              My Wishlist Collections
+            <h2 className="text-2xl font-serif font-medium tracking-tight text-ink">
+              My Wishlist
             </h2>
-            <p className="text-xs text-text-muted mt-1">
+            <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5 max-w-xl">
               Products you have saved for later. Organise them into collections and choose which alerts you get.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {items.length > 0 && (
-              <Button
-                onClick={toggleSharing}
-                size="sm"
-                variant="outline"
-                className="rounded-xl text-xs font-bold flex items-center gap-1.5"
-              >
+              <Button onClick={toggleSharing} size="sm" variant="outline">
                 {share.enabled ? <><Link2Off className="w-3.5 h-3.5" /> Stop sharing</> : <><Share2 className="w-3.5 h-3.5" /> Share wishlist</>}
               </Button>
             )}
             {visibleItems.length > 0 && (
-              <Button
-                onClick={handleMoveAllToCart}
-                size="sm"
-                className="rounded-xl text-xs font-bold bg-[#8b6f47] hover:bg-[#725a38] text-white flex items-center gap-1.5"
-              >
+              <Button onClick={handleMoveAllToCart} size="sm">
                 <ShoppingCart className="w-3.5 h-3.5" /> Move All to Cart
               </Button>
             )}
@@ -258,9 +251,9 @@ export default function WishlistPage() {
         </div>
 
         {share.enabled && share.path && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl p-3">
-            <span className="font-bold text-gray-800 dark:text-gray-200">Anyone with this link can view your wishlist:</span>
-            <button onClick={copyShareLink} className="text-left font-mono text-[11px] text-[#8b6f47] dark:text-[#c9a96b] underline break-all">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm rounded-lg border border-line bg-surface-muted p-4">
+            <span className="text-stone-600 dark:text-stone-300">Anyone with this link can view your wishlist:</span>
+            <button onClick={copyShareLink} className="text-left text-xs text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink break-all cursor-pointer">
               {typeof window !== 'undefined' ? `${window.location.origin}${share.path}` : share.path}
             </button>
           </div>
@@ -279,10 +272,10 @@ export default function WishlistPage() {
                 </button>
                 {activeCollection === c.id && (
                   <>
-                    <button onClick={() => renameCollection(c)} title="Rename collection" className="p-1 text-gray-500 hover:text-[#8b6f47]">
+                    <button onClick={() => renameCollection(c)} title="Rename collection" aria-label="Rename collection" className="p-1 text-stone-500 hover:text-ink cursor-pointer">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => deleteCollection(c)} title="Delete collection" className="p-1 text-gray-500 hover:text-red-500">
+                    <button onClick={() => deleteCollection(c)} title="Delete collection" aria-label="Delete collection" className="p-1 text-stone-500 hover:text-red-600 cursor-pointer">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </>
@@ -290,17 +283,17 @@ export default function WishlistPage() {
               </span>
             ))}
             {showNewCollection ? (
-              <form onSubmit={createCollection} className="inline-flex items-center gap-1">
+              <form onSubmit={createCollection} className="inline-flex items-center gap-2">
                 <input
                   autoFocus
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
                   maxLength={60}
                   placeholder="Collection name"
-                  className="px-3 py-1.5 text-[11px] rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-white"
+                  className="h-8 px-3 text-xs rounded-md border border-line bg-transparent text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none"
                 />
-                <button type="submit" className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#8b6f47] text-white">Add</button>
-                <button type="button" onClick={() => setShowNewCollection(false)} className="p-1 text-gray-500"><X className="w-3.5 h-3.5" /></button>
+                <button type="submit" className="px-3.5 py-1.5 rounded-full text-xs bg-ink text-paper hover:bg-ink/85 cursor-pointer">Add</button>
+                <button type="button" onClick={() => setShowNewCollection(false)} aria-label="Cancel" className="p-1 text-stone-500 hover:text-ink cursor-pointer"><X className="w-3.5 h-3.5" /></button>
               </form>
             ) : (
               <button onClick={() => setShowNewCollection(true)} className={`${tabClass(false)} inline-flex items-center gap-1`}>
@@ -312,15 +305,16 @@ export default function WishlistPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10">
+            <ProductSkeleton />
             <ProductSkeleton />
             <ProductSkeleton />
             <ProductSkeleton />
           </div>
         ) : loadError ? (
           <div className="text-center py-12 space-y-4">
-            <p className="text-sm text-text-muted">We could not load your wishlist right now.</p>
-            <Button onClick={fetchWishlist} variant="outline" className="rounded-full text-xs font-bold px-6">Try again</Button>
+            <p className="text-sm text-stone-500 dark:text-stone-400">We could not load your wishlist right now.</p>
+            <Button onClick={fetchWishlist} variant="outline">Try again</Button>
           </div>
         ) : items.length === 0 ? (
           <EmptyState
@@ -331,81 +325,76 @@ export default function WishlistPage() {
             actionLink="/products"
           />
         ) : visibleItems.length === 0 ? (
-          <p className="text-sm text-text-muted text-center py-12">
+          <p className="text-sm text-stone-500 dark:text-stone-400 text-center py-12">
             This collection is empty. Use the collection menu on any saved product to add it here.
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-10">
             {visibleItems.map((product) => {
               const discountedPrice = product.price * (1 - (product.discountPercentage || 0) / 100);
               const outOfStock = (product.stock ?? 0) <= 0;
               const pref = alerts[String(product.id)] || { priceDrop: true, backInStock: true };
 
               return (
-                <div
-                  key={product.id}
-                  className="border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] bg-white dark:bg-gray-900 overflow-hidden p-4 sm:p-5 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between min-h-[460px] relative group"
-                >
+                <div key={product.id} className="flex flex-col min-w-0 group">
 
-                  {/* Thumbnail Image Container */}
-                  <div className="relative w-full h-44 bg-gray-50 dark:bg-gray-950 rounded-2xl overflow-hidden border">
+                  {/* Thumbnail */}
+                  <div className="relative w-full aspect-[3/4] bg-surface-muted rounded-sm overflow-hidden">
                     <Link href={'/product/' + product.id}>
                       <img
                         src={product.thumbnail || product.image}
                         alt={product.title}
-                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                        className={`object-cover w-full h-full transition-transform duration-500 group-hover:scale-[1.03] ${outOfStock ? 'opacity-60' : ''}`}
                       />
                     </Link>
 
-                    {/* Discount badge */}
                     {product.discountPercentage > 0 && (
-                      <span className="absolute bottom-3 left-3 bg-red-650 text-white font-bold px-2 py-0.5 rounded-lg text-[9px] shadow-sm">
+                      <span className="absolute top-2 left-2 bg-paper text-ink px-2 py-0.5 rounded-full text-[11px] font-medium tabular-nums">
                         -{product.discountPercentage}%
                       </span>
                     )}
 
-                    {/* Delete action button */}
                     <button
                       onClick={() => setRemovingProductId(product.id)}
-                      className="absolute top-3 right-3 bg-white/80 dark:bg-gray-900/80 hover:bg-red-500 hover:text-white backdrop-blur-md text-gray-500 p-2 rounded-full shadow-md transition-colors border border-gray-200/50 dark:border-gray-800"
+                      className="absolute top-2 right-2 bg-paper/90 text-stone-600 hover:text-red-600 p-2 rounded-full transition-colors cursor-pointer"
                       title="Remove from wishlist"
+                      aria-label="Remove from wishlist"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
                   {/* Text details */}
-                  <div className="mt-4 flex-1 space-y-1.5 min-w-0">
-                    <span className="block text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">
-                      {product.brand}
-                    </span>
+                  <div className="mt-3 flex-1 min-w-0">
+                    {product.brand && (
+                      <span className="block text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 truncate">
+                        {product.brand}
+                      </span>
+                    )}
                     <Link href={'/product/' + product.id}>
-                      <h4 className="font-serif text-sm font-bold text-gray-950 dark:text-white truncate leading-tight hover:underline">
+                      <h4 className="mt-1 font-sans text-sm text-ink truncate hover:underline underline-offset-4">
                         {product.title}
                       </h4>
                     </Link>
-                    {outOfStock && <span className="text-[10px] font-bold text-red-600">Out of stock</span>}
-                    <p className="text-[10px] text-text-muted line-clamp-1 leading-relaxed">
-                      {product.description}
-                    </p>
-                    <div className="flex items-baseline gap-2 pt-1">
-                      <span className="text-sm font-black text-[#8b6f47] dark:text-[#c9a96b]">
+                    <div className="flex items-baseline gap-2 mt-1 tabular-nums">
+                      <span className="text-sm font-medium text-ink">
                         ${discountedPrice.toFixed(0)}
                       </span>
                       {product.discountPercentage > 0 && (
-                        <span className="text-[10px] text-gray-400 line-through">
+                        <span className="text-xs text-stone-400 line-through">
                           ${product.price.toFixed(0)}
                         </span>
                       )}
+                      {outOfStock && <span className="text-xs text-red-700 dark:text-red-400">Out of stock</span>}
                     </div>
 
                     {/* Alert toggles + collection picker */}
-                    <div className="flex items-center gap-1.5 pt-2 flex-wrap">
+                    <div className="flex items-center gap-x-3 gap-y-1.5 pt-3 flex-wrap">
                       <button
                         onClick={() => toggleAlert(product, 'priceDrop')}
                         title={pref.priceDrop ? 'Price-drop alert on' : 'Price-drop alert off'}
                         aria-pressed={pref.priceDrop}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold border ${pref.priceDrop ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400' : 'border-gray-200 text-gray-400 dark:border-gray-700'}`}
+                        className={miniAlert(pref.priceDrop)}
                       >
                         {pref.priceDrop ? <Bell className="w-3 h-3" /> : <BellOff className="w-3 h-3" />} Price drop
                       </button>
@@ -413,7 +402,7 @@ export default function WishlistPage() {
                         onClick={() => toggleAlert(product, 'backInStock')}
                         title={pref.backInStock ? 'Back-in-stock alert on' : 'Back-in-stock alert off'}
                         aria-pressed={pref.backInStock}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold border ${pref.backInStock ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400' : 'border-gray-200 text-gray-400 dark:border-gray-700'}`}
+                        className={miniAlert(pref.backInStock)}
                       >
                         <PackageCheck className="w-3 h-3" /> Restock
                       </button>
@@ -425,7 +414,7 @@ export default function WishlistPage() {
                             const [action, id] = e.target.value.split(':');
                             if (id) setProductCollection(product, id, action === 'add');
                           }}
-                          className="px-2 py-1 rounded-full text-[9px] font-bold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300 max-w-[130px]"
+                          className="h-7 px-2 rounded-md text-[11px] border border-line bg-transparent text-stone-600 dark:text-stone-300 max-w-full focus:border-ink focus:outline-none"
                         >
                           <option value="">Collections…</option>
                           {collections.map((c) => {
@@ -442,21 +431,23 @@ export default function WishlistPage() {
                   </div>
 
                   {/* Add to Cart / Move to Cart CTAs */}
-                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex gap-2">
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button
+                      onClick={() => handleMoveToCart(product)}
+                      disabled={outOfStock}
+                      size="sm"
+                      className="w-full"
+                    >
+                      Move to Cart
+                    </Button>
                     <Button
                       onClick={() => handleAddToCart(product)}
                       disabled={outOfStock}
                       variant="outline"
-                      className="flex-1 rounded-full text-[10px] font-bold py-2 flex items-center justify-center gap-1 border-gray-300"
+                      size="sm"
+                      className="w-full"
                     >
-                      <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
-                    </Button>
-                    <Button
-                      onClick={() => handleMoveToCart(product)}
-                      disabled={outOfStock}
-                      className="flex-1 bg-[#8b6f47] hover:bg-[#725a38] text-white font-bold py-2 rounded-full text-[10px] flex items-center justify-center gap-1 shadow-sm"
-                    >
-                      Move to Cart
+                      Add to Cart
                     </Button>
                   </div>
                 </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ShoppingCart } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 import { useCurrencyStore } from '@/stores/currencyStore';
@@ -28,18 +27,18 @@ export default function MobileStickyCart({
   const converted = displayPrice * rate;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 p-3 lg:hidden shadow-2xl flex items-center justify-between gap-3">
+    <div className="fixed bottom-0 inset-x-0 z-40 border-t border-line bg-paper px-4 py-3 lg:hidden flex items-center justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <h4 className="text-xs font-serif font-bold text-gray-900 dark:text-white truncate">
+        <h4 className="truncate text-sm text-ink">
           {title}
         </h4>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-sm font-bold text-[#8b6f47] dark:text-[#c9a96b]">
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <span className="text-sm font-medium tabular-nums text-ink">
             {symbol}{converted.toFixed(2)}
           </span>
           {activeVariantSummary && (
-            <span className="text-[10px] text-text-muted font-bold truncate">
-              • {activeVariantSummary}
+            <span className="truncate text-xs text-stone-500">
+              · {activeVariantSummary}
             </span>
           )}
         </div>
@@ -48,10 +47,9 @@ export default function MobileStickyCart({
       <Button
         disabled={isOutOfStock}
         onClick={onAddToCart}
-        className="bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 text-xs font-bold py-2.5 px-5 rounded-full flex items-center gap-1.5 shadow-sm"
+        className="h-11 shrink-0 px-6"
       >
-        <ShoppingCart className="w-4 h-4" />
-        <span>{isOutOfStock ? 'Sold Out' : 'Add to Cart'}</span>
+        <span>{isOutOfStock ? 'Sold Out' : 'Add to bag'}</span>
       </Button>
     </div>
   );

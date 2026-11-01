@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Shirt, Home, Truck, Gift, Sparkles, HeartHandshake } from 'lucide-react';
+import { Shirt, Home, Truck, HeartHandshake } from 'lucide-react';
 import InfoPage, { InfoCard } from '@/components/layout/InfoPage';
 import { SITE } from '@/lib/siteConfig';
 
@@ -23,7 +23,7 @@ export default function AboutPage() {
       title="About SwiftCart"
       intro="A small, independent fashion and home decor store from Bangladesh, built for people who want considered style at fair prices."
     >
-      <div className="space-y-6">
+      <div>
         <InfoCard title="Why we started">
           <p>
             {SITE.name} began with a simple frustration: good-looking clothes and home pieces were either overpriced
@@ -36,16 +36,14 @@ export default function AboutPage() {
           </p>
         </InfoCard>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-x-10 gap-y-8 border-b border-line py-8">
           {values.map((v) => {
             const Icon = v.icon;
             return (
-              <div key={v.title} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[32px] p-6 shadow-sm">
-                <div className="w-10 h-10 rounded-2xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 text-[#8b6f47] dark:text-[#c9a96b] flex items-center justify-center mb-4">
-                  <Icon className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold uppercase tracking-wider font-serif text-gray-900 dark:text-white mb-2">{v.title}</h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{v.text}</p>
+              <div key={v.title}>
+                <Icon className="w-5 h-5 text-stone-500 dark:text-stone-400 mb-3" strokeWidth={1.5} />
+                <h3 className="text-lg font-serif font-medium tracking-tight text-ink mb-1.5">{v.title}</h3>
+                <p className="text-sm text-stone-600 dark:text-stone-400 leading-relaxed">{v.text}</p>
               </div>
             );
           })}
@@ -59,22 +57,19 @@ export default function AboutPage() {
         </InfoCard>
 
         <InfoCard title="Lucky Draws">
-          <p className="flex items-start gap-2">
-            <Gift className="w-4 h-4 mt-0.5 text-[#8b6f47] dark:text-[#c9a96b] flex-shrink-0" />
-            <span>
-              Our Lucky Draw campaigns let you buy a ticket for a chance to win featured products. Winners are
-              announced on the campaign page. See the{' '}
-              <Link href="/faq" className="text-[#8b6f47] dark:text-[#c9a96b] font-bold hover:underline">FAQ</Link> for the rules.
-            </span>
+          <p>
+            Our Lucky Draw campaigns let you buy a ticket for a chance to win featured products. Winners are
+            announced on the campaign page. See the{' '}
+            <Link href="/faq" className="text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink">FAQ</Link> for the rules.
           </p>
         </InfoCard>
 
-        <div className="rounded-[32px] bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950 p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-serif font-bold flex items-center gap-2"><Sparkles className="w-5 h-5" /> Questions or feedback?</h3>
-            <p className="text-sm opacity-90 mt-1">We read every message and reply within one to two business days.</p>
+            <h3 className="text-2xl font-serif font-medium tracking-tight text-ink">Questions or feedback?</h3>
+            <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">We read every message and reply within one to two business days.</p>
           </div>
-          <Link href="/contact" className="px-6 py-3 rounded-xl bg-white dark:bg-gray-950 text-[#725a38] dark:text-[#c9a96b] text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity">
+          <Link href="/contact" className="inline-flex items-center justify-center rounded-full bg-ink text-paper hover:bg-ink/85 transition-colors px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] whitespace-nowrap">
             Contact us
           </Link>
         </div>

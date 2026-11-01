@@ -3,15 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useCartStore } from '@/stores/cartStore';
 import { useCurrencyStore } from '@/stores/currencyStore';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import apiClient from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
-import { Minus, Plus, Trash2, ShoppingBag, Gift, ArrowRight, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
+import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrderQuote } from '@/hooks/useOrderQuote';
 import { getEffectivePrice } from '@/utils/productUtils';
@@ -133,297 +131,256 @@ export default function CartPage() {
 
   const total = quote?.total ?? taxedSubtotal + tax + shippingFee;
 
+
   if (items.length === 0 && savedItems.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-        <div className="p-6 bg-zinc-50 dark:bg-zinc-950 border border-gray-150/45 dark:border-gray-800 rounded-full inline-block mb-6">
-          <ShoppingBag className="w-16 h-16 text-[#8b6f47] dark:text-[#c9a96b]" />
-        </div>
-        <h2 className="text-2xl font-bold font-serif text-gray-900 dark:text-white mb-2 leading-tight">
-          Your shopping cart is empty
-        </h2>
-        <p className="text-xs text-text-muted mb-8 max-w-sm mx-auto leading-relaxed">
-          Looks like you haven&apos;t added anything to your cart yet. Explore our latest campaigns or clothing items.
+      <div className="mx-auto max-w-[1440px] px-4 py-24 text-center sm:px-6 lg:px-10">
+        <ShoppingBag className="mx-auto mb-6 size-9 text-stone-300 dark:text-stone-600" strokeWidth={1.25} />
+        <h1 className="font-serif text-4xl font-medium tracking-tight text-ink">Your bag is empty</h1>
+        <p className="mx-auto mt-3 max-w-sm text-sm text-stone-500 dark:text-stone-400">
+          Pieces you add will appear here.
         </p>
-        <Link href="/products">
-          <Button className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-8 shadow-md border-0 text-xs">
-            Continue Shopping
-          </Button>
+        <Link href="/products" className="mt-8 inline-block">
+          <Button variant="outline" size="lg">Continue shopping</Button>
         </Link>
       </div>
     );
   }
 
+  const quantityButton = 'flex size-9 cursor-pointer items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-30';
+  const textLink = 'cursor-pointer text-xs text-stone-500 underline underline-offset-4 transition-colors hover:text-ink';
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="border-b border-gray-100 dark:border-gray-800 pb-4 mb-8">
-        <h1 className="text-3xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider">
-          Shopping Cart
-        </h1>
-        <p className="text-xs text-text-muted mt-1">
-          Review, modify, or save items in your shopping bag. Free delivery on orders over $100.
+    <div className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-10 lg:py-14">
+      <div className="mb-10 border-b border-line pb-8">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Shopping bag</p>
+        <h1 className="mt-2 font-serif text-4xl font-medium tracking-tight text-ink sm:text-5xl">Your bag</h1>
+        <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
+          Review, modify, or save items in your bag. Free shipping on orders of $100 or more.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Cart Items List */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-12 lg:grid-cols-3 lg:gap-16">
+        {/* Cart items */}
+        <div className="space-y-12 lg:col-span-2">
           {items.length === 0 ? (
-            <div className="p-6 bg-gray-50/50 dark:bg-gray-900/30 border border-dashed rounded-3xl text-center text-xs text-text-muted">
+            <p className="text-sm text-stone-500 dark:text-stone-400">
               Your active shopping bag is empty. Scroll down to see saved items.
-            </div>
+            </p>
           ) : (
-            <div className="space-y-4">
+            <ul className="divide-y divide-line border-y border-line">
               <AnimatePresence initial={false}>
                 {items.map((item) => {
                   const discountedPrice = getEffectivePrice(item.product);
                   const itemTotal = discountedPrice * item.quantity;
+                  const variantLabel = item.selectedVariant ? Object.values(item.selectedVariant.attributes || {}).join(' / ') : '';
 
                   return (
-                    <motion.div
+                    <motion.li
                       key={`${item.product.id}-${item.selectedVariant?.id || ''}`}
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] p-5 shadow-xs flex flex-col sm:flex-row gap-5 relative overflow-hidden"
+                      className="flex gap-4 overflow-hidden py-6 sm:gap-6"
                     >
-                      {/* Product Thumbnail */}
-                      <Link href={`/product/${item.product.id}`} className="relative w-full sm:w-28 h-28 flex-shrink-0 bg-gray-50 dark:bg-gray-950 border rounded-2xl overflow-hidden">
+                      <Link
+                        href={`/product/${item.product.id}`}
+                        className="relative aspect-[3/4] w-24 shrink-0 overflow-hidden rounded-sm bg-surface-muted sm:w-28"
+                      >
                         <img
                           src={item.product.thumbnail}
                           alt={item.product.title}
-                          className="object-cover w-full h-full"
+                          className="h-full w-full object-cover object-top"
                         />
                       </Link>
 
-                      {/* Item Details */}
-                      <div className="flex-1 flex flex-col justify-between gap-2.5">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="block text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">
-                              {item.product.brand}
-                            </span>
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-stone-500">{item.product.brand}</p>
                             <Link href={`/product/${item.product.id}`}>
-                              <h3 className="text-sm font-bold text-gray-950 dark:text-white mt-1 hover:text-[#8b6f47] leading-tight">
+                              <h3 className="mt-0.5 text-sm text-ink underline-offset-4 hover:underline sm:text-base">
                                 {item.product.title}
                               </h3>
                             </Link>
+                            {variantLabel && (
+                              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{variantLabel}</p>
+                            )}
                           </div>
-                          
-                          {/* Trash action */}
-                          <button
-                            onClick={() => setRemovingItemId(item.product.id)}
-                            className="p-2 text-red-500 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 rounded-full transition"
-                            title="Remove item"
-                            aria-label={`Remove ${item.product.title} from cart`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <span className="shrink-0 text-sm font-medium tabular-nums text-ink sm:text-base">{formatPrice(itemTotal)}</span>
                         </div>
 
-                        {/* Cost & Controls Row */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-gray-50 dark:border-gray-850">
-                          
-                          {/* Quantity Controls */}
-                          <div className="flex items-center border border-gray-250 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950" role="group" aria-label={`Quantity of ${item.product.title}`}>
+                        {item.quantity > 1 && (
+                          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{formatPrice(discountedPrice)} each</p>
+                        )}
+
+                        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-4">
+                          <div className="inline-flex items-center rounded-full border border-line" role="group" aria-label={`Quantity of ${item.product.title}`}>
                             <button
                               type="button"
                               onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.selectedVariant?.id)}
-                              className="p-1.5 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-500"
+                              className={quantityButton}
                               aria-label={item.quantity <= 1 ? `Remove ${item.product.title} from cart` : `Decrease quantity of ${item.product.title}`}
                             >
-                              <Minus className="w-3 h-3" aria-hidden="true" />
+                              <Minus className="size-3" aria-hidden="true" />
                             </button>
-                            <span className="px-3.5 text-xs text-gray-900 dark:text-white font-bold min-w-[2rem] text-center" aria-live="polite">
+                            <span className="min-w-8 text-center text-sm tabular-nums text-ink" aria-live="polite">
                               {item.quantity}
                             </span>
                             <button
                               type="button"
                               onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.selectedVariant?.id)}
-                              className="p-1.5 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                              className={quantityButton}
                               disabled={item.quantity >= item.product.stock}
                               aria-label={`Increase quantity of ${item.product.title}`}
                             >
-                              <Plus className="w-3 h-3" aria-hidden="true" />
+                              <Plus className="size-3" aria-hidden="true" />
                             </button>
                           </div>
 
-                           {/* Price Display */}
-                           <div className="flex items-center gap-4 text-right">
-                             <div className="text-left sm:text-right">
-                               <span className="block text-[8px] text-text-muted">Item Price</span>
-                               <span className="text-xs font-semibold text-gray-900 dark:text-white">{formatPrice(discountedPrice)}</span>
-                             </div>
-                             <div className="text-left sm:text-right">
-                               <span className="block text-[8px] text-text-muted">Total</span>
-                               <span className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] font-mono">{formatPrice(itemTotal)}</span>
-                             </div>
-                           </div>
-                        </div>
-
-                        {/* Save for Later trigger */}
-                        <div className="pt-2">
-                          <button
-                            onClick={() => saveForLater(item)}
-                            className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
-                          >
-                            Save for later
-                          </button>
+                          <div className="flex items-center gap-4">
+                            <button type="button" onClick={() => saveForLater(item)} className={textLink}>
+                              Save for later
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRemovingItemId(item.product.id)}
+                              className={textLink}
+                              aria-label={`Remove ${item.product.title} from cart`}
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </motion.li>
                   );
                 })}
               </AnimatePresence>
-            </div>
+            </ul>
           )}
 
-          {/* Save For Later Section */}
+          {/* Saved for later */}
           {savedItems.length > 0 && (
-            <div className="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-              <h3 className="text-base font-serif font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                Saved For Later ({savedItems.length})
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <section>
+              <h2 className="font-serif text-2xl font-medium tracking-tight text-ink">
+                Saved for later <span className="text-stone-400">({savedItems.length})</span>
+              </h2>
+              <ul className="mt-4 divide-y divide-line border-y border-line">
                 {savedItems.map((item) => {
                   const unitPrice = getEffectivePrice(item.product);
                   const discounted = (item.product.discountPercentage || 0) > 0;
                   return (
-                    <div
-                      key={`${item.product.id}-${item.selectedVariant?.id || ''}`}
-                      className="border border-gray-150/40 dark:border-gray-800 rounded-[28px] p-4 bg-white dark:bg-gray-900 flex gap-4 shadow-xs relative"
-                    >
-                      <div className="relative w-20 h-20 bg-gray-50 dark:bg-gray-950 border rounded-xl overflow-hidden flex-shrink-0">
-                        <img src={item.product.thumbnail} alt={item.product.title} className="object-cover w-full h-full" />
+                    <li key={`${item.product.id}-${item.selectedVariant?.id || ''}`} className="flex gap-4 py-5">
+                      <div className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden rounded-sm bg-surface-muted">
+                        <img src={item.product.thumbnail} alt={item.product.title} className="h-full w-full object-cover object-top" />
                       </div>
-                      <div className="flex-1 flex flex-col justify-between min-w-0">
+                      <div className="flex min-w-0 flex-1 flex-col justify-between">
                         <div>
-                          <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">{item.product.title}</h4>
-                          <p className="text-[10px] text-text-muted mt-0.5">
-                            <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(unitPrice)}</span>
-                            {discounted && <span className="line-through ml-1.5">{formatPrice(item.product.price)}</span>}
-                            {' '}• Qty: {item.quantity}
+                          <h3 className="truncate text-sm text-ink">{item.product.title}</h3>
+                          <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                            <span className="font-medium tabular-nums text-ink">{formatPrice(unitPrice)}</span>
+                            {discounted && <span className="ml-1.5 tabular-nums line-through">{formatPrice(item.product.price)}</span>}
+                            {' '}· Qty {item.quantity}
                           </p>
                         </div>
-                        <div className="flex gap-3 mt-3">
-                          <button
-                            type="button"
-                            onClick={() => moveToCart(item)}
-                            className="text-[10px] font-black text-[#8b6f47] dark:text-[#c9a96b] hover:underline"
-                          >
-                            Move to Bag
+                        <div className="mt-3 flex gap-4">
+                          <button type="button" onClick={() => moveToCart(item)} className={textLink}>
+                            Move to bag
                           </button>
                           <button
                             type="button"
                             onClick={() => removeSavedItem(item)}
-                            className="text-[10px] font-black text-red-500 hover:underline"
+                            className={textLink}
                             aria-label={`Delete ${item.product.title} from saved items`}
                           >
                             Delete
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
         </div>
 
-        {/* Order Summary Sidebar */}
+        {/* Order summary */}
         <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-900 border border-gray-150/40 dark:border-gray-800/80 rounded-[32px] p-6 shadow-xs space-y-6 sticky top-24">
-            <h2 className="text-lg font-serif font-bold text-gray-900 dark:text-white uppercase tracking-wider pb-2 border-b">
-              Summary
-            </h2>
+          <div className="space-y-6 rounded-lg border border-line p-6 lg:sticky lg:top-24">
+            <h2 className="font-serif text-2xl font-medium tracking-tight text-ink">Summary</h2>
 
-            {/* Calculations Breakdown */}
-            <div className="space-y-3.5 text-xs text-text-muted">
+            <dl className="space-y-3 text-sm text-stone-600 dark:text-stone-400">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(subtotal)}</span>
+                <dt>Subtotal</dt>
+                <dd className="tabular-nums text-ink">{formatPrice(subtotal)}</dd>
               </div>
-              
+
               {activeCoupon && discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                  <span>Discount ({activeCoupon.code}):</span>
-                  <span>-{formatPrice(discountAmount)}</span>
+                <div className="flex justify-between">
+                  <dt>Discount ({activeCoupon.code})</dt>
+                  <dd className="tabular-nums text-ink">-{formatPrice(discountAmount)}</dd>
                 </div>
               )}
               {promoDiscount > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                  <span>Promotion ($300+):</span>
-                  <span>-{formatPrice(promoDiscount)}</span>
+                <div className="flex justify-between">
+                  <dt>Promotion ($300+)</dt>
+                  <dd className="tabular-nums text-ink">-{formatPrice(promoDiscount)}</dd>
                 </div>
               )}
-              
-              <div className="flex justify-between">
-                <span>Tax (10%):</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(tax)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {shippingFee === 0 ? 'Free' : formatPrice(shippingFee)}
-                </span>
-              </div>
-              <div className="pt-3.5 border-t border-gray-100 dark:border-gray-800 flex justify-between font-serif font-bold text-gray-905 dark:text-white text-base">
-                <span>Grand Total:</span>
-                <span className="text-[#8b6f47] dark:text-[#c9a96b]">{formatPrice(total)}</span>
-              </div>
-              {quoteError && <p className="text-xs text-red-600">{quoteError} The displayed amount is an estimate.</p>}
-            </div>
 
-            {/* Promo Code input */}
-            <form onSubmit={handleApplyCoupon} className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-              <span className="block text-[9px] font-black uppercase tracking-wider text-text-muted">Promo / Coupon Code</span>
+              <div className="flex justify-between">
+                <dt>Tax (10%)</dt>
+                <dd className="tabular-nums text-ink">{formatPrice(tax)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Shipping</dt>
+                <dd className="tabular-nums text-ink">{shippingFee === 0 ? 'Free' : formatPrice(shippingFee)}</dd>
+              </div>
+              <div className="flex justify-between border-t border-line pt-4 text-base font-medium text-ink">
+                <dt>Total</dt>
+                <dd className="tabular-nums">{formatPrice(total)}</dd>
+              </div>
+            </dl>
+            {quoteError && <p className="text-xs text-red-600 dark:text-red-400">{quoteError} The displayed amount is an estimate.</p>}
+
+            <form onSubmit={handleApplyCoupon} className="space-y-2 border-t border-line pt-6">
+              <label htmlFor="cart-coupon" className="block text-xs font-medium text-stone-600 dark:text-stone-300">Promo / coupon code</label>
               <div className="flex gap-2">
                 <input
+                  id="cart-coupon"
                   type="text"
                   placeholder="Enter coupon code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  className="flex-1 bg-[#faf9f6] dark:bg-gray-950 border border-gray-250 dark:border-gray-850 px-3 py-1.5 rounded-xl text-xs uppercase"
+                  className="h-11 min-w-0 flex-1 rounded-md border border-line bg-transparent px-3.5 text-sm uppercase text-ink placeholder:normal-case placeholder:text-stone-400 focus:border-ink focus:outline-none"
                 />
-                <button
-                  type="submit"
-                  className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-xl font-bold px-4 text-[10px] border-0"
-                >
+                <Button type="submit" variant="outline" className="h-11">
                   Apply
-                </button>
+                </Button>
               </div>
             </form>
 
-            {/* Sticky Actions */}
             {items.length > 0 && (
-              <div className="space-y-3 pt-3 border-t">
-                <Button
-                  onClick={() => router.push('/checkout')}
-                  className="w-full bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 rounded-full font-bold py-2.5 px-6 shadow-md text-xs"
-                >
-                  Proceed to Checkout
+              <div className="space-y-3 border-t border-line pt-6">
+                <Button onClick={() => router.push('/checkout')} size="lg" className="h-12 w-full">
+                  Checkout
                 </Button>
-                <Link href="/products" className="block">
-                  <Button variant="outline" className="w-full rounded-full text-xs font-bold py-2">
-                    Continue Shopping
-                  </Button>
-                </Link>
-                <button
-                  onClick={() => setIsClearCartConfirmOpen(true)}
-                  className="w-full text-center text-[10px] font-black text-red-500 hover:underline pt-2"
-                >
-                  Clear Shopping Bag
-                </button>
+                <div className="flex items-center justify-between pt-1">
+                  <Link href="/products" className={textLink}>
+                    Continue shopping
+                  </Link>
+                  <button type="button" onClick={() => setIsClearCartConfirmOpen(true)} className={textLink}>
+                    Clear bag
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
-
       </div>
 
-      {/* Item Delete confirmation modal */}
       <ConfirmationModal
         isOpen={removingItemId !== null}
         onClose={() => setRemovingItemId(null)}
@@ -435,7 +392,6 @@ export default function CartPage() {
         variant="danger"
       />
 
-      {/* Clear Cart confirmation modal */}
       <ConfirmationModal
         isOpen={isClearCartConfirmOpen}
         onClose={() => setIsClearCartConfirmOpen(false)}

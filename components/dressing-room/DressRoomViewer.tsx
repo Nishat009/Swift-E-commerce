@@ -47,15 +47,15 @@ export function ViewSelector({
   hasModelImage: boolean;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2 bg-stone-100/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl border border-stone-200/80 dark:border-zinc-800 shadow-xs">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2 bg-surface-muted rounded-lg border border-line">
       <div className="flex items-center gap-1.5 w-full sm:w-auto">
         {/* Product Toggle Button */}
         <button
           type="button"
           onClick={() => onViewChange('product')}
-          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-300 cursor-pointer ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-xs font-medium tracking-wide transition-all duration-300 cursor-pointer ${
             viewMode === 'product'
-              ? 'bg-white dark:bg-zinc-800 text-[#8b6f47] dark:text-[#c9a96b] shadow-md scale-[1.02] border border-stone-200/60 dark:border-zinc-700'
+              ? 'bg-ink text-paper'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white/50 dark:hover:bg-zinc-800/50'
           }`}
           aria-pressed={viewMode === 'product'}
@@ -72,11 +72,11 @@ export function ViewSelector({
           type="button"
           disabled={!hasModelImage}
           onClick={() => hasModelImage && onViewChange('model')}
-          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all duration-300 ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-xs font-medium tracking-wide transition-all duration-300 ${
             !hasModelImage
               ? 'opacity-40 bg-transparent text-zinc-400 cursor-not-allowed'
               : viewMode === 'model'
-              ? 'bg-white dark:bg-zinc-800 text-[#8b6f47] dark:text-[#c9a96b] shadow-md scale-[1.02] border border-stone-200/60 dark:border-zinc-700 cursor-pointer'
+              ? 'bg-ink text-paper cursor-pointer'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white/50 dark:hover:bg-zinc-800/50 cursor-pointer'
           }`}
           aria-pressed={viewMode === 'model'}
@@ -93,9 +93,9 @@ export function ViewSelector({
       {/* Mode Status Pill */}
       <div className="flex items-center gap-2 text-[11px] px-3 py-1 rounded-full font-medium">
         {hasModelImage ? (
-          <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-semibold">
+          <span className="inline-flex items-center gap-1.5 text-green-700 dark:text-green-400">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             {viewMode === 'model' ? 'Displaying Model Look' : 'Model View Available'}
@@ -143,9 +143,9 @@ export function ProductView({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[400px] sm:min-h-[500px] flex items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-b from-stone-50 via-white to-stone-100/60 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 border border-stone-200/70 dark:border-zinc-800 group shadow-inner">
+    <div className="relative w-full h-full min-h-[400px] sm:min-h-[500px] flex items-center justify-center overflow-hidden rounded-lg bg-surface-muted border border-line group">
       {/* Background Studio Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(139,111,71,0.06)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute inset-0 pointer-events-none" />
 
       {/* Main Image Container with Lens Zoom */}
       <div
@@ -167,7 +167,7 @@ export function ProductView({
             <p className="text-xs font-semibold">Image render unavailable</p>
           </div>
         ) : (
-          <div className="relative w-full h-full min-h-[380px] rounded-2xl overflow-hidden">
+          <div className="relative w-full h-full min-h-[380px] rounded-sm overflow-hidden">
             <Image
               src={productImageUrl}
               alt={product.title}
@@ -194,7 +194,7 @@ export function ProductView({
 
       {/* Badges Overlay (Top Left & Top Right) */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-1.5">
-        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md text-[#8b6f47] dark:text-[#c9a96b] border border-stone-200 dark:border-zinc-700 shadow-sm">
+        <span className="px-3 py-1 rounded-full text-[11px] font-medium bg-paper text-ink">
           Standard Product View
         </span>
         {product.brand && (
@@ -205,7 +205,7 @@ export function ProductView({
       </div>
 
       {/* Zoom Helper Pill */}
-      <div className="absolute bottom-4 right-4 z-20 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-200 dark:border-zinc-800 text-[10px] font-medium text-zinc-500 flex items-center gap-1.5 shadow-sm opacity-80 group-hover:opacity-100 transition-opacity">
+      <div className="absolute bottom-4 right-4 z-20 bg-paper px-3 py-1.5 rounded-full border border-line text-[11px] font-medium text-stone-500 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
         <ZoomIn className="w-3 h-3 text-[#8b6f47]" />
         <span>Hover to Inspect Weave</span>
       </div>
