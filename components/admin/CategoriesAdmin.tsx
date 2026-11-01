@@ -38,7 +38,7 @@ export default function CategoriesAdmin() {
     setLoading(true);
     setLoadError('');
     try {
-      const res = await apiClient.get('/categories', { params: { all: true } });
+      const res = await apiClient.get('/categories');
       setCategories(res.data?.data || []);
       // product counts per category (active, published products only)
       try {

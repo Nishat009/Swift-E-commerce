@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { cachedGet } from '@/lib/cachedGet';
+import apiClient from '@/lib/apiClient';
 
 export interface LanguageItem {
   id?: string;
@@ -36,9 +36,9 @@ export const useLanguageStore = create<LanguageState>()(
       loadLanguages: async () => {
         set({ isLoading: true });
         try {
-          const body = await cachedGet('/languages');
-          if (body?.success && Array.isArray(body.data)) {
-            const languages: LanguageItem[] = body.data;
+          const res = await apiClient.get('/languages');
+          if (res.data?.success && Array.isArray(res.data.data)) {
+            const languages: LanguageItem[] = res.data.data;
             set({ availableLanguages: languages });
 
             // If the currently selected language is not in the list of active ones, reset to default

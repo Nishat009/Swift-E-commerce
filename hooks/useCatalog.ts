@@ -16,8 +16,7 @@ export const loadCatalog = (force = false): Promise<Product[]> => {
     catalogCache = null;
   }
   if (!catalogPromise) {
-    // The public API returns at most 200 products per request (enough for the whole demo catalog)
-    catalogPromise = fetchProducts({ limit: 200 })
+    catalogPromise = fetchProducts({ limit: 500 })
       .then((res) => {
         catalogCache = res.products.map(normalizeProduct);
         return catalogCache;

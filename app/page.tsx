@@ -1,296 +1,718 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
-import {
-  ArrowRight,
-  BarChart3,
-  Box,
-  CreditCard,
-  Gift,
-  Globe,
-  Menu,
-  MessageCircle,
-  PackageCheck,
-  Search,
-  ShieldCheck,
-  Shirt,
-  User as UserIcon,
-  X,
-} from 'lucide-react';
-import { useDemoAccess } from '@/components/auth/DemoLoginButtons';
+import Image from 'next/image';
+import Button from '@/components/ui/Button';
+import ProductCard from '@/components/ui/ProductCard';
+import CategoryDesignSlider from '@/components/ui/CategoryDesignSlider';
+import { ShoppingBag, Truck, Shield, Star, Sparkles, ArrowRight, Mail, Heart, Shirt, Wand2, Eye, Play, X, Film } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { fetchProducts } from '@/lib/api';
+import { Product } from '@/types';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import apiClient from '@/lib/apiClient';
 
-// ?demo=1 keeps the sign-in page (and its demo logins) on screen even for a visitor who is already signed in
-const DEMO_LOGIN_HREF = '/auth/login?demo=1';
-// Live Demo opens the store itself; visitors can browse without signing in
-const LIVE_DEMO_HREF = '/shop';
+import AISmartSearch from '@/features/ai/search/AISmartSearch';
+import AIPicksForYou from '@/features/ai/recommendation/AIPicksForYou';
+import ZaraLookbookSection from '@/components/ui/ZaraLookbookSection';
+import CinematicFashionHero from '@/components/ui/CinematicFashionHero';
 
-const NAV = [
-  { href: '#features', label: 'Features' },
-  { href: '#showcase', label: 'Showcase' },
-  { href: '#tech', label: 'Tech stack' },
-  { href: '#demo', label: 'Demo access' },
-];
+export default function Home() {
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [bestsellers, setBestsellers] = useState<Product[]>([]);
+  const [bestDeals, setBestDeals] = useState<Product[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<any[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('all');
+  const [showRunwayVideo, setShowRunwayVideo] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterMessage, setNewsletterMessage] = useState('');
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 300], [0, 50]);
+  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
-const FEATURES = [
-  { icon: Shirt, title: '3D dressing room', text: 'Customers put catalog pieces or their own garment photos on a 3D mannequin before they buy.' },
-  { icon: Search, title: 'Smart catalog', text: 'Search with suggestions, filters by size, colour and price, product comparison and wishlists.' },
-  { icon: MessageCircle, title: 'Shopping assistant', text: 'A chat stylist that builds outfits from the catalog by occasion, season and budget.' },
-  { icon: CreditCard, title: 'Three ways to pay', text: 'Stripe card payments, bKash and cash on delivery, with totals always calculated on the server.' },
-  { icon: PackageCheck, title: 'Orders & returns', text: 'Order tracking, cancellations, return requests, refunds and email notifications.' },
-  { icon: Gift, title: 'Lucky-draw campaigns', text: 'Sell campaign tickets, run fair draws and announce winners to boost engagement.' },
-  { icon: ShieldCheck, title: 'Secure accounts', text: 'Email + password, Google Sign-In, email OTP, two-factor authentication and login lockout.' },
-  { icon: BarChart3, title: 'Powerful admin panel', text: 'Sales dashboard, products, stock, coupons, customers, wallet, reports and audit logs.' },
-  { icon: Globe, title: 'Multi-currency', text: 'Prices stored in USD and shown in the shopper’s currency, including BDT for bKash.' },
-];
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [allProductsRes, catsRes] = await Promise.all([
+          fetchProducts({ limit: 100 }).catch(() => ({ products: [], total: 0, skip: 0, limit: 100 })),
+          apiClient.get('/categories').catch(() => ({ data: { success: false, data: [] } }))
+        ]);
 
-const SHOWCASE = [
-  {
-    image: '/landing/storefront.jpg',
-    eyebrow: 'Storefront',
-    title: 'An editorial shop that sells.',
-    text: 'A cinematic homepage, category tiles, new-in and bestseller rails, product pages with reviews and size guides, and a cart drawer that keeps shoppers moving.',
-    points: ['Responsive on phone, tablet and desktop', 'Light and dark themes', 'Product comparison and wishlists'],
-  },
-  {
-    image: '/landing/dressing-room.jpg',
-    eyebrow: 'Virtual try-on',
-    title: 'See it on before you buy it.',
-    text: 'The Three.js dressing room layers dresses, tops, jackets and trousers on a mannequin. Shoppers rotate, zoom and add the whole look to the cart in one click.',
-    points: ['Works with catalog items or uploaded photos', 'Mix layers into full outfits', 'Add the outfit straight to the cart'],
-  },
-  {
-    image: '/landing/admin.jpg',
-    eyebrow: 'Admin panel',
-    title: 'Run the store from one dashboard.',
-    text: 'Revenue and order stats, low-stock alerts, product and category management, order processing, refunds, coupons, campaigns, newsletters and customer messages.',
-    points: ['Role-based access with a super-admin level', 'Store wallet and payment records', 'Full activity and audit logs'],
-  },
-];
+        const prods = allProductsRes?.products || [];
+        if (prods.length > 0) {
+          setCatalogProducts(prods);
+          setFeaturedProducts(prods.filter(p => p.featured).slice(0, 8));
+          setNewArrivals(prods.filter(p => p.newArrival).slice(0, 8));
+          
+          const best = prods
+            .filter(p => p.bestSeller)
+            .slice(0, 8);
+          setBestsellers(best);
 
-const STACK = [
-  { group: 'Frontend', items: ['Next.js 16', 'React 19', 'TypeScript', 'Tailwind CSS', 'Zustand', 'Three.js', 'Framer Motion'] },
-  { group: 'Backend', items: ['Node.js', 'Express', 'MongoDB', 'Mongoose', 'JWT auth', 'express-validator'] },
-  { group: 'Integrations', items: ['Stripe', 'bKash', 'Google Sign-In', 'Cloudinary', 'Nodemailer'] },
-];
+          const deals = prods
+            .filter(p => p.discountPercentage > 0)
+            .sort((a, b) => b.discountPercentage - a.discountPercentage)
+            .slice(0, 3);
+          setBestDeals(deals);
 
-const STATS = [
-  { value: '3', label: 'payment methods' },
-  { value: '15+', label: 'admin modules' },
-  { value: '3D', label: 'virtual try-on' },
-  { value: '100%', label: 'responsive' },
-];
+          // Derive all system categories from catalog products
+          const categoryMap = new Map();
+          prods.forEach((p) => {
+            if (p.category && !categoryMap.has(p.category.toLowerCase())) {
+              categoryMap.set(p.category.toLowerCase(), {
+                name: p.category.charAt(0).toUpperCase() + p.category.slice(1),
+                description: `Explore our curated collection of ${p.category}.`,
+                image: p.thumbnail || p.images?.[0] || '/images/dress-room/camel-wool-trench-model.jpg',
+                slug: p.category,
+              });
+            }
+          });
+          const derivedCats = Array.from(categoryMap.values());
+          const apiCategories = catsRes.data?.data;
+          if (catsRes.data?.success && Array.isArray(apiCategories) && apiCategories.some((category: any) => typeof category === 'object' && category?.name && category?.slug)) {
+            setDynamicCategories(apiCategories.filter((category: any) => typeof category === 'object' && category?.name && category?.slug));
+          } else {
+            setDynamicCategories(derivedCats);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading products or categories:', error);
+      }
+    };
 
-export default function LandingPage() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { credentials } = useDemoAccess();
-  const credentialFor = (role: 'admin' | 'customer') => credentials.find((c) => c.role === role);
+    loadData();
+  }, []);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+      },
+    },
+  };
 
   return (
-    <div className="bg-[#faf9f6] text-[#2c2c2c] dark:bg-gray-950 dark:text-gray-100">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#17110f]/90 text-[#f8f1e8] backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="font-serif text-xl font-extrabold uppercase tracking-widest text-[#c9a96b]">SwiftCart</Link>
-          <nav className="hidden items-center gap-7 text-sm text-[#e8dccb] md:flex" aria-label="Landing">
-            {NAV.map((n) => (
-              <a key={n.href} href={n.href} className="transition-colors hover:text-white">{n.label}</a>
-            ))}
-          </nav>
-          <div className="hidden items-center gap-2 md:flex">
-            <Link href="/admin/login" className="rounded-full border border-white/20 px-4 py-2 text-xs font-bold transition-colors hover:border-[#c9a96b] hover:text-[#c9a96b]">
-              Admin Panel
-            </Link>
-            <Link href={LIVE_DEMO_HREF} className="rounded-full bg-[#c9a96b] px-5 py-2 text-xs font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80]">
-              Live Demo
-            </Link>
-          </div>
-          <button type="button" onClick={() => setMenuOpen((v) => !v)} className="p-2 md:hidden" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen}>
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-        {menuOpen && (
-          <div className="space-y-1 border-t border-white/10 px-4 pb-4 pt-2 md:hidden">
-            {NAV.map((n) => (
-              <a key={n.href} href={n.href} onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-[#e8dccb]">{n.label}</a>
-            ))}
-            <div className="flex gap-2 pt-2">
-              <Link href="/admin/login" className="flex-1 rounded-full border border-white/20 py-2.5 text-center text-xs font-bold">Admin Panel</Link>
-              <Link href={LIVE_DEMO_HREF} className="flex-1 rounded-full bg-[#c9a96b] py-2.5 text-center text-xs font-bold text-[#17110f]">Live Demo</Link>
-            </div>
-          </div>
-        )}
-      </header>
+    <div className="classic-home min-h-screen bg-background">
+      <CinematicFashionHero />
 
-      <section className="relative overflow-hidden bg-[#17110f] text-[#f8f1e8]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(201,169,107,0.22),transparent_50%),radial-gradient(circle_at_85%_80%,rgba(193,122,95,0.18),transparent_45%)]" aria-hidden="true" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:px-8 lg:pb-28 lg:pt-24">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-[#c9a96b]/40 bg-[#c9a96b]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-[#c9a96b]">
-              Full-stack fashion e-commerce
-            </p>
-            <h1 className="mt-6 font-serif text-4xl leading-[1.08] sm:text-5xl lg:text-6xl">
-              A complete fashion store, <span className="italic text-[#c9a96b]">ready to launch.</span>
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-[#d9cdbd] sm:text-lg">
-              SwiftCart is a modern online clothing shop with a 3D virtual dressing room, a shopping assistant,
-              Stripe and bKash payments, and an admin panel that runs the whole business.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={LIVE_DEMO_HREF} className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-7 py-3.5 text-sm font-bold text-[#17110f] shadow-lg shadow-[#c9a96b]/20 transition-colors hover:bg-[#d8bb80]">
-                Live Demo <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link href="/admin/login" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-7 py-3.5 text-sm font-bold transition-colors hover:border-[#c9a96b] hover:text-[#c9a96b]">
-                <ShieldCheck className="h-4 w-4" /> Admin Panel
-              </Link>
-              <Link href={DEMO_LOGIN_HREF} className="inline-flex items-center justify-center gap-2 px-3 py-3.5 text-sm font-bold text-[#d9cdbd] underline-offset-4 hover:text-white hover:underline">
-                Customer demo login
-              </Link>
-            </div>
-            <dl className="mt-12 grid max-w-lg grid-cols-4 gap-4 border-t border-white/10 pt-6">
-              {STATS.map((s) => (
-                <div key={s.label}>
-                  <dt className="sr-only">{s.label}</dt>
-                  <dd className="font-serif text-2xl text-white sm:text-3xl">{s.value}</dd>
-                  <dd className="mt-1 text-[11px] leading-tight text-[#a89b8a]">{s.label}</dd>
+      {/* AI Feature Highlight Banner: AI Virtual Dressing Room */}
+      <section className="py-8 sm:py-10 bg-background border-y border-zinc-150/40 dark:border-zinc-800/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#FAF8F5] via-[#F5F1EB] to-[#FAF8F5] dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 border-2 border-[#8b6f47]/30 dark:border-[#c9a96b]/30 p-6 sm:p-8 md:p-10 shadow-sm"
+          >
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
+              <div className="flex items-start gap-4 sm:gap-5">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#8b6f47] to-[#c9a96b] flex items-center justify-center text-white shrink-0 shadow-md">
+                  <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
                 </div>
+                <div className="space-y-1 text-left">
+                  <div className="inline-flex items-center gap-2">
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                      Featured Innovation
+                    </span>
+                  </div>
+                  <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
+                    AI Virtual Dressing Room
+                  </h3>
+                  <p className="text-xs sm:text-sm font-semibold text-[#8b6f47] dark:text-[#c9a96b]">
+                    See it. Style it. Wear it.
+                  </p>
+                  <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400 max-w-2xl pt-1">
+                    Choose a product and see how different colors, sizes and complete outfits look with your interactive 3D AI avatar before making a purchase.
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 w-full lg:w-auto">
+                <Link href="/dressing-room" className="block w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto bg-[#8b6f47] hover:bg-[#6b5435] text-white px-8 py-3.5 rounded-full font-bold text-xs sm:text-sm shadow-md hover:shadow-lg flex items-center justify-center gap-2 border-0">
+                    <Sparkles className="w-4 h-4" />
+                    Enter Dressing Room
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Core Experience Explainer Row (Shop → AI Try-On → AI Style) */}
+      <section className="py-10 bg-white dark:bg-gray-900 border-b border-zinc-150/40 dark:border-zinc-800/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={containerVariants}
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8"
+          >
+            {/* Experience 1: Shop */}
+            <motion.div
+              variants={itemVariants}
+              className="flex items-start gap-4 p-5 rounded-2xl bg-[#FAF8F5]/80 dark:bg-zinc-950/60 border border-[#e8e0d6]/60 dark:border-zinc-800"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b] shrink-0">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 text-left">
+                <h4 className="font-serif text-lg font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
+                  1. Curated Fashion
+                </h4>
+                <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400">
+                  Browse handcrafted, luxury collections and trendsetting fashion products.
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Experience 2: AI Try-On */}
+            <motion.div
+              variants={itemVariants}
+              className="flex items-start gap-4 p-5 rounded-2xl bg-[#FAF8F5]/80 dark:bg-zinc-950/60 border border-[#e8e0d6]/60 dark:border-zinc-800"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b] shrink-0">
+                <Shirt className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 text-left">
+                <h4 className="font-serif text-lg font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
+                  2. AI Try-On
+                </h4>
+                <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400">
+                  Use the 3D Virtual Dressing Room to visualize styles on customized avatars.
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Experience 3: AI Style */}
+            <motion.div
+              variants={itemVariants}
+              className="flex items-start gap-4 p-5 rounded-2xl bg-[#FAF8F5]/80 dark:bg-zinc-950/60 border border-[#e8e0d6]/60 dark:border-zinc-800"
+            >
+              <div className="w-11 h-11 rounded-xl bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 flex items-center justify-center text-[#8b6f47] dark:text-[#c9a96b] shrink-0">
+                <Wand2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 text-left">
+                <h4 className="font-serif text-lg font-bold text-[#2c2c2c] dark:text-[#f5f1eb]">
+                  3. AI Styling
+                </h4>
+                <p className="text-xs sm:text-sm text-[#6b6b6b] dark:text-gray-400">
+                  Receive personalized outfit recommendations and automated style pairing.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 1. Zara-Style Editorial Lookbook Section ("Quiet Luxury & Architectural Silhouettes") */}
+      <ZaraLookbookSection />
+
+      {/* 2. Curated Editorial Collection Grid ("Curated Wardrobe") */}
+      <section className="relative py-16 sm:py-24 bg-[#faf8f5] dark:bg-zinc-950 border-t border-zinc-200/60 dark:border-zinc-800 overflow-hidden">
+        
+        {/* Luxury Architectural / Plaster Texture Background Image */}
+        <div className="absolute inset-0 pointer-events-none select-none z-0">
+          <Image
+            src="/hero-atelier-fabric.webp"
+            alt="Atelier Background Texture"
+            fill
+            className="object-cover opacity-20 dark:opacity-15 mix-blend-multiply dark:mix-blend-overlay"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#faf8f5]/60 dark:via-zinc-950/60 to-[#faf8f5] dark:to-zinc-950"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          {/* Header & Filter Tabs */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 sm:mb-16">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 border border-[#8b6f47]/20 dark:border-[#c9a96b]/20 mb-2">
+                <Sparkles className="w-3.5 h-3.5 text-[#8b6f47] dark:text-[#c9a96b]" />
+                <span className="text-[11px] font-bold tracking-widest uppercase text-[#8b6f47] dark:text-[#c9a96b]">
+                  The Atelier Collection
+                </span>
+              </div>
+              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium text-zinc-900 dark:text-zinc-50 mt-1">
+                Curated Wardrobe
+              </h2>
+            </div>
+
+            {/* Category / Collection Tabs */}
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { id: 'all', label: 'All Pieces' },
+                { id: 'new', label: 'New Arrivals' },
+                { id: 'bestseller', label: 'Bestsellers' },
+                { id: 'tops', label: 'Tops & Shirts' },
+                { id: 'dresses', label: 'Dresses' },
+                { id: 'pants', label: 'Trousers' },
+                { id: 'outerwear', label: 'Jackets & Coats' },
+                { id: 'shoes', label: 'Footwear' },
+                { id: 'accessories', label: 'Accessories' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md scale-105'
+                      : 'bg-white/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border border-zinc-250 dark:border-zinc-800 hover:border-[#8b6f47]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
               ))}
-            </dl>
-          </div>
-
-          <div className="relative">
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#241b17] shadow-2xl shadow-black/50">
-              <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-2.5" aria-hidden="true">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#c17a5f]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#c9a96b]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#9caf88]" />
-              </div>
-              <Image src="/landing/storefront.jpg" alt="SwiftCart storefront homepage" width={1440} height={900} priority className="h-auto w-full" />
-            </div>
-            <div className="absolute -bottom-10 -left-4 hidden w-[42%] overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/60 sm:block lg:-left-10">
-              <Image src="/landing/admin.jpg" alt="SwiftCart admin dashboard" width={1440} height={900} className="h-auto w-full" />
-            </div>
-            <div className="absolute -right-3 -top-6 hidden w-[24%] overflow-hidden rounded-[1.4rem] border-4 border-[#0d0907] shadow-2xl shadow-black/60 sm:block lg:-right-8">
-              <Image src="/landing/mobile.jpg" alt="SwiftCart on a phone" width={390} height={844} className="h-auto w-full" />
             </div>
           </div>
-        </div>
-      </section>
 
-      <section id="features" className="scroll-mt-16 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#8b6f47] dark:text-[#c9a96b]">Key features</p>
-          <h2 className="mt-3 font-serif text-3xl text-gray-900 sm:text-4xl dark:text-white">Everything a fashion brand needs to sell online</h2>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">From the first product view to the refund, every step of the shopping journey is built in.</p>
-        </div>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="rounded-2xl border border-[#e8e0d6] bg-white p-6 transition-shadow hover:shadow-lg hover:shadow-[#8b6f47]/5 dark:border-gray-800 dark:bg-gray-900">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#8b6f47]/10 text-[#8b6f47] dark:bg-[#c9a96b]/10 dark:text-[#c9a96b]">
-                <Icon className="h-5 w-5" />
+          {/* Clean 3-Column Wide Minimalist Grid */}
+          <motion.div
+            layout
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10"
+          >
+            <AnimatePresence mode="popLayout">
+              {(
+                activeTab === 'new'
+                  ? (catalogProducts.filter(p => p.newArrival).slice(0, 9))
+                  : activeTab === 'bestseller'
+                  ? (catalogProducts.filter(p => p.bestSeller).slice(0, 9))
+                  : activeTab === 'tops'
+                  ? (catalogProducts.filter(p => p.category === 'top').slice(0, 9))
+                  : activeTab === 'dresses'
+                  ? (catalogProducts.filter(p => p.category === 'dress').slice(0, 9))
+                  : activeTab === 'pants'
+                  ? (catalogProducts.filter(p => p.category === 'pants').slice(0, 9))
+                  : activeTab === 'outerwear'
+                  ? (catalogProducts.filter(p => p.category === 'jacket').slice(0, 9))
+                  : activeTab === 'shoes'
+                  ? (catalogProducts.filter(p => p.category === 'shoes').slice(0, 9))
+                  : activeTab === 'accessories'
+                  ? (catalogProducts.filter(p => ['bag', 'jewelry', 'hat', 'glasses'].includes(p.category)).slice(0, 9))
+                  : (catalogProducts.length > 0 ? catalogProducts.slice(0, 9) : featuredProducts.slice(0, 9))
+              ).map((product, idx) => (
+                <motion.div
+                  key={product.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ProductCard product={product} index={idx} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Minimal View Full Catalog CTA */}
+          <div className="text-center mt-12 sm:mt-16 pt-8 border-t border-zinc-150 dark:border-zinc-900">
+            <Link href="/products">
+              <span className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-zinc-950 hover:bg-[#8b6f47] dark:bg-white dark:hover:bg-[#c9a96b] text-white dark:text-zinc-950 dark:hover:text-zinc-950 text-xs font-bold uppercase tracking-wider transition-all duration-300 shadow-md">
+                Explore Full Catalog{catalogProducts.length > 0 ? ` (${catalogProducts.length} Pieces)` : ''} <ArrowRight className="w-4 h-4" />
               </span>
-              <h3 className="mt-5 text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="showcase" className="scroll-mt-16 border-y border-[#e8e0d6] bg-[#f3f1ed] py-20 lg:py-28 dark:border-gray-800 dark:bg-gray-900/50">
-        <div className="mx-auto max-w-7xl space-y-20 px-4 sm:px-6 lg:space-y-28 lg:px-8">
-          {SHOWCASE.map((s, i) => (
-            <div key={s.title} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-              <div className={i % 2 ? 'lg:order-2' : ''}>
-                <div className="overflow-hidden rounded-2xl border border-[#e8e0d6] bg-white shadow-xl shadow-[#8b6f47]/10 dark:border-gray-800">
-                  <Image src={s.image} alt={`${s.eyebrow} screenshot`} width={1440} height={900} className="h-auto w-full" />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#8b6f47] dark:text-[#c9a96b]">{s.eyebrow}</p>
-                <h3 className="mt-3 font-serif text-3xl text-gray-900 dark:text-white">{s.title}</h3>
-                <p className="mt-4 leading-relaxed text-gray-600 dark:text-gray-400">{s.text}</p>
-                <ul className="mt-6 space-y-2.5">
-                  {s.points.map((p) => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#c9a96b]" /> {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="tech" className="scroll-mt-16 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#8b6f47] dark:text-[#c9a96b]">Tech stack</p>
-          <h2 className="mt-3 font-serif text-3xl text-gray-900 sm:text-4xl dark:text-white">Built on a modern, proven stack</h2>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Clean TypeScript on the front, a tested REST API on the back, and the database schema ready to deploy.</p>
-        </div>
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
-          {STACK.map((s) => (
-            <div key={s.group} className="rounded-2xl border border-[#e8e0d6] bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">
-                <Box className="h-4 w-4 text-[#8b6f47] dark:text-[#c9a96b]" /> {s.group}
-              </h3>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {s.items.map((item) => (
-                  <span key={item} className="rounded-full bg-[#f3f1ed] px-3 py-1.5 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">{item}</span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="demo" className="scroll-mt-16 bg-[#17110f] text-[#f8f1e8]">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-serif text-3xl sm:text-4xl">Try SwiftCart now</h2>
-            <p className="mt-4 text-[#d9cdbd]">Explore the shop as a customer, or open the admin panel. One click, no sign-up needed.</p>
+            </Link>
           </div>
-          <div className="mx-auto mt-12 grid max-w-4xl gap-5 md:grid-cols-2">
-            {[
-              { role: 'customer' as const, icon: UserIcon, title: 'Customer demo', text: 'Browse, try on, add to cart, check out and track orders.', href: DEMO_LOGIN_HREF, cta: 'Sign in as customer' },
-              { role: 'admin' as const, icon: ShieldCheck, title: 'Admin demo', text: 'Dashboard, products, orders, campaigns, customers and reports.', href: '/admin/login', cta: 'Open Admin Panel' },
-            ].map(({ role, icon: Icon, title, text, href, cta }) => {
-              const cred = credentialFor(role);
-              return (
-                <div key={role} className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-7">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#c9a96b]/15 text-[#c9a96b]">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-5 text-xl font-semibold">{title}</h3>
-                  <p className="mt-2 text-sm text-[#d9cdbd]">{text}</p>
-                  {cred && (
-                    <p className="mt-4 rounded-lg bg-black/30 px-3 py-2 font-mono text-xs text-[#e8dccb]">
-                      {cred.email}<br />{cred.password}
-                    </p>
-                  )}
-                  <Link href={href} className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-6 py-3 text-sm font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80]">
-                    {cta} <ArrowRight className="h-4 w-4" />
+
+        </div>
+      </section>
+
+      {/* 3. Dynamic Semi-Circular Category Design Slider */}
+      <section className="bg-background border-b border-zinc-150/30 dark:border-zinc-800/30">
+        <CategoryDesignSlider
+          categories={dynamicCategories}
+          allProducts={catalogProducts}
+        />
+      </section>
+
+      {/* 4. AI Recommendations Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AIPicksForYou products={catalogProducts} />
+      </div>
+
+      {/* 5. Big Zara / Nike Style Runway Editorial Banner */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.8 }}
+        className="py-16 sm:py-20 md:py-24 relative overflow-hidden bg-black text-white"
+      >
+        {/* Background Visual / Video Layer */}
+        <div className="absolute inset-0">
+          <Image
+            src="/banner-runway.jpg"
+            alt="SwiftCart 2026 Fashion Runway Show"
+            fill
+            className="object-cover object-center opacity-70 scale-105 transition-transform duration-1000 hover:scale-100"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/70"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#c9a96b] text-xs font-bold uppercase tracking-widest"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Autumn / Winter 2026 Runway Edit</span>
+            </motion.div>
+
+            <motion.h2
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.08]"
+            >
+              The Runway Edit.
+              <br />
+              <span className="italic font-serif text-[#c9a96b]">Wear the Future.</span>
+            </motion.h2>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="font-elegant text-lg sm:text-xl md:text-2xl text-gray-200 leading-relaxed max-w-2xl"
+            >
+              Architectural tailoring, flowing silk dresses, and statement outerwear. Designed for high fashion, fitted in 3D with your AI avatar.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-wrap items-center gap-4 pt-4"
+            >
+              <Link href="/products">
+                <Button size="lg" className="bg-[#8b6f47] hover:bg-[#6b5435] text-white rounded-full px-8 py-4 text-xs sm:text-sm font-bold tracking-wider uppercase border-0 shadow-xl flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4" />
+                  Shop The Runway
+                </Button>
+              </Link>
+
+              <button
+                onClick={() => setShowRunwayVideo(true)}
+                className="bg-white/15 hover:bg-white/25 text-white backdrop-blur-md border border-white/30 rounded-full px-7 py-3.5 text-xs sm:text-sm font-bold tracking-wider uppercase flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <Play className="w-3.5 h-3.5 fill-current text-[#c9a96b]" />
+                Watch Runway Film
+              </button>
+
+              <Link href="/dressing-room">
+                <Button variant="outline" size="lg" className="border-2 border-white/80 text-white hover:bg-white hover:text-black rounded-full px-8 py-4 text-xs sm:text-sm font-bold tracking-wider uppercase backdrop-blur-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Try On in 3D Studio
+                </Button>
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* 6. Nike / Zara Style Split Category Banners */}
+      <section className="py-12 sm:py-16 bg-white dark:bg-gray-950 border-b border-gray-150/40 dark:border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+            
+            {/* Banner 1: Women's Luxury Ready-to-Wear */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden group shadow-lg"
+            >
+              <Image
+                src="/hero-fashion.jpg"
+                alt="Women's Designer Collection"
+                fill
+                className="object-cover object-top group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"></div>
+              
+              <div className="absolute bottom-0 left-0 right-0 p-8 sm:p-10 text-white space-y-3">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#c9a96b]">
+                  Women's Atelier Drop
+                </span>
+                <h3 className="font-serif text-2xl sm:text-3xl lg:text-[34px] font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                  Tailored Coats & Silks
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-300 max-w-md">
+                  Premium wool overcoats, draped silk trousers, and timeless knit essentials.
+                </p>
+                <div className="pt-2">
+                  <Link href="/products?category=womens-dresses">
+                    <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-zinc-950 hover:bg-[#c9a96b] hover:text-white px-6 py-3 rounded-full transition-colors">
+                      Shop Women's Drop <ArrowRight className="w-4 h-4" />
+                    </span>
                   </Link>
                 </div>
-              );
-            })}
+              </div>
+            </motion.div>
+
+            {/* Banner 2: Men's Contemporary & Streetwear */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden group shadow-lg"
+            >
+              <Image
+                src="/banner-apparel.jpg"
+                alt="Men's Contemporary Streetwear"
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent"></div>
+
+              <div className="absolute bottom-0 left-0 right-0 p-8 sm:p-10 text-white space-y-3">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#c9a96b]">
+                  Urban Luxury & Streetwear
+                </span>
+                <h3 className="font-serif text-2xl sm:text-3xl lg:text-[34px] font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                  Contemporary Outerwear
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-300 max-w-md">
+                  Oversized blazers, leather jackets, streetwear layers, and structured pants.
+                </p>
+                <div className="pt-2">
+                  <Link href="/products?category=mens-shirts">
+                    <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-white text-zinc-950 hover:bg-[#c9a96b] hover:text-white px-6 py-3 rounded-full transition-colors">
+                      Shop Men's Drop <ArrowRight className="w-4 h-4" />
+                    </span>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-white/10 bg-[#0d0907] text-[#a89b8a]">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm sm:flex-row sm:px-6 lg:px-8">
-          <span className="font-serif font-extrabold uppercase tracking-widest text-[#c9a96b]">SwiftCart</span>
-          <nav className="flex flex-wrap items-center justify-center gap-5" aria-label="Footer">
-            <Link href={LIVE_DEMO_HREF} className="hover:text-white">Live Demo</Link>
-            <Link href={DEMO_LOGIN_HREF} className="hover:text-white">Customer login</Link>
-            <Link href="/admin/login" className="inline-flex items-center gap-1.5 rounded-full border border-[#c9a96b]/40 px-3 py-1.5 text-[#c9a96b] hover:bg-[#c9a96b]/10">
-              <ShieldCheck className="h-3.5 w-3.5" /> Admin Panel
-            </Link>
-          </nav>
-          <p>© {new Date().getFullYear()} SwiftCart</p>
+      {/* Classic Features Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.8 }}
+        className="py-16 sm:py-20 md:py-24 bg-white dark:bg-gray-900"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="font-serif text-4xl sm:text-5xl md:text-6xl font-semibold text-center text-[#2c2c2c] dark:text-[#f5f1eb] mb-12 sm:mb-16"
+          >
+            Why Choose Us
+          </motion.h2>
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={containerVariants}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12"
+          >
+            {[
+              { icon: Truck, title: 'Fast Delivery', desc: 'Swift and secure shipping to your doorstep' },
+              { icon: Shield, title: 'Secure Payment', desc: 'Your information is always protected' },
+              { icon: Star, title: 'Quality Assured', desc: 'Only the finest products make it to you' },
+              { icon: Heart, title: 'Customer Care', desc: 'Dedicated support for your satisfaction' },
+            ].map((feature, index) => (
+              <motion.div
+                key={index}
+                variants={itemVariants}
+                whileHover={{ y: -8 }}
+                transition={{ duration: 0.3 }}
+                className="text-center group"
+              >
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-20 h-20 sm:w-24 sm:h-24 bg-[#8b6f47]/10 dark:bg-[#c9a96b]/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-[#8b6f47]/20 dark:group-hover:bg-[#c9a96b]/30 transition-colors"
+                >
+                  <feature.icon className="w-10 h-10 sm:w-12 sm:h-12 text-[#8b6f47] dark:text-[#c9a96b]" />
+                </motion.div>
+                <h3 className="font-serif text-xl sm:text-2xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-[#6b6b6b] dark:text-gray-400 leading-relaxed">
+                  {feature.desc}
+                </p>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
-      </footer>
+      </motion.section>
+
+      {/* Classic Newsletter Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.8 }}
+        className="py-16 sm:py-20 md:py-24 bg-white dark:bg-gray-900"
+      >
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="bg-[#f5f1eb] dark:bg-gray-950 rounded-2xl p-8 sm:p-12 md:p-16 border border-[#e8e0d6] dark:border-gray-800"
+          >
+            <motion.div
+              animate={{ rotate: [0, 5, -5, 5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, repeatDelay: 5 }}
+              className="inline-block mb-6"
+            >
+              <Mail className="w-12 h-12 sm:w-16 sm:h-16 text-[#8b6f47] dark:text-[#c9a96b] mx-auto" />
+            </motion.div>
+            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-semibold text-[#2c2c2c] dark:text-[#f5f1eb] mb-4">
+              Stay Connected
+            </h2>
+            <p className="font-elegant text-lg sm:text-xl text-[#6b6b6b] dark:text-gray-400 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
+              Be the first to discover new arrivals, exclusive offers, and special collections
+            </p>
+            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={async event => {
+              event.preventDefault();
+              try {
+                const response = await apiClient.post('/newsletter/subscribe', { email: newsletterEmail });
+                setNewsletterMessage(response.data?.message || 'Subscribed successfully.');
+                setNewsletterEmail('');
+              } catch {
+                setNewsletterMessage('Subscription failed. Please try again.');
+              }
+            }}>
+              <input
+                type="email"
+                required
+                value={newsletterEmail}
+                onChange={event => setNewsletterEmail(event.target.value)}
+                placeholder="Enter your email address"
+                className="flex-1 px-6 py-4 rounded-lg bg-white dark:bg-gray-900 border-2 border-[#e8e0d6] dark:border-gray-800 text-[#2c2c2c] dark:text-[#f5f1eb] placeholder-[#9b9b9b] focus:outline-none focus:border-[#8b6f47] dark:focus:border-[#c9a96b] transition-colors font-medium"
+              />
+              <Button
+                type="submit"
+                size="lg"
+                className="bg-[#8b6f47] hover:bg-[#6b5435] text-white border-0 px-8 py-4 font-medium tracking-wide"
+              >
+                Subscribe
+              </Button>
+            </form>
+            {newsletterMessage && <p className="mt-4 text-sm text-[#74323b]" role="status">{newsletterMessage}</p>}
+          </motion.div>
+        </div>
+      </motion.section>
+      {/* Luxury Runway Video Modal (Zara / Nike Style) */}
+      {showRunwayVideo && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 md:p-10 animate-fade-in">
+          <div className="relative w-full max-w-5xl bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-zinc-800/80 bg-zinc-900/60">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#c9a96b]/20 flex items-center justify-center text-[#c9a96b]">
+                  <Film className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg sm:text-xl font-bold text-white">
+                    Autumn / Winter 2026 Runway Show
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Live Catwalk & Couture Apparel Collection • High Fashion Editorial
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowRunwayVideo(false)}
+                className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Video Viewport */}
+            <div className="relative w-full aspect-video bg-black overflow-hidden group">
+              <Image
+                src="/banner-runway.jpg"
+                alt="Runway Show"
+                fill
+                className="object-cover animate-pulse"
+              />
+              
+              {/* Overlay styling & Runway tag */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col justify-between p-6 sm:p-8">
+                <div className="self-start px-3 py-1.5 rounded-full bg-red-600/90 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                  RUNWAY LIVE EDIT
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-[#c9a96b]">Featured Looks</span>
+                  <h4 className="font-serif text-2xl sm:text-3xl font-bold text-white">
+                    Structured Trench Coats, Velvet Tailoring & Silk Gowns
+                  </h4>
+                  <p className="text-xs sm:text-sm text-zinc-300 max-w-xl">
+                    Every piece seen on the runway is available for purchase and ready for 3D fitting in our interactive dressing room.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 sm:p-6 bg-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs text-zinc-400 text-center sm:text-left">
+                Ready to try these outfits on your customized AI avatar?
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <Link href="/products" className="flex-1 sm:flex-initial" onClick={() => setShowRunwayVideo(false)}>
+                  <Button className="w-full bg-[#8b6f47] hover:bg-[#6b5435] text-white px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 border-0">
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    Shop All Outfits
+                  </Button>
+                </Link>
+                <Link href="/dressing-room" className="flex-1 sm:flex-initial" onClick={() => setShowRunwayVideo(false)}>
+                  <Button variant="outline" className="w-full border-zinc-700 text-zinc-200 hover:bg-white hover:text-black px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Try In Dressing Room
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

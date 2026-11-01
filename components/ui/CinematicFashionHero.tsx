@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
-import { cachedGet, peekCached } from '@/lib/cachedGet';
+import apiClient from '@/lib/apiClient';
 
 const fragments = Array.from({ length: 150 }, (_, index) => {
   const angle = index * 2.39996;
@@ -37,15 +37,13 @@ export default function CinematicFashionHero() {
     : baseSlide;
 
   useEffect(() => {
-    const apply = (data: any) => {
-      if (Array.isArray(data?.slides)) {
+    apiClient.get('/hero').then(({ data }) => {
+      if (Array.isArray(data.slides)) {
         setUploadedImages(Object.fromEntries(data.slides.filter((item: { key?: string; image?: string }) =>
           typeof item.key === 'string' && typeof item.image === 'string'
         ).map((item: { key: string; image: string }) => [item.key, item.image])));
       }
-    };
-    apply(peekCached('/hero'));
-    cachedGet('/hero').then(apply).catch(() => {});
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {

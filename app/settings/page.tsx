@@ -10,7 +10,6 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import TwoFactorSetup from '@/components/auth/TwoFactorSetup';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
-import { newPasswordError, passwordMatchError } from '@/lib/formValidation';
 
 export default function SettingsPage() {
   const { user, updateProfile, refreshUser } = useAuth();
@@ -39,14 +38,12 @@ export default function SettingsPage() {
       toast.error('Please enter your current password.');
       return;
     }
-    const passwordProblem = newPasswordError(passwordData.newPassword);
-    if (passwordProblem) {
-      toast.error(passwordProblem);
+    if (!passwordData.newPassword || passwordData.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters long.');
       return;
     }
-    const matchProblem = passwordMatchError(passwordData.newPassword, passwordData.confirmPassword);
-    if (matchProblem) {
-      toast.error(matchProblem);
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match.');
       return;
     }
     
