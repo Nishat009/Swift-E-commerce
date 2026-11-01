@@ -2,11 +2,11 @@
 // Profile, password reset and two-factor settings live in their own controllers.
 const User = require('../models/User');
 const { generateAccessToken } = require('../utils/generateTokens');
-const { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } = require('../services/refreshSessions');
+const { rotateRefreshToken, revokeRefreshToken, getRefreshTokenFromRequest } = require('../services/refreshSessions');
 const { sendSuccess, sendError } = require('../utils/response');
 const crypto = require('crypto');
 const AuthChallenge = require('../models/AuthChallenge');
-const { noteSignIn, cookieOptions, publicUser, requestSecondFactor, challengeQuery, clearChallenge } = require('../utils/authSession');
+const { cookieOptions, requestSecondFactor, challengeQuery, clearChallenge, sendSession } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendLoginOtp } = require('../services/emailService');
 const { LOGIN_MAX_FAILURES, LOGIN_LOCK_MS, devCodesAllowed } = require('../config/security');
 
@@ -43,19 +43,9 @@ const register = async (req, res, next) => {
       phone
     });
 
-    noteSignIn(res, user, 'Registered');
-    const accessToken = generateAccessToken(user);
-    const refreshToken = await issueRefreshToken(user, true, req);
-
-    // Store refresh token in HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, cookieOptions(true));
     fireEmail(sendWelcome(user));
 
-    return sendSuccess(res, 'User registered successfully', {
-      user: publicUser(user),
-      accessToken,
-      // Refresh token is intentionally only stored in the HttpOnly cookie.
-    }, 201);
+    return sendSession(res, user, true, 'User registered successfully', 201);
   } catch (error) {
     next(error);
   }
@@ -84,19 +74,7 @@ const login = async (req, res, next) => {
       return await requestSecondFactor(req, res, user, !!rememberMe);
     }
 
-    noteSignIn(res, user, 'Signed in with password');
-    const accessToken = generateAccessToken(user);
-    const refreshToken = await issueRefreshToken(user, !!rememberMe, req);
-
-    // Store refresh token in HttpOnly cookie
-    // Only set maxAge when "Remember Me" is checked; otherwise use a session cookie
-    res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
-
-    return sendSuccess(res, 'User logged in successfully', {
-      user: publicUser(user),
-      accessToken,
-      // Refresh token is intentionally only stored in the HttpOnly cookie.
-    });
+    return sendSession(res, user, !!rememberMe, 'User logged in successfully');
   } catch (error) {
     next(error);
   }
@@ -112,7 +90,7 @@ const logout = async (req, res, next) => {
     clearChallenge(res, 'two-factor');
     clearChallenge(res, 'google');
     // The server-side session ends too, so a copied refresh cookie stops working
-    await revokeRefreshToken(req.cookies.refreshToken || req.body?.refreshToken);
+    await revokeRefreshToken(getRefreshTokenFromRequest(req));
   } catch (error) {
     return next(error);
   }
@@ -125,7 +103,7 @@ const logout = async (req, res, next) => {
 // @route   POST /api/auth/refresh
 // @access  Public
 const refreshToken = async (req, res, next) => {
-  const token = req.cookies.refreshToken || req.body.refreshToken;
+  const token = getRefreshTokenFromRequest(req);
 
   if (!token) {
     return sendError(res, 'No refresh token provided', 401);
@@ -218,17 +196,7 @@ const verifyOTP = async (req, res, next) => {
       return await requestSecondFactor(req, res, user, !!rememberMe);
     }
 
-    noteSignIn(res, user, 'Signed in with email code');
-    const accessToken = generateAccessToken(user);
-    const refreshToken = await issueRefreshToken(user, !!rememberMe, req);
-
-    res.cookie('refreshToken', refreshToken, cookieOptions(!!rememberMe));
-
-    return sendSuccess(res, 'Logged in successfully', {
-      user: publicUser(user),
-      accessToken,
-      // Refresh token is intentionally only stored in the HttpOnly cookie.
-    });
+    return sendSession(res, user, !!rememberMe, 'Logged in successfully');
   } catch (error) {
     next(error);
   }

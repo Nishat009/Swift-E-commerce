@@ -55,12 +55,12 @@ const noteSignIn = (res, user, message) => {
   require('./activityLog').logActivity({ user, ip: res.req?.ip }, 'Signed In', `${user.email}: ${message}`, 'auth');
 };
 
-const sendSession = async (res, user, rememberMe, message = 'Logged in successfully') => {
+const sendSession = async (res, user, rememberMe, message = 'Logged in successfully', statusCode = 200) => {
   const refreshToken = await issueRefreshToken(user, rememberMe, res.req);
   res.set('Cache-Control', 'no-store');
   noteSignIn(res, user, message);
   res.cookie('refreshToken', refreshToken, cookieOptions(rememberMe));
-  return sendSuccess(res, message, { user: publicUser(user), accessToken: generateAccessToken(user) });
+  return sendSuccess(res, message, { user: publicUser(user), accessToken: generateAccessToken(user) }, statusCode);
 };
 
 const requestSecondFactor = async (req, res, user, rememberMe) => {

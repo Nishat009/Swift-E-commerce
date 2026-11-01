@@ -95,4 +95,10 @@ const revokeRefreshToken = async (token) => {
   await RefreshSession.updateOne({ _id: decoded.sid, revokedAt: null }, { revokedAt: new Date(), revokedReason: 'logout' });
 };
 
-module.exports = { issueRefreshToken, rotateRefreshToken, revokeRefreshToken, revokeAllSessions };
+/** Read the refresh token from the cookie, falling back to the body for non-browser clients. */
+const getRefreshTokenFromRequest = (req) => {
+  const token = req.cookies?.refreshToken ?? req.body?.refreshToken;
+  return typeof token === 'string' ? token : null;
+};
+
+module.exports = { issueRefreshToken, rotateRefreshToken, revokeRefreshToken, revokeAllSessions, getRefreshTokenFromRequest };
