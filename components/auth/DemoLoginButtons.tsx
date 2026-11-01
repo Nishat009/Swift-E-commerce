@@ -49,14 +49,14 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
     }
   };
 
-  const base = 'flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition flex items-center justify-center gap-1.5 disabled:opacity-50';
+  const base = 'flex h-10 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Quick demo access</span>
-        <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Quick demo access</span>
+        <span className="h-px flex-1 bg-line" />
       </div>
       <div className="flex gap-2">
         {roles.includes('customer') && (
@@ -64,7 +64,7 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
             type="button"
             onClick={() => signIn('customer')}
             disabled={disabled || busy !== null}
-            className={`${base} border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:border-[#0a3d4a] bg-white dark:bg-gray-950`}
+            className={`${base} border-ink/25 bg-transparent text-ink hover:border-ink`}
           >
             <UserIcon className="w-3.5 h-3.5" /> {busy === 'customer' ? 'Signing in…' : 'Guest login'}
           </button>
@@ -74,17 +74,17 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
             type="button"
             onClick={() => signIn('admin')}
             disabled={disabled || busy !== null}
-            className={`${base} border-[#0a3d4a] bg-[#0a3d4a] hover:bg-[#072a33] text-white`}
+            className={`${base} border-ink bg-ink text-paper hover:bg-ink/85`}
           >
             <ShieldCheck className="w-3.5 h-3.5" /> {busy === 'admin' ? 'Signing in…' : 'Admin login'}
           </button>
         )}
       </div>
       {credentials.length > 0 && (
-        <ul className="space-y-0.5 text-center text-[10px] text-gray-500">
+        <ul className="space-y-0.5 text-center text-[11px] text-stone-500">
           {credentials.map((c) => (
             <li key={c.role}>
-              {c.role === 'admin' ? 'Admin' : 'Customer'}: <span className="font-mono">{c.email}</span> / <span className="font-mono">{c.password}</span>
+              {c.role === 'admin' ? 'Admin' : 'Customer'}: <span className="text-ink">{c.email}</span> / <span className="text-ink">{c.password}</span>
             </li>
           ))}
         </ul>

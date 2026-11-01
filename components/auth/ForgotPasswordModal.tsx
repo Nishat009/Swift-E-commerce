@@ -84,47 +84,46 @@ export default function ForgotPasswordModal({ initialEmail = '', initialToken = 
     }
   };
 
+  const inputClass = 'h-11 w-full rounded-md border border-line bg-transparent px-3.5 text-sm text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none';
+  const labelClass = 'block text-xs font-medium text-stone-600 dark:text-stone-300';
+  const primaryClass = 'inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-ink text-xs font-semibold uppercase tracking-[0.08em] text-paper transition-colors hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-50';
+  const titleClass = 'font-serif text-2xl font-medium tracking-tight text-ink';
+  const copyClass = 'text-sm text-stone-500 dark:text-stone-400';
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#151513] border border-gray-200 dark:border-gray-800 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl p-6 sm:p-8 space-y-6 relative">
-        <button 
-          onClick={() => onClose()} 
-          className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-gray-850 rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4">
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-md space-y-6 rounded-lg border border-line bg-paper p-6 shadow-2xl sm:p-8">
+        <button
+          onClick={() => onClose()}
+          aria-label="Close"
+          className="absolute right-3 top-3 flex size-9 cursor-pointer items-center justify-center rounded-full text-stone-500 transition-colors hover:bg-ink/5 hover:text-ink"
         >
-          <X className="w-4 h-4" />
+          <X className="size-4" />
         </button>
 
         {forgotStep === 'request' && (
           <form onSubmit={handleRequestForgotOtp} className="space-y-5">
-            <div className="text-center space-y-2">
-              <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/20 text-emerald-600">
-                <KeyRound className="w-7 h-7" />
-              </div>
-              <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Reset Password</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="space-y-2">
+              <KeyRound className="size-5 text-[#8b6f47] dark:text-[#c9a96b]" strokeWidth={1.5} />
+              <h3 className={titleClass}>Reset password</h3>
+              <p className={copyClass}>
                 Enter the email address associated with your account and we will email you a secure reset link and code.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                Your Email Address
-              </label>
+              <label className={labelClass}>Your email address</label>
               <input
                 type="email"
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
                 placeholder="Enter your registered email"
                 required
-                className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
+                className={inputClass}
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={forgotLoading}
-              className="w-full py-3 bg-[#0a3d4a] hover:bg-[#072a33] text-white font-bold text-xs rounded-xl transition shadow-md disabled:opacity-50 uppercase tracking-wider"
-            >
+            <button type="submit" disabled={forgotLoading} className={primaryClass}>
               {forgotLoading ? 'Sending...' : 'Email Me a Reset Link'}
             </button>
           </form>
@@ -132,26 +131,22 @@ export default function ForgotPasswordModal({ initialEmail = '', initialToken = 
 
         {forgotStep === 'reset' && (
           <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-            <div className="text-center space-y-2">
-              <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/20 text-emerald-600">
-                <Lock className="w-7 h-7" />
-              </div>
-              <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Enter Token & New Password</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Paste the reset code from the email we sent{forgotEmail ? <> to <span className="font-bold text-gray-700 dark:text-gray-300">{forgotEmail}</span></> : ' you'}.
+            <div className="space-y-2">
+              <Lock className="size-5 text-[#8b6f47] dark:text-[#c9a96b]" strokeWidth={1.5} />
+              <h3 className={titleClass}>Enter token and new password</h3>
+              <p className={copyClass}>
+                Paste the reset code from the email we sent{forgotEmail ? <> to <span className="font-medium text-ink">{forgotEmail}</span></> : ' you'}.
               </p>
             </div>
 
             {forgotTestNotice && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-mono font-bold">
-                💡 {forgotTestNotice}
+              <div className="rounded-md border border-line bg-surface-muted p-3 text-xs text-stone-600 dark:text-stone-300">
+                {forgotTestNotice}
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                Reset Token
-              </label>
+              <label className={labelClass}>Reset token</label>
               <input
                 type="text"
                 value={forgotOtp}
@@ -159,14 +154,12 @@ export default function ForgotPasswordModal({ initialEmail = '', initialToken = 
                 placeholder="Paste reset code from email"
                 maxLength={128}
                 required
-                className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-center tracking-widest text-sm font-bold rounded-xl"
+                className={`${inputClass} text-center tracking-widest`}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                New Password
-              </label>
+              <label className={labelClass}>New password</label>
               <div className="relative">
                 <input
                   type={showNewPassword ? "text" : "password"}
@@ -175,22 +168,21 @@ export default function ForgotPasswordModal({ initialEmail = '', initialToken = 
                   placeholder="Minimum 8 characters"
                   required
                   minLength={8}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10"
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-stone-400 hover:text-ink"
                 >
-                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                Confirm New Password
-              </label>
+              <label className={labelClass}>Confirm new password</label>
               <input
                 type={showNewPassword ? "text" : "password"}
                 value={confirmNewPassword}
@@ -198,44 +190,34 @@ export default function ForgotPasswordModal({ initialEmail = '', initialToken = 
                 placeholder="Re-type new password"
                 required
                 minLength={8}
-                className="w-full px-4 py-2.5 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
+                className={inputClass}
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={forgotLoading}
-              className="w-full py-3 bg-[#0a3d4a] hover:bg-[#072a33] text-white font-bold text-xs rounded-xl transition shadow-md disabled:opacity-50 uppercase tracking-wider mt-2"
-            >
+            <button type="submit" disabled={forgotLoading} className={`${primaryClass} mt-2`}>
               {forgotLoading ? 'Updating Password...' : 'Save & Update Password'}
             </button>
 
-            <div className="text-center pt-1">
+            <div className="text-center">
               <button
                 type="button"
                 onClick={() => setForgotStep('request')}
-                className="text-[11px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold"
+                className="cursor-pointer text-xs text-stone-500 underline underline-offset-4 hover:text-ink"
               >
-                ← Back to email input
+                Back to email input
               </button>
             </div>
           </form>
         )}
 
         {forgotStep === 'success' && (
-          <div className="text-center space-y-4 py-4">
-            <div className="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <h3 className="font-serif text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wider">Password Updated!</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="space-y-4 py-2">
+            <CheckCircle2 className="size-5 text-[#8b6f47] dark:text-[#c9a96b]" strokeWidth={1.5} />
+            <h3 className={titleClass}>Password updated</h3>
+            <p className={copyClass}>
               Your password has been successfully updated. You can now log in with your new credentials.
             </p>
-            <button
-              type="button"
-              onClick={() => onClose()}
-              className="w-full py-3 bg-[#0a3d4a] hover:bg-[#072a33] text-white font-bold text-xs rounded-xl transition shadow-md uppercase tracking-wider"
-            >
+            <button type="button" onClick={() => onClose()} className={primaryClass}>
               Back to Login
             </button>
           </div>

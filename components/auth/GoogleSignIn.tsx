@@ -166,19 +166,19 @@ export default function GoogleSignIn({ mode = 'signin', rememberMe = false, disa
         className={`flex min-h-10 justify-center ${status !== 'ready' ? 'hidden' : ''} ${disabled ? 'opacity-50' : ''}`}
       />
       {(status === 'loading' || status === 'busy') && (
-        <p role="status" className="text-xs text-gray-500">{status === 'loading' ? 'Loading Google sign-in…' : 'Verifying your account…'}</p>
+        <p role="status" className="text-xs text-stone-500">{status === 'loading' ? 'Loading Google sign-in…' : 'Verifying your account…'}</p>
       )}
-      {status === 'linked' && <p role="status" className="text-sm text-emerald-600">Google is connected.</p>}
+      {status === 'linked' && <p role="status" className="text-sm text-ink">Google is connected.</p>}
       {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-      {status === 'error' && <button type="button" onClick={retry} className="text-xs underline">Try Google again</button>}
+      {status === 'error' && <button type="button" onClick={retry} className="text-xs text-stone-600 underline underline-offset-4 hover:text-ink dark:text-stone-400">Try Google again</button>}
       {status === 'two-factor' && (
         <form onSubmit={submitSecondFactor} className="space-y-3">
-          <label htmlFor="google-two-factor" className="block text-sm font-medium">Enter your authenticator or recovery code</label>
+          <label htmlFor="google-two-factor" className="block text-xs font-medium text-stone-600 dark:text-stone-300">Enter your authenticator or recovery code</label>
           <input id="google-two-factor" value={code} onChange={event => setCode(event.target.value)}
             autoComplete="one-time-code" maxLength={8} required autoFocus
-            className="w-full rounded-xl border border-gray-300 p-3 text-center dark:bg-gray-900" />
-          <button type="submit" disabled={disabled || !code.trim()} className="w-full rounded-xl bg-emerald-700 p-3 text-sm text-white disabled:opacity-50">Verify and sign in</button>
-          <button type="button" onClick={retry} className="text-xs underline">Start Google sign-in again</button>
+            className="h-11 w-full rounded-md border border-line bg-transparent px-3.5 text-center text-sm tracking-widest text-ink focus:border-ink focus:outline-none" />
+          <button type="submit" disabled={disabled || !code.trim()} className="h-11 w-full rounded-full bg-ink text-xs font-semibold uppercase tracking-[0.08em] text-paper hover:bg-ink/85 disabled:opacity-50">Verify and sign in</button>
+          <button type="button" onClick={retry} className="text-xs text-stone-600 underline underline-offset-4 hover:text-ink dark:text-stone-400">Start Google sign-in again</button>
         </form>
       )}
     </div>

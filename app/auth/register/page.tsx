@@ -3,11 +3,13 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, User, Eye, EyeOff, ShoppingBag } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { safeRedirectPath } from '@/lib/safeRedirect';
 import { requiredError, newPasswordError, passwordMatchError } from '@/lib/formValidation';
 import { useToast } from '@/context/ToastContext';
+import AuthShell from '@/components/auth/AuthShell';
+import Button from '@/components/ui/Button';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 
 function RegisterFormContent() {
@@ -44,17 +46,17 @@ function RegisterFormContent() {
   const [loading, setLoading] = useState(false);
 
   const getPasswordStrength = (pwd: string) => {
-    if (!pwd) return { label: '', color: 'bg-gray-200', width: '0%', score: 0 };
+    if (!pwd) return { label: '', color: 'bg-stone-200', width: '0%', score: 0 };
     let score = 0;
     if (pwd.length >= 6) score++;
     if (/[A-Z]/.test(pwd)) score++;
     if (/[0-9]/.test(pwd)) score++;
     if (/[^A-Za-z0-9]/.test(pwd)) score++;
 
-    if (score <= 1) return { label: 'Weak ⚠️', color: 'bg-red-500', width: '25%', score };
-    if (score === 2) return { label: 'Medium ⚡', color: 'bg-orange-500', width: '50%', score };
-    if (score === 3) return { label: 'Strong 💪', color: 'bg-[#8b6f47]', width: '75%', score };
-    return { label: 'Excellent 🔥', color: 'bg-green-500', width: '100%', score };
+    if (score <= 1) return { label: 'Weak', color: 'bg-red-500', width: '25%', score };
+    if (score === 2) return { label: 'Medium', color: 'bg-stone-400', width: '50%', score };
+    if (score === 3) return { label: 'Strong', color: 'bg-stone-600 dark:bg-stone-300', width: '75%', score };
+    return { label: 'Excellent', color: 'bg-ink', width: '100%', score };
   };
 
   const strength = getPasswordStrength(formData.password);
@@ -92,212 +94,156 @@ function RegisterFormContent() {
     }
   };
 
+  const inputClass = 'h-11 w-full rounded-md border border-line bg-transparent px-3.5 text-sm text-ink placeholder:text-stone-400 focus:border-ink focus:outline-none';
+  const labelClass = 'block text-xs font-medium text-stone-600 dark:text-stone-300';
+  const errorClass = 'text-xs text-red-600 dark:text-red-400';
+  const eyeClass = 'absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-stone-400 hover:text-ink';
+
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%)'
-      }}
+    <AuthShell
+      image="/hero-atelier-portrait.webp"
+      imageAlt="Model in an atelier"
+      eyebrow="Create an account"
+      quote="Your next favourite piece is a few clicks away."
     >
-      {/* Outer Card Container */}
-      <div className="w-full max-w-5xl bg-white dark:bg-[#151513] rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row border border-gray-100 dark:border-gray-800/60 min-h-[620px]">
-        
-        {/* Left Side: Premium Ocean Theme Image Panel */}
-        <div className="w-full md:w-1/2 relative min-h-[300px] md:min-h-full flex flex-col justify-between p-8 sm:p-12 text-white overflow-hidden bg-cover bg-center"
-          style={{
-            backgroundImage: 'url("https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80")'
-          }}
-        >
-          {/* Overlay to create deep oceanic marble/emerald contrast */}
-          <div className="absolute inset-0 bg-gradient-to-b from-teal-950/40 via-teal-900/60 to-slate-950/80 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-950/70 via-transparent to-transparent" />
-          
-          {/* Logo */}
-          <div className="relative z-10 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-              <ShoppingBag className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-serif font-black tracking-widest text-sm uppercase">SwiftCart</span>
-          </div>
-
-          {/* Heading Text Content */}
-          <div className="relative z-10 mt-24 md:mt-auto space-y-4">
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-[42px] font-black leading-[1.1] tracking-tight uppercase">
-              JOIN<br />SWIFTCART<br />TODAY
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-200/90 max-w-sm leading-relaxed font-light">
-              Create your account to unlock premium avatar fitting room, explore custom prize drawings, and fast-track checkout options.
-            </p>
-            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">
-              Fashion and home, all in one place.
-            </p>
-          </div>
+      <div className="space-y-8">
+        <div>
+          <h1 className="font-serif text-4xl font-medium tracking-tight text-ink">Create account</h1>
+          <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
+            Join us today! Please enter your details to register.
+          </p>
         </div>
 
-        {/* Right Side: Clean Form Panel */}
-        <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center bg-white dark:bg-[#121210]">
-          <div className="max-w-md w-full mx-auto space-y-6">
-            
-            {/* Header */}
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-wider">
-                CREATE ACCOUNT
-              </h2>
-              <p className="text-xs text-gray-450 mt-2">
-                Join us today! Please enter your details to register.
-              </p>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className={labelClass}>Full name</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Enter your full name"
+              required
+              className={`${inputClass} ${errors.name ? 'border-red-500' : ''}`}
+            />
+            {errors.name && <p className={errorClass}>{errors.name}</p>}
+          </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter your full name"
-                  required
-                  className="w-full px-4 py-2 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
-                />
-                {errors.name && <p className="text-[10px] text-red-500 font-bold">{errors.name}</p>}
-              </div>
+          <div className="space-y-1.5">
+            <label className={labelClass}>Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="Enter your email"
+              required
+              className={`${inputClass} ${errors.email ? 'border-red-500' : ''}`}
+            />
+            {errors.email && <p className={errorClass}>{errors.email}</p>}
+          </div>
 
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Enter your email"
-                  required
-                  className="w-full px-4 py-2 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl"
-                />
-                {errors.email && <p className="text-[10px] text-red-500 font-bold">{errors.email}</p>}
-              </div>
-
-              {/* Password */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={formData.showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="••••••••"
-                    required
-                    className="w-full px-4 py-2 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setFormData({ ...formData, showPassword: !formData.showPassword })}
-                    className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    {formData.showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {formData.password && (
-                  <div className="space-y-1 mt-1">
-                    <div className="flex justify-between items-center text-[9px] font-bold">
-                      <span className="text-gray-400">Password Strength:</span>
-                      <span className="text-gray-700 dark:text-gray-300">{strength.label}</span>
-                    </div>
-                    <div className="w-full h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                      <div className={`h-full ${strength.color} transition-all duration-350`} style={{ width: strength.width }} />
-                    </div>
-                  </div>
-                )}
-                {errors.password && <p className="text-[10px] text-red-500 font-bold">{errors.password}</p>}
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-650 dark:text-gray-300">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={formData.showConfirmPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    placeholder="••••••••"
-                    required
-                    className="w-full px-4 py-2 bg-gray-50/50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 transition text-xs rounded-xl pr-10"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setFormData({ ...formData, showConfirmPassword: !formData.showConfirmPassword })}
-                    className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    {formData.showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold">{errors.confirmPassword}</p>}
-              </div>
-
-              {/* Agree terms */}
-              <div className="flex items-start gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="agreeTerms"
-                  checked={formData.agreeTerms}
-                  onChange={(e) => setFormData({ ...formData, agreeTerms: e.target.checked })}
-                  className="h-4 w-4 mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500/30 dark:bg-gray-900 dark:border-gray-800"
-                />
-                <label htmlFor="agreeTerms" className="text-[11px] text-gray-500 dark:text-gray-400 font-medium cursor-pointer">
-                  I agree to the <Link href="/terms" target="_blank" className="underline font-bold">Terms & Conditions</Link> of this store.
-                </label>
-              </div>
-              {errors.agreeTerms && <p className="text-[10px] text-red-500 font-bold">{errors.agreeTerms}</p>}
-
-              {/* Register Submit Button */}
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full py-3 bg-[#0a3d4a] hover:bg-[#072a33] text-white font-bold text-xs rounded-xl transition shadow-md hover:shadow-lg disabled:opacity-50 mt-4 flex items-center justify-center gap-2 uppercase tracking-wider"
+          <div className="space-y-1.5">
+            <label className={labelClass}>Password</label>
+            <div className="relative">
+              <input
+                type={formData.showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="••••••••"
+                required
+                className={`${inputClass} pr-11 ${errors.password ? 'border-red-500' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, showPassword: !formData.showPassword })}
+                aria-label={formData.showPassword ? 'Hide password' : 'Show password'}
+                className={eyeClass}
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {formData.showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
-            </form>
-
-            {/* Google Sign-up */}
-            <div className="space-y-4">
-              <GoogleSignIn mode="signup" redirectUrl={redirectUrl} rememberMe={true} disabled={loading || !formData.agreeTerms} />
-              {!formData.agreeTerms && <p className="text-center text-xs text-gray-500">Accept the Terms &amp; Conditions above to continue with Google.</p>}
-
-              {/* Bottom text */}
-              <div className="text-center pt-2">
-                <span className="text-[11px] text-gray-500">
-                  Already have an account?{' '}
-                  <Link 
-                    href={redirectUrl ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}` : '/auth/login'} 
-                    className="text-emerald-700 hover:text-emerald-800 font-black hover:underline dark:text-emerald-500"
-                  >
-                    Sign in here
-                  </Link>
-                </span>
-              </div>
             </div>
-
+            {formData.password && (
+              <div className="mt-1 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-stone-500">Password strength</span>
+                  <span className="font-medium text-ink">{strength.label}</span>
+                </div>
+                <div className="h-0.5 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
+                  <div className={`h-full ${strength.color} transition-all duration-300`} style={{ width: strength.width }} />
+                </div>
+              </div>
+            )}
+            {errors.password && <p className={errorClass}>{errors.password}</p>}
           </div>
-        </div>
 
+          <div className="space-y-1.5">
+            <label className={labelClass}>Confirm password</label>
+            <div className="relative">
+              <input
+                type={formData.showConfirmPassword ? 'text' : 'password'}
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                placeholder="••••••••"
+                required
+                className={`${inputClass} pr-11 ${errors.confirmPassword ? 'border-red-500' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, showConfirmPassword: !formData.showConfirmPassword })}
+                aria-label={formData.showConfirmPassword ? 'Hide password' : 'Show password'}
+                className={eyeClass}
+              >
+                {formData.showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {errors.confirmPassword && <p className={errorClass}>{errors.confirmPassword}</p>}
+          </div>
+
+          <div className="flex items-start gap-2.5 pt-1">
+            <input
+              type="checkbox"
+              id="agreeTerms"
+              checked={formData.agreeTerms}
+              onChange={(e) => setFormData({ ...formData, agreeTerms: e.target.checked })}
+              className="mt-0.5 size-4 cursor-pointer rounded-sm border-line accent-[#171513] dark:accent-[#f5f1eb]"
+            />
+            <label htmlFor="agreeTerms" className="cursor-pointer text-xs text-stone-600 dark:text-stone-400">
+              I agree to the <Link href="/terms" target="_blank" className="font-medium text-ink underline underline-offset-4">Terms &amp; Conditions</Link> of this store.
+            </label>
+          </div>
+          {errors.agreeTerms && <p className={errorClass}>{errors.agreeTerms}</p>}
+
+          <Button type="submit" size="lg" disabled={loading} className="mt-2 h-12 w-full">
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </Button>
+        </form>
+
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-line" />
+            <span className="text-[11px] uppercase tracking-[0.22em] text-stone-500">or</span>
+            <span className="h-px flex-1 bg-line" />
+          </div>
+          <GoogleSignIn mode="signup" redirectUrl={redirectUrl} rememberMe={true} disabled={loading || !formData.agreeTerms} />
+          {!formData.agreeTerms && <p className="text-center text-xs text-stone-500">Accept the Terms &amp; Conditions above to continue with Google.</p>}
+
+          <p className="pt-2 text-center text-sm text-stone-600 dark:text-stone-400">
+            Already have an account?{' '}
+            <Link
+              href={redirectUrl ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}` : '/auth/login'}
+              className="font-medium text-ink underline underline-offset-4"
+            >
+              Sign in here
+            </Link>
+          </p>
+        </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-white text-xs">Loading registration...</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-paper text-xs text-stone-500">Loading registration...</div>}>
       <RegisterFormContent />
     </Suspense>
   );
