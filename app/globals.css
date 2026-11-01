@@ -17,9 +17,9 @@
 .fashion-story::after {
   content: ''; position: absolute; z-index: 45; pointer-events: none;
   left: 0; right: 0; bottom: 0; height: 8rem;
-  background: linear-gradient(to bottom, transparent, #f6f0e9 92%);
+  background: linear-gradient(to bottom, transparent, var(--background) 92%);
 }
-.dark .fashion-story::after { background: linear-gradient(to bottom, transparent, #241715 92%); }
+
 .classic-home > .fashion-story + section { padding-top: 5rem; }
 .fashion-dust {
   background-image:
@@ -289,11 +289,18 @@
 .dark .classic-home > section:not(.fashion-story):not(.bg-black) .font-serif { color: #f4e8dd; }
 
 :root {
-  --background: #faf9f6;
-  --foreground: #2c2c2c;
-  --text-muted: #6b6b6b;
-  --border-color: #e8e0d6;
+  --background: #faf9f7;
+  --foreground: #1c1917;
+  --text-muted: #6b6560;
+  --border-color: #e7e2db;
   --card-bg: #ffffff;
+
+  /* Neutral system: ink on paper with hairline borders. Ink and paper swap in dark mode. */
+  --ink: #171513;
+  --paper: #faf9f7;
+  --line: #e7e2db;
+  --surface: #ffffff;
+  --surface-muted: #f3f0eb;
   
   /* Classic Theme Colors - Warm Earth Tones */
   --primary: #8b6f47;
@@ -321,6 +328,11 @@
 
 @theme inline {
   --color-background: var(--background);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
   --color-text-muted: var(--text-muted);
   --color-border-theme: var(--border-color);
@@ -348,16 +360,22 @@
   --color-red-650: #c62a2f;
   --color-emerald-150: #c4f0dc;
   --font-sans: var(--font-inter);
-  --font-serif: var(--font-cormorant);
+  --font-serif: var(--font-playfair), 'Playfair Display', serif;
+  --font-elegant: var(--font-cormorant), 'Cormorant Garamond', serif;
 }
 
 :root.dark,
 .dark {
-  --background: #0f0f0e;
+  --background: #0e0d0c;
   --foreground: #f5f1eb;
-  --text-muted: #a6a6a6;
-  --border-color: #2c2a26;
-  --card-bg: #181715;
+  --text-muted: #a8a29e;
+  --border-color: #2a2724;
+  --card-bg: #161514;
+  --ink: #f5f1eb;
+  --paper: #0e0d0c;
+  --line: #2a2724;
+  --surface: #161514;
+  --surface-muted: #1d1b19;
   --primary: #c9a96b;
   --primary-dark: #a88a4f;
   --primary-light: #d4a574;
@@ -373,64 +391,58 @@
   --info: #9db0d6;
 }
 
-* {
-  scroll-behavior: smooth;
+/* Element defaults live in the base layer. Unlayered rules beat every Tailwind utility, so font-bold on a
+   heading or transition-transform on an image used to do nothing. */
+@layer base {
+  /* Tailwind v4 borders default to currentColor; keep the hairline look for bare `border` classes. */
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--line, currentColor);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    overflow-x: hidden;
+    line-height: 1.65;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+  }
+
+  /* Smooth theme changes without overriding transition utilities */
+  * {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  }
+
+  ::selection { background: #8b6f4733; }
 }
 
-html {
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
+/* The admin panel is a work tool: one sans family throughout, including the old serif headings. */
+.admin-shell :is(h1, h2, h3, h4, h5, h6),
+.admin-shell .font-serif,
+.admin-shell .font-elegant {
   font-family: var(--font-inter), system-ui, sans-serif;
-  overflow-x: hidden;
-  line-height: 1.7;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
-/* Classic Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.3;
-}
+/* Thin neutral scrollbars */
+* { scrollbar-width: thin; scrollbar-color: #cfc8bf transparent; }
+.dark * { scrollbar-color: #3a3632 transparent; }
 
-.font-serif {
-  font-family: var(--font-playfair), 'Playfair Display', serif;
-}
-
-.font-elegant {
-  font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
-}
-
-/* Smooth transitions for theme changes */
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #8b6f47 0%, #c9a96b 100%);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #6b5435 0%, #a88a4f 100%);
-}
+/* Hide a scrollbar but keep scrolling (horizontal chip rows) */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* Classic decorative elements */
 .classic-divider {

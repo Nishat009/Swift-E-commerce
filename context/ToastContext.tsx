@@ -50,31 +50,26 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       
       {/* Toast Container */}
-      <div className="fixed bottom-5 right-5 z-55 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">
+      <div className="fixed top-20 right-4 sm:right-5 z-[80] flex flex-col gap-2 max-w-sm w-[calc(100%-2rem)] pointer-events-none" aria-live="polite">
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
               key={t.id}
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-              className="pointer-events-auto flex items-start gap-3 p-4 bg-white/95 dark:bg-[#1c1b18]/95 backdrop-blur-md rounded-2xl border border-gray-150/50 dark:border-gray-800 shadow-xl"
-              style={{
-                borderLeft: `4px solid ${
-                  t.type === 'success' ? '#8b6f47' : t.type === 'error' ? '#ef4444' : '#3b82f6'
-                }`
-              }}
+              exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.2 } }}
+              className="pointer-events-auto flex items-start gap-3 px-4 py-3.5 bg-stone-950 text-white dark:bg-stone-100 dark:text-stone-900 rounded-lg shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]"
             >
               {/* Icon */}
               <div className="flex-shrink-0 mt-0.5">
-                {t.type === 'success' && <CheckCircle className="w-5 h-5 text-[#8b6f47]" />}
-                {t.type === 'error' && <AlertTriangle className="w-5 h-5 text-red-500" />}
-                {t.type === 'info' && <Info className="w-5 h-5 text-blue-500" />}
+                {t.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />}
+                {t.type === 'error' && <AlertTriangle className="w-4 h-4 text-red-400 dark:text-red-600" />}
+                {t.type === 'info' && <Info className="w-4 h-4 text-stone-300 dark:text-stone-500" />}
               </div>
 
               {/* Message */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-gray-800 dark:text-gray-200 leading-relaxed break-words">
+                <p className="text-[13px] leading-snug break-words">
                   {t.message}
                 </p>
               </div>
@@ -82,7 +77,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               {/* Close Button */}
               <button
                 onClick={() => removeToast(t.id)}
-                className="flex-shrink-0 text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 transition-colors p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="flex-shrink-0 text-white/50 hover:text-white dark:text-stone-500 dark:hover:text-stone-900 transition-colors p-0.5 rounded-full cursor-pointer" aria-label="Dismiss"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

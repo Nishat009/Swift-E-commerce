@@ -29,21 +29,20 @@ export default function InfoPage({ title, eyebrow, intro, updated, children }: I
   const pathname = usePathname();
 
   return (
-    <div className="bg-cream min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <Breadcrumbs items={[{ label: title }]} className="mb-8" />
+    <div className="bg-paper min-h-screen">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12">
+        <Breadcrumbs items={[{ label: title }]} className="mb-10" />
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-          <aside className="lg:w-64 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-20">
+          <aside className="lg:w-56 flex-shrink-0">
             <nav
               aria-label="Information pages"
-              className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 lg:sticky lg:top-24"
+              className="no-scrollbar flex lg:flex-col gap-x-6 gap-y-1 overflow-x-auto lg:overflow-visible border-b border-line lg:border-b-0 lg:sticky lg:top-28"
             >
-              <p className="hidden lg:block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1 px-4">
+              <p className="hidden lg:block text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 mb-3">
                 Help &amp; Info
               </p>
               {INFO_LINKS.map((item) => {
-                const Icon = item.icon;
                 const active = pathname === item.href;
                 return (
                   <Link
@@ -51,13 +50,13 @@ export default function InfoPage({ title, eyebrow, intro, updated, children }: I
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex items-center gap-2 whitespace-nowrap py-2.5 px-4 rounded-xl text-xs font-bold border transition-all duration-300',
+                      'whitespace-nowrap py-3 lg:py-1.5 text-sm transition-colors -mb-px lg:mb-0 border-b lg:border-b-0',
                       active
-                        ? 'bg-white dark:bg-gray-900 text-[#8b6f47] dark:text-[#c9a96b] border-gray-200 dark:border-gray-800 shadow-sm'
-                        : 'text-gray-500 border-transparent hover:text-[#8b6f47] dark:hover:text-[#c9a96b] hover:bg-white/60 dark:hover:bg-gray-800/50'
+                        ? 'text-ink font-medium border-ink'
+                        : 'text-stone-500 dark:text-stone-400 border-transparent hover:text-ink'
                     )}
                   >
-                    <Icon className="w-4 h-4" /> {item.label}
+                    {item.label}
                   </Link>
                 );
               })}
@@ -65,21 +64,21 @@ export default function InfoPage({ title, eyebrow, intro, updated, children }: I
           </aside>
 
           <motion.main
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="flex-1 min-w-0"
+            className="flex-1 min-w-0 max-w-3xl"
           >
-            <header className="mb-8">
+            <header className="mb-10 border-b border-line pb-8">
               {eyebrow && (
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8b6f47] dark:text-[#c9a96b] mb-2">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400 mb-3">
                   {eyebrow}
                 </p>
               )}
-              <h1 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 dark:text-white">{title}</h1>
-              {intro && <p className="mt-3 text-sm text-text-muted max-w-2xl leading-relaxed">{intro}</p>}
+              <h1 className="text-4xl sm:text-5xl font-serif font-medium tracking-tight text-ink">{title}</h1>
+              {intro && <p className="mt-4 text-base text-stone-600 dark:text-stone-400 max-w-2xl leading-relaxed">{intro}</p>}
               {updated && (
-                <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">Last updated {updated}</p>
+                <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400">Last updated {updated}</p>
               )}
             </header>
             {children}
@@ -90,17 +89,12 @@ export default function InfoPage({ title, eyebrow, intro, updated, children }: I
   );
 }
 
-/** Card wrapper for a block of info-page content. */
+/** Content block for an info page: hairline-separated, no box. */
 export function InfoCard({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section
-      className={cn(
-        'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[32px] p-6 sm:p-8 shadow-sm',
-        className
-      )}
-    >
-      {title && <h2 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-3">{title}</h2>}
-      <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed space-y-3">{children}</div>
+    <section className={cn('border-b border-line py-8 first:pt-0 last:border-b-0', className)}>
+      {title && <h2 className="text-2xl font-serif font-medium tracking-tight text-ink mb-4">{title}</h2>}
+      <div className="text-sm sm:text-base text-stone-700 dark:text-stone-300 leading-relaxed space-y-3">{children}</div>
     </section>
   );
 }

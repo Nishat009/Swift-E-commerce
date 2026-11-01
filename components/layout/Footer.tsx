@@ -2,9 +2,32 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShieldCheck, ShoppingCart } from 'lucide-react';
+import { ArrowRight, ArrowUp } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { cachedGet, peekCached } from '@/lib/cachedGet';
+
+const linkClass = 'text-sm text-stone-600 transition-colors hover:text-ink dark:text-stone-400';
+const headingClass = 'mb-5 font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-ink';
+
+const HELP_LINKS = [
+  { href: '/orders', label: 'Track an order' },
+  { href: '/shipping-returns', label: 'Shipping & returns' },
+  { href: '/faq', label: 'FAQ' },
+  { href: '/contact', label: 'Contact us' },
+];
+
+const ABOUT_LINKS = [
+  { href: '/about', label: 'Our story' },
+  { href: '/dressing-room', label: '3D dressing room' },
+  { href: '/campaigns', label: 'Lucky draws' },
+];
+
+const ACCOUNT_LINKS = [
+  { href: '/auth/login', label: 'Sign in' },
+  { href: '/auth/register', label: 'Create account' },
+  { href: '/wishlist', label: 'Wishlist' },
+  { href: '/profile', label: 'Profile' },
+];
 
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -41,126 +64,113 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-cream border-t border-border-theme mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <footer className="mt-auto border-t border-line bg-surface-muted">
+      {/* Newsletter band */}
+      <div className="border-b border-line">
+        <div className="mx-auto grid max-w-[1440px] gap-8 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-end lg:px-10">
           <div>
-            <Link href="/shop" className="flex items-center space-x-2 mb-4">
-              <ShoppingCart className="w-6 h-6 text-primary" />
-              <span className="text-lg font-bold text-foreground">SwiftCart</span>
-            </Link>
-            <p className="text-sm text-text-muted">
-              Your one-stop shop for all your shopping needs. Quality products, fast delivery.
+            <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-stone-500">Newsletter</p>
+            <h2 className="font-serif text-3xl font-medium tracking-tight text-ink sm:text-4xl">First to know</h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-stone-500">
+              New arrivals, private sales and stories from the atelier. Unsubscribe anytime.
             </p>
-            <div className="mt-6">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">Subscribe to our newsletter</h4>
-              <form onSubmit={handleNewsletterSubscribe} className="flex gap-2 max-w-sm">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={newsletterEmail}
-                  onChange={(e) => setNewsletterEmail(e.target.value)}
-                  required
-                  className="flex-1 text-xs border border-gray-300 dark:border-gray-750 bg-white dark:bg-gray-900 rounded-xl px-3 py-2 text-gray-800 dark:text-gray-200 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={submittingNewsletter}
-                  className="text-xs bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950 px-4 py-2 rounded-xl font-bold hover:bg-[#725a38] transition-all disabled:opacity-50"
-                >
-                  Join
-                </button>
-              </form>
-              {newsletterStatus && (
-                <p className={'text-xs mt-2 ' + (newsletterStatus.ok ? 'text-emerald-600' : 'text-red-500')}>{newsletterStatus.text}</p>
-              )}
-            </div>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">Shop</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/products" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  All Products
-                </Link>
-              </li>
-              {categories.map((c) => (
-                <li key={c.slug}>
-                  <Link href={'/products?category=' + encodeURIComponent(c.slug)} className="text-sm text-text-muted hover:text-primary transition-colors">
-                    {c.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">Customer Service</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/orders" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  My Orders
-                </Link>
-              </li>
-              <li>
-                <Link href="/campaigns" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Lucky Draws
-                </Link>
-              </li>
-              <li>
-                <Link href="/dressing-room" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Dressing Room
-                </Link>
-              </li>
-              {[
-                { href: '/about', label: 'About Us' },
-                { href: '/contact', label: 'Contact' },
-                { href: '/faq', label: 'FAQ' },
-                { href: '/shipping-returns', label: 'Shipping & Returns' },
-                { href: '/terms', label: 'Terms & Conditions' },
-                { href: '/privacy', label: 'Privacy Policy' },
-              ].map((l) => (
-                <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-text-muted hover:text-primary transition-colors">
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">Account</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/auth/login" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Login
-                </Link>
-              </li>
-              <li>
-                <Link href="/auth/register" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Register
-                </Link>
-              </li>
-              <li>
-                <Link href="/profile" className="text-sm text-text-muted hover:text-primary transition-colors">
-                  Profile
-                </Link>
-              </li>
-            </ul>
-            <Link
-              href="/admin/login"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#8b6f47] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#725a38] dark:bg-[#c9a96b] dark:text-gray-950"
-            >
-              <ShieldCheck className="h-4 w-4" /> Admin Panel
-            </Link>
+            <form onSubmit={handleNewsletterSubscribe} className="flex items-center gap-3 border-b border-ink/50 pb-2 focus-within:border-ink">
+              <input
+                type="email"
+                placeholder="Your email address"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                required
+                aria-label="Email address"
+                className="h-10 flex-1 bg-transparent text-sm text-ink placeholder:text-stone-400 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={submittingNewsletter}
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink transition-opacity hover:opacity-70 disabled:opacity-40 cursor-pointer"
+              >
+                Subscribe <ArrowRight className="size-3.5" />
+              </button>
+            </form>
+            {newsletterStatus && (
+              <p className={'mt-3 text-xs ' + (newsletterStatus.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')} role="status">
+                {newsletterStatus.text}
+              </p>
+            )}
           </div>
         </div>
-        <div className="mt-8 pt-8 border-t border-border-theme text-center">
-          <p className="text-sm text-text-muted">
-            © {new Date().getFullYear()} SwiftCart. All rights reserved.
+      </div>
+
+      {/* Link columns */}
+      <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-x-6 gap-y-12 px-4 py-16 sm:px-6 md:grid-cols-5 lg:px-10">
+        <div className="col-span-2">
+          <Link href="/shop" className="font-serif text-xl font-semibold uppercase tracking-[0.28em] text-ink">
+            SwiftCart
+          </Link>
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-stone-500">
+            Considered fashion, made to be worn for years. Try every piece on in 3D before it ships.
           </p>
+        </div>
+
+        <div>
+          <h3 className={headingClass}>Shop</h3>
+          <ul className="space-y-3">
+            <li><Link href="/products" className={linkClass}>All products</Link></li>
+            {categories.map((c) => (
+              <li key={c.slug}>
+                <Link href={'/products?category=' + encodeURIComponent(c.slug)} className={linkClass}>
+                  {c.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className={headingClass}>Help</h3>
+          <ul className="space-y-3">
+            {HELP_LINKS.map((l) => (
+              <li key={l.href}><Link href={l.href} className={linkClass}>{l.label}</Link></li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className={headingClass}>SwiftCart</h3>
+          <ul className="space-y-3">
+            {ABOUT_LINKS.map((l) => (
+              <li key={l.href}><Link href={l.href} className={linkClass}>{l.label}</Link></li>
+            ))}
+          </ul>
+          <h3 className={`${headingClass} mt-8`}>Account</h3>
+          <ul className="space-y-3">
+            {ACCOUNT_LINKS.map((l) => (
+              <li key={l.href}><Link href={l.href} className={linkClass}>{l.label}</Link></li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="border-t border-line">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-6 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
+          <p>© {new Date().getFullYear()} SwiftCart. All rights reserved.</p>
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2" aria-label="Legal">
+            <Link href="/terms" className="hover:text-ink">Terms</Link>
+            <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+            <Link href="/admin/login" className="hover:text-ink">Admin sign in</Link>
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="inline-flex items-center gap-1.5 hover:text-ink cursor-pointer"
+            >
+              Back to top <ArrowUp className="size-3" />
+            </button>
+          </nav>
         </div>
       </div>
     </footer>
   );
 }
-

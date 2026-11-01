@@ -27,6 +27,8 @@ export default function LayoutWrapper({ children }: Props) {
     // The admin panel has its own header and navigation
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
+    // Product create/edit/detail pages use the admin frame (components/admin/AdminFrame.tsx)
+    pathname.startsWith("/dashboard/products") ||
     // The landing page has its own header and footer
     pathname === "/";
 

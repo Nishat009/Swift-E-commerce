@@ -137,7 +137,7 @@ export default function NotificationBell({ className = '' }: { className?: strin
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+          <span className="absolute right-1 top-1 bg-[#9b2c2c] text-white text-[9px] font-semibold rounded-full min-w-4 h-4 px-1 flex items-center justify-center ring-2 ring-paper">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -145,28 +145,28 @@ export default function NotificationBell({ className = '' }: { className?: strin
       {isNotifOpen && (
         <>
           <div className="fixed inset-0 z-[90]" onClick={() => setIsNotifOpen(false)} />
-          <div className="absolute right-0 top-full mt-1.5 w-80 max-w-[90vw] bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-[100] text-left overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
-              <span className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">Notifications</span>
+          <div className="absolute right-0 top-full mt-2 w-80 max-w-[90vw] bg-surface rounded-lg shadow-[0_16px_40px_-12px_rgba(0,0,0,0.25)] border border-line z-[100] text-left overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+              <span className="text-sm font-medium text-stone-900 dark:text-white">Notifications</span>
               {unreadCount > 0 && (
-                <button onClick={markAllNotificationsRead} className="text-[10px] font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline cursor-pointer">
+                <button onClick={markAllNotificationsRead} className="text-xs text-stone-500 hover:text-stone-900 dark:hover:text-white underline-offset-4 hover:underline cursor-pointer">
                   Mark all as read
                 </button>
               )}
             </div>
-            <div className="max-h-80 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800">
+            <div className="max-h-96 overflow-y-auto divide-y divide-line">
               {notifications.length === 0 ? (
-                <p className="px-4 py-8 text-center text-xs text-zinc-500">You have no notifications yet.</p>
+                <p className="px-4 py-10 text-center text-sm text-stone-500">You're all caught up.</p>
               ) : (
                 notifications.map((n) => {
                   const content = (
-                    <div className={'px-4 py-3 text-xs hover:bg-stone-50 dark:hover:bg-zinc-800 cursor-pointer ' + (n.isRead ? '' : 'bg-amber-50/60 dark:bg-amber-900/10')}>
+                    <div className={'px-4 py-3 text-xs hover:bg-stone-50 dark:hover:bg-white/5 cursor-pointer ' + (n.isRead ? '' : 'bg-[#8b6f47]/[0.05] dark:bg-[#c9a96b]/[0.06]')}>
                       <div className="flex items-start gap-2">
-                        {!n.isRead && <span className="mt-1 w-2 h-2 rounded-full bg-[#8b6f47] flex-shrink-0" />}
+                        {!n.isRead && <span className="mt-1.5 size-1.5 rounded-full bg-[#8b6f47] dark:bg-[#c9a96b] flex-shrink-0" />}
                         <div className="min-w-0">
-                          <p className="font-bold text-zinc-900 dark:text-white">{n.title}</p>
-                          <p className="text-zinc-600 dark:text-zinc-400 mt-0.5 leading-snug line-clamp-3">{n.message}</p>
-                          <p className="text-[10px] text-zinc-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                          <p className="text-[13px] font-medium text-stone-900 dark:text-white">{n.title}</p>
+                          <p className="text-stone-600 dark:text-stone-400 mt-0.5 leading-snug line-clamp-3">{n.message}</p>
+                          <p className="text-[11px] text-stone-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
