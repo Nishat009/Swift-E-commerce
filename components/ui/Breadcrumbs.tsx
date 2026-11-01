@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface BreadcrumbItem {
@@ -15,29 +15,25 @@ export interface BreadcrumbsProps {
 
 export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   return (
-    <nav className={cn('flex items-center text-xs text-text-muted flex-wrap gap-1.5 font-medium', className)} aria-label="Breadcrumb">
-      <Link
-        href="/shop"
-        className="flex items-center gap-1 hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition-colors"
-      >
-        <Home className="w-3.5 h-3.5" />
-        <span>Home</span>
+    <nav className={cn('flex items-center flex-wrap gap-x-1.5 gap-y-1 text-xs text-stone-500 dark:text-stone-400', className)} aria-label="Breadcrumb">
+      <Link href="/shop" className="hover:text-ink transition-colors">
+        Home
       </Link>
 
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         return (
           <React.Fragment key={index}>
-            <ChevronRight className="w-3 h-3 text-gray-400 flex-shrink-0" />
+            <ChevronRight className="w-3 h-3 text-stone-300 dark:text-stone-600 flex-shrink-0" strokeWidth={1.5} />
             {item.href && !isLast ? (
               <Link
                 href={item.href}
-                className="hover:text-[#8b6f47] dark:hover:text-[#c9a96b] transition-colors capitalize truncate max-w-[150px] sm:max-w-[200px]"
+                className="hover:text-ink transition-colors capitalize truncate max-w-[150px] sm:max-w-[200px]"
               >
                 {item.label}
               </Link>
             ) : (
-              <span className="font-bold text-gray-900 dark:text-white capitalize truncate max-w-[180px] sm:max-w-[240px]">
+              <span className="text-ink capitalize truncate max-w-[180px] sm:max-w-[240px]">
                 {item.label}
               </span>
             )}

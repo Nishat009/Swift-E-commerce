@@ -36,40 +36,40 @@ export default function Modal({ isOpen, onClose, children, title, size = 'md' }:
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 backdrop-blur-[2px] p-4 sm:p-6"
       onClick={onClose}
     >
       <div
         className={cn(
-          'bg-white dark:bg-gray-900 rounded-[28px] shadow-2xl w-full mx-auto max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800',
+          'bg-surface rounded-xl shadow-2xl w-full mx-auto max-h-[90vh] overflow-y-auto border border-line',
           sizes[size]
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h2>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+            <h2 className="font-sans text-base font-semibold text-stone-900 dark:text-white">{title}</h2>
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                className="p-1.5 hover:bg-stone-100 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer" aria-label="Close"
               >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <X className="w-5 h-5 text-stone-500 dark:text-stone-400" />
               </button>
             )}
           </div>
         )}
         {!title && onClose && (
-          <div className="flex items-center justify-end p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="sticky top-0 z-10 flex items-center justify-end px-3 pt-3">
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              className="p-1.5 hover:bg-stone-100 dark:hover:bg-white/10 rounded-full transition-colors cursor-pointer" aria-label="Close"
             >
-              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <X className="w-5 h-5 text-stone-500 dark:text-stone-400" />
             </button>
           </div>
         )}
-        <div className="p-4">{children}</div>
+        <div className={title ? 'p-5' : 'px-5 pb-5'}>{children}</div>
       </div>
     </div>
   );

@@ -27,19 +27,20 @@ export default function Accordion({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className={cn('border border-gray-150/60 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 transition-shadow hover:shadow-xs', className)}>
+    <div className={cn('border-b border-line', className)}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left cursor-pointer select-none"
+        className="w-full py-4 flex items-center justify-between gap-4 text-left cursor-pointer select-none"
+        aria-expanded={isOpen}
       >
         <div className="flex items-center gap-3 min-w-0">
-          {icon && <div className="text-[#8b6f47] dark:text-[#c9a96b] flex-shrink-0">{icon}</div>}
+          {icon && <div className="text-stone-400 flex-shrink-0">{icon}</div>}
           <div className="min-w-0">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white font-serif">
+            <h4 className="font-sans text-[13px] font-medium tracking-wide text-ink">
               {title}
             </h4>
-            {subtitle && <p className="text-[10px] text-text-muted mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-xs text-stone-500 mt-0.5">{subtitle}</p>}
           </div>
         </div>
 
@@ -48,7 +49,7 @@ export default function Accordion({
           <motion.div
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.2 }}
-            className="text-gray-400"
+            className="text-stone-400"
           >
             <ChevronDown className="w-4 h-4" />
           </motion.div>
@@ -62,9 +63,9 @@ export default function Accordion({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="overflow-hidden border-t border-gray-100 dark:border-gray-800/60"
+            className="overflow-hidden"
           >
-            <div className="p-5 text-xs text-gray-700 dark:text-gray-300 space-y-2">
+            <div className="pb-5 text-sm leading-relaxed text-stone-600 dark:text-stone-400 space-y-2">
               {children}
             </div>
           </motion.div>

@@ -3,8 +3,8 @@
 import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Sparkles, ArrowRight, ShoppingBag, Wand2, Eye, X, Check } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, ShoppingBag, Wand2 } from 'lucide-react';
 import Button from './Button';
 import Modal from './Modal';
 import { useCartStore } from '@/stores/cartStore';
@@ -191,35 +191,30 @@ export default function ZaraLookbookSection() {
   };
 
   return (
-    <section className="relative py-16 sm:py-24 bg-[#FAF8F5] dark:bg-zinc-950 border-t border-zinc-200/60 dark:border-zinc-800/60 overflow-hidden">
+    <section className="relative py-20 sm:py-28 bg-surface-muted overflow-hidden">
       
       {/* 1. Header Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10 sm:mb-14 text-center">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#8b6f47]/10 dark:bg-[#c9a96b]/10 border border-[#8b6f47]/20 dark:border-[#c9a96b]/20 mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-[#8b6f47] dark:text-[#c9a96b]" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
-            Zara Style Editorial Lookbook
-          </span>
-        </div>
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 mb-10 sm:mb-12 text-center">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500 mb-4">The lookbook</p>
 
-        <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-zinc-900 dark:text-zinc-50 font-medium tracking-tight">
-          Quiet Luxury & Architectural Silhouettes
+        <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl text-ink font-medium tracking-tight">
+          Quiet luxury, architectural lines
         </h2>
 
-        <p className="font-elegant text-base sm:text-lg md:text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto mt-3 leading-relaxed">
+        <p className="text-sm sm:text-base text-stone-500 dark:text-stone-400 max-w-xl mx-auto mt-4 leading-relaxed">
           Clean neutral backgrounds, natural flax linen, and single-piece focus. Explore the full-length runway collection photographed in daylight.
         </p>
 
         {/* Category Pills */}
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 pt-6">
+        <div className="no-scrollbar flex items-center justify-start sm:justify-center gap-6 overflow-x-auto pt-8">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 sm:px-5 py-2 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-300 cursor-pointer ${
+              className={`shrink-0 border-b pb-1.5 text-[13px] tracking-wide transition-colors cursor-pointer ${
                 selectedCategory === cat.id
-                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md scale-105'
-                  : 'bg-white/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border border-zinc-250 dark:border-zinc-800 hover:border-[#8b6f47]'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-stone-500 hover:text-ink'
               }`}
             >
               {cat.label}
@@ -234,24 +229,24 @@ export default function ZaraLookbookSection() {
         {/* Navigation Arrows */}
         <button
           onClick={() => scroll('left')}
-          className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md shadow-xl border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white flex items-center justify-center hover:bg-[#8b6f47] hover:text-white dark:hover:bg-[#c9a96b] dark:hover:text-zinc-950 transition-all cursor-pointer"
+          className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-paper/90 backdrop-blur-md shadow-sm text-ink hidden sm:flex items-center justify-center hover:bg-ink hover:text-paper transition-colors cursor-pointer"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
 
         <button
           onClick={() => scroll('right')}
-          className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md shadow-xl border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white flex items-center justify-center hover:bg-[#8b6f47] hover:text-white dark:hover:bg-[#c9a96b] dark:hover:text-zinc-950 transition-all cursor-pointer"
+          className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-paper/90 backdrop-blur-md shadow-sm text-ink hidden sm:flex items-center justify-center hover:bg-ink hover:text-paper transition-colors cursor-pointer"
           aria-label="Scroll right"
         >
-          <ChevronRight className="w-6 h-6" />
+          <ChevronRight className="w-5 h-5" />
         </button>
 
         {/* The Scrollable Horizontal Strip Container */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-none scroll-smooth px-4 sm:px-8 md:px-12 py-4 relative z-10"
+          className="no-scrollbar flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth px-4 sm:px-6 lg:px-10 py-2 relative z-10"
           style={{ scrollSnapType: 'x mandatory' }}
         >
           {filteredLooks.map((look, index) => {
@@ -264,7 +259,7 @@ export default function ZaraLookbookSection() {
                 onMouseLeave={() => setHoveredLookId(null)}
                 onClick={() => setActiveLook(look)}
                 style={{ scrollSnapAlign: 'start' }}
-                className="relative flex-shrink-0 w-[260px] sm:w-[300px] md:w-[325px] h-[480px] sm:h-[560px] md:h-[610px] rounded-[28px] sm:rounded-[32px] overflow-hidden group cursor-pointer shadow-xl bg-stone-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 select-none"
+                className="relative flex-shrink-0 w-[260px] sm:w-[300px] md:w-[330px] h-[400px] sm:h-[460px] md:h-[500px] rounded-sm overflow-hidden group cursor-pointer bg-stone-200 dark:bg-zinc-900 select-none"
               >
                 {/* Full-Length Editorial Model Image */}
                 <Image
@@ -272,41 +267,41 @@ export default function ZaraLookbookSection() {
                   alt={look.title}
                   fill
                   sizes="(max-width: 768px) 300px, 325px"
-                  className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+                  className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                   priority={index < 4}
                 />
 
                 {/* Subtle Luxury Gradient Overlay (Deep black at bottom for crisp text legibility) */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 via-40% to-transparent pointer-events-none transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 via-45% to-transparent pointer-events-none" />
 
                 {/* Look Index Top-Left */}
                 <div className="absolute top-4 left-4 z-20">
-                  <span className="inline-block text-[11px] sm:text-xs font-bold uppercase tracking-[0.14em] px-4 py-1.5 rounded-full bg-white/95 text-zinc-900 shadow-md">
-                    LOOK {look.lookNumber}
+                  <span className="inline-block text-[10px] font-medium uppercase tracking-[0.16em] text-white/90 drop-shadow-sm">
+                    Look {look.lookNumber}
                   </span>
                 </div>
 
                 {/* Tag Top-Right */}
                 <div className="absolute top-4 right-4 z-20">
-                  <span className="inline-block text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.08em] text-white/95 bg-[#3a3a3a]/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/15 shadow-md">
-                    {look.tag.toUpperCase()}
+                  <span className="inline-block text-[10px] font-medium uppercase tracking-[0.16em] text-white/90 drop-shadow-sm">
+                    {look.tag}
                   </span>
                 </div>
 
                 {/* Bottom Outfit Caption Overlay */}
                 <div className="absolute bottom-0 inset-x-0 p-5 sm:p-6 pb-6 z-20 text-white space-y-2 transform transition-transform duration-300">
                   <div>
-                    <h3 className="font-serif text-xl sm:text-[22px] font-bold leading-[1.2] text-white drop-shadow-sm group-hover:text-[#dfb76c] transition-colors line-clamp-2">
+                    <h3 className="font-serif text-xl sm:text-2xl font-medium leading-[1.2] text-white line-clamp-2">
                       {look.title}
                     </h3>
-                    <p className="text-xs sm:text-[13px] text-zinc-300 line-clamp-1 mt-1.5 font-normal tracking-normal">
+                    <p className="text-xs sm:text-[13px] text-white/75 line-clamp-1 mt-1.5">
                       {look.subtitle}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between mt-4 pt-1">
-                    <span className="text-base sm:text-lg font-black text-[#dfb76c] tracking-tight font-sans">
-                      {lookPrice(look) === null ? 'Explore look' : formatPrice(lookPrice(look)!)}
+                    <span className="text-sm font-medium text-white tabular-nums">
+                      {lookPrice(look) === null ? '' : formatPrice(lookPrice(look)!)}
                     </span>
                     
                     <button
@@ -314,10 +309,9 @@ export default function ZaraLookbookSection() {
                         e.stopPropagation();
                         setActiveLook(look);
                       }}
-                      className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-extrabold uppercase tracking-wider bg-white hover:bg-stone-100 text-zinc-900 px-4 py-2 rounded-full transition-all cursor-pointer shadow-lg active:scale-95"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-white border-b border-white/60 pb-0.5 hover:border-white transition-colors cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.2} />
-                      <span>VIEW LOOK</span>
+                      <span>View look</span>
                     </button>
                   </div>
 
@@ -333,7 +327,7 @@ export default function ZaraLookbookSection() {
                       onClick={(e) => e.stopPropagation()}
                       className="flex-1"
                     >
-                      <span className="w-full text-[10px] font-bold uppercase tracking-wider bg-[#8b6f47] hover:bg-[#725a38] text-white py-2 rounded-full flex items-center justify-center gap-1 transition-colors shadow-sm">
+                      <span className="w-full text-[10px] font-semibold uppercase tracking-[0.1em] bg-white text-zinc-900 hover:bg-stone-100 py-2.5 flex items-center justify-center gap-1 transition-colors">
                         <ShoppingBag className="w-3 h-3" /> Shop Items
                       </span>
                     </Link>
@@ -343,8 +337,8 @@ export default function ZaraLookbookSection() {
                       onClick={(e) => e.stopPropagation()}
                       className="flex-1"
                     >
-                      <span className="w-full text-[10px] font-bold uppercase tracking-wider bg-white/20 hover:bg-white/30 backdrop-blur-md text-white py-2 rounded-full flex items-center justify-center gap-1 transition-colors border border-white/30">
-                        <Wand2 className="w-3 h-3 text-[#dfb76c]" /> 3D Try On
+                      <span className="w-full text-[10px] font-semibold uppercase tracking-[0.1em] bg-white/15 hover:bg-white/25 backdrop-blur-md text-white py-2.5 flex items-center justify-center gap-1 transition-colors">
+                        <Wand2 className="w-3 h-3" /> Try on
                       </span>
                     </Link>
                   </motion.div>
@@ -352,16 +346,6 @@ export default function ZaraLookbookSection() {
               </motion.div>
             );
           })}
-        </div>
-
-        {/* 3. Signature Bold Serif Brand Watermark Overlay */}
-        <div className="pointer-events-none absolute right-4 sm:right-12 bottom-2 z-20 select-none opacity-85 dark:opacity-90">
-          <span
-            className="font-serif font-black text-6xl sm:text-8xl md:text-9xl lg:text-[160px] tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
-            style={{ fontFamily: 'var(--font-serif, "Playfair Display", Georgia, serif)' }}
-          >
-            SWIFT
-          </span>
         </div>
       </div>
 

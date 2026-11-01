@@ -1,6 +1,5 @@
-'use client';
-
 import { useEffect, useState } from 'react';
+import { Upload } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 
 const slides = [
@@ -38,17 +37,26 @@ export default function HeroImageAdmin() {
   };
 
   return <section className="space-y-5">
-    <div><h2 className="text-xl font-semibold">Hero slide images</h2><p className="text-sm text-gray-500">Upload an image for each slide. The existing slide animation stays the same.</p></div>
-    <div className="grid gap-5 sm:grid-cols-2">
-      {slides.map(slide => <div key={slide.key} className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <h3 className="font-semibold">{slide.name}</h3>
-        <img src={images[slide.key] || slide.fallback} alt={`${slide.name} preview`} className="w-full aspect-video object-cover rounded-lg" />
-        <label className="inline-flex cursor-pointer rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white">
-          {busy === slide.key ? 'Uploading…' : 'Change image'}
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={busy !== null} onChange={event => { void upload(slide.key, event.target.files?.[0]); event.target.value = ''; }} />
-        </label>
+    <p className="text-sm text-stone-500 dark:text-stone-400">
+      Upload an image for each slide. The existing slide animation stays the same. JPG, PNG, WebP or GIF, up to 5 MB.
+    </p>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {slides.map(slide => <div key={slide.key} className="flex flex-col rounded-lg border border-line">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={images[slide.key] || slide.fallback} alt={`${slide.name} preview`} className="aspect-video w-full rounded-t-lg bg-stone-100 object-cover dark:bg-white/[0.04]" />
+        <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{slide.name}</h3>
+            <p className="text-xs text-stone-500 dark:text-stone-400">{images[slide.key] ? 'Uploaded image' : 'Default image'}</p>
+          </div>
+          <label className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-xs font-medium text-stone-700 shadow-xs transition-colors focus-within:ring-2 focus-within:ring-[#8b6f47]/30 dark:text-stone-200 ${busy !== null ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-stone-50 hover:text-stone-900 dark:hover:bg-white/[0.06]'}`}>
+            <Upload className="size-3.5" />
+            {busy === slide.key ? 'Uploading…' : 'Change image'}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={busy !== null} onChange={event => { void upload(slide.key, event.target.files?.[0]); event.target.value = ''; }} />
+          </label>
+        </div>
       </div>)}
     </div>
-    {message && <p role="status" className="text-sm">{message}</p>}
+    {message && <p role="status" className="rounded-lg border border-line bg-stone-50 px-3.5 py-2.5 text-sm text-stone-700 dark:bg-white/[0.03] dark:text-stone-300">{message}</p>}
   </section>;
 }

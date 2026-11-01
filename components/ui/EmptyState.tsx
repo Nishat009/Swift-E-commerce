@@ -23,36 +23,24 @@ export default function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-4 max-w-md mx-auto">
-      {/* Icon with animated subtle bounce/pulse */}
-      <div className="p-5 bg-[#faf9f6] dark:bg-gray-850 border border-gray-150/40 dark:border-gray-800 rounded-full mb-5 shadow-sm text-gray-305 dark:text-gray-600">
-        <Icon className="w-10 h-10 animate-pulse text-[#8b6f47] dark:text-[#c9a96b]" />
-      </div>
+    <div className="flex flex-col items-center justify-center text-center py-16 px-4 max-w-md mx-auto">
+      <Icon className="w-8 h-8 mb-5 text-stone-400 dark:text-stone-500" strokeWidth={1.25} />
 
-      {/* Text Info */}
-      <h3 className="text-xl font-bold font-serif text-gray-900 dark:text-white mb-2 leading-tight">
+      <h3 className="text-2xl font-serif font-medium tracking-tight text-ink mb-2 leading-tight">
         {title}
       </h3>
-      <p className="text-xs text-text-muted mb-6 leading-relaxed">
+      <p className="text-sm text-stone-500 dark:text-stone-400 mb-7 leading-relaxed">
         {description}
       </p>
 
-      {/* Button Action */}
       {actionText && (
         <>
           {actionLink ? (
             <Link href={actionLink}>
-              <Button className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-6 shadow-md border-0 text-xs">
-                {actionText}
-              </Button>
+              <Button>{actionText}</Button>
             </Link>
           ) : (
-            <Button
-              onClick={onAction}
-              className="bg-[#8b6f47] hover:bg-[#725a38] text-white rounded-full font-bold px-6 shadow-md border-0 text-xs"
-            >
-              {actionText}
-            </Button>
+            <Button onClick={onAction}>{actionText}</Button>
           )}
         </>
       )}

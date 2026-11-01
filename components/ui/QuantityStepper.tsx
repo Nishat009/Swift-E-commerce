@@ -50,7 +50,7 @@ export default function QuantityStepper({
   return (
     <div
       className={cn(
-        'inline-flex items-center justify-between border border-gray-250 dark:border-gray-700 rounded-full bg-white dark:bg-gray-950 p-1 select-none shadow-2xs',
+        'inline-flex items-center justify-between border border-line rounded-full bg-transparent p-1 select-none',
         sizes[size],
         disabled && 'opacity-50 pointer-events-none',
         className
@@ -61,7 +61,7 @@ export default function QuantityStepper({
         onClick={handleDecrement}
         disabled={value <= min || disabled}
         className={cn(
-          'flex items-center justify-center rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer',
+          'flex items-center justify-center rounded-full text-ink hover:bg-stone-100 dark:hover:bg-white/10 transition disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer',
           buttonSizes[size]
         )}
         aria-label="Decrease quantity"
@@ -69,7 +69,7 @@ export default function QuantityStepper({
         <Minus className="w-3.5 h-3.5" />
       </button>
 
-      <span className="px-3 font-mono font-bold text-gray-900 dark:text-white min-w-[28px] text-center">
+      <span className="px-3 text-sm font-medium tabular-nums text-ink min-w-[28px] text-center" aria-live="polite">
         {value}
       </span>
 
@@ -78,7 +78,7 @@ export default function QuantityStepper({
         onClick={handleIncrement}
         disabled={value >= max || disabled}
         className={cn(
-          'flex items-center justify-center rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer',
+          'flex items-center justify-center rounded-full text-ink hover:bg-stone-100 dark:hover:bg-white/10 transition disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer',
           buttonSizes[size]
         )}
         aria-label="Increase quantity"

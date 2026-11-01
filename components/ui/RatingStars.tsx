@@ -60,10 +60,10 @@ export default function RatingStars({
                 className={cn(
                   starSizes[size],
                   isFilled
-                    ? 'fill-amber-400 text-amber-400'
+                    ? 'fill-ink text-ink'
                     : isHalf
-                    ? 'fill-amber-400/50 text-amber-400'
-                    : 'text-gray-300 dark:text-gray-700'
+                    ? 'fill-ink/40 text-ink'
+                    : 'text-stone-300 dark:text-stone-700'
                 )}
               />
             </button>
@@ -72,13 +72,13 @@ export default function RatingStars({
       </div>
 
       {showScore && (
-        <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+        <span className="text-xs font-medium tabular-nums text-ink">
           {rating.toFixed(1)}
         </span>
       )}
 
       {reviewCount !== undefined && (
-        <span className="text-[11px] text-text-muted font-normal">
+        <span className="text-[11px] font-normal text-stone-500">
           ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
         </span>
       )}
