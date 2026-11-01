@@ -4,7 +4,7 @@
 [![React 19](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20.9+-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-4-000000?style=flat-square&logo=express)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
 [![Three.js](https://img.shields.io/badge/Three.js-3D_Studio-black?style=flat-square&logo=three.js)](https://threejs.org/)
@@ -116,7 +116,7 @@ Built for enterprise scale, SwiftCart offers a seamless shopping experience for 
 ### Backend
 | Technology | Description |
 | :--- | :--- |
-| **Node.js 18+** | High-performance JavaScript runtime |
+| **Node.js 20.9+** | High-performance JavaScript runtime |
 | **Express.js 4** | Robust REST API server with modular routing and controllers |
 | **MongoDB & Mongoose 8** | NoSQL document database with strict schema validation and populate indexing |
 | **Nodemailer** | Transactional HTML email dispatch with Ethereal test preview and SMTP support |
@@ -171,7 +171,7 @@ Swift-E-commerce/
 ## 🚀 Getting Started & Installation
 
 ### Prerequisites
-* **Node.js** >= 18.0.0
+* **Node.js** >= 20.9.0
 * **MongoDB** (Local instance at `mongodb://127.0.0.1:27017` or MongoDB Atlas URI)
 * **npm** or **pnpm** / **yarn**
 
