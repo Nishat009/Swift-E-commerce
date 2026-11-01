@@ -3,14 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import AccountLayout from '@/components/layout/AccountLayout';
 import AdminOnly from '@/components/admin/AdminOnly';
+import AdminFrame from '@/components/admin/AdminFrame';
+import { AdminButton, AdminEmpty, Panel, Pill, StatCard, adminCard, table } from '@/components/admin/AdminUI';
 import { productService } from '@/services/productService';
-import Loading from '@/components/ui/Loading';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { Product } from '@/types';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
 import {
   Edit2,
   Copy,
@@ -18,19 +17,34 @@ import {
   Trash2,
   Package,
   DollarSign,
-  Layers,
-  Truck,
-  Globe,
-  Tag,
   Star,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Eye,
-  ArrowLeft,
-  Calendar,
-  ExternalLink
+  ExternalLink,
+  Loader2,
+  PackageX,
+  CircleCheck,
+  ImageIcon,
 } from 'lucide-react';
+
+const frameProps = { active: 'products' as const, backHref: '/admin?tab=products', backLabel: 'All products' };
+
+const money = (n: unknown) => `$${(Number(n) || 0).toFixed(2)}`;
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2.5 text-sm first:pt-0 last:pb-0">
+      <dt className="text-stone-500 dark:text-stone-400">{label}</dt>
+      <dd className="min-w-0 text-right font-medium text-stone-900 dark:text-stone-100">{children}</dd>
+    </div>
+  );
+}
+
+const STATUS_LABEL: Record<string, string> = { published: 'Published', draft: 'Draft', archived: 'Archived' };
+
+function ProductStatusPill({ status }: { status?: string }) {
+  if (status === 'published') return <Pill tone="success" dot>Published</Pill>;
+  if (status === 'draft') return <Pill tone="neutral" dot>Draft</Pill>;
+  return <Pill tone="violet" dot>Archived</Pill>;
+}
 
 function ProductDetailPageContent() {
   const params = useParams();
@@ -105,352 +119,276 @@ function ProductDetailPageContent() {
 
   if (loading) {
     return (
-      <AccountLayout activeTabName="/dashboard">
-        <Loading />
-      </AccountLayout>
+      <AdminFrame {...frameProps} title="Product">
+        <div className={`${adminCard} flex items-center justify-center gap-2 px-6 py-16 text-sm text-stone-500 dark:text-stone-400`} role="status">
+          <Loader2 className="size-4 animate-spin" />
+          Loading product...
+        </div>
+      </AdminFrame>
     );
   }
 
   if (!product) {
     return (
-      <AccountLayout activeTabName="/dashboard">
-        <div className="p-8 text-center text-text-muted">
-          Product not found.
+      <AdminFrame {...frameProps} title="Product not found">
+        <div className={adminCard}>
+          <AdminEmpty
+            icon={PackageX}
+            title="Product not found"
+            description="It may have been removed, or the link is wrong."
+            action={
+              <Link href="/admin?tab=products">
+                <AdminButton tabIndex={-1}>Back to products</AdminButton>
+              </Link>
+            }
+          />
         </div>
-      </AccountLayout>
+      </AdminFrame>
     );
   }
 
   const primaryImage = product.images?.[0] || product.thumbnail || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80';
   const discountPct = product.discountPercentage || (product.originalPrice && product.originalPrice > product.price ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0);
+  const hasOriginalPrice = Number(product.originalPrice) > 0 && Number(product.originalPrice) > Number(product.price);
+  const lowStockLimit = product.lowStockThreshold || 10;
+  const stockTone = product.stock <= 0 ? 'danger' : product.stock <= lowStockLimit ? 'warning' : 'success';
+  const stockLabel = product.stock <= 0 ? 'Out of stock' : product.stock <= lowStockLimit ? 'Low stock' : 'In stock';
 
   return (
-    <AccountLayout activeTabName="/dashboard">
-      <div className="space-y-6 max-w-6xl mx-auto">
-        
-        {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-gray-150 dark:border-gray-800">
-          <div>
-            <Link
-              href="/dashboard/products"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline mb-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Products</span>
-            </Link>
-            <h1 className="text-2xl font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wide">
-              {product.title || product.name}
-            </h1>
-            <p className="text-xs text-text-muted font-mono mt-0.5">
-              SKU: {product.sku || product.SKU || 'N/A'} | ID: {product.id}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/product/${product.id}`} target="_blank">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-xl flex items-center gap-1.5"
-                title="Preview Storefront View"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Store Preview</span>
-              </Button>
-            </Link>
-
-            <Link href={`/dashboard/products/${product.id}/edit`}>
-              <Button
-                variant="primary"
-                size="sm"
-                className="rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit</span>
-              </Button>
-            </Link>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDuplicate}
-              className="rounded-xl flex items-center gap-1.5"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>Duplicate</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToggleArchive}
-              className="rounded-xl flex items-center gap-1.5"
-            >
-              <Archive className="w-3.5 h-3.5" />
-              <span>{product.status === 'archived' ? 'Unarchive' : 'Archive'}</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDeleteModalOpen(true)}
-              className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 flex items-center gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </Button>
-          </div>
+    <AdminFrame
+      {...frameProps}
+      title={product.title || product.name || 'Product'}
+      description={`SKU ${product.sku || product.SKU || 'N/A'} · ID ${product.id}`}
+      actions={
+        <>
+          <Link href={`/product/${product.id}`} target="_blank" title="Open the storefront page in a new tab">
+            <AdminButton variant="ghost" tabIndex={-1}>
+              <ExternalLink className="size-4" /> View in store
+            </AdminButton>
+          </Link>
+          <AdminButton onClick={handleDuplicate}>
+            <Copy className="size-4" /> Duplicate
+          </AdminButton>
+          <AdminButton onClick={handleToggleArchive}>
+            <Archive className="size-4" /> {product.status === 'archived' ? 'Unarchive' : 'Archive'}
+          </AdminButton>
+          <AdminButton variant="danger" onClick={() => setIsDeleteModalOpen(true)}>
+            <Trash2 className="size-4" /> Delete
+          </AdminButton>
+          <Link href={`/dashboard/products/${product.id}/edit`}>
+            <AdminButton variant="primary" tabIndex={-1}>
+              <Edit2 className="size-4" /> Edit
+            </AdminButton>
+          </Link>
+        </>
+      }
+    >
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Selling price"
+            icon={DollarSign}
+            value={<span className="tabular-nums">{money(product.price)}</span>}
+            hint={hasOriginalPrice ? `Was ${money(product.originalPrice)}${discountPct > 0 ? ` · ${discountPct}% off` : ''}` : discountPct > 0 ? `${discountPct}% off` : 'No discount'}
+          />
+          <StatCard
+            label="Stock"
+            icon={Package}
+            value={<span className="tabular-nums">{product.stock}</span>}
+            hint={<Pill tone={stockTone} dot>{stockLabel}</Pill>}
+          />
+          <StatCard
+            label="Status"
+            icon={CircleCheck}
+            value={STATUS_LABEL[product.status || ''] || 'Archived'}
+            hint={product.visibility ? `Visibility: ${product.visibility}` : undefined}
+          />
+          <StatCard
+            label="Rating"
+            icon={Star}
+            value={<span className="tabular-nums">{product.rating || 4.8}</span>}
+            hint={`${product.reviewCount || 12} reviews`}
+          />
         </div>
 
-        {/* Product Management Detail Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Main Info (2 Cols) */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Overview Card */}
-            <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs flex flex-col sm:flex-row gap-6">
-              <div className="w-full sm:w-48 aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Panel title="Overview">
+              <div className="flex flex-col gap-5 sm:flex-row">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={primaryImage}
                   alt={product.title}
-                  className="w-full h-full object-cover"
+                  className="aspect-square w-full shrink-0 rounded-lg border border-line bg-stone-100 object-cover dark:bg-white/5 sm:w-40"
                 />
-              </div>
-
-              <div className="space-y-3 min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    {product.category}
-                  </span>
-                  {product.subcategory && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                      {product.subcategory}
-                    </span>
-                  )}
-                  {product.status === 'published' ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                      Published
-                    </span>
-                  ) : product.status === 'draft' ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                      Draft
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
-                      Archived
-                    </span>
-                  )}
-                </div>
-
-                <h2 className="text-xl font-bold font-serif text-gray-900 dark:text-white">
-                  {product.title}
-                </h2>
-
-                <p className="text-xs text-text-muted leading-relaxed line-clamp-3">
-                  {product.shortDescription || product.description}
-                </p>
-
-                <div className="pt-2 flex items-center gap-4 text-xs">
-                  <div>
-                    <span className="text-text-muted block text-[10px] uppercase font-bold">Brand</span>
-                    <span className="font-bold text-gray-900 dark:text-white">{product.brand}</span>
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ProductStatusPill status={product.status} />
+                    <Pill className="capitalize">{product.category}</Pill>
+                    {product.subcategory && <Pill className="capitalize">{product.subcategory}</Pill>}
                   </div>
-                  <div>
-                    <span className="text-text-muted block text-[10px] uppercase font-bold">Rating</span>
-                    <div className="flex items-center gap-1 font-bold text-gray-900 dark:text-white">
-                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                      <span>{product.rating || 4.8} ({product.reviewCount || 12} reviews)</span>
+                  <p className="text-sm leading-relaxed text-stone-600 line-clamp-4 dark:text-stone-300">
+                    {product.shortDescription || product.description}
+                  </p>
+                  <dl className="grid grid-cols-2 gap-4 border-t border-line pt-3 text-sm sm:grid-cols-3">
+                    <div>
+                      <dt className="text-xs text-stone-500 dark:text-stone-400">Brand</dt>
+                      <dd className="mt-0.5 font-medium text-stone-900 dark:text-stone-100">{product.brand || '-'}</dd>
                     </div>
-                  </div>
+                    <div>
+                      <dt className="text-xs text-stone-500 dark:text-stone-400">Created</dt>
+                      <dd className="mt-0.5 font-medium text-stone-900 dark:text-stone-100">
+                        {product.createdAt ? new Date(product.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-stone-500 dark:text-stone-400">SKU</dt>
+                      <dd className="mt-0.5 truncate font-mono text-xs font-medium text-stone-900 dark:text-stone-100">{product.sku || product.SKU || 'N/A'}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
-            </div>
+            </Panel>
 
-            {/* Pricing & Inventory Breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              
-              {/* Pricing Card */}
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3">
-                <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-3 border-gray-100 dark:border-gray-800">
-                  <DollarSign className="w-4 h-4 text-[#8b6f47]" />
-                  Pricing Details
-                </h3>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-muted">Selling Price:</span>
-                    <span className="font-bold text-gray-900 dark:text-white text-base">${product.price}</span>
-                  </div>
-
-                  {product.originalPrice && product.originalPrice > product.price && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-muted">Original Price:</span>
-                      <span className="line-through text-text-muted">${product.originalPrice}</span>
-                    </div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <Panel title="Pricing">
+                <dl className="divide-y divide-line">
+                  <DetailRow label="Selling price">
+                    <span className="tabular-nums">{money(product.price)}</span>
+                  </DetailRow>
+                  {hasOriginalPrice && (
+                    <DetailRow label="Original price">
+                      <span className="font-normal tabular-nums text-stone-500 line-through">{money(product.originalPrice)}</span>
+                    </DetailRow>
                   )}
-
                   {discountPct > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-muted">Discount:</span>
-                      <span className="font-bold text-rose-600">{discountPct}% OFF</span>
-                    </div>
+                    <DetailRow label="Discount">
+                      <span className="text-red-600 dark:text-red-400">{discountPct}% off</span>
+                    </DetailRow>
                   )}
-
-                  {product.costPrice && (
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
-                      <span className="text-text-muted">Unit Cost Price:</span>
-                      <span className="font-medium">${product.costPrice}</span>
-                    </div>
+                  {Number(product.costPrice) > 0 && (
+                    <DetailRow label="Unit cost">
+                      <span className="tabular-nums">{money(product.costPrice)}</span>
+                    </DetailRow>
                   )}
-                </div>
-              </div>
+                </dl>
+              </Panel>
 
-              {/* Inventory Card */}
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3">
-                <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-3 border-gray-100 dark:border-gray-800">
-                  <Package className="w-4 h-4 text-[#8b6f47]" />
-                  Inventory Status
-                </h3>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-muted">Stock Quantity:</span>
-                    <span className="font-bold text-gray-900 dark:text-white text-base">{product.stock} units</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-muted">Reserved Stock:</span>
-                    <span>{product.reservedStock || 0} units</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-text-muted">Warehouse:</span>
-                    <span className="font-medium">{product.warehouse || 'Main Warehouse'}</span>
-                  </div>
-                </div>
-              </div>
+              <Panel title="Inventory">
+                <dl className="divide-y divide-line">
+                  <DetailRow label="Stock quantity">
+                    <span className="tabular-nums">{product.stock} units</span>
+                  </DetailRow>
+                  <DetailRow label="Reserved">
+                    <span className="tabular-nums">{product.reservedStock || 0} units</span>
+                  </DetailRow>
+                  <DetailRow label="Warehouse">{product.warehouse || 'Main Warehouse'}</DetailRow>
+                </dl>
+              </Panel>
             </div>
 
-            {/* Variants Matrix */}
             {product.variantCombinations && product.variantCombinations.length > 0 && (
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3">
-                <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider border-b pb-3 border-gray-100 dark:border-gray-800">
-                  Variants ({product.variantCombinations.length})
-                </h3>
-
+              <Panel title="Variants" description={`${product.variantCombinations.length} combinations`} bodyClassName="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-700 text-[10px] uppercase font-bold text-gray-500">
-                        <th className="py-2 px-3">Variant</th>
-                        <th className="py-2 px-3">SKU</th>
-                        <th className="py-2 px-3">Price</th>
-                        <th className="py-2 px-3">Stock</th>
+                  <table className={table.table}>
+                    <thead className={table.thead}>
+                      <tr>
+                        <th className={table.th}>Variant</th>
+                        <th className={table.th}>SKU</th>
+                        <th className={`${table.th} text-right`}>Price</th>
+                        <th className={`${table.th} text-right`}>Stock</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    <tbody className={table.tbody}>
                       {product.variantCombinations.map((comb) => (
-                        <tr key={comb.id}>
-                          <td className="py-2 px-3 font-bold">
+                        <tr key={comb.id} className={table.tr}>
+                          <td className={`${table.td} font-medium text-stone-900 dark:text-stone-100`}>
                             {Object.values(comb.attributes).join(' / ')}
                           </td>
-                          <td className="py-2 px-3 font-mono text-text-muted">{comb.sku}</td>
-                          <td className="py-2 px-3 font-bold">${comb.price}</td>
-                          <td className="py-2 px-3">{comb.stock}</td>
+                          <td className={`${table.td} font-mono text-xs text-stone-500 dark:text-stone-400`}>{comb.sku}</td>
+                          <td className={`${table.td} text-right font-medium tabular-nums text-stone-900 dark:text-white`}>{money(comb.price)}</td>
+                          <td className={`${table.td} text-right tabular-nums text-stone-700 dark:text-stone-300`}>{comb.stock}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </Panel>
             )}
 
-            {/* Specifications / Attributes */}
             {product.attributes && product.attributes.length > 0 && (
-              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3">
-                <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider border-b pb-3 border-gray-100 dark:border-gray-800">
-                  Specifications & Attributes
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <Panel title="Specifications">
+                <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
                   {product.attributes.map((attr, i) => (
-                    <div key={i} className="p-2.5 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                      <span className="font-bold text-gray-900 dark:text-white">{attr.name}: </span>
-                      <span className="text-gray-700 dark:text-gray-300">{attr.value}</span>
+                    <div key={i} className="flex items-baseline justify-between gap-4 border-b border-line py-2.5 text-sm">
+                      <dt className="text-stone-500 dark:text-stone-400">{attr.name}</dt>
+                      <dd className="text-right font-medium text-stone-900 dark:text-stone-100">{attr.value}</dd>
                     </div>
                   ))}
-                </div>
-              </div>
+                </dl>
+              </Panel>
             )}
           </div>
 
-          {/* Right Sidebar (1 Col) */}
           <div className="space-y-6">
-            
-            {/* Gallery Images */}
-            <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3">
-              <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider border-b pb-3 border-gray-100 dark:border-gray-800">
-                Media Gallery ({product.images?.length || 1})
-              </h3>
+            <Panel title="Media" description={`${product.images?.length || 1} ${(product.images?.length || 1) === 1 ? 'image' : 'images'}`}>
+              {product.images && product.images.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {product.images.map((url, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Image ${i + 1}`}
+                      className="aspect-square w-full rounded-lg border border-line bg-stone-100 object-cover dark:bg-white/5"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400">
+                  <ImageIcon className="size-4" /> No gallery images.
+                </p>
+              )}
+            </Panel>
 
-              <div className="grid grid-cols-3 gap-2">
-                {product.images?.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Image ${i + 1}`}
-                    className="w-full aspect-square rounded-xl object-cover border border-gray-200 dark:border-gray-700"
-                  />
-                ))}
-              </div>
-            </div>
+            <Panel title="Shipping">
+              <dl className="divide-y divide-line">
+                <DetailRow label="Weight">
+                  <span className="tabular-nums">{product.shippingInfo?.weight || 0.8} kg</span>
+                </DetailRow>
+                <DetailRow label="Delivery estimate">{product.shippingInfo?.estimate || '2-4 Days'}</DetailRow>
+                <DetailRow label="Free shipping">
+                  {product.shippingInfo?.freeShipping ? <Pill tone="success">Yes</Pill> : <Pill>No</Pill>}
+                </DetailRow>
+              </dl>
+            </Panel>
 
-            {/* Shipping Info */}
-            <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3 text-xs">
-              <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-3 border-gray-100 dark:border-gray-800">
-                <Truck className="w-4 h-4 text-[#8b6f47]" />
-                Shipping Info
-              </h3>
-
-              <div className="space-y-1.5 text-text-muted">
-                <p>Weight: <span className="font-bold text-gray-900 dark:text-white">{product.shippingInfo?.weight || 0.8} kg</span></p>
-                <p>Delivery Estimate: <span className="font-bold text-gray-900 dark:text-white">{product.shippingInfo?.estimate || '2-4 Days'}</span></p>
-                <p>Free Shipping: <span className="font-bold text-emerald-600">{product.shippingInfo?.freeShipping ? 'Yes' : 'No'}</span></p>
-              </div>
-            </div>
-
-            {/* SEO Information */}
-            <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-150/60 dark:border-gray-800/80 shadow-xs space-y-3 text-xs">
-              <h3 className="text-sm font-bold font-serif text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b pb-3 border-gray-100 dark:border-gray-800">
-                <Globe className="w-4 h-4 text-[#8b6f47]" />
-                SEO Metadata
-              </h3>
-
-              <div className="space-y-1.5 text-text-muted">
-                <p>Meta Title: <span className="font-medium text-gray-900 dark:text-white">{product.seo?.metaTitle || product.title}</span></p>
-                <p className="line-clamp-2">Meta Description: <span className="font-medium text-gray-900 dark:text-white">{product.seo?.metaDescription || product.shortDescription}</span></p>
-              </div>
-            </div>
-
+            <Panel title="SEO">
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-xs text-stone-500 dark:text-stone-400">Meta title</dt>
+                  <dd className="mt-0.5 font-medium text-stone-900 dark:text-stone-100">{product.seo?.metaTitle || product.title}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-stone-500 dark:text-stone-400">Meta description</dt>
+                  <dd className="mt-0.5 text-stone-700 line-clamp-3 dark:text-stone-300">{product.seo?.metaDescription || product.shortDescription || '-'}</dd>
+                </div>
+              </dl>
+            </Panel>
           </div>
-
         </div>
-
-        {/* Delete Modal */}
-        <ConfirmationModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleExecuteDelete}
-          title="Delete Product?"
-          message="This action cannot be undone. The product will be removed permanently from your store."
-          confirmText="Delete Product"
-          variant="danger"
-        />
-
       </div>
-    </AccountLayout>
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleExecuteDelete}
+        title="Delete this product?"
+        message="It is removed from the store and archived. Past orders keep their history."
+        confirmText="Delete product"
+        variant="danger"
+      />
+    </AdminFrame>
   );
 }
 

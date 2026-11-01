@@ -3,12 +3,80 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { selectClass } from '@/components/ui/Select';
-import { Plus, Search, ShieldAlert, Edit2, X, Gift, Trophy } from 'lucide-react';
+import { Plus, ShieldAlert, Edit2, X, Gift, Trophy, ChevronDown, Dices } from 'lucide-react';
 import { SectionLoading, useSectionLoad } from './AdminSection';
 import { useAuditTrail } from './AuditTrailModal';
+import { AdminButton, AdminEmpty, Pill, SearchField, StatCard, table } from './AdminUI';
+
+const labelCls = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const fieldCls =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark]';
+const textareaCls =
+  'w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const iconBtn =
+  'inline-flex size-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-white/[0.06] dark:hover:text-stone-100 cursor-pointer';
+
+const STATUS_DOT: Record<string, string> = {
+  draft: 'bg-stone-400',
+  active: 'bg-emerald-500',
+  paused: 'bg-amber-500',
+  'sold-out': 'bg-red-500',
+  completed: 'bg-sky-500',
+  archived: 'bg-stone-300 dark:bg-stone-600',
+};
+
+const money = (n: number) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+
+/** Horizontal bars, one hue: revenue for the top campaigns. */
+function CampaignRevenueBars({ rows }: { rows: { campaignTitle: string; revenue: number }[] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const maxRev = rows[0]?.revenue || 1;
+  return (
+    <div>
+      <ul className="space-y-2.5">
+        {rows.map((item, idx) => {
+          const pct = Math.round((item.revenue / maxRev) * 100);
+          return (
+            <li
+              key={idx}
+              tabIndex={0}
+              aria-label={`${item.campaignTitle}: ${money(item.revenue)}`}
+              onMouseEnter={() => setHover(idx)}
+              onMouseLeave={() => setHover(null)}
+              onFocus={() => setHover(idx)}
+              onBlur={() => setHover(null)}
+              className="relative flex items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#8b6f47]/30"
+            >
+              <span className="w-32 shrink-0 truncate text-xs text-stone-600 dark:text-stone-300 sm:w-44">{item.campaignTitle}</span>
+              <div className="relative h-3 flex-1">
+                <div className="absolute inset-y-0 left-0 right-0 border-l border-stone-300 dark:border-white/15" />
+                <div
+                  className="absolute inset-y-0 left-0 rounded-r-[4px] bg-[#a0702a] transition-opacity dark:bg-[#b8862f]"
+                  style={{ width: `${Math.max(pct, item.revenue > 0 ? 1 : 0)}%`, opacity: hover === null || hover === idx ? 1 : 0.55 }}
+                />
+                {hover === idx && (
+                  <div
+                    className="pointer-events-none absolute bottom-full z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 shadow-lg"
+                    style={{ left: `${Math.min(Math.max(pct, 12), 88)}%` }}
+                  >
+                    <p className="text-sm font-semibold tabular-nums text-stone-900 dark:text-white">{money(item.revenue)}</p>
+                    <p className="max-w-56 truncate text-[11px] text-stone-500">{item.campaignTitle}</p>
+                  </div>
+                )}
+              </div>
+              <span className="w-16 shrink-0 text-right text-xs font-medium tabular-nums text-stone-700 dark:text-stone-300">{money(item.revenue)}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <table className="sr-only">
+        <caption>Revenue by campaign</caption>
+        <thead><tr><th>Campaign</th><th>Revenue</th></tr></thead>
+        <tbody>{rows.map((r, i) => <tr key={i}><td>{r.campaignTitle}</td><td>{money(r.revenue)}</td></tr>)}</tbody>
+      </table>
+    </div>
+  );
+}
 
 /** Lucky-draw campaigns: analytics, create/edit, status and the prize draw. */
 export default function CampaignsAdmin() {
@@ -162,317 +230,285 @@ export default function CampaignsAdmin() {
 
   if (loading) return <SectionLoading />;
 
+  const visibleCampaigns = allCampaigns.filter((c) =>
+    c.title.toLowerCase().includes(campaignSearch.toLowerCase()) ||
+    c.prizeName.toLowerCase().includes(campaignSearch.toLowerCase())
+  );
+
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Prize Campaign Manager</h2>
-          <Button onClick={handleOpenCreateCampaign} className="text-sm py-2 px-3 font-bold rounded-xl bg-[#8b6f47] hover:bg-[#725a38] text-white flex items-center gap-1.5 border-0">
-            <Plus className="w-4 h-4" /> Create Campaign
-          </Button>
-        </div>
-
-        {/* Campaign Analytics Cards */}
+        {/* Campaign analytics */}
         {campaignAnalytics && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-gradient-to-br from-[#8b6f47]/5 to-[#8b6f47]/10 p-3.5 border border-gray-100 dark:border-gray-800 rounded-2xl">
-              <span className="block text-[9px] text-gray-400 uppercase font-black">Campaign Revenue</span>
-              <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">${campaignAnalytics.overview.totalRevenue.toFixed(0)}</span>
-            </div>
-            <div className="bg-gradient-to-br from-blue-50/30 to-blue-50/60 dark:from-blue-950/15 dark:to-blue-900/25 p-3.5 border border-gray-100 dark:border-gray-800 rounded-2xl">
-              <span className="block text-[9px] text-gray-400 uppercase font-black">Tickets Issued</span>
-              <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">{campaignAnalytics.overview.totalTickets}</span>
-            </div>
-            <div className="bg-gradient-to-br from-purple-50/30 to-purple-50/60 dark:from-purple-950/15 dark:to-purple-900/25 p-3.5 border border-gray-100 dark:border-gray-800 rounded-2xl">
-              <span className="block text-[9px] text-gray-400 uppercase font-black">Unique Participants</span>
-              <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">{campaignAnalytics.overview.uniqueParticipants}</span>
-            </div>
-            <div className="bg-gradient-to-br from-green-50/30 to-green-50/60 dark:from-emerald-950/15 dark:to-emerald-900/25 p-3.5 border border-gray-100 dark:border-gray-800 rounded-2xl">
-              <span className="block text-[9px] text-gray-400 uppercase font-black">Active Campaigns</span>
-              <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">{campaignAnalytics.overview.activeCampaigns}</span>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard className="shadow-none" label="Campaign revenue" value={<span className="tabular-nums">${campaignAnalytics.overview.totalRevenue.toFixed(0)}</span>} />
+            <StatCard className="shadow-none" label="Tickets issued" value={<span className="tabular-nums">{campaignAnalytics.overview.totalTickets}</span>} />
+            <StatCard className="shadow-none" label="Unique participants" value={<span className="tabular-nums">{campaignAnalytics.overview.uniqueParticipants}</span>} />
+            <StatCard className="shadow-none" label="Active campaigns" value={<span className="tabular-nums">{campaignAnalytics.overview.activeCampaigns}</span>} />
           </div>
         )}
 
-        {/* Revenue Chart (CSS Bar Chart) */}
         {campaignAnalytics?.revenueByCampaign?.length > 0 && (
-          <div className="bg-gray-50/50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800 rounded-2xl p-4">
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-3">Revenue by Campaign</h4>
-            <div className="space-y-2">
-              {campaignAnalytics.revenueByCampaign.slice(0, 5).map((item: any, idx: number) => {
-                const maxRev = campaignAnalytics.revenueByCampaign[0]?.revenue || 1;
-                const pct = Math.round((item.revenue / maxRev) * 100);
-                return (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="text-[9px] font-bold text-gray-500 w-24 truncate">{item.campaignTitle}</span>
-                    <div className="flex-1 bg-gray-100 dark:bg-gray-800 h-4 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-[9px] font-black text-gray-600 dark:text-gray-300 w-12 text-right">${item.revenue}</span>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="rounded-lg border border-line p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Revenue by campaign</h3>
+            <p className="mb-4 mt-0.5 text-xs text-stone-500 dark:text-stone-400">Top five campaigns by ticket revenue</p>
+            <CampaignRevenueBars rows={campaignAnalytics.revenueByCampaign.slice(0, 5)} />
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Search campaigns by title or prize name..."
-            value={campaignSearch}
-            onChange={(e) => setCampaignSearch(e.target.value)}
-            className="w-full text-sm pl-8"
-          />
-          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-        </div>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <SearchField value={campaignSearch} onChange={setCampaignSearch} placeholder="Search by title or prize" className="w-full sm:w-80" />
+            <AdminButton variant="primary" onClick={handleOpenCreateCampaign}>
+              <Plus className="size-4" /> Create campaign
+            </AdminButton>
+          </div>
 
-        {/* Campaigns Table */}
-        <div className="overflow-x-auto border rounded-2xl max-h-[500px] overflow-y-auto scrollbar-thin">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px] sticky top-0 z-10">
-              <tr>
-                <th className="p-3">Campaign Prize</th>
-                <th className="p-3">Product Cost</th>
-                <th className="p-3">Sold / Limit</th>
-                <th className="p-3">Draw Date</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {allCampaigns
-                .filter((c) =>
-                  c.title.toLowerCase().includes(campaignSearch.toLowerCase()) ||
-                  c.prizeName.toLowerCase().includes(campaignSearch.toLowerCase())
-                )
-                .map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-50/40 dark:hover:bg-gray-900/40">
-                    <td className="p-3">
-                      <span className="block font-bold text-gray-800 dark:text-gray-200">{c.prizeName}</span>
-                      <span className="block text-[10px] text-gray-400">{c.title}</span>
+          <div className={`${table.wrap} max-h-[560px] overflow-y-auto`}>
+            <table className={table.table}>
+              <thead className={`${table.thead} sticky top-0 z-10`}>
+                <tr>
+                  <th className={table.th}>Prize</th>
+                  <th className={`${table.th} text-right`}>Product price</th>
+                  <th className={table.th}>Tickets sold</th>
+                  <th className={table.th}>Draw date</th>
+                  <th className={table.th}>Status</th>
+                  <th className={table.th}><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody className={table.tbody}>
+                {visibleCampaigns.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <AdminEmpty icon={Gift} title="No campaigns found" description={campaignSearch ? 'Try a different search.' : 'Create a lucky-draw campaign to get started.'} />
                     </td>
-                    <td className="p-3 font-extrabold text-[#8b6f47] dark:text-[#c9a96b]">${c.productPrice.toFixed(2)}</td>
-                    <td className="p-3">
-                      <span className="font-mono">{c.ticketsSold}/{c.ticketLimit}</span>
-                      <div className="w-16 bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full mt-1 overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[#8b6f47] to-[#c9a96b] rounded-full" style={{ width: `${Math.min(100, (c.ticketsSold / c.ticketLimit) * 100)}%` }} />
+                  </tr>
+                )}
+                {visibleCampaigns.map((c) => (
+                  <tr key={c.id} className={table.tr}>
+                    <td className={table.td}>
+                      <span className="block font-medium text-stone-900 dark:text-stone-100">{c.prizeName}</span>
+                      <span className="block text-xs text-stone-500 dark:text-stone-400">{c.title}</span>
+                    </td>
+                    <td className={`${table.td} text-right font-medium tabular-nums text-stone-900 dark:text-white`}>${c.productPrice.toFixed(2)}</td>
+                    <td className={table.td}>
+                      <span className="text-xs tabular-nums text-stone-700 dark:text-stone-300">{c.ticketsSold} / {c.ticketLimit}</span>
+                      <div className="mt-1.5 h-1.5 w-20 overflow-hidden rounded-full bg-stone-100 dark:bg-white/[0.06]">
+                        <div className="h-full rounded-full bg-[#a0702a] dark:bg-[#b8862f]" style={{ width: `${Math.min(100, (c.ticketsSold / c.ticketLimit) * 100)}%` }} />
                       </div>
                     </td>
-                    <td className="p-3 text-[10px] text-gray-500">
+                    <td className={`${table.td} whitespace-nowrap text-xs text-stone-500 dark:text-stone-400`}>
                       {c.drawDate ? new Date(c.drawDate).toLocaleDateString() : '—'}
                     </td>
-                    <td className="p-3">
-                      <select
-                        value={c.status}
-                        onChange={(e) => handleUpdateCampaignStatus(c.id, e.target.value)}
-                        className={`text-[9px] font-bold border rounded-lg px-1.5 py-0.5 bg-white dark:bg-gray-900 ${
-                          c.status === 'completed' ? 'text-yellow-700 border-yellow-300' :
-                          c.status === 'sold-out' ? 'text-red-700 border-red-300' :
-                          c.status === 'active' ? 'text-blue-700 border-blue-300' :
-                          c.status === 'paused' ? 'text-orange-700 border-orange-300' :
-                          c.status === 'archived' ? 'text-gray-500 border-gray-300' :
-                          'text-gray-500 border-gray-300'
-                        }`}
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="active">Active</option>
-                        <option value="paused">Paused</option>
-                        <option value="sold-out">Sold Out</option>
-                        <option value="completed">Completed</option>
-                        <option value="archived">Archived</option>
-                      </select>
+                    <td className={table.td}>
+                      <div className="relative w-32">
+                        <span className={`pointer-events-none absolute left-2.5 top-1/2 size-1.5 -translate-y-1/2 rounded-full ${STATUS_DOT[c.status] || 'bg-stone-400'}`} aria-hidden />
+                        <select
+                          value={c.status}
+                          onChange={(e) => handleUpdateCampaignStatus(c.id, e.target.value)}
+                          aria-label={`Status of ${c.title}`}
+                          className="h-8 w-full cursor-pointer appearance-none rounded-lg border border-line bg-surface pl-6 pr-7 text-xs font-medium text-stone-700 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-200 dark:[color-scheme:dark]"
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="active">Active</option>
+                          <option value="paused">Paused</option>
+                          <option value="sold-out">Sold out</option>
+                          <option value="completed">Completed</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-stone-400" />
+                      </div>
                     </td>
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-1.5">
-                                                          <button onClick={() => fetchAuditTrail('Campaign', c.id)} className="p-1.5 text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 rounded-lg" title="Audit Trail">
-                          <ShieldAlert className="w-3.5 h-3.5" />
+                    <td className={`${table.td} text-right`}>
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => fetchAuditTrail('Campaign', c.id)} className={iconBtn} title="Audit trail" aria-label={`Audit trail for ${c.title}`}>
+                          <ShieldAlert className="size-4" />
                         </button>
-                        <button onClick={() => handleOpenEditCampaign(c)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg" title="Edit Campaign">
-                          <Edit2 className="w-3.5 h-3.5" />
+                        <button onClick={() => handleOpenEditCampaign(c)} className={iconBtn} title="Edit campaign" aria-label={`Edit ${c.title}`}>
+                          <Edit2 className="size-4" />
                         </button>
                         {c.status !== 'completed' && (
-                          <Button
-                            onClick={() => handleConductDraw(c)}
-                            size="sm"
-                            className="text-[8px] py-1 px-2 font-bold rounded-lg bg-yellow-500 hover:bg-yellow-600 text-black border-0 shadow-sm"
-                          >
-                            Draw 🎲
-                          </Button>
+                          <AdminButton size="sm" onClick={() => handleConductDraw(c)} className="ml-1">
+                            <Dices className="size-3.5" /> Draw
+                          </AdminButton>
                         )}
-                                                          {c.status === 'completed' && (
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="text-[9px] text-yellow-600 font-bold px-1">
-                              🏆 {c.winnerUser?.name || 'Winner'}
-                            </span>
-                          </div>
+                        {c.status === 'completed' && (
+                          <Pill tone="accent" className="ml-1">
+                            <Trophy className="size-3" /> {c.winnerUser?.name || 'Winner'}
+                          </Pill>
                         )}
                       </div>
                     </td>
                   </tr>
                 ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {isCampaignModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-lg overflow-y-auto max-h-[90vh] shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4 backdrop-blur-[2px]">
+          <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-line bg-surface shadow-lg">
+            <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-4">
+              <h3 className="flex items-center gap-2 text-base font-semibold text-stone-900 dark:text-stone-100">
+                <Gift className="size-4 text-[#8b6f47] dark:text-[#c9a96b]" /> {editingCampaign ? 'Edit campaign' : 'Create lucky-draw campaign'}
+              </h3>
+              <button type="button" onClick={() => setIsCampaignModalOpen(false)} className={iconBtn} aria-label="Close">
+                <X className="size-4" />
+              </button>
+            </div>
 
-            <button onClick={() => setIsCampaignModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-              <X className="w-4 h-4" />
-            </button>
-
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 flex items-center gap-2">
-              <Gift className="w-5 h-5 text-[#8b6f47]" /> {editingCampaign ? 'Edit Campaign' : 'Create Lucky Draw Campaign'}
-            </h3>
-
-            <form onSubmit={handleCampaignFormSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Campaign Title</label>
-                <Input type="text" placeholder="e.g., iPhone 16 Pro Campaign" value={campaignForm.title} onChange={(e) => setCampaignForm({ ...campaignForm, title: e.target.value })} required className="w-full text-sm" />
-              </div>
-
-              {/* Campaign Config */}
-              <div className="grid grid-cols-3 gap-2">
+            <form onSubmit={handleCampaignFormSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="space-y-4 overflow-y-auto p-6">
                 <div>
-                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Draw Date</label>
-                  <input type="date" value={campaignForm.drawDate} onChange={(e) => setCampaignForm({ ...campaignForm, drawDate: e.target.value })} className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl p-2.5 focus:outline-none" />
+                  <label className={labelCls}>Campaign title</label>
+                  <input type="text" placeholder="e.g., iPhone 16 Pro Campaign" value={campaignForm.title} onChange={(e) => setCampaignForm({ ...campaignForm, title: e.target.value })} required className={fieldCls} />
                 </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Max/User</label>
-                  <Input type="number" value={campaignForm.maxTicketsPerUser} onChange={(e) => setCampaignForm({ ...campaignForm, maxTicketsPerUser: Number(e.target.value) })} className="w-full text-sm" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Visibility</label>
-                  <select value={campaignForm.visibility} onChange={(e) => setCampaignForm({ ...campaignForm, visibility: e.target.value })} className={`${selectClass} w-full`}>
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                  </select>
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Description</label>
-                <textarea value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} rows={2} className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 focus:outline-none bg-white dark:bg-gray-900" placeholder="Campaign description..." />
-              </div>
-
-              {/* Product Section */}
-              <div className="border border-gray-100 dark:border-gray-800 p-4 rounded-2xl bg-gray-50/30 dark:bg-gray-900/30 space-y-3">
-                <span className="block text-[9px] font-black uppercase text-gray-400 tracking-wider">Target Product</span>
-                <div>
-                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Product Title</label>
-                  <Input type="text" placeholder="e.g. Swift Brass Gold Pen" value={campaignForm.productTitle} onChange={(e) => setCampaignForm({ ...campaignForm, productTitle: e.target.value })} required className="w-full text-sm" />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
-                    <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Price ($)</label>
-                    <Input type="number" value={campaignForm.productPrice} onChange={(e) => setCampaignForm({ ...campaignForm, productPrice: Number(e.target.value) })} required className="w-full text-sm" />
+                    <label className={labelCls}>Draw date</label>
+                    <input type="date" value={campaignForm.drawDate} onChange={(e) => setCampaignForm({ ...campaignForm, drawDate: e.target.value })} className={fieldCls} />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Ticket Limit</label>
-                    <Input type="number" value={campaignForm.ticketLimit} onChange={(e) => setCampaignForm({ ...campaignForm, ticketLimit: Number(e.target.value) })} required className="w-full text-sm" />
+                    <label className={labelCls}>Max tickets per user</label>
+                    <input type="number" value={campaignForm.maxTicketsPerUser} onChange={(e) => setCampaignForm({ ...campaignForm, maxTicketsPerUser: Number(e.target.value) })} className={`${fieldCls} tabular-nums`} />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Per Purchase</label>
-                    <Input type="number" value={campaignForm.ticketsPerPurchase} onChange={(e) => setCampaignForm({ ...campaignForm, ticketsPerPurchase: Number(e.target.value) })} className="w-full text-sm" />
+                    <label className={labelCls}>Visibility</label>
+                    <div className="relative">
+                      <select value={campaignForm.visibility} onChange={(e) => setCampaignForm({ ...campaignForm, visibility: e.target.value })} className={`${fieldCls} cursor-pointer appearance-none pr-8`}>
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+                    </div>
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Product Image URL</label>
-                  <Input type="text" value={campaignForm.productImage} onChange={(e) => setCampaignForm({ ...campaignForm, productImage: e.target.value })} required className="w-full text-sm" />
+                  <label className={labelCls}>Description</label>
+                  <textarea value={campaignForm.description} onChange={(e) => setCampaignForm({ ...campaignForm, description: e.target.value })} rows={2} className={textareaCls} placeholder="Campaign description..." />
                 </div>
+
+                <fieldset className="space-y-3 rounded-lg border border-line p-4">
+                  <legend className="px-1 text-sm font-medium text-stone-900 dark:text-stone-100">Product</legend>
+                  <div>
+                    <label className={labelCls}>Product title</label>
+                    <input type="text" placeholder="e.g. Swift Brass Gold Pen" value={campaignForm.productTitle} onChange={(e) => setCampaignForm({ ...campaignForm, productTitle: e.target.value })} required className={fieldCls} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className={labelCls}>Price ($)</label>
+                      <input type="number" value={campaignForm.productPrice} onChange={(e) => setCampaignForm({ ...campaignForm, productPrice: Number(e.target.value) })} required className={`${fieldCls} tabular-nums`} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Ticket limit</label>
+                      <input type="number" value={campaignForm.ticketLimit} onChange={(e) => setCampaignForm({ ...campaignForm, ticketLimit: Number(e.target.value) })} required className={`${fieldCls} tabular-nums`} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Tickets per purchase</label>
+                      <input type="number" value={campaignForm.ticketsPerPurchase} onChange={(e) => setCampaignForm({ ...campaignForm, ticketsPerPurchase: Number(e.target.value) })} className={`${fieldCls} tabular-nums`} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Product image URL</label>
+                    <input type="text" value={campaignForm.productImage} onChange={(e) => setCampaignForm({ ...campaignForm, productImage: e.target.value })} required className={fieldCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Product description</label>
+                    <textarea value={campaignForm.productDescription} onChange={(e) => setCampaignForm({ ...campaignForm, productDescription: e.target.value })} required rows={2} className={textareaCls} />
+                  </div>
+                </fieldset>
+
+                <fieldset className="space-y-3 rounded-lg border border-line p-4">
+                  <legend className="flex items-center gap-1.5 px-1 text-sm font-medium text-stone-900 dark:text-stone-100">
+                    <Trophy className="size-3.5 text-[#8b6f47] dark:text-[#c9a96b]" /> Prize
+                  </legend>
+                  <div>
+                    <label className={labelCls}>Prize name</label>
+                    <input type="text" placeholder="e.g. Suzuki GSX sports bike" value={campaignForm.prizeName} onChange={(e) => setCampaignForm({ ...campaignForm, prizeName: e.target.value })} required className={fieldCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Prize image URL</label>
+                    <input type="text" value={campaignForm.prizeImage} onChange={(e) => setCampaignForm({ ...campaignForm, prizeImage: e.target.value })} required className={fieldCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Prize description</label>
+                    <textarea value={campaignForm.prizeDescription} onChange={(e) => setCampaignForm({ ...campaignForm, prizeDescription: e.target.value })} required rows={2} className={textareaCls} />
+                  </div>
+                </fieldset>
+
                 <div>
-                  <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Product Description</label>
-                  <textarea value={campaignForm.productDescription} onChange={(e) => setCampaignForm({ ...campaignForm, productDescription: e.target.value })} required rows={2} className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 focus:outline-none bg-white dark:bg-gray-900" />
+                  <label className={labelCls}>Rules and terms (optional)</label>
+                  <textarea value={campaignForm.terms} onChange={(e) => setCampaignForm({ ...campaignForm, terms: e.target.value })} rows={3} placeholder="Enter campaign rules, eligibility criteria, and terms of participation..." className={textareaCls} />
                 </div>
               </div>
 
-              {/* Prize Section */}
-              <div className="border border-yellow-200/30 dark:border-yellow-800/20 p-4 rounded-2xl bg-yellow-50/10 dark:bg-yellow-950/5 space-y-3">
-                <span className="block text-[9px] font-black uppercase text-yellow-600 tracking-wider">Grand Reward</span>
-                <div>
-                  <label className="block text-[9px] font-bold text-yellow-700 dark:text-yellow-500 uppercase mb-1">Prize Name</label>
-                  <Input type="text" placeholder="e.g. Suzuki GSX sports bike" value={campaignForm.prizeName} onChange={(e) => setCampaignForm({ ...campaignForm, prizeName: e.target.value })} required className="w-full text-sm" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-yellow-700 dark:text-yellow-500 uppercase mb-1">Prize Image URL</label>
-                  <Input type="text" value={campaignForm.prizeImage} onChange={(e) => setCampaignForm({ ...campaignForm, prizeImage: e.target.value })} required className="w-full text-sm" />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-yellow-700 dark:text-yellow-500 uppercase mb-1">Prize Description</label>
-                  <textarea value={campaignForm.prizeDescription} onChange={(e) => setCampaignForm({ ...campaignForm, prizeDescription: e.target.value })} required rows={2} className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 focus:outline-none bg-white dark:bg-gray-900" />
-                </div>
+              <div className="flex justify-end gap-2 border-t border-line px-6 py-4">
+                <AdminButton onClick={() => setIsCampaignModalOpen(false)}>Cancel</AdminButton>
+                <AdminButton type="submit" variant="primary">
+                  {editingCampaign ? 'Save changes' : 'Publish campaign'}
+                </AdminButton>
               </div>
-
-              {/* Terms */}
-              <div>
-                <label className="block text-[9px] font-bold text-gray-400 uppercase mb-1">Campaign Rules & Terms (optional)</label>
-                <textarea value={campaignForm.terms} onChange={(e) => setCampaignForm({ ...campaignForm, terms: e.target.value })} rows={3} placeholder="Enter campaign rules, eligibility criteria, and terms of participation..." className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 focus:outline-none bg-white dark:bg-gray-900" />
-              </div>
-
-              <Button type="submit" className="w-full text-sm py-2.5 font-bold rounded-xl mt-4 bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 shadow-sm">
-                {editingCampaign ? 'Update Campaign' : 'Publish Lucky Draw Campaign'}
-              </Button>
             </form>
           </div>
         </div>
       )}
 
       {drawingCampaign && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-250 dark:border-gray-800 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl p-8 text-center space-y-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4 backdrop-blur-[2px]">
+          <div className="relative w-full max-w-sm space-y-6 rounded-xl border border-line bg-surface p-6 text-center shadow-lg">
 
             {isDrawing && (
-              <div className="space-y-6 py-8">
-                {/* Spinner */}
-                <div className="relative w-24 h-24 mx-auto rounded-full border-4 border-dashed border-yellow-500 animate-spin flex items-center justify-center">
-                  <Trophy className="w-10 h-10 text-yellow-550 animate-bounce" />
+              <div className="space-y-5 py-4" role="status">
+                <div className="relative mx-auto flex size-16 items-center justify-center">
+                  <span className="absolute inset-0 animate-spin rounded-full border-2 border-stone-200 border-t-[#8b6f47] dark:border-white/10 dark:border-t-[#c9a96b]" aria-hidden />
+                  <Trophy className="size-6 text-stone-500 dark:text-stone-400" />
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-serif text-2xl font-extrabold text-gray-900 dark:text-white">Lottery In Progress...</h3>
-                  <p className="text-sm text-gray-450">Selecting random ticket from campaign database entries.</p>
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold text-stone-900 dark:text-white">Drawing a winner…</h3>
+                  <p className="text-sm text-stone-500 dark:text-stone-400">Picking a random ticket from this campaign&apos;s entries.</p>
                 </div>
 
-                {/* Spinning Ticket Code Indicator */}
-                <div className="bg-gray-105 dark:bg-gray-950 p-3 rounded-2xl border font-mono font-bold text-sm tracking-widest text-[#8b6f47] dark:text-[#c9a96b]">
+                <div className="rounded-lg border border-line bg-stone-50 px-3 py-2 font-mono text-sm tabular-nums tracking-wider text-stone-600 dark:bg-white/[0.03] dark:text-stone-300">
                   SWIFT-TKT-{Math.floor(100000 + Math.random() * 900000)}
                 </div>
               </div>
             )}
 
             {drawnWinner && (
-              <div className="space-y-6">
-                <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-950/40 rounded-full flex items-center justify-center mx-auto text-yellow-600">
-                  <Trophy className="w-12 h-12" />
+              <div className="space-y-5">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#8b6f47]/10 text-[#8b6f47] dark:bg-[#c9a96b]/10 dark:text-[#c9a96b]">
+                  <Trophy className="size-6" />
                 </div>
 
-                <div className="space-y-2">
-                  <span className="text-[10px] text-yellow-600 font-black uppercase tracking-widest block">Winner Chosen!</span>
-                  <h3 className="font-serif text-3xl font-extrabold text-gray-900 dark:text-white">{drawnWinner.name}</h3>
-                  <p className="text-sm text-gray-450">Customer account: {drawnWinner.email}</p>
+                <div className="space-y-1">
+                  <span className="block text-xs font-medium text-stone-500 dark:text-stone-400">Winner chosen</span>
+                  <h3 className="text-xl font-semibold text-stone-900 dark:text-white">{drawnWinner.name}</h3>
+                  <p className="text-sm text-stone-500 dark:text-stone-400">Customer account: {drawnWinner.email}</p>
                 </div>
 
-                <div className="p-4 bg-yellow-500/5 rounded-2xl border border-yellow-300/30 text-center">
-                  <span className="block text-[8px] text-gray-450 uppercase font-black tracking-wider mb-1">Winning Ticket Code</span>
-                  <span className="font-mono text-lg font-bold text-[#8b6f47] dark:text-[#c9a96b] tracking-wider">
+                <div className="rounded-lg border border-line bg-stone-50 p-3 dark:bg-white/[0.03]">
+                  <span className="mb-1 block text-xs text-stone-500 dark:text-stone-400">Winning ticket</span>
+                  <span className="font-mono text-base font-semibold tracking-wider text-stone-900 dark:text-stone-100">
                     {drawnWinner.ticketNumber}
                   </span>
                 </div>
 
-                <Button
+                <AdminButton
+                  variant="primary"
                   onClick={() => {
                     setDrawingCampaign(null);
                     setDrawnWinner(null);
                     setIsDrawing(false);
                   }}
-                  className="w-full text-sm font-bold py-2.5 rounded-full bg-[#8b6f47] hover:bg-[#725a38] text-white border-0 shadow-sm"
+                  className="w-full"
                 >
-                  Close & Refresh Dashboard
-                </Button>
+                  Done
+                </AdminButton>
               </div>
             )}
 

@@ -3,11 +3,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { Plus, Edit2, Trash2, X, RefreshCw, Layers, Upload, Star } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Loader2, FolderTree, Upload, Star } from 'lucide-react';
 import { errMsg, uploadImage } from './adminUtils';
 import PreviewImage from '@/components/ui/PreviewImage';
+import { AdminButton, AdminEmpty, Pill, table } from './AdminUI';
 
 interface Category {
   id: string;
@@ -18,6 +17,10 @@ interface Category {
 }
 
 const emptyForm = { name: '', image: '', featured: false };
+
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const inputClass = 'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const iconButton = 'w-8 px-0 text-stone-500 dark:text-stone-400';
 
 export default function CategoriesAdmin() {
   const toast = useToast();
@@ -123,72 +126,78 @@ export default function CategoriesAdmin() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider flex items-center gap-2">
-          <Layers className="w-5 h-5 text-[#8b6f47]" /> Product Categories
-        </h2>
-        <Button onClick={openCreate} className="text-sm py-2 px-3 font-bold rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5">
-          <Plus className="w-4 h-4" /> New Category
-        </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl text-sm text-stone-500 dark:text-stone-400">
+          Categories appear in the storefront menu and in the product form. Renaming a category moves its products with it.
+          A category that still has active products cannot be deleted.
+        </p>
+        <AdminButton variant="primary" onClick={openCreate} className="self-start sm:self-auto">
+          <Plus className="size-4" /> New category
+        </AdminButton>
       </div>
-      <p className="text-xs text-gray-500">
-        Categories appear in the storefront menu and in the product form. Renaming a category moves its products with it.
-        A category that still has active products cannot be deleted.
-      </p>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
-          <RefreshCw className="w-5 h-5 animate-spin text-[#8b6f47]" /> Loading categories...
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-line py-16 text-sm text-stone-500 dark:text-stone-400">
+          <Loader2 className="size-4 animate-spin" /> Loading categories...
         </div>
       ) : loadError ? (
-        <div className="p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           <span>{loadError}</span>
-          <Button variant="outline" size="sm" onClick={load}>Retry</Button>
+          <AdminButton size="sm" onClick={load}>Retry</AdminButton>
         </div>
       ) : (
-        <div className="overflow-x-auto border rounded-2xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px]">
+        <div className={table.wrap}>
+          <table className={table.table}>
+            <thead className={table.thead}>
               <tr>
-                <th className="p-3">Image</th>
-                <th className="p-3">Name</th>
-                <th className="p-3">Slug</th>
-                <th className="p-3">Products</th>
-                <th className="p-3">Featured</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className={table.th}>Category</th>
+                <th className={table.th}>Slug</th>
+                <th className={`${table.th} text-right`}>Products</th>
+                <th className={table.th}>Featured</th>
+                <th className={table.th}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className={table.tbody}>
               {categories.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-400">No categories yet.</td>
+                  <td colSpan={5}>
+                    <AdminEmpty icon={FolderTree} title="No categories yet" description="Create your first category with New category." />
+                  </td>
                 </tr>
               )}
               {categories.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50/50">
-                  <td className="p-3">
-                    <img src={c.image} alt={c.name} className="w-12 h-12 rounded-xl object-cover bg-gray-100" />
+                <tr key={c.id} className={table.tr}>
+                  <td className={table.td}>
+                    <div className="flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.image} alt={c.name} className="size-10 shrink-0 rounded-lg bg-stone-100 object-cover dark:bg-white/5" />
+                      <span className="font-medium text-stone-900 dark:text-stone-100">{c.name}</span>
+                    </div>
                   </td>
-                  <td className="p-3 font-bold text-gray-800 dark:text-gray-200">{c.name}</td>
-                  <td className="p-3 font-mono text-xs text-gray-500">{c.slug}</td>
-                  <td className="p-3 text-gray-600 dark:text-gray-300">{counts[c.name.toLowerCase()] || 0}</td>
-                  <td className="p-3">
+                  <td className={`${table.td} font-mono text-xs text-stone-500 dark:text-stone-400`}>{c.slug}</td>
+                  <td className={`${table.td} text-right tabular-nums text-stone-700 dark:text-stone-300`}>{counts[c.name.toLowerCase()] || 0}</td>
+                  <td className={table.td}>
                     {c.featured ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700">
-                        <Star className="w-3 h-3 fill-amber-500" /> Featured
-                      </span>
+                      <Pill tone="accent"><Star className="size-3 fill-current" /> Featured</Pill>
                     ) : (
-                      <span className="text-[10px] text-gray-400">No</span>
+                      <span className="text-xs text-stone-400">No</span>
                     )}
                   </td>
-                  <td className="p-3 text-right">
-                    <div className="flex justify-end gap-1.5">
-                      <button onClick={() => openEdit(c)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit category">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => remove(c)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete category">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                  <td className={`${table.td} text-right`}>
+                    <div className="flex justify-end gap-1">
+                      <AdminButton variant="ghost" size="sm" onClick={() => openEdit(c)} className={iconButton} title="Edit category" aria-label={`Edit ${c.name}`}>
+                        <Edit2 className="size-3.5" />
+                      </AdminButton>
+                      <AdminButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(c)}
+                        className={`${iconButton} hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300`}
+                        title="Delete category"
+                        aria-label={`Delete ${c.name}`}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </AdminButton>
                     </div>
                   </td>
                 </tr>
@@ -199,39 +208,46 @@ export default function CategoriesAdmin() {
       )}
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md shadow-2xl p-6 relative">
-            <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-              <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="category-modal-title" className="relative w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              aria-label="Close"
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/[0.06] dark:hover:text-stone-200 cursor-pointer"
+            >
+              <X className="size-4" />
             </button>
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2">
+            <h3 id="category-modal-title" className="pr-8 text-base font-semibold text-stone-900 dark:text-white">
               {editing ? `Edit category "${editing.name}"` : 'New category'}
             </h3>
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Name</label>
-                <Input
+                <label htmlFor="category-name" className={labelClass}>Name</label>
+                <input
+                  id="category-name"
                   type="text"
                   placeholder="e.g. Sneakers"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  className="w-full text-sm"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Image</label>
-                <div className="flex gap-2 items-center">
-                  <Input
+                <label htmlFor="category-image" className={labelClass}>Image</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="category-image"
                     type="text"
                     placeholder="https://... or /images/categories/x.jpg"
                     value={form.image}
                     onChange={(e) => setForm({ ...form, image: e.target.value })}
-                    className="w-full text-sm"
+                    className={inputClass}
                   />
-                  <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-[#8b6f47] text-[#8b6f47] text-xs font-bold cursor-pointer hover:bg-[#8b6f47]/5 whitespace-nowrap">
-                    <Upload className="w-4 h-4" />
-                    {uploading ? '...' : 'Upload'}
+                  <label className={`inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-line bg-surface px-3 text-sm font-medium text-stone-700 shadow-xs transition-colors hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-white/[0.06] ${uploading ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                    {uploading ? 'Uploading' : 'Upload'}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif"
@@ -245,21 +261,25 @@ export default function CategoriesAdmin() {
                   </label>
                 </div>
                 {form.image && (
-                  <PreviewImage src={form.image.trim()} className="mt-2 w-24 h-24 rounded-xl object-cover bg-gray-100 border" />
+                  <PreviewImage src={form.image.trim()} className="mt-2 size-24 rounded-lg border border-line bg-stone-100 object-cover dark:bg-white/5" />
                 )}
               </div>
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
                 <input
                   type="checkbox"
                   checked={form.featured}
                   onChange={(e) => setForm({ ...form, featured: e.target.checked })}
-                  className="rounded border-gray-300 text-[#8b6f47]"
+                  className="size-4 accent-[#8b6f47]"
                 />
                 Featured (shown prominently on the home page)
               </label>
-              <Button type="submit" loading={saving} className="w-full text-sm py-2.5 font-bold rounded-xl bg-[#8b6f47] text-white">
-                {editing ? 'Save changes' : 'Create category'}
-              </Button>
+              <div className="flex justify-end gap-2 border-t border-line pt-4">
+                <AdminButton onClick={() => setModalOpen(false)}>Cancel</AdminButton>
+                <AdminButton type="submit" variant="primary" disabled={saving}>
+                  {saving && <Loader2 className="size-4 animate-spin" />}
+                  {editing ? 'Save changes' : 'Create category'}
+                </AdminButton>
+              </div>
             </form>
           </div>
         </div>

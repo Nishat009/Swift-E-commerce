@@ -3,11 +3,32 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { useCurrencyStore } from '@/stores/currencyStore';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Coins } from 'lucide-react';
 import { SectionLoading, useSectionLoad } from './AdminSection';
+import { AdminButton, AdminEmpty, Pill, table } from './AdminUI';
+
+const labelCls = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const fieldCls =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 disabled:cursor-not-allowed disabled:bg-stone-50 disabled:text-stone-500 dark:text-stone-100 dark:disabled:bg-white/[0.03]';
+const iconBtn =
+  'inline-flex size-8 items-center justify-center rounded-lg text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-white/[0.06] dark:hover:text-stone-100 cursor-pointer';
+
+function ModalShell({ title, onClose, children }: { title: React.ReactNode; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4 backdrop-blur-[2px]">
+      <div className="relative w-full max-w-md rounded-xl border border-line bg-surface shadow-lg">
+        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+          <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">{title}</h3>
+          <button type="button" onClick={onClose} className={iconBtn} aria-label="Close">
+            <X className="size-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function CurrenciesAdmin() {
   const toast = useToast();
@@ -112,59 +133,63 @@ export default function CurrenciesAdmin() {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Dynamic Currencies (Store Localization)</h2>
-          <Button onClick={() => setShowCreateCurrencyModal(true)} className="text-sm py-2 px-3 font-bold rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5 cursor-pointer">
-            <Plus className="w-4 h-4" /> Add Currency
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Prices are stored in USD and shown to shoppers at these rates.
+          </p>
+          <AdminButton variant="primary" onClick={() => setShowCreateCurrencyModal(true)}>
+            <Plus className="size-4" /> Add currency
+          </AdminButton>
         </div>
 
-        <div className="overflow-x-auto border rounded-2xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px]">
+        <div className={table.wrap}>
+          <table className={table.table}>
+            <thead className={table.thead}>
               <tr>
-                <th className="p-3">Code</th>
-                <th className="p-3">Symbol</th>
-                <th className="p-3">Rate (relative to USD)</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className={table.th}>Code</th>
+                <th className={table.th}>Symbol</th>
+                <th className={`${table.th} text-right`}>Rate (per 1 USD)</th>
+                <th className={table.th}>Status</th>
+                <th className={table.th}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className={table.tbody}>
+              {adminCurrencies.length === 0 && (
+                <tr>
+                  <td colSpan={5}>
+                    <AdminEmpty icon={Coins} title="No currencies yet" description="Add a currency so shoppers can browse prices in it." />
+                  </td>
+                </tr>
+              )}
               {adminCurrencies.map((curr) => (
-                <tr key={curr.id || curr._id} className="hover:bg-gray-50/50">
-                  <td className="p-3 font-mono font-bold text-gray-850 dark:text-white uppercase">{curr.code}</td>
-                  <td className="p-3 text-lg font-bold text-gray-800 dark:text-gray-250 font-serif">{curr.symbol}</td>
-                  <td className="p-3 font-mono font-bold text-[#8b6f47] dark:text-[#c9a96b]">
-                    1.00 USD = {curr.rate.toFixed(4)} {curr.code}
+                <tr key={curr.id || curr._id} className={table.tr}>
+                  <td className={`${table.td} font-mono text-xs font-semibold uppercase text-stone-900 dark:text-stone-100`}>{curr.code}</td>
+                  <td className={`${table.td} text-base font-medium text-stone-800 dark:text-stone-200`}>{curr.symbol}</td>
+                  <td className={`${table.td} whitespace-nowrap text-right tabular-nums text-stone-700 dark:text-stone-300`}>
+                    <span className="text-stone-400">1 USD = </span>
+                    <span className="font-medium text-stone-900 dark:text-stone-100">{curr.rate.toFixed(4)}</span> {curr.code}
                   </td>
-                  <td className="p-3">
-                    {curr.isDefault ? (
-                      <span className="bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border border-emerald-500/20">
-                        Base Currency
-                      </span>
-                    ) : (
-                      <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider">
-                        Secondary
-                      </span>
-                    )}
+                  <td className={table.td}>
+                    {curr.isDefault ? <Pill tone="accent" dot>Base currency</Pill> : <Pill>Secondary</Pill>}
                   </td>
-                  <td className="p-3 text-right">
-                    <div className="flex justify-end gap-1.5">
+                  <td className={`${table.td} text-right`}>
+                    <div className="flex justify-end gap-1">
                       <button
                         onClick={() => handleOpenEditCurrency(curr)}
-                        className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg cursor-pointer"
-                        title="Edit Currency Details"
+                        className={iconBtn}
+                        title="Edit currency"
+                        aria-label={`Edit ${curr.code}`}
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Edit2 className="size-4" />
                       </button>
                       {!curr.isDefault && (
                         <button
                           onClick={() => handleDeleteCurrency(curr)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg cursor-pointer"
-                          title="Delete Currency"
+                          className={`${iconBtn} hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-400/10 dark:hover:text-red-300`}
+                          title="Delete currency"
+                          aria-label={`Delete ${curr.code}`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="size-4" />
                         </button>
                       )}
                     </div>
@@ -177,142 +202,132 @@ export default function CurrenciesAdmin() {
       </div>
 
       {showCreateCurrencyModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md shadow-2xl p-6 relative">
-            <button onClick={() => setShowCreateCurrencyModal(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700 cursor-pointer">
-              <X className="w-4 h-4" />
-            </button>
-
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-[#8b6f47]" /> Add Dynamic Currency
-            </h3>
-
-            <form onSubmit={handleCreateCurrency} className="space-y-4">
+        <ModalShell title="Add currency" onClose={() => setShowCreateCurrencyModal(false)}>
+          <form onSubmit={handleCreateCurrency}>
+            <div className="space-y-4 p-5">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Currency Code (ISO)</label>
-                <Input
+                <label htmlFor="new-currency-code" className={labelCls}>Currency code (ISO)</label>
+                <input
+                  id="new-currency-code"
                   type="text"
                   placeholder="e.g. BDT"
                   maxLength={3}
                   value={newCurrencyCode}
                   onChange={(e) => setNewCurrencyCode(e.target.value.toUpperCase())}
                   required
-                  className="w-full text-sm font-mono font-bold"
+                  className={`${fieldCls} font-mono`}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Symbol</label>
-                <Input
+                <label htmlFor="new-currency-symbol" className={labelCls}>Symbol</label>
+                <input
+                  id="new-currency-symbol"
                   type="text"
                   placeholder="e.g. ৳ or BDT"
                   value={newCurrencySymbol}
                   onChange={(e) => setNewCurrencySymbol(e.target.value)}
                   required
-                  className="w-full text-sm"
+                  className={fieldCls}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Rate (1.00 USD = X Currency)</label>
-                <Input
+                <label htmlFor="new-currency-rate" className={labelCls}>Rate (1 USD = X of this currency)</label>
+                <input
+                  id="new-currency-rate"
                   type="number"
                   step="0.0001"
                   placeholder="e.g. 118.0"
                   value={newCurrencyRate}
                   onChange={(e) => setNewCurrencyRate(e.target.value)}
                   required
-                  className="w-full text-sm font-mono"
+                  className={`${fieldCls} tabular-nums`}
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
+              <label className="flex cursor-pointer select-none items-start gap-2.5 text-sm text-stone-700 dark:text-stone-300">
                 <input
                   type="checkbox"
                   id="newCurrencyDefault"
                   checked={newCurrencyDefault}
                   onChange={(e) => setNewCurrencyDefault(e.target.checked)}
-                  className="rounded border-gray-300 text-[#8b6f47] focus:ring-[#8b6f47]/30"
+                  className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[#8b6f47]"
                 />
-                <label htmlFor="newCurrencyDefault" className="text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
-                  Set as store base currency (USD must remain 1.0 if not base)
-                </label>
-              </div>
+                <span>
+                  Set as the store base currency
+                  <span className="block text-xs text-stone-500 dark:text-stone-400">USD must remain 1.0 if it is not the base.</span>
+                </span>
+              </label>
+            </div>
 
-              <Button type="submit" className="w-full text-sm py-2.5 font-bold rounded-xl mt-4 bg-[#8b6f47] text-white cursor-pointer">
-                Create Currency
-              </Button>
-            </form>
-          </div>
-        </div>
+            <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
+              <AdminButton onClick={() => setShowCreateCurrencyModal(false)}>Cancel</AdminButton>
+              <AdminButton type="submit" variant="primary">Create currency</AdminButton>
+            </div>
+          </form>
+        </ModalShell>
       )}
 
-      {/* EDIT CURRENCY DIALOG MODAL */}
       {showEditCurrencyModal && selectedEditCurrency && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md shadow-2xl p-6 relative">
-            <button onClick={() => setShowEditCurrencyModal(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700 cursor-pointer">
-              <X className="w-4 h-4" />
-            </button>
-
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 flex items-center gap-2">
-              <Edit2 className="w-5 h-5 text-[#8b6f47]" /> Edit Currency: {selectedEditCurrency.code}
-            </h3>
-
-            <form onSubmit={handleUpdateCurrency} className="space-y-4">
+        <ModalShell title={`Edit ${selectedEditCurrency.code}`} onClose={() => setShowEditCurrencyModal(false)}>
+          <form onSubmit={handleUpdateCurrency}>
+            <div className="space-y-4 p-5">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Currency Code (ISO)</label>
-                <Input
+                <label htmlFor="edit-currency-code" className={labelCls}>Currency code (ISO)</label>
+                <input
+                  id="edit-currency-code"
                   type="text"
                   value={selectedEditCurrency.code}
                   disabled
-                  className="w-full text-sm font-mono font-bold bg-gray-50/50 cursor-not-allowed"
+                  className={`${fieldCls} font-mono`}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Symbol</label>
-                <Input
+                <label htmlFor="edit-currency-symbol" className={labelCls}>Symbol</label>
+                <input
+                  id="edit-currency-symbol"
                   type="text"
                   value={editCurrencySymbol}
                   onChange={(e) => setEditCurrencySymbol(e.target.value)}
                   required
-                  className="w-full text-sm"
+                  className={fieldCls}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Rate (1.00 USD = X Currency)</label>
-                <Input
+                <label htmlFor="edit-currency-rate" className={labelCls}>Rate (1 USD = X of this currency)</label>
+                <input
+                  id="edit-currency-rate"
                   type="number"
                   step="0.0001"
                   value={editCurrencyRate}
                   onChange={(e) => setEditCurrencyRate(e.target.value)}
                   required
-                  className="w-full text-sm font-mono"
+                  className={`${fieldCls} tabular-nums`}
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
+              <label className={`flex select-none items-center gap-2.5 text-sm text-stone-700 dark:text-stone-300 ${selectedEditCurrency.isDefault ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   id="editCurrencyDefault"
                   checked={editCurrencyDefault}
                   onChange={(e) => setEditCurrencyDefault(e.target.checked)}
                   disabled={selectedEditCurrency.isDefault}
-                  className="rounded border-gray-300 text-[#8b6f47] focus:ring-[#8b6f47]/30 disabled:opacity-50"
+                  className="size-4 shrink-0 cursor-pointer accent-[#8b6f47] disabled:cursor-not-allowed"
                 />
-                <label htmlFor="editCurrencyDefault" className="text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none disabled:opacity-50">
-                  Set as store base currency
-                </label>
-              </div>
+                Set as the store base currency
+              </label>
+            </div>
 
-              <Button type="submit" className="w-full text-sm py-2.5 font-bold rounded-xl mt-4 bg-[#8b6f47] text-white cursor-pointer">
-                Update Currency Rate
-              </Button>
-            </form>
-          </div>
-        </div>
+            <div className="flex justify-end gap-2 border-t border-line px-5 py-4">
+              <AdminButton onClick={() => setShowEditCurrencyModal(false)}>Cancel</AdminButton>
+              <AdminButton type="submit" variant="primary">Save changes</AdminButton>
+            </div>
+          </form>
+        </ModalShell>
       )}
     </>
   );

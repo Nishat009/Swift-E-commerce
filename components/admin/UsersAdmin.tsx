@@ -5,11 +5,10 @@ import apiClient from '@/lib/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Order, User } from '@/types';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { Search, Mail, Trash2, X, Users, RefreshCw, ShoppingBag, Heart, Clock } from 'lucide-react';
+import { Eye, Mail, Trash2, X, Users, Loader2, ShoppingBag, Heart, Clock } from 'lucide-react';
 import EmailCustomerModal from './EmailCustomerModal';
 import { SectionLoading, useSectionLoad } from './AdminSection';
+import { AdminButton, AdminEmpty, Pill, SearchField, StatusPill, table } from './AdminUI';
 
 /** Registered accounts: roles, delete, email a customer and inspect their cart, wishlist and orders. */
 export default function UsersAdmin() {
@@ -109,87 +108,75 @@ export default function UsersAdmin() {
   return (
     <>
       <div className="space-y-4">
-        <div className="border-b pb-3.5 mb-4">
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Registered Accounts</h2>
-        </div>
+        <SearchField
+          value={userSearch}
+          onChange={setUserSearch}
+          placeholder="Search by name or email"
+          className="w-full sm:w-80"
+        />
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Search accounts by name or email address..."
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-            className="w-full text-sm pl-8"
-          />
-          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-        </div>
-
-        {/* Users Table */}
-        <div className="overflow-x-auto border rounded-2xl max-h-[500px] overflow-y-auto scrollbar-thin">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px] sticky top-0 z-10">
+        <div className={`${table.wrap} max-h-[640px] overflow-y-auto`}>
+          <table className={table.table}>
+            <thead className={`${table.thead} sticky top-0 z-10`}>
               <tr>
-                <th className="p-3">Name</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Access Level</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className={table.th}>Name</th>
+                <th className={table.th}>Email</th>
+                <th className={table.th}>Role</th>
+                <th className={table.th}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
-              {filteredUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50/50">
-                  <td className="p-3 font-bold text-gray-800 dark:text-gray-200">{u.name}</td>
-                  <td className="p-3 font-mono">{u.email}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {u.role}
-                    </span>
+            <tbody className={table.tbody}>
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={4}>
+                    <AdminEmpty icon={Users} title="No accounts found" description={userSearch ? 'Try a different search.' : 'New sign-ups will appear here.'} />
                   </td>
-                  <td className="p-3 text-right flex justify-end gap-2 items-center">
-                    <Button
-                      onClick={() => handleInspectUserSession(u)}
-                      variant="outline"
-                      size="sm"
-                      className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55 flex items-center gap-1"
-                    >
-                      <Search className="w-3 h-3" /> Inspect Session
-                    </Button>
-                    <Button
-                      onClick={() => setEmailingUser(u)}
-                      variant="outline"
-                      size="sm"
-                      className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55 flex items-center gap-1"
-                    >
-                      <Mail className="w-3 h-3" /> Email
-                    </Button>
-                    {u.id !== user?.id ? (
-                      <>
-                        <Button
-                          onClick={() => handleToggleUserRole(u)}
-                          variant="outline"
-                          size="sm"
-                          className="text-[9px] py-1 px-2 font-bold rounded-lg border-gray-200 hover:bg-gray-55"
-                        >
-                          {u.role === 'admin' ? 'Revoke Admin' : 'Grant Admin'}
-                        </Button>
-                        {u.role !== 'admin' && (
-                          <button onClick={() => handleDeleteUser(u.id!)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete User Account">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-[9px] font-bold text-gray-400 px-2">You</span>
-                    )}
+                </tr>
+              )}
+              {filteredUsers.map((u) => (
+                <tr key={u.id} className={table.tr}>
+                  <td className={`${table.td} font-medium text-stone-900 dark:text-stone-100`}>{u.name}</td>
+                  <td className={`${table.td} text-stone-600 dark:text-stone-300`}>{u.email}</td>
+                  <td className={table.td}>
+                    <Pill tone={u.role === 'admin' ? 'accent' : 'neutral'}>{u.role === 'admin' ? 'Admin' : 'Customer'}</Pill>
+                  </td>
+                  <td className={table.td}>
+                    <div className="flex items-center gap-1.5">
+                      <AdminButton size="sm" onClick={() => handleInspectUserSession(u)} title="See their cart, wishlist and orders">
+                        <Eye className="size-3.5" /> Inspect
+                      </AdminButton>
+                      <AdminButton size="sm" onClick={() => setEmailingUser(u)}>
+                        <Mail className="size-3.5" /> Email
+                      </AdminButton>
+                      {u.id !== user?.id ? (
+                        <>
+                          <AdminButton size="sm" onClick={() => handleToggleUserRole(u)}>
+                            {u.role === 'admin' ? 'Revoke admin' : 'Grant admin'}
+                          </AdminButton>
+                          {u.role !== 'admin' && (
+                            <AdminButton
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteUser(u.id!)}
+                              className="w-8 px-0 text-stone-500 hover:bg-red-50 hover:text-red-600 dark:text-stone-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                              title="Delete user account"
+                              aria-label={`Delete ${u.name}`}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </AdminButton>
+                          )}
+                        </>
+                      ) : (
+                        <span className="px-1 text-xs text-stone-400">Your account</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <p className="text-xs text-stone-500">Showing {filteredUsers.length} of {allUsers.length} accounts</p>
       </div>
 
       {emailingUser && (
@@ -200,101 +187,98 @@ export default function UsersAdmin() {
       )}
 
       {showInspectModal && selectedInspectUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-3xl overflow-y-auto max-h-[85vh] shadow-2xl p-6 relative">
-            <button onClick={() => setShowInspectModal(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-              <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="inspect-title" className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowInspectModal(false)}
+              aria-label="Close"
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/[0.06] dark:hover:text-stone-200 cursor-pointer"
+            >
+              <X className="size-4" />
             </button>
 
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-6 border-b pb-2 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#8b6f47] dark:text-[#c9a96b]" /> Inspect Session: {selectedInspectUser.name}
-            </h3>
+            <h3 id="inspect-title" className="pr-8 text-base font-semibold text-stone-900 dark:text-white">{selectedInspectUser.name}</h3>
+            <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">{selectedInspectUser.email} · cart, wishlist and orders</p>
 
             {loadingInspect ? (
-              <div className="py-20 flex flex-col items-center justify-center gap-3">
-                <RefreshCw className="w-8 h-8 animate-spin text-[#8b6f47]" />
-                <span className="text-sm font-semibold text-gray-400">Loading user session data...</span>
+              <div className="flex items-center justify-center gap-2 py-20 text-sm text-stone-500 dark:text-stone-400">
+                <Loader2 className="size-4 animate-spin" /> Loading session data...
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column: Active Cart & Wishlist */}
-                <div className="space-y-6">
-                  {/* 1. Active Cart Card */}
-                  <div className="p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      <ShoppingBag className="w-4 h-4 text-[#8b6f47]" /> Active Shopping Cart
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-4">
+                  <section className="rounded-lg border border-line p-4">
+                    <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      <ShoppingBag className="size-4 text-stone-400" /> Cart
                     </h4>
                     {!inspectCart || inspectCart.products.length === 0 ? (
-                      <p className="text-xs text-gray-400 py-2">No items currently in cart.</p>
+                      <p className="text-sm text-stone-500 dark:text-stone-400">The cart is empty.</p>
                     ) : (
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
                         {inspectCart.products.map((item: any) => (
-                          <div key={item._id || item.id} className="flex justify-between items-center text-xs p-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 font-medium">
-                            <div className="truncate max-w-[150px] text-left">
-                              <p className="font-bold text-gray-800 dark:text-gray-250 truncate">{item.product?.title}</p>
-                              <p className="text-[10px] text-gray-400">{item.product?.brand}</p>
+                          <div key={item._id || item.id} className="flex items-center justify-between gap-3 rounded-md bg-stone-50 px-3 py-2 dark:bg-white/[0.04]">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-stone-800 dark:text-stone-200">{item.product?.title}</p>
+                              <p className="text-xs text-stone-400">{item.product?.brand}</p>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-[#8b6f47]">${item.product?.price}</p>
-                              <p className="text-[10px] text-gray-400">Qty: {item.quantity}</p>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-medium tabular-nums text-stone-900 dark:text-white">${item.product?.price}</p>
+                              <p className="text-xs tabular-nums text-stone-400">Qty {item.quantity}</p>
                             </div>
                           </div>
                         ))}
-                        <div className="border-t pt-2 mt-2 flex justify-between text-xs font-bold text-gray-800 dark:text-gray-200">
-                          <span>Total Value:</span>
-                          <span className="text-[#8b6f47]">${inspectCart.subtotal || 0}</span>
+                        <div className="mt-2 flex justify-between border-t border-line pt-2 text-sm font-semibold text-stone-900 dark:text-white">
+                          <span>Total value</span>
+                          <span className="tabular-nums">${inspectCart.subtotal || 0}</span>
                         </div>
                       </div>
                     )}
-                  </div>
+                  </section>
 
-                  {/* 2. Wishlist Card */}
-                  <div className="p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      <Heart className="w-4 h-4 text-red-500" /> Current Wishlist Choice
+                  <section className="rounded-lg border border-line p-4">
+                    <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      <Heart className="size-4 text-stone-400" /> Wishlist
                     </h4>
                     {!inspectWishlist || inspectWishlist.products.length === 0 ? (
-                      <p className="text-xs text-gray-400 py-2">No items currently in wishlist.</p>
+                      <p className="text-sm text-stone-500 dark:text-stone-400">The wishlist is empty.</p>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                      <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1">
                         {inspectWishlist.products.map((item: any) => (
-                          <div key={item._id || item.id} className="p-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 text-[10px] text-left font-medium">
-                            <p className="font-bold text-gray-800 dark:text-gray-250 truncate" title={item.title}>{item.title}</p>
-                            <p className="font-bold text-[#8b6f47] mt-0.5">${item.price}</p>
+                          <div key={item._id || item.id} className="rounded-md bg-stone-50 px-3 py-2 dark:bg-white/[0.04]">
+                            <p className="truncate text-sm font-medium text-stone-800 dark:text-stone-200" title={item.title}>{item.title}</p>
+                            <p className="mt-0.5 text-xs tabular-nums text-stone-500 dark:text-stone-400">${item.price}</p>
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </section>
                 </div>
 
-                {/* Right Column: Customer Orders history */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-blue-500" /> Placed Orders History
+                <section className="rounded-lg border border-line p-4">
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    <Clock className="size-4 text-stone-400" /> Orders
+                    {inspectOrders.length > 0 && <span className="text-xs font-normal tabular-nums text-stone-400">{inspectOrders.length}</span>}
                   </h4>
                   {inspectOrders.length === 0 ? (
-                    <p className="text-xs text-gray-400 py-2">No order placements recorded.</p>
+                    <p className="text-sm text-stone-500 dark:text-stone-400">No orders placed yet.</p>
                   ) : (
-                    <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                    <ul className="max-h-[400px] divide-y divide-line overflow-y-auto pr-1">
                       {inspectOrders.map((o) => (
-                        <div key={o.id} className="p-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 text-[11px] space-y-1">
-                          <div className="flex justify-between font-mono text-[9px] text-gray-400 border-b pb-1 dark:border-gray-800">
-                            <span>#{o.id}</span>
-                            <span>{new Date(o.createdAt).toLocaleDateString()}</span>
+                        <li key={o.id} className="py-2.5 first:pt-0 last:pb-0">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="truncate font-mono text-xs font-medium text-stone-800 dark:text-stone-200">{o.orderNumber || o.id}</span>
+                            <span className="shrink-0 text-sm font-medium tabular-nums text-stone-900 dark:text-white">${o.total.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between items-center text-xs font-bold pt-1">
-                            <span className="text-[#8b6f47] dark:text-[#c9a96b]">${o.total.toFixed(0)}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] ${
-                              o.orderStatus === 'Delivered' ? 'bg-green-100 text-green-700' :
-                              o.orderStatus === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                            }`}>{o.orderStatus}</span>
+                          <div className="mt-1 flex items-center justify-between gap-3">
+                            <span className="text-xs text-stone-400">{new Date(o.createdAt).toLocaleDateString()}</span>
+                            <StatusPill status={o.orderStatus} />
                           </div>
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
-                </div>
+                </section>
               </div>
             )}
           </div>

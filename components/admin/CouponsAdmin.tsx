@@ -1,13 +1,11 @@
 'use client';
 
-import { selectClass } from '@/components/ui/Select';
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { Plus, Edit2, Trash2, X, RefreshCw, Gift } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Loader2, TicketPercent, ChevronDown } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { AdminButton, AdminEmpty, Pill, table } from './AdminUI';
 
 interface Coupon {
   id: string;
@@ -19,6 +17,10 @@ interface Coupon {
 }
 
 const emptyForm = { code: '', type: 'percentage' as 'percentage' | 'fixed', value: '', expiry: '', active: true };
+
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const inputClass = 'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark]';
+const iconButton = 'w-8 px-0 text-stone-500 dark:text-stone-400';
 
 export default function CouponsAdmin() {
   const toast = useToast();
@@ -131,76 +133,80 @@ export default function CouponsAdmin() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider flex items-center gap-2">
-          <Gift className="w-5 h-5 text-[#8b6f47]" /> Discount Coupons
-        </h2>
-        <Button onClick={openCreate} className="text-sm py-2 px-3 font-bold rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5">
-          <Plus className="w-4 h-4" /> New Coupon
-        </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-stone-500 dark:text-stone-400">Codes customers enter at checkout. Click a status to turn a coupon on or off.</p>
+        <AdminButton variant="primary" onClick={openCreate} className="self-start sm:self-auto">
+          <Plus className="size-4" /> New coupon
+        </AdminButton>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
-          <RefreshCw className="w-5 h-5 animate-spin text-[#8b6f47]" /> Loading coupons...
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-line py-16 text-sm text-stone-500 dark:text-stone-400">
+          <Loader2 className="size-4 animate-spin" /> Loading coupons...
         </div>
       ) : loadError ? (
-        <div className="p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           <span>{loadError}</span>
-          <Button variant="outline" size="sm" onClick={load}>Retry</Button>
+          <AdminButton size="sm" onClick={load}>Retry</AdminButton>
         </div>
       ) : (
-        <div className="overflow-x-auto border rounded-2xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px]">
+        <div className={table.wrap}>
+          <table className={table.table}>
+            <thead className={table.thead}>
               <tr>
-                <th className="p-3">Code</th>
-                <th className="p-3">Discount</th>
-                <th className="p-3">Valid until</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className={table.th}>Code</th>
+                <th className={`${table.th} text-right`}>Discount</th>
+                <th className={table.th}>Valid until</th>
+                <th className={table.th}>Status</th>
+                <th className={table.th}><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className={table.tbody}>
               {coupons.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-400">
-                    No coupons yet. Create your first one with the button above.
+                  <td colSpan={5}>
+                    <AdminEmpty icon={TicketPercent} title="No coupons yet" description="Create your first one with New coupon." />
                   </td>
                 </tr>
               )}
               {coupons.map((c) => {
                 const expired = new Date(c.expiry).getTime() < now;
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50/50">
-                    <td className="p-3 font-mono font-bold text-gray-800 dark:text-gray-200">{c.code}</td>
-                    <td className="p-3 font-extrabold text-[#8b6f47] dark:text-[#c9a96b]">
+                  <tr key={c.id} className={table.tr}>
+                    <td className={`${table.td} font-mono text-[13px] font-medium text-stone-900 dark:text-stone-100`}>{c.code}</td>
+                    <td className={`${table.td} text-right font-medium tabular-nums text-stone-900 dark:text-white`}>
                       {c.percentage > 0 ? `${c.percentage}% off` : `$${c.amount.toFixed(2)} off`}
                     </td>
-                    <td className="p-3 text-gray-500 text-xs">{new Date(c.expiry).toLocaleDateString()}</td>
-                    <td className="p-3">
+                    <td className={`${table.td} whitespace-nowrap text-xs text-stone-500 dark:text-stone-400`}>{new Date(c.expiry).toLocaleDateString()}</td>
+                    <td className={table.td}>
                       {expired ? (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 text-gray-600">Expired</span>
+                        <Pill>Expired</Pill>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => toggleActive(c)}
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold cursor-pointer ${
-                            c.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                          }`}
-                          title="Click to toggle"
+                          className="rounded-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b6f47]/40"
+                          title={c.active ? 'Click to disable' : 'Click to activate'}
                         >
-                          {c.active ? 'Active' : 'Disabled'}
+                          <Pill tone={c.active ? 'success' : 'danger'} dot>{c.active ? 'Active' : 'Disabled'}</Pill>
                         </button>
                       )}
                     </td>
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button onClick={() => openEdit(c)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="Edit coupon">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => remove(c)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete coupon">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                    <td className={`${table.td} text-right`}>
+                      <div className="flex justify-end gap-1">
+                        <AdminButton variant="ghost" size="sm" onClick={() => openEdit(c)} className={iconButton} title="Edit coupon" aria-label={`Edit ${c.code}`}>
+                          <Edit2 className="size-3.5" />
+                        </AdminButton>
+                        <AdminButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(c)}
+                          className={`${iconButton} hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300`}
+                          title="Delete coupon"
+                          aria-label={`Delete ${c.code}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </AdminButton>
                       </div>
                     </td>
                   </tr>
@@ -212,75 +218,91 @@ export default function CouponsAdmin() {
       )}
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md shadow-2xl p-6 relative">
-            <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-              <X className="w-4 h-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="coupon-modal-title" className="relative w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              aria-label="Close"
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/[0.06] dark:hover:text-stone-200 cursor-pointer"
+            >
+              <X className="size-4" />
             </button>
-            <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2">
+            <h3 id="coupon-modal-title" className="pr-8 text-base font-semibold text-stone-900 dark:text-white">
               {editing ? `Edit coupon ${editing.code}` : 'New coupon'}
             </h3>
-            <form onSubmit={submit} className="space-y-4">
+            <form onSubmit={submit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Code</label>
-                <Input
+                <label htmlFor="coupon-code" className={labelClass}>Code</label>
+                <input
+                  id="coupon-code"
                   type="text"
                   placeholder="e.g. SUMMER20"
                   value={form.code}
                   onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
                   required
-                  className="w-full text-sm font-mono font-bold"
+                  className={`${inputClass} font-mono font-medium`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Discount type</label>
-                  <select
-                    value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value as 'percentage' | 'fixed' })}
-                    className={`${selectClass} w-full`}
-                  >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed amount ($)</option>
-                  </select>
+                  <label htmlFor="coupon-type" className={labelClass}>Discount type</label>
+                  <div className="relative">
+                    <select
+                      id="coupon-type"
+                      value={form.type}
+                      onChange={(e) => setForm({ ...form, type: e.target.value as 'percentage' | 'fixed' })}
+                      className={`${inputClass} cursor-pointer appearance-none pr-9`}
+                    >
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed amount ($)</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">
+                  <label htmlFor="coupon-value" className={labelClass}>
                     {form.type === 'percentage' ? 'Percent off' : 'Amount off'}
                   </label>
-                  <Input
+                  <input
+                    id="coupon-value"
                     type="number"
                     min="0"
                     step="0.01"
                     value={form.value}
                     onChange={(e) => setForm({ ...form, value: e.target.value })}
                     required
-                    className="w-full text-sm"
+                    className={`${inputClass} tabular-nums`}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Valid until</label>
+                <label htmlFor="coupon-expiry" className={labelClass}>Valid until</label>
                 <input
+                  id="coupon-expiry"
                   type="date"
                   value={form.expiry}
                   onChange={(e) => setForm({ ...form, expiry: e.target.value })}
                   required
-                  className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5"
+                  className={inputClass}
                 />
               </div>
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
                 <input
                   type="checkbox"
                   checked={form.active}
                   onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                  className="rounded border-gray-300 text-[#8b6f47]"
+                  className="size-4 accent-[#8b6f47]"
                 />
                 Active (customers can use it at checkout)
               </label>
-              <Button type="submit" loading={saving} className="w-full text-sm py-2.5 font-bold rounded-xl bg-[#8b6f47] text-white">
-                {editing ? 'Save changes' : 'Create coupon'}
-              </Button>
+              <div className="flex justify-end gap-2 border-t border-line pt-4">
+                <AdminButton onClick={() => setModalOpen(false)}>Cancel</AdminButton>
+                <AdminButton type="submit" variant="primary" disabled={saving}>
+                  {saving && <Loader2 className="size-4 animate-spin" />}
+                  {editing ? 'Save changes' : 'Create coupon'}
+                </AdminButton>
+              </div>
             </form>
           </div>
         </div>

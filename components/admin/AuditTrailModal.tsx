@@ -3,54 +3,61 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import { ShieldAlert, X } from 'lucide-react';
+import { History, X } from 'lucide-react';
+import { AdminEmpty } from './AdminUI';
 
 /** Before/after history of admin changes to one record (an order, a campaign...). */
 export default function AuditTrailModal({ trail, onClose }: { trail: any[]; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-2xl overflow-y-auto max-h-[80vh] shadow-2xl p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-          <X className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]">
+      <div role="dialog" aria-modal="true" aria-labelledby="audit-trail-title" className="relative max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-2xl">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/[0.06] dark:hover:text-stone-200 cursor-pointer"
+        >
+          <X className="size-4" />
         </button>
 
-        <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 border-b pb-2 flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5 text-purple-600" /> Administrative Audit Trail Logs
-        </h3>
+        <h3 id="audit-trail-title" className="pr-8 text-base font-semibold text-stone-900 dark:text-white">Change history</h3>
+        <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">Every admin change to this record, with the values before and after.</p>
 
-        <div className="space-y-4">
+        <div className="mt-5">
           {trail.length === 0 ? (
-            <div className="py-8 text-center text-gray-400">
-              No configuration modifications recorded yet for this entity.
+            <div className="rounded-lg border border-line">
+              <AdminEmpty icon={History} title="No changes recorded yet" description="Admin edits to this record will show up here." />
             </div>
           ) : (
-            <div className="space-y-3.5">
+            <ol className="space-y-3">
               {trail.map((entry, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-950 rounded-xl border border-gray-100 dark:border-gray-800 text-xs">
-                  <div className="flex justify-between items-center text-[10px] text-gray-400 border-b pb-1 mb-2 dark:border-gray-800">
-                    <span className="font-bold">By: {entry.changedBy?.name || 'Administrator'} ({entry.changedBy?.email})</span>
-                    <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                <li key={idx} className="rounded-lg border border-line p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+                    <span>
+                      <span className="font-medium text-stone-700 dark:text-stone-300">{entry.changedBy?.name || 'Administrator'}</span>
+                      {entry.changedBy?.email && <> ({entry.changedBy.email})</>}
+                    </span>
+                    <span className="tabular-nums">{new Date(entry.createdAt).toLocaleString()}</span>
                   </div>
-                  <p className="font-bold text-gray-800 dark:text-gray-200">{entry.changeSummary}</p>
+                  <p className="mt-1.5 font-medium text-stone-900 dark:text-stone-100">{entry.changeSummary}</p>
 
-                  {/* Before / After grid representation */}
-                  <div className="grid grid-cols-2 gap-4 mt-2 pt-2 border-t dark:border-gray-800 text-[10px]">
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <div>
-                      <span className="block font-bold text-red-500 uppercase tracking-widest text-[8px] mb-1">Previous Values:</span>
-                      <pre className="p-2 bg-red-500/5 rounded border border-red-500/10 font-mono overflow-x-auto whitespace-pre-wrap max-h-36">
+                      <span className="mb-1 block text-xs font-medium text-red-700 dark:text-red-300">Before</span>
+                      <pre className="max-h-36 overflow-x-auto whitespace-pre-wrap rounded-md border border-line bg-stone-50 p-2 font-mono text-[11px] leading-relaxed text-stone-700 dark:bg-white/[0.03] dark:text-stone-300">
                         {JSON.stringify(entry.previousState, null, 2)}
                       </pre>
                     </div>
                     <div>
-                      <span className="block font-bold text-green-500 uppercase tracking-widest text-[8px] mb-1">Updated Values:</span>
-                      <pre className="p-2 bg-green-500/5 rounded border border-green-500/10 font-mono overflow-x-auto whitespace-pre-wrap max-h-36">
+                      <span className="mb-1 block text-xs font-medium text-emerald-700 dark:text-emerald-300">After</span>
+                      <pre className="max-h-36 overflow-x-auto whitespace-pre-wrap rounded-md border border-line bg-stone-50 p-2 font-mono text-[11px] leading-relaxed text-stone-700 dark:bg-white/[0.03] dark:text-stone-300">
                         {JSON.stringify(entry.newState, null, 2)}
                       </pre>
                     </div>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           )}
         </div>
       </div>

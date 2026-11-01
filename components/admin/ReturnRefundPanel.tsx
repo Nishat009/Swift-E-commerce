@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { RotateCcw, Wallet } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { AdminButton, Pill } from './AdminUI';
 
 interface Quote {
   productAmount: number;
@@ -29,15 +29,16 @@ interface Props {
 const money = (n: number | undefined) =>
   `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const OPEN = ['Requested', 'Proposed', 'Accepted', 'Declined'];
-const BADGES: Record<string, { label: string; className: string }> = {
-  Requested: { label: 'Waiting for your review', className: 'bg-amber-100 text-amber-800' },
-  Proposed: { label: 'Offer sent, waiting for the customer', className: 'bg-blue-100 text-blue-700' },
-  Accepted: { label: 'Customer accepted, confirm to pay', className: 'bg-green-100 text-green-700' },
-  Declined: { label: 'Customer declined the offer', className: 'bg-red-100 text-red-700' },
-  Approved: { label: 'Approved', className: 'bg-green-100 text-green-700' },
-  Rejected: { label: 'Rejected', className: 'bg-red-100 text-red-700' },
+const BADGES: Record<string, { label: string; tone: 'warning' | 'info' | 'success' | 'danger' }> = {
+  Requested: { label: 'Waiting for your review', tone: 'warning' },
+  Proposed: { label: 'Offer sent, waiting for the customer', tone: 'info' },
+  Accepted: { label: 'Customer accepted, confirm to pay', tone: 'success' },
+  Declined: { label: 'Customer declined the offer', tone: 'danger' },
+  Approved: { label: 'Approved', tone: 'success' },
+  Rejected: { label: 'Rejected', tone: 'danger' },
 };
-const fieldClass = 'w-full text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/40 focus:border-[#8b6f47]';
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const fieldClass = 'w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
 
 /** The customer's return request inside the admin order view: review -> refund offer -> confirm & pay */
 export default function ReturnRefundPanel({ order, canConfirm, onUpdated }: Props) {
@@ -119,31 +120,31 @@ export default function ReturnRefundPanel({ order, canConfirm, onUpdated }: Prop
   const badge = BADGES[status];
 
   return (
-    <div className={`rounded-2xl border p-4 mb-4 text-xs ${isOpen ? 'border-amber-300 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-900/40' : 'border-gray-200 bg-gray-50 dark:bg-gray-950 dark:border-gray-800'}`}>
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="font-black uppercase tracking-wider text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
-          <RotateCcw className="w-3.5 h-3.5" /> Return &amp; refund
+    <div className={`mb-4 rounded-lg border p-4 text-sm ${isOpen ? 'border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/10' : 'border-line bg-stone-50 dark:bg-white/[0.03]'}`}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-stone-900 dark:text-stone-100">
+          <RotateCcw className="size-4 text-stone-400" /> Return &amp; refund
         </span>
-        {badge && <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${badge.className}`}>{badge.label}</span>}
+        {badge && <Pill tone={badge.tone} dot>{badge.label}</Pill>}
       </div>
-      <p className="text-gray-700 dark:text-gray-300">
-        <strong>{rr.reason}</strong>
-        {rr.requestedAt && <span className="text-gray-400"> &middot; asked {new Date(rr.requestedAt).toLocaleString()}</span>}
+      <p className="text-stone-700 dark:text-stone-300">
+        <span className="font-medium text-stone-900 dark:text-stone-100">{rr.reason}</span>
+        {rr.requestedAt && <span className="text-xs text-stone-500 dark:text-stone-400"> &middot; asked {new Date(rr.requestedAt).toLocaleString()}</span>}
       </p>
-      {rr.details && <p className="mt-1 text-gray-600 dark:text-gray-400 whitespace-pre-line">&ldquo;{rr.details}&rdquo;</p>}
+      {rr.details && <p className="mt-1 whitespace-pre-line text-stone-600 dark:text-stone-400">&ldquo;{rr.details}&rdquo;</p>}
 
       {/* Current offer */}
       {proposal && (
-        <div className="mt-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 space-y-1">
-          <div className="flex justify-between"><span className="text-gray-500">Product price</span><span>{money(proposal.productAmount)}</span></div>
+        <div className="mt-3 space-y-1.5 rounded-lg border border-line bg-surface p-3">
+          <div className="flex justify-between"><span className="text-stone-500 dark:text-stone-400">Product price</span><span className="tabular-nums text-stone-800 dark:text-stone-200">{money(proposal.productAmount)}</span></div>
           {proposal.deduction > 0 && (
-            <div className="flex justify-between text-red-600"><span>Handling charge</span><span>-{money(proposal.deduction)}</span></div>
+            <div className="flex justify-between text-red-600 dark:text-red-400"><span>Handling charge</span><span className="tabular-nums">-{money(proposal.deduction)}</span></div>
           )}
-          <div className="flex justify-between font-extrabold text-sm text-[#8b6f47] border-t border-gray-100 dark:border-gray-800 pt-1"><span>Refund offered</span><span>{money(proposal.amount)}</span></div>
-          <p className="text-[10px] text-gray-400">Delivery charge {money(proposal.shippingExcluded)} is not refunded.{proposal.proposedByName && ` Offered by ${proposal.proposedByName}`}{proposal.proposedAt && ` on ${new Date(proposal.proposedAt).toLocaleString()}`}.</p>
-          {proposal.remarks && <p className="text-gray-600 dark:text-gray-400"><span className="font-bold">Remarks:</span> {proposal.remarks}</p>}
+          <div className="flex justify-between border-t border-line pt-1.5 font-semibold text-stone-900 dark:text-white"><span>Refund offered</span><span className="tabular-nums">{money(proposal.amount)}</span></div>
+          <p className="text-xs text-stone-500 dark:text-stone-400">Delivery charge {money(proposal.shippingExcluded)} is not refunded.{proposal.proposedByName && ` Offered by ${proposal.proposedByName}`}{proposal.proposedAt && ` on ${new Date(proposal.proposedAt).toLocaleString()}`}.</p>
+          {proposal.remarks && <p className="text-stone-600 dark:text-stone-400"><span className="font-medium text-stone-800 dark:text-stone-200">Remarks:</span> {proposal.remarks}</p>}
           {status === 'Declined' && (
-            <p className="text-red-600">Customer declined{proposal.customerNote ? `: “${proposal.customerNote}”` : '.'} Send a new offer or reject the return.</p>
+            <p className="text-red-600 dark:text-red-400">Customer declined{proposal.customerNote ? `: “${proposal.customerNote}”` : '.'} Send a new offer or reject the return.</p>
           )}
         </div>
       )}
@@ -151,26 +152,26 @@ export default function ReturnRefundPanel({ order, canConfirm, onUpdated }: Prop
       {/* Make or revise an offer */}
       {canOffer && (status === 'Proposed' && !editing ? (
         <div className="mt-3 flex justify-end">
-          <button type="button" onClick={() => setEditing(true)} className="text-[11px] font-bold text-[#8b6f47] underline">Change the offer</button>
+          <button type="button" onClick={() => setEditing(true)} className="text-xs font-medium text-[#8b6f47] hover:underline dark:text-[#c9a96b] cursor-pointer">Change the offer</button>
         </div>
       ) : (
-        <div className="mt-3 rounded-xl border border-[#8b6f47]/30 bg-white dark:bg-gray-900 p-3 space-y-2.5">
-          <p className="font-black uppercase tracking-wider text-[10px] text-gray-500">{proposal ? 'New refund offer' : 'Refund offer'}</p>
+        <div className="mt-3 space-y-3 rounded-lg border border-line bg-surface p-3">
+          <p className="text-xs font-medium text-stone-500 dark:text-stone-400">{proposal ? 'New refund offer' : 'Refund offer'}</p>
           {quote ? (
             <>
-              <div className={`rounded-lg px-2.5 py-1.5 text-[11px] ${quote.late ? 'bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300' : 'bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300'}`}>
-                Asked <strong>{quote.daysAfterDelivery} {quote.daysAfterDelivery === 1 ? 'day' : 'days'}</strong> after delivery.{' '}
+              <div className={`rounded-md px-3 py-2 text-xs ${quote.late ? 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200'}`}>
+                Asked <strong className="font-semibold">{quote.daysAfterDelivery} {quote.daysAfterDelivery === 1 ? 'day' : 'days'}</strong> after delivery.{' '}
                 {quote.late
                   ? `More than ${quote.fullRefundDays} days: keep a handling charge (suggested ${quote.lateFeePercent}%) and explain it.`
                   : `Within ${quote.fullRefundDays} days: refund the full product price.`}
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Product price</span>
-                  <span className="block font-bold text-gray-800 dark:text-gray-100 py-2">{money(quote.productAmount)}</span>
+                  <span className={labelClass}>Product price</span>
+                  <span className="block py-2 font-medium tabular-nums text-stone-900 dark:text-stone-100">{money(quote.productAmount)}</span>
                 </div>
                 <div>
-                  <label htmlFor="refund-deduction" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Handling charge ($)</label>
+                  <label htmlFor="refund-deduction" className={labelClass}>Handling charge ($)</label>
                   <input
                     id="refund-deduction"
                     type="number"
@@ -179,23 +180,23 @@ export default function ReturnRefundPanel({ order, canConfirm, onUpdated }: Prop
                     value={deduction}
                     disabled={!quote.late}
                     onChange={(e) => setDeduction(e.target.value)}
-                    className={`${fieldClass} text-sm disabled:opacity-60`}
+                    className={`${fieldClass} h-9 py-0 tabular-nums disabled:cursor-not-allowed disabled:opacity-60`}
                   />
                 </div>
               </div>
               {quote.late && (
                 <div>
-                  <label htmlFor="refund-remarks" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Remarks: why the charge (shown to the customer)</label>
+                  <label htmlFor="refund-remarks" className={labelClass}>Remarks: why the charge (shown to the customer)</label>
                   <textarea id="refund-remarks" rows={2} maxLength={500} value={remarks} onChange={(e) => setRemarks(e.target.value)} className={fieldClass} />
                 </div>
               )}
-              <div className="flex items-center justify-between rounded-lg bg-[#8b6f47]/5 px-2.5 py-2">
-                <span className="text-gray-600 dark:text-gray-300">Refund to customer <span className="text-gray-400">(delivery {money(quote.shippingExcluded)} not refunded)</span></span>
-                <span className="text-sm font-extrabold text-[#8b6f47]">{money(refundPreview)}</span>
+              <div className="flex items-center justify-between gap-3 rounded-md bg-stone-50 px-3 py-2 dark:bg-white/[0.04]">
+                <span className="text-stone-600 dark:text-stone-300">Refund to customer <span className="text-xs text-stone-400">(delivery {money(quote.shippingExcluded)} not refunded)</span></span>
+                <span className="font-semibold tabular-nums text-stone-900 dark:text-white">{money(refundPreview)}</span>
               </div>
             </>
           ) : (
-            <p className="text-gray-400">Loading the refund breakdown...</p>
+            <p className="text-stone-400">Loading the refund breakdown...</p>
           )}
         </div>
       ))}
@@ -208,44 +209,45 @@ export default function ReturnRefundPanel({ order, canConfirm, onUpdated }: Prop
             onChange={(e) => setMessage(e.target.value)}
             maxLength={1000}
             rows={2}
+            aria-label="Message to the customer"
             placeholder={paid ? 'Message to the customer (optional with an offer, required to reject, e.g. pickup details)' : 'Message to the customer (required to reject)'}
             className={fieldClass}
           />
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button onClick={() => setConfirm('reject')} disabled={message.trim().length < 5 || saving} variant="outline" className="text-xs py-2 px-4 font-bold rounded-xl border-red-200 text-red-600">
+          <div className="flex flex-wrap justify-end gap-2">
+            <AdminButton variant="danger" onClick={() => setConfirm('reject')} disabled={message.trim().length < 5 || saving}>
               Reject return
-            </Button>
+            </AdminButton>
             {!paid && (
-              <Button onClick={() => setConfirm('approve')} disabled={order.orderStatus !== 'Delivered' || saving} className="text-xs py-2 px-4 font-bold rounded-xl bg-green-600 text-white">
+              <AdminButton variant="primary" onClick={() => setConfirm('approve')} disabled={order.orderStatus !== 'Delivered' || saving}>
                 Approve return
-              </Button>
+              </AdminButton>
             )}
             {canOffer && (status !== 'Proposed' || editing) && (
-              <Button onClick={() => setConfirm('propose')} disabled={!!offerProblem || saving} className="text-xs py-2 px-4 font-bold rounded-xl bg-[#8b6f47] text-white">
+              <AdminButton variant="primary" onClick={() => setConfirm('propose')} disabled={!!offerProblem || saving}>
                 {proposal ? 'Send new offer' : 'Send refund offer'}
-              </Button>
+              </AdminButton>
             )}
             {status === 'Accepted' && (
-              <Button onClick={() => setConfirm('confirm')} disabled={!canConfirm || saving} className="text-xs py-2 px-4 font-bold rounded-xl bg-green-600 text-white flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5" /> Confirm &amp; pay {money(proposal?.amount)}
-              </Button>
+              <AdminButton variant="primary" onClick={() => setConfirm('confirm')} disabled={!canConfirm || saving}>
+                <Wallet className="size-4" /> Confirm &amp; pay {money(proposal?.amount)}
+              </AdminButton>
             )}
           </div>
-          {canOffer && (status !== 'Proposed' || editing) && offerProblem && quote && <p className="text-[10px] text-red-600 text-right">{offerProblem}</p>}
+          {canOffer && (status !== 'Proposed' || editing) && offerProblem && quote && <p className="text-right text-xs text-red-600 dark:text-red-400">{offerProblem}</p>}
           {status === 'Accepted' && (
-            <p className="text-[10px] text-gray-500 text-right">
-              {quote && <>Store wallet balance: <strong>{money(quote.walletBalance)}</strong>. </>}
+            <p className="text-right text-xs text-stone-500 dark:text-stone-400">
+              {quote && <>Store wallet balance: <strong className="font-semibold tabular-nums text-stone-700 dark:text-stone-200">{money(quote.walletBalance)}</strong>. </>}
               {canConfirm ? 'Confirming takes the refund out of the store wallet and marks the order Returned.' : 'Only a super admin can pay out refunds.'}
             </p>
           )}
-          {!paid && <p className="text-[10px] text-gray-500">Nothing was paid for this order, so approving only marks it Returned and restocks the items.</p>}
+          {!paid && <p className="text-xs text-stone-500 dark:text-stone-400">Nothing was paid for this order, so approving only marks it Returned and restocks the items.</p>}
         </div>
       )}
 
       {!isOpen && (
-        <p className="mt-2 text-gray-500">
+        <p className="mt-2 text-stone-500 dark:text-stone-400">
           {status} {rr.decidedAt && `on ${new Date(rr.decidedAt).toLocaleString()}`}{rr.decidedByName && ` by ${rr.decidedByName}`}
-          {rr.response && <span className="block mt-1 text-gray-600 dark:text-gray-400">Reply: &ldquo;{rr.response}&rdquo;</span>}
+          {rr.response && <span className="mt-1 block text-stone-600 dark:text-stone-300">Reply: &ldquo;{rr.response}&rdquo;</span>}
         </p>
       )}
 

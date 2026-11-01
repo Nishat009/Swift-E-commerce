@@ -3,9 +3,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
 import { RefreshCw, Mail, Trash2, Archive, CheckCheck, Reply } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { AdminButton, AdminEmpty, FilterTabs, Pill, SectionHeader } from './AdminUI';
 
 type Status = 'unread' | 'read' | 'replied' | 'archived';
 
@@ -19,19 +19,19 @@ interface Msg {
   createdAt: string;
 }
 
-const FILTERS: { id: Status | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'unread', label: 'Unread' },
-  { id: 'read', label: 'Read' },
-  { id: 'replied', label: 'Replied' },
-  { id: 'archived', label: 'Archived' },
+const FILTERS: { value: Status | 'all'; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'unread', label: 'Unread' },
+  { value: 'read', label: 'Read' },
+  { value: 'replied', label: 'Replied' },
+  { value: 'archived', label: 'Archived' },
 ];
 
-const badge: Record<Status, string> = {
-  unread: 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-  read: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  replied: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
-  archived: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500',
+const badge: Record<Status, { label: string; tone: 'warning' | 'neutral' | 'success' }> = {
+  unread: { label: 'Unread', tone: 'warning' },
+  read: { label: 'Read', tone: 'neutral' },
+  replied: { label: 'Replied', tone: 'success' },
+  archived: { label: 'Archived', tone: 'neutral' },
 };
 
 export default function ContactMessages({ onUnreadChange }: { onUnreadChange?: (n: number) => void }) {
@@ -87,91 +87,84 @@ export default function ContactMessages({ onUnreadChange }: { onUnreadChange?: (
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-serif font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Mail className="w-5 h-5 text-[#8b6f47]" /> Contact Messages
-        </h2>
-        <Button onClick={load} variant="outline" className="text-xs font-bold flex items-center gap-2">
-          <RefreshCw className={'w-3.5 h-3.5 ' + (loading ? 'animate-spin' : '')} /> Refresh
-        </Button>
-      </div>
+    <section className="space-y-4">
+      <SectionHeader
+        title="Contact messages"
+        description="Sent through the contact form. Open one to read it; replying opens your email app."
+        actions={
+          <AdminButton size="sm" onClick={load}>
+            <RefreshCw className={'size-3.5 ' + (loading ? 'animate-spin' : '')} /> Refresh
+          </AdminButton>
+        }
+      />
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={
-              'px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap cursor-pointer ' +
-              (filter === f.id
-                ? 'bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950 border-transparent'
-                : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400')
-            }
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <FilterTabs options={FILTERS} value={filter} onChange={setFilter} className="w-fit max-w-full" />
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      {!loading && !error && messages.length === 0 && (
-        <p className="text-sm text-gray-500 py-8 text-center">No messages here.</p>
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">{error}</p>
       )}
 
-      <ul className="space-y-3">
-        {messages.map((m) => {
-          const open = openId === m.id;
-          return (
-            <li key={m.id} className="border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggle(m)}
-                className="w-full text-left px-4 py-3 flex items-start justify-between gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40"
-              >
-                <div className="min-w-0">
-                  <p className={'text-sm truncate ' + (m.status === 'unread' ? 'font-bold' : 'font-medium')}>{m.subject}</p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {m.name} &middot; {m.email} &middot; {new Date(m.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <span className={'text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg flex-shrink-0 ' + badge[m.status]}>
-                  {m.status}
-                </span>
-              </button>
-              {open && (
-                <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-800 pt-3 space-y-3">
-                  <p className="text-sm whitespace-pre-wrap break-words text-gray-700 dark:text-gray-300">{m.message}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <a
-                      href={`mailto:${m.email}?subject=${encodeURIComponent('Re: ' + m.subject)}`}
-                      onClick={() => m.status !== 'replied' && setStatus(m.id, 'replied')}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-[#8b6f47] dark:bg-[#c9a96b] text-white dark:text-gray-950"
-                    >
-                      <Reply className="w-3.5 h-3.5" /> Reply by email
-                    </a>
-                    {m.status !== 'unread' && (
-                      <button type="button" onClick={() => setStatus(m.id, 'unread')} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 cursor-pointer">
-                        <CheckCheck className="w-3.5 h-3.5" /> Mark unread
-                      </button>
-                    )}
-                    {m.status !== 'archived' && (
-                      <button type="button" onClick={() => setStatus(m.id, 'archived')} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 cursor-pointer">
-                        <Archive className="w-3.5 h-3.5" /> Archive
-                      </button>
-                    )}
-                    <button type="button" onClick={() => remove(m.id)} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl text-red-600 border border-red-200 dark:border-red-900 cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </button>
+      {!loading && !error && messages.length === 0 ? (
+        <div className="rounded-lg border border-line">
+          <AdminEmpty icon={Mail} title="No messages here" description={filter !== 'all' ? 'Try a different filter.' : 'Messages from the contact form will appear here.'} />
+        </div>
+      ) : messages.length > 0 && (
+        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line">
+          {messages.map((m) => {
+            const open = openId === m.id;
+            const unread = m.status === 'unread';
+            return (
+              <li key={m.id} className={open ? 'bg-stone-50/60 dark:bg-white/[0.02]' : undefined}>
+                <button
+                  type="button"
+                  onClick={() => toggle(m)}
+                  aria-expanded={open}
+                  className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 dark:hover:bg-white/[0.03] cursor-pointer"
+                >
+                  <span className="flex min-w-0 items-start gap-2.5">
+                    <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${unread ? 'bg-[#8b6f47] dark:bg-[#c9a96b]' : 'bg-transparent'}`} aria-hidden />
+                    <span className="min-w-0">
+                      <span className={`block truncate text-sm ${unread ? 'font-semibold text-stone-900 dark:text-white' : 'font-medium text-stone-700 dark:text-stone-300'}`}>{m.subject}</span>
+                      <span className="block truncate text-xs text-stone-500 dark:text-stone-400">
+                        {m.name} &middot; {m.email} &middot; {new Date(m.createdAt).toLocaleString()}
+                      </span>
+                    </span>
+                  </span>
+                  <Pill tone={badge[m.status].tone} className="shrink-0">{badge[m.status].label}</Pill>
+                </button>
+                {open && (
+                  <div className="space-y-3 px-4 pb-4 pl-8">
+                    <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-stone-700 dark:text-stone-300">{m.message}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={`mailto:${m.email}?subject=${encodeURIComponent('Re: ' + m.subject)}`}
+                        onClick={() => m.status !== 'replied' && setStatus(m.id, 'replied')}
+                        className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg bg-stone-900 px-3 text-xs font-medium text-white shadow-xs transition-colors hover:bg-stone-800 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200"
+                      >
+                        <Reply className="size-3.5" /> Reply by email
+                      </a>
+                      {m.status !== 'unread' && (
+                        <AdminButton size="sm" onClick={() => setStatus(m.id, 'unread')}>
+                          <CheckCheck className="size-3.5" /> Mark unread
+                        </AdminButton>
+                      )}
+                      {m.status !== 'archived' && (
+                        <AdminButton size="sm" onClick={() => setStatus(m.id, 'archived')}>
+                          <Archive className="size-3.5" /> Archive
+                        </AdminButton>
+                      )}
+                      <AdminButton size="sm" variant="danger" onClick={() => remove(m.id)}>
+                        <Trash2 className="size-3.5" /> Delete
+                      </AdminButton>
+                    </div>
                   </div>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -3,12 +3,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Dropdown from '@/components/ui/Dropdown';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
-import { ArrowDownLeft, ArrowUpRight, Download, RefreshCw, Search, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, Download, Lock, RefreshCw, Scale, Wallet, X } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { AdminButton, AdminEmpty, Pill, SearchField, StatCard, table } from './AdminUI';
 
 interface Txn {
   id: string;
@@ -36,11 +34,11 @@ interface Totals {
 const money = (n: number | null | undefined) =>
   `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const CATEGORY_LABELS: Record<string, { label: string; className: string }> = {
-  opening_balance: { label: 'Opening balance', className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-  sale: { label: 'Sale', className: 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400' },
-  refund: { label: 'Refund', className: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400' },
-  adjustment: { label: 'Adjustment', className: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400' },
+const CATEGORY_LABELS: Record<string, { label: string; tone: 'neutral' | 'success' | 'warning' | 'violet' }> = {
+  opening_balance: { label: 'Opening balance', tone: 'neutral' },
+  sale: { label: 'Sale', tone: 'success' },
+  refund: { label: 'Refund', tone: 'warning' },
+  adjustment: { label: 'Adjustment', tone: 'violet' },
 };
 
 const TYPE_OPTIONS = [
@@ -55,6 +53,28 @@ const CATEGORY_OPTIONS = [
   { value: 'adjustment', label: 'Adjustments' },
   { value: 'opening_balance', label: 'Opening balance' },
 ];
+
+const labelCls = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const fieldCls =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark]';
+
+function SelectField({ value, onChange, options, className, ...rest }: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+  id?: string;
+  'aria-label'?: string;
+}) {
+  return (
+    <div className={`relative ${className || ''}`}>
+      <select {...rest} value={value} onChange={(e) => onChange(e.target.value)} className={`${fieldCls} cursor-pointer appearance-none pr-8`}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+    </div>
+  );
+}
 
 /** Store account (admin only): wallet balance, statement of every sale / refund / adjustment, and manual adjustments */
 export default function WalletAdmin({ onOpenOrder }: { onOpenOrder?: (orderId: string) => void }) {
@@ -162,144 +182,168 @@ export default function WalletAdmin({ onOpenOrder }: { onOpenOrder?: (orderId: s
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5">
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider flex items-center gap-2">
-          <Wallet className="w-5 h-5 text-[#8b6f47]" /> Accounts &amp; Wallet
-        </h2>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl text-sm text-stone-500 dark:text-stone-400">
+          The store&apos;s own account. Every paid order is booked in as a sale, every refund is paid out of it, and refunds are refused when the balance is too low.
+        </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportCsv} loading={exporting} className="flex items-center gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => load(page)} className="flex items-center gap-1.5">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </Button>
+          <AdminButton onClick={exportCsv} disabled={exporting} title="Download the statement shown below as a CSV file">
+            {exporting ? <RefreshCw className="size-4 animate-spin" /> : <Download className="size-4" />} Export CSV
+          </AdminButton>
+          <AdminButton variant="ghost" onClick={() => load(page)}>
+            <RefreshCw className="size-4" /> Refresh
+          </AdminButton>
         </div>
       </div>
-      <p className="text-xs text-gray-500">
-        The store&apos;s own account. Every paid order is booked in as a sale, every refund is paid out of it, and refunds are refused when the balance is too low.
-      </p>
 
       {/* Balance and totals */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="col-span-2 lg:col-span-1 rounded-2xl bg-[#8b6f47] text-white p-4">
-          <span className="block text-[10px] font-black uppercase tracking-widest text-white/70">Current balance</span>
-          <span className="block text-2xl font-extrabold mt-1">{money(balance)}</span>
-          <span className="block text-[10px] text-white/70 mt-1">Available for refunds</span>
-        </div>
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400"><ArrowDownLeft className="w-3 h-3 text-green-600" /> Money in</span>
-          <span className="block text-lg font-extrabold text-green-700 dark:text-green-400 mt-1">{money(totals?.credits)}</span>
-          <span className="block text-[10px] text-gray-400">{totals?.saleCount || 0} sales &middot; {money(totals?.sales)}</span>
-        </div>
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400"><ArrowUpRight className="w-3 h-3 text-red-600" /> Money out</span>
-          <span className="block text-lg font-extrabold text-red-600 dark:text-red-400 mt-1">{money(totals?.debits)}</span>
-          <span className="block text-[10px] text-gray-400">{totals?.refundCount || 0} refunds &middot; {money(totals?.refunds)}</span>
-        </div>
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
-          <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400">Net</span>
-          <span className="block text-lg font-extrabold text-gray-800 dark:text-gray-100 mt-1">{money((totals?.credits || 0) - (totals?.debits || 0))}</span>
-          <span className="block text-[10px] text-gray-400">{filtered ? 'For the filters below' : 'All time'}</span>
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard className="shadow-none" label="Current balance" icon={Wallet} value={<span className="tabular-nums">{money(balance)}</span>} hint="Available for refunds" />
+        <StatCard
+          className="shadow-none"
+          label="Money in"
+          icon={ArrowDownLeft}
+          value={<span className="tabular-nums">{money(totals?.credits)}</span>}
+          hint={`${totals?.saleCount || 0} ${totals?.saleCount === 1 ? 'sale' : 'sales'} · ${money(totals?.sales)}`}
+        />
+        <StatCard
+          className="shadow-none"
+          label="Money out"
+          icon={ArrowUpRight}
+          value={<span className="tabular-nums">{money(totals?.debits)}</span>}
+          hint={`${totals?.refundCount || 0} ${totals?.refundCount === 1 ? 'refund' : 'refunds'} · ${money(totals?.refunds)}`}
+        />
+        <StatCard
+          className="shadow-none"
+          label="Net"
+          icon={Scale}
+          value={<span className="tabular-nums">{money((totals?.credits || 0) - (totals?.debits || 0))}</span>}
+          hint={filtered ? 'For the filters below' : 'All time'}
+        />
       </div>
 
       {/* Manual adjustment */}
       {canAdjust ? (
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950 p-4">
-          <p className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-200 mb-3">Add or withdraw funds</p>
-          <div className="grid sm:grid-cols-[180px_140px_1fr_auto] gap-2 items-start">
-            <Dropdown
-              aria-label="Adjustment type"
-              value={adjType}
-              onChange={setAdjType}
-              options={[{ value: 'credit', label: 'Add funds' }, { value: 'debit', label: 'Withdraw' }]}
-            />
-            <Input type="number" min="0.01" step="0.01" placeholder="Amount ($)" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} className="text-sm" />
-            <Input placeholder="Why? e.g. Owner top up, bank withdrawal" maxLength={300} value={adjNote} onChange={(e) => setAdjNote(e.target.value)} className="text-sm" />
-            <Button onClick={() => setAdjConfirm(true)} disabled={!adjValid || adjusting} className="text-sm py-2.5 px-5 font-bold rounded-xl bg-[#8b6f47] text-white">
+        <div className="rounded-lg border border-line p-4 sm:p-5">
+          <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Add or withdraw funds</h3>
+          <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Recorded on the statement and in the system log. The note needs at least 5 characters.</p>
+          <div className="mt-4 grid items-end gap-3 sm:grid-cols-[180px_140px_1fr_auto]">
+            <div>
+              <label htmlFor="adj-type" className={labelCls}>Type</label>
+              <SelectField
+                id="adj-type"
+                value={adjType}
+                onChange={setAdjType}
+                options={[{ value: 'credit', label: 'Add funds' }, { value: 'debit', label: 'Withdraw' }]}
+              />
+            </div>
+            <div>
+              <label htmlFor="adj-amount" className={labelCls}>Amount ($)</label>
+              <input id="adj-amount" type="number" min="0.01" step="0.01" placeholder="0.00" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} className={`${fieldCls} tabular-nums`} />
+            </div>
+            <div>
+              <label htmlFor="adj-note" className={labelCls}>Note</label>
+              <input id="adj-note" placeholder="Why? e.g. Owner top up, bank withdrawal" maxLength={300} value={adjNote} onChange={(e) => setAdjNote(e.target.value)} className={fieldCls} />
+            </div>
+            <AdminButton variant="primary" onClick={() => setAdjConfirm(true)} disabled={!adjValid || adjusting}>
               {adjType === 'credit' ? 'Add' : 'Withdraw'}
-            </Button>
+            </AdminButton>
           </div>
-          {adjType === 'debit' && adjValue > balance && <p className="text-[10px] text-red-600 mt-1.5">You cannot withdraw more than the balance ({money(balance)}).</p>}
+          {adjType === 'debit' && adjValue > balance && <p className="mt-2 text-xs text-red-600 dark:text-red-400">You cannot withdraw more than the balance ({money(balance)}).</p>}
         </div>
       ) : (
-        <p className="text-[11px] text-gray-500">Only a super admin can add or withdraw funds by hand.</p>
-      )}
-
-      {/* Filters */}
-      <div className="grid grid-cols-2 lg:grid-cols-[1fr_170px_170px_140px_140px] gap-2">
-        <div className="relative col-span-2 lg:col-span-1">
-          <Input placeholder="Search order number or description..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full text-sm pl-8" />
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        </div>
-        <Dropdown aria-label="Money in or out" value={type} onChange={setType} options={TYPE_OPTIONS} />
-        <Dropdown aria-label="Category" value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
-        <Input type="date" aria-label="From" value={from} onChange={(e) => setFrom(e.target.value)} className="text-sm" />
-        <Input type="date" aria-label="To" value={to} onChange={(e) => setTo(e.target.value)} className="text-sm" />
-      </div>
-      {filtered && (
-        <button onClick={clearFilters} className="text-[11px] font-bold text-[#8b6f47] underline">Clear filters</button>
+        <p className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
+          <Lock className="size-3.5" /> Only a super admin can add or withdraw funds by hand.
+        </p>
       )}
 
       {/* Statement */}
-      {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
-          <RefreshCw className="w-5 h-5 animate-spin text-[#8b6f47]" /> Loading statement...
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">Statement</h3>
+          <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">Every sale, refund and adjustment, newest first.</p>
         </div>
-      ) : error ? (
-        <div className="p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm">{error}</div>
-      ) : (
-        <div className="overflow-x-auto border rounded-2xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px]">
-              <tr>
-                <th className="p-3">Date</th>
-                <th className="p-3">Description</th>
-                <th className="p-3">Category</th>
-                <th className="p-3 text-right">Amount</th>
-                <th className="p-3 text-right">Balance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {txns.length === 0 && (
-                <tr><td colSpan={5} className="p-8 text-center text-gray-400">No transactions{filtered ? ' match these filters' : ' yet'}.</td></tr>
-              )}
-              {txns.map((t) => {
-                const cat = CATEGORY_LABELS[t.category];
-                return (
-                  <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 align-top">
-                    <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">{new Date(t.createdAt).toLocaleString()}</td>
-                    <td className="p-3 text-xs">
-                      <span className="block text-gray-800 dark:text-gray-200">{t.description}</span>
-                      <span className="block text-[10px] text-gray-400">
-                        {t.orderNumber && (onOpenOrder && t.order ? (
-                          <button onClick={() => onOpenOrder(String(t.order))} className="font-mono text-[#8b6f47] hover:underline">{t.orderNumber}</button>
-                        ) : <span className="font-mono">{t.orderNumber}</span>)}
-                        {t.orderNumber && t.byName && ' · '}
-                        {t.byName && `by ${t.byName}`}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${cat?.className || ''}`}>{cat?.label || t.category}</span>
-                    </td>
-                    <td className={`p-3 text-right font-bold whitespace-nowrap ${t.type === 'credit' ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {t.type === 'credit' ? '+' : '-'}{money(t.amount)}
-                    </td>
-                    <td className="p-3 text-right text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">{t.balanceAfter === null ? '-' : money(t.balanceAfter)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
 
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>{total} {total === 1 ? 'transaction' : 'transactions'} &middot; Page {page} of {pages}</span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>Next</Button>
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <SearchField value={query} onChange={setQuery} placeholder="Search order number or description" className="w-full lg:flex-1" />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:items-center">
+            <SelectField aria-label="Money in or out" value={type} onChange={setType} options={TYPE_OPTIONS} className="lg:w-44" />
+            <SelectField aria-label="Category" value={category} onChange={setCategory} options={CATEGORY_OPTIONS} className="lg:w-40" />
+            <input type="date" aria-label="From" title="From" value={from} onChange={(e) => setFrom(e.target.value)} className={`${fieldCls} lg:w-36`} />
+            <input type="date" aria-label="To" title="To" value={to} onChange={(e) => setTo(e.target.value)} className={`${fieldCls} lg:w-36`} />
+          </div>
+          {filtered && (
+            <AdminButton variant="ghost" size="sm" onClick={clearFilters} className="self-start lg:self-auto">
+              <X className="size-3.5" /> Clear filters
+            </AdminButton>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-stone-500 dark:text-stone-400">
+            <RefreshCw className="size-4 animate-spin" /> Loading statement...
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-400/[0.07] dark:text-red-300">{error}</div>
+        ) : (
+          <div className={table.wrap}>
+            <table className={table.table}>
+              <thead className={table.thead}>
+                <tr>
+                  <th className={table.th}>Date</th>
+                  <th className={table.th}>Description</th>
+                  <th className={table.th}>Category</th>
+                  <th className={`${table.th} text-right`}>Amount</th>
+                  <th className={`${table.th} text-right`}>Balance</th>
+                </tr>
+              </thead>
+              <tbody className={table.tbody}>
+                {txns.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>
+                      <AdminEmpty icon={Wallet} title={`No transactions${filtered ? ' match these filters' : ' yet'}`} description={filtered ? 'Try a different search, category or date range.' : 'Paid orders, refunds and adjustments will appear here.'} />
+                    </td>
+                  </tr>
+                )}
+                {txns.map((t) => {
+                  const cat = CATEGORY_LABELS[t.category];
+                  return (
+                    <tr key={t.id} className={`${table.tr} align-top`}>
+                      <td className={`${table.td} whitespace-nowrap text-xs text-stone-500 dark:text-stone-400`}>{new Date(t.createdAt).toLocaleString()}</td>
+                      <td className={table.td}>
+                        <span className="block text-stone-800 dark:text-stone-200">{t.description}</span>
+                        {(t.orderNumber || t.byName) && (
+                          <span className="mt-0.5 block text-xs text-stone-400">
+                            {t.orderNumber && (onOpenOrder && t.order ? (
+                              <button onClick={() => onOpenOrder(String(t.order))} className="cursor-pointer font-mono text-stone-600 hover:text-[#8b6f47] hover:underline dark:text-stone-300 dark:hover:text-[#c9a96b]">{t.orderNumber}</button>
+                            ) : <span className="font-mono">{t.orderNumber}</span>)}
+                            {t.orderNumber && t.byName && ' · '}
+                            {t.byName && `by ${t.byName}`}
+                          </span>
+                        )}
+                      </td>
+                      <td className={table.td}>
+                        <Pill tone={cat?.tone || 'neutral'}>{cat?.label || t.category}</Pill>
+                      </td>
+                      <td className={`${table.td} whitespace-nowrap text-right font-medium tabular-nums ${t.type === 'credit' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {t.type === 'credit' ? '+' : '-'}{money(t.amount)}
+                      </td>
+                      <td className={`${table.td} whitespace-nowrap text-right tabular-nums text-stone-600 dark:text-stone-300`}>{t.balanceAfter === null ? '-' : money(t.balanceAfter)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500 dark:text-stone-400">
+          <span className="tabular-nums">{total} {total === 1 ? 'transaction' : 'transactions'} &middot; Page {page} of {pages}</span>
+          <div className="flex gap-2">
+            <AdminButton size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>Previous</AdminButton>
+            <AdminButton size="sm" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>Next</AdminButton>
+          </div>
         </div>
       </div>
 

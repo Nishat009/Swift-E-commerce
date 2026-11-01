@@ -3,11 +3,10 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
-import { CreditCard, Smartphone, Banknote, Lock, PlugZap, Save, AlertTriangle } from 'lucide-react';
+import { CreditCard, Smartphone, Banknote, Lock, PlugZap, Save, AlertTriangle, ChevronDown } from 'lucide-react';
 import { SectionLoading, useSectionLoad } from './AdminSection';
 import { errMsg } from './adminUtils';
+import { AdminButton, Pill } from './AdminUI';
 
 type Gateway = 'cod' | 'bkash' | 'card';
 interface CredentialInfo { set: boolean; source: '' | 'admin' | 'env'; hint: string; envName: string }
@@ -43,6 +42,21 @@ const GATEWAYS: { id: Gateway; name: string; text: string; icon: typeof CreditCa
   { id: 'bkash', name: 'bKash', text: 'Tokenized checkout. Prices are converted from USD to Taka.', icon: Smartphone },
   { id: 'card', name: 'Card (Stripe Checkout)', text: 'Visa, Mastercard and more through Stripe-hosted checkout.', icon: CreditCard },
 ];
+
+const labelCls = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const fieldCls =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 disabled:cursor-not-allowed disabled:bg-stone-50 disabled:text-stone-500 dark:text-stone-100 dark:[color-scheme:dark] dark:disabled:bg-white/[0.03]';
+
+function Notice({ tone, icon: Icon, children }: { tone: 'warning' | 'info'; icon: typeof Lock; children: React.ReactNode }) {
+  const toneCls = tone === 'warning'
+    ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/[0.07] dark:text-amber-200'
+    : 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-400/20 dark:bg-sky-400/[0.07] dark:text-sky-200';
+  return (
+    <p className={`flex items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-xs leading-relaxed ${toneCls}`}>
+      <Icon className="mt-px size-4 shrink-0" /> <span>{children}</span>
+    </p>
+  );
+}
 
 /** Payment gateways: switch each on or off, save API keys (write-only) and test the connection. */
 export default function PaymentSettingsAdmin() {
@@ -114,158 +128,165 @@ export default function PaymentSettingsAdmin() {
     rate !== (settings.bdtPerUsdSource === 'admin' ? String(settings.bdtPerUsd) : '');
 
   return (
-    <div className="space-y-6">
-      <div className="border-b pb-3.5 dark:border-gray-800">
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider">Payment Settings</h2>
-        <p className="text-xs text-gray-500 mt-1">
-          Choose which payment methods checkout offers and connect the gateways. Saved keys are encrypted and never shown again;
-          a key left empty uses the server environment value.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <p className="max-w-3xl text-sm text-stone-500 dark:text-stone-400">
+        Choose which payment methods checkout offers and connect the gateways. Saved keys are encrypted and never shown again;
+        a key left empty uses the server environment value.
+      </p>
 
-      {!canEdit && (
-        <p className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
-          <Lock className="w-4 h-4 flex-shrink-0" /> View only: a super admin can change payment settings (the shared demo admin cannot).
-        </p>
-      )}
-      {canEdit && !settings.canStoreCredentials && (
-        <p className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-300">
-          <Lock className="w-4 h-4 flex-shrink-0" /> Saving gateway keys needs PAYMENT_SETTINGS_KEY on the server. Switches and the Taka rate work without it, and keys from the server environment are still used.
-        </p>
-      )}
-      {settings.mock && (
-        <p className="flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900/40 px-4 py-2.5 text-xs text-blue-900 dark:text-blue-300">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" /> Mock payments are on (development): bKash and card use a fake gateway.
-        </p>
+      {(!canEdit || !settings.canStoreCredentials || settings.mock) && (
+        <div className="space-y-2">
+          {!canEdit && (
+            <Notice tone="warning" icon={Lock}>View only: a super admin can change payment settings (the shared demo admin cannot).</Notice>
+          )}
+          {canEdit && !settings.canStoreCredentials && (
+            <Notice tone="warning" icon={Lock}>
+              Saving gateway keys needs PAYMENT_SETTINGS_KEY on the server. Switches and the Taka rate work without it, and keys from the server environment are still used.
+            </Notice>
+          )}
+          {settings.mock && (
+            <Notice tone="info" icon={AlertTriangle}>Mock payments are on (development): bKash and card use a fake gateway.</Notice>
+          )}
+        </div>
       )}
 
       {GATEWAYS.map(({ id, name, text, icon: Icon }) => {
         const live = settings.available[id];
         const fields = id === 'cod' ? [] : CREDENTIAL_FIELDS[id];
         const creds = id === 'cod' ? {} : settings[id].credentials;
+        const switchId = `gateway-${id}`;
         return (
-          <section key={id} className="rounded-2xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="w-10 h-10 rounded-xl bg-[#8b6f47]/10 text-[#8b6f47] dark:text-[#c9a96b] flex items-center justify-center"><Icon className="w-5 h-5" /></span>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <section key={id} className="rounded-lg border border-line">
+            <div className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-[#8b6f47] dark:bg-white/[0.06] dark:text-[#c9a96b]">
+                  <Icon className="size-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-stone-900 dark:text-stone-100">
                     {name}
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${live ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <Pill tone={live ? 'success' : enabled[id] && id !== 'cod' ? 'warning' : 'neutral'} dot>
                       {live ? 'Live at checkout' : enabled[id] && id !== 'cod' ? 'Needs keys' : 'Off'}
-                    </span>
-                    {id === 'card' && settings.card.testMode && <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700">Test mode</span>}
+                    </Pill>
+                    {id === 'card' && settings.card.testMode && <Pill tone="info">Test mode</Pill>}
                     {id === 'bkash' && settings.bkash.credentials.appKey?.set && (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700 capitalize">{settings.bkash.effectiveMode}</span>
+                      <Pill tone="info" className="capitalize">{settings.bkash.effectiveMode}</Pill>
                     )}
                   </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{text}</p>
+                  <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{text}</p>
                 </div>
               </div>
-              <label className={`flex items-center gap-2 text-xs font-bold ${canEdit ? 'cursor-pointer' : 'opacity-60'}`}>
+              <label htmlFor={switchId} className={`flex items-center gap-2.5 text-xs font-medium text-stone-600 dark:text-stone-300 ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+                {enabled[id] ? 'Enabled' : 'Disabled'}
                 <input
+                  id={switchId}
                   type="checkbox"
-                  className="sr-only peer"
+                  className="peer sr-only"
                   checked={enabled[id]}
                   disabled={!canEdit}
                   onChange={(e) => setEnabled({ ...enabled, [id]: e.target.checked })}
                 />
-                <span className="relative w-10 h-6 rounded-full bg-gray-300 dark:bg-gray-700 peer-checked:bg-[#8b6f47] transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-[#8b6f47]/50" />
-                {enabled[id] ? 'Enabled' : 'Disabled'}
+                <span className="relative h-5 w-9 rounded-full bg-stone-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow-xs after:transition-transform after:content-[''] peer-checked:bg-[#8b6f47] peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-[#8b6f47]/40 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface dark:bg-white/15 dark:peer-checked:bg-[#c9a96b]" />
               </label>
             </div>
 
-            {id === 'bkash' && (
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="block text-xs">
-                  <span className="block font-medium text-gray-700 dark:text-gray-300 mb-1">Environment</span>
-                  <select
-                    value={bkashMode}
-                    disabled={!canEdit}
-                    onChange={(e) => setBkashMode(e.target.value as typeof bkashMode)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                  >
-                    <option value="">From server setting ({settings.bkash.effectiveMode})</option>
-                    <option value="sandbox">Sandbox (testing)</option>
-                    <option value="live">Live (real money)</option>
-                  </select>
-                </label>
-                <label className="block text-xs">
-                  <span className="block font-medium text-gray-700 dark:text-gray-300 mb-1">Taka per US dollar</span>
-                  <input
-                    type="number"
-                    min={1}
-                    step="0.01"
-                    value={rate}
-                    disabled={!canEdit}
-                    placeholder={`${settings.bdtPerUsd} (server setting)`}
-                    onChange={(e) => setRate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                  />
-                </label>
-              </div>
-            )}
-
-            {fields.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-4">
-                {fields.map(({ field, label, placeholder }) => {
-                  const key = `${id}.${field}`;
-                  const info = creds[field];
-                  const cleared = drafts[key] === null;
-                  return (
-                    <div key={field} className="text-xs">
-                      <Input
-                        label={label}
-                        type="password"
-                        autoComplete="new-password"
+            {(id === 'bkash' || fields.length > 0) && (
+              <div className="space-y-4 border-t border-line p-4 sm:p-5">
+                {id === 'bkash' && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className={labelCls}>Environment</span>
+                      <span className="relative block">
+                        <select
+                          value={bkashMode}
+                          disabled={!canEdit}
+                          onChange={(e) => setBkashMode(e.target.value as typeof bkashMode)}
+                          className={`${fieldCls} cursor-pointer appearance-none pr-8`}
+                        >
+                          <option value="">From server setting ({settings.bkash.effectiveMode})</option>
+                          <option value="sandbox">Sandbox (testing)</option>
+                          <option value="live">Live (real money)</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+                      </span>
+                    </label>
+                    <label className="block">
+                      <span className={labelCls}>Taka per US dollar</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step="0.01"
+                        value={rate}
                         disabled={!canEdit}
-                        value={typeof drafts[key] === 'string' ? (drafts[key] as string) : ''}
-                        placeholder={info?.set && !cleared ? `Saved ${info.hint} (type to replace)` : placeholder}
-                        onChange={(e) => setDrafts({ ...drafts, [key]: e.target.value })}
-                        className="text-sm"
+                        placeholder={`${settings.bdtPerUsd} (server setting)`}
+                        onChange={(e) => setRate(e.target.value)}
+                        className={`${fieldCls} tabular-nums`}
                       />
-                      <div className="mt-1 flex items-center justify-between text-[10px] text-gray-400">
-                        <span>
-                          {cleared ? 'Will be cleared on save' :
-                            info?.source === 'admin' ? 'Saved in admin panel' :
-                            info?.source === 'env' ? `From server (${info.envName})` : 'Not set'}
-                        </span>
-                        {canEdit && info?.source === 'admin' && !cleared && (
-                          <button type="button" onClick={() => setDrafts({ ...drafts, [key]: null })} className="font-bold text-red-500 hover:underline">Clear</button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    </label>
+                  </div>
+                )}
 
-            {id !== 'cod' && (
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => test(id)}
-                  disabled={testing !== null || !creds[fields[0].field]?.set}
-                  className="text-xs font-bold flex items-center gap-1.5"
-                  title={dirty ? 'Tests the saved settings; save your changes first' : undefined}
-                >
-                  <PlugZap className="w-3.5 h-3.5" /> {testing === id ? 'Testing...' : 'Test connection'}
-                </Button>
+                {fields.length > 0 && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {fields.map(({ field, label, placeholder }) => {
+                      const key = `${id}.${field}`;
+                      const info = creds[field];
+                      const cleared = drafts[key] === null;
+                      return (
+                        <div key={field}>
+                          <label htmlFor={`cred-${key}`} className={labelCls}>{label}</label>
+                          <input
+                            id={`cred-${key}`}
+                            type="password"
+                            autoComplete="new-password"
+                            disabled={!canEdit}
+                            value={typeof drafts[key] === 'string' ? (drafts[key] as string) : ''}
+                            placeholder={info?.set && !cleared ? `Saved ${info.hint} (type to replace)` : placeholder}
+                            onChange={(e) => setDrafts({ ...drafts, [key]: e.target.value })}
+                            className={fieldCls}
+                          />
+                          <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-stone-400">
+                            <span className={cleared ? 'text-red-600 dark:text-red-400' : undefined}>
+                              {cleared ? 'Will be cleared on save' :
+                                info?.source === 'admin' ? 'Saved in admin panel' :
+                                info?.source === 'env' ? `From server (${info.envName})` : 'Not set'}
+                            </span>
+                            {canEdit && info?.source === 'admin' && !cleared && (
+                              <button type="button" onClick={() => setDrafts({ ...drafts, [key]: null })} className="cursor-pointer font-medium text-red-600 hover:underline dark:text-red-400">Clear</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {id !== 'cod' && (
+                  <div className="flex justify-end">
+                    <AdminButton
+                      size="sm"
+                      onClick={() => test(id)}
+                      disabled={testing !== null || !creds[fields[0].field]?.set}
+                      title={dirty ? 'Tests the saved settings; save your changes first' : undefined}
+                    >
+                      <PlugZap className="size-3.5" /> {testing === id ? 'Testing...' : 'Test connection'}
+                    </AdminButton>
+                  </div>
+                )}
               </div>
             )}
           </section>
         );
       })}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[11px] text-gray-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+        <span className="text-xs text-stone-500 dark:text-stone-400">
           {settings.updatedAt ? `Last changed ${new Date(settings.updatedAt).toLocaleString()}${settings.updatedByName ? ` by ${settings.updatedByName}` : ''}` : 'Using server defaults'}
         </span>
         {canEdit && (
-          <Button onClick={save} disabled={saving || !dirty} className="text-xs font-bold flex items-center gap-1.5">
-            <Save className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save changes'}
-          </Button>
+          <AdminButton variant="primary" onClick={save} disabled={saving || !dirty}>
+            <Save className="size-4" /> {saving ? 'Saving...' : 'Save changes'}
+          </AdminButton>
         )}
       </div>
     </div>

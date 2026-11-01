@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Dropdown from '@/components/ui/Dropdown';
-import { X, ShieldAlert, Mail } from 'lucide-react';
+import { X, History, Mail, Loader2 } from 'lucide-react';
 import { errMsg } from './adminUtils';
 import EmailCustomerModal from './EmailCustomerModal';
 import ReturnRefundPanel from './ReturnRefundPanel';
+import { AdminButton, StatusPill, table } from './AdminUI';
 
 export const ORDER_STATUSES = ['Pending', 'Processing', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
 export const PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed'];
@@ -26,6 +26,12 @@ const STAFF_NEXT: Record<string, string[]> = {
   Returned: [],
 };
 const CLOSED_STATUSES = ['Cancelled', 'Returned'];
+
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const inputClass = 'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const boxLabel = 'mb-1 block text-xs font-medium text-stone-500 dark:text-stone-400';
+// Gives the shared Dropdown's trigger the admin input look (its className only reaches the wrapper)
+const dropdownSkin = '[&>button]:h-9 [&>button]:py-0 [&>button]:rounded-lg [&>button]:border-line [&>button]:bg-surface [&>button:focus]:border-[#8b6f47]/60 [&>button:focus]:ring-[#8b6f47]/20 [&>button[aria-expanded=true]]:border-[#8b6f47]/60 [&>button[aria-expanded=true]]:ring-[#8b6f47]/20';
 
 interface Props {
   order: any;
@@ -56,6 +62,7 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
   const statusChoices = canOverrideStatus ? ORDER_STATUSES : [order.orderStatus, ...(STAFF_NEXT[order.orderStatus] || [])];
   const paymentChoices = PAYMENT_STATUSES.includes(order.paymentStatus) ? PAYMENT_STATUSES : [order.paymentStatus, ...PAYMENT_STATUSES];
   const canRefund = order.paymentStatus === 'Refund Needed' && isClosed;
+  const busy = saving && confirm === null;
 
   // the status endpoints return the order without populated user/products, so keep those
   const merge = (updated: any) => onUpdated({ ...order, ...updated, user: order.user, products: order.products });
@@ -112,116 +119,134 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-2xl overflow-y-auto max-h-[90vh] shadow-2xl p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-          <X className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]">
+      <div role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-2xl">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/[0.06] dark:hover:text-stone-200 cursor-pointer"
+        >
+          <X className="size-4" />
         </button>
 
-        <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">Order {order.orderNumber || order.id}</h3>
-        <p className="text-xs text-gray-400 mb-4 border-b pb-3">
-          Placed {new Date(order.createdAt).toLocaleString()}
-          {order.deliveredAt && <> &middot; Delivered {new Date(order.deliveredAt).toLocaleDateString()}</>}
-        </p>
+        <div className="pr-8">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 id="order-detail-title" className="text-base font-semibold text-stone-900 dark:text-white">
+              Order <span className="font-mono">{order.orderNumber || order.id}</span>
+            </h3>
+            <StatusPill status={order.orderStatus} />
+            <StatusPill kind="payment" status={order.paymentStatus} />
+          </div>
+          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+            Placed {new Date(order.createdAt).toLocaleString()}
+            {order.deliveredAt && <> &middot; Delivered {new Date(order.deliveredAt).toLocaleDateString()}</>}
+          </p>
+        </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 text-xs mb-5">
-          <div className="p-3 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-800">
-            <span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Customer</span>
-            <span className="block font-bold text-gray-800 dark:text-gray-200">{order.user?.name || 'Deleted user'}</span>
-            <span className="block text-gray-500">{order.user?.email}</span>
+        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+          <div className="rounded-lg border border-line bg-stone-50/60 p-3 dark:bg-white/[0.03]">
+            <span className={boxLabel}>Customer</span>
+            <span className="block font-medium text-stone-900 dark:text-stone-100">{order.user?.name || 'Deleted user'}</span>
+            <span className="block text-stone-500 dark:text-stone-400">{order.user?.email}</span>
             {customerId && order.user?.email && (
-              <button
-                type="button"
-                onClick={() => setEmailOpen(true)}
-                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-[#8b6f47] border border-[#8b6f47]/40 rounded-lg px-2.5 py-1 hover:bg-[#8b6f47]/10"
-              >
-                <Mail className="w-3.5 h-3.5" /> Email customer
-              </button>
+              <AdminButton size="sm" onClick={() => setEmailOpen(true)} className="mt-2.5">
+                <Mail className="size-3.5" /> Email customer
+              </AdminButton>
             )}
           </div>
-          <div className="p-3 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-800">
-            <span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Ship to</span>
+          <div className="rounded-lg border border-line bg-stone-50/60 p-3 dark:bg-white/[0.03]">
+            <span className={boxLabel}>Ship to</span>
             {addr ? (
-              <span className="block text-gray-700 dark:text-gray-300">
+              <span className="block text-stone-700 dark:text-stone-300">
                 {addr.street}, {addr.city}, {addr.state} {addr.zipCode}, {addr.country}
               </span>
             ) : (
-              <span className="text-gray-400">No address on record</span>
+              <span className="text-stone-400">No address on record</span>
             )}
           </div>
         </div>
 
-        <div className="border rounded-2xl overflow-hidden mb-5">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-gray-50 dark:bg-gray-950 text-gray-400 uppercase text-[9px]">
-              <tr>
-                <th className="p-2.5">Item</th>
-                <th className="p-2.5 text-right">Qty</th>
-                <th className="p-2.5 text-right">Price</th>
-                <th className="p-2.5 text-right">Line total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {(order.products || []).map((item: any, i: number) => (
-                <tr key={i}>
-                  <td className="p-2.5">
-                    <div className="flex items-center gap-2">
-                      {item.product?.thumbnail && <img src={item.product.thumbnail} alt="" className="w-9 h-9 rounded-lg object-cover bg-gray-100" />}
-                      <div>
-                        <span className="block font-bold text-gray-800 dark:text-gray-200">{item.product?.title || 'Removed product'}</span>
-                        {item.variant?.name && <span className="block text-[10px] text-gray-400">{item.variant.name}</span>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-2.5 text-right">{item.quantity}</td>
-                  <td className="p-2.5 text-right">${Number(item.price).toFixed(2)}</td>
-                  <td className="p-2.5 text-right font-bold">${(item.price * item.quantity).toFixed(2)}</td>
+        <div className="mt-4 overflow-hidden rounded-lg border border-line">
+          <div className="overflow-x-auto">
+            <table className={table.table}>
+              <thead className={table.thead}>
+                <tr>
+                  <th className={`${table.th} px-3`}>Item</th>
+                  <th className={`${table.th} px-3 text-right`}>Qty</th>
+                  <th className={`${table.th} px-3 text-right`}>Price</th>
+                  <th className={`${table.th} px-3 text-right`}>Line total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-3 bg-gray-50 dark:bg-gray-950 text-xs space-y-1">
-            <div className="flex justify-between"><span>Subtotal</span><span>${Number(order.subtotal || 0).toFixed(2)}</span></div>
-            {order.coupon && <div className="flex justify-between"><span>Coupon</span><span className="font-mono">{order.coupon}</span></div>}
-            <div className="flex justify-between"><span>Shipping{order.deliveryZone ? ` (${ZONE_LABELS[order.deliveryZone]})` : ''}</span><span>${Number(order.shipping || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>Tax</span><span>${Number(order.tax || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between font-extrabold text-sm text-[#8b6f47] pt-1 border-t"><span>Total</span><span>${Number(order.total).toFixed(2)}</span></div>
-            <div className="flex justify-between text-gray-500"><span>Payment method</span><span className="uppercase">{order.paymentMethod}</span></div>
-            {order.deliveryZone && <div className="flex justify-between text-gray-500"><span>Delivery zone</span><span className="font-bold">{ZONE_LABELS[order.deliveryZone]}</span></div>}
+              </thead>
+              <tbody className={table.tbody}>
+                {(order.products || []).map((item: any, i: number) => (
+                  <tr key={i}>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {item.product?.thumbnail && <img src={item.product.thumbnail} alt="" className="size-9 shrink-0 rounded-md bg-stone-100 object-cover dark:bg-white/5" />}
+                        <div className="min-w-0">
+                          <span className="block font-medium text-stone-900 dark:text-stone-100">{item.product?.title || 'Removed product'}</span>
+                          {item.variant?.name && <span className="block text-xs text-stone-400">{item.variant.name}</span>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-700 dark:text-stone-300">{item.quantity}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-stone-700 dark:text-stone-300">${Number(item.price).toFixed(2)}</td>
+                    <td className="px-3 py-2.5 text-right font-medium tabular-nums text-stone-900 dark:text-white">${(item.price * item.quantity).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+          <dl className="space-y-1.5 border-t border-line bg-stone-50 px-3 py-3 text-sm dark:bg-white/[0.03]">
+            <div className="flex justify-between text-stone-600 dark:text-stone-300"><dt>Subtotal</dt><dd className="tabular-nums">${Number(order.subtotal || 0).toFixed(2)}</dd></div>
+            {order.coupon && <div className="flex justify-between text-stone-600 dark:text-stone-300"><dt>Coupon</dt><dd className="font-mono text-xs">{order.coupon}</dd></div>}
+            <div className="flex justify-between text-stone-600 dark:text-stone-300"><dt>Shipping{order.deliveryZone ? ` (${ZONE_LABELS[order.deliveryZone]})` : ''}</dt><dd className="tabular-nums">${Number(order.shipping || 0).toFixed(2)}</dd></div>
+            <div className="flex justify-between text-stone-600 dark:text-stone-300"><dt>Tax</dt><dd className="tabular-nums">${Number(order.tax || 0).toFixed(2)}</dd></div>
+            <div className="flex justify-between border-t border-line pt-1.5 font-semibold text-stone-900 dark:text-white"><dt>Total</dt><dd className="tabular-nums">${Number(order.total).toFixed(2)}</dd></div>
+            <div className="flex justify-between text-xs text-stone-500 dark:text-stone-400"><dt>Payment method</dt><dd className="uppercase">{order.paymentMethod}</dd></div>
+            {order.deliveryZone && <div className="flex justify-between text-xs text-stone-500 dark:text-stone-400"><dt>Delivery zone</dt><dd className="font-medium">{ZONE_LABELS[order.deliveryZone]}</dd></div>}
+          </dl>
         </div>
 
-        {/* Customer's return request and refund offer */}
-        <ReturnRefundPanel
-          order={order}
-          canConfirm={canOverrideStatus}
-          onUpdated={(updated) => {
-            merge(updated);
-            if (updated.orderStatus) setStatus(updated.orderStatus);
-            if (updated.paymentStatus) setPayment(updated.paymentStatus);
-          }}
-        />
+        <div className="mt-4">
+          {/* Customer's return request and refund offer */}
+          <ReturnRefundPanel
+            order={order}
+            canConfirm={canOverrideStatus}
+            onUpdated={(updated) => {
+              merge(updated);
+              if (updated.orderStatus) setStatus(updated.orderStatus);
+              if (updated.paymentStatus) setPayment(updated.paymentStatus);
+            }}
+          />
+        </div>
 
         {/* Order status */}
-        <div className="rounded-2xl border border-[#8b6f47]/30 bg-[#8b6f47]/5 p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="order-status-select" className="text-xs font-black text-gray-700 dark:text-gray-200 uppercase tracking-wider">Update status</label>
-            <span className="text-[10px] text-gray-500">Current: <strong>{order.orderStatus}</strong>{canOverrideStatus && ' | Super admin: any status'}</span>
+        <div className="mb-4 rounded-lg border border-line p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="order-status-select" className="text-sm font-semibold text-stone-900 dark:text-stone-100">Update status</label>
+            <span className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400">
+              Current <StatusPill status={order.orderStatus} />
+              {canOverrideStatus && <span>· Super admin: any status</span>}
+            </span>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Dropdown
               id="order-status-select"
               value={status}
               disabled={isClosed}
               onChange={setStatus}
               options={statusChoices.map((s) => ({ value: s, label: s, hint: s === order.orderStatus ? 'Current status' : undefined }))}
-              className="flex-1"
+              className={`flex-1 ${dropdownSkin}`}
             />
-            <Button onClick={() => setConfirm('status')} loading={saving && confirm === null} disabled={!statusDirty || isClosed} className="text-sm py-2 px-5 font-bold rounded-xl bg-[#8b6f47] text-white">
+            <AdminButton variant="primary" onClick={() => setConfirm('status')} disabled={!statusDirty || isClosed || busy}>
+              {busy && <Loader2 className="size-4 animate-spin" />}
               Update status
-            </Button>
+            </AdminButton>
           </div>
-          <p className="text-[10px] text-gray-500 mt-2">
+          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
             {isClosed
               ? `A ${order.orderStatus} order is final: its stock was already released. Ask the customer to place a new order.`
               : 'Cancelling or returning an order puts its items back in stock. The customer gets a notification for every change, and every change is logged.'}
@@ -229,43 +254,44 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
         </div>
 
         {/* Payment status + refund */}
-        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+        <div className="mb-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payment status</label>
+            <span className={labelClass}>Payment status</span>
             <div className="flex gap-2">
               <Dropdown
                 aria-label="Payment status"
                 value={payment}
                 onChange={setPayment}
                 options={paymentChoices.map((s) => ({ value: s, label: s }))}
-                className="flex-1"
+                className={`flex-1 ${dropdownSkin}`}
               />
-              <Button onClick={savePayment} loading={saving && confirm === null} disabled={!paymentDirty} variant="outline" className="text-xs py-2 px-3 font-bold rounded-xl">
+              <AdminButton onClick={savePayment} disabled={!paymentDirty || busy}>
+                {busy && <Loader2 className="size-4 animate-spin" />}
                 Save
-              </Button>
+              </AdminButton>
             </div>
           </div>
           {order.paymentStatus === 'Refunded' && order.refund && (
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 p-3 text-xs text-gray-600 dark:text-gray-300">
-              <strong className="block text-gray-800 dark:text-gray-100">Refunded ${Number(order.refund.amount || 0).toFixed(2)}</strong>
-              {order.refund.at && new Date(order.refund.at).toLocaleString()}{order.refund.byName ? ` by ${order.refund.byName}` : ''}
-              {order.refund.reference && <span className="block text-gray-500">Ref: <span className="font-mono">{order.refund.reference}</span></span>}
-              {order.refund.note && <span className="block text-gray-500">{order.refund.note}</span>}
+            <div className="rounded-lg border border-line bg-stone-50 p-3 text-sm text-stone-600 dark:bg-white/[0.03] dark:text-stone-300">
+              <strong className="block font-semibold tabular-nums text-stone-900 dark:text-white">Refunded ${Number(order.refund.amount || 0).toFixed(2)}</strong>
+              <span className="text-xs">{order.refund.at && new Date(order.refund.at).toLocaleString()}{order.refund.byName ? ` by ${order.refund.byName}` : ''}</span>
+              {order.refund.reference && <span className="block text-xs text-stone-500 dark:text-stone-400">Ref: <span className="font-mono">{order.refund.reference}</span></span>}
+              {order.refund.note && <span className="block text-xs text-stone-500 dark:text-stone-400">{order.refund.note}</span>}
             </div>
           )}
         </div>
 
         {canRefund && (
-          <div className="rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/40 p-4 mb-4">
-            <p className="text-xs text-orange-800 dark:text-orange-300 mb-3">
-              <strong>Refund needed:</strong> this order is {order.orderStatus.toLowerCase()} and was paid by {String(order.paymentMethod).toUpperCase()}.
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50/60 p-4 dark:border-red-900/40 dark:bg-red-950/20">
+            <p className="text-sm text-red-900 dark:text-red-200">
+              <strong className="font-semibold">Refund needed:</strong> this order is {order.orderStatus.toLowerCase()} and was paid by {String(order.paymentMethod).toUpperCase()}.
               Send the money back (Stripe / bKash dashboard or cash), then record it here. The amount is taken out of the store wallet.
               {!canOverrideStatus && ' Only a super admin can record refunds, and the shared demo admin is never a super admin. Sign in with your own admin account to do it.'}
             </p>
             {canOverrideStatus && (
-              <div className="grid sm:grid-cols-3 gap-2 items-end">
+              <div className="mt-3 grid items-end gap-2 sm:grid-cols-3">
                 <div>
-                  <label htmlFor="refund-amount" className="block text-[10px] font-bold text-orange-900/70 dark:text-orange-300/80 uppercase mb-1">Amount ($)</label>
+                  <label htmlFor="refund-amount" className={labelClass}>Amount ($)</label>
                   <input
                     id="refund-amount"
                     type="number"
@@ -274,45 +300,46 @@ export default function OrderDetailModal({ order, onClose, onUpdated, onViewAudi
                     max={Number(order.total)}
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
-                    className="w-full text-sm border border-orange-200 dark:border-orange-900/50 bg-white dark:bg-gray-900 rounded-lg p-2"
+                    className={`${inputClass} tabular-nums`}
                   />
                 </div>
                 <div>
-                  <label htmlFor="refund-reference" className="block text-[10px] font-bold text-orange-900/70 dark:text-orange-300/80 uppercase mb-1">Reference</label>
+                  <label htmlFor="refund-reference" className={labelClass}>Reference</label>
                   <input
                     id="refund-reference"
                     value={refundReference}
                     onChange={(e) => setRefundReference(e.target.value)}
                     maxLength={120}
                     placeholder="e.g. bKash TrxID"
-                    className="w-full text-sm border border-orange-200 dark:border-orange-900/50 bg-white dark:bg-gray-900 rounded-lg p-2"
+                    className={inputClass}
                   />
                 </div>
-                <Button onClick={() => setConfirm('refund')} disabled={!refundAmountValid} className="text-sm py-2 px-5 font-bold rounded-xl bg-orange-600 text-white">
+                <AdminButton variant="primary" onClick={() => setConfirm('refund')} disabled={!refundAmountValid}>
                   Record refund
-                </Button>
+                </AdminButton>
                 <input
                   value={refundNote}
                   onChange={(e) => setRefundNote(e.target.value)}
                   maxLength={300}
+                  aria-label="Note for the customer"
                   placeholder="Note for the customer (optional, e.g. shipping fee not refunded)"
-                  className="sm:col-span-3 w-full text-xs border border-orange-200 dark:border-orange-900/50 bg-white dark:bg-gray-900 rounded-lg p-2"
+                  className={`${inputClass} sm:col-span-3`}
                 />
                 {!refundAmountValid && (
-                  <p className="sm:col-span-3 text-[10px] text-red-600">Enter an amount between $0.01 and ${Number(order.total).toFixed(2)}.</p>
+                  <p className="text-xs text-red-600 dark:text-red-400 sm:col-span-3">Enter an amount between $0.01 and ${Number(order.total).toFixed(2)}.</p>
                 )}
               </div>
             )}
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
           {onViewAudit ? (
-            <button onClick={() => onViewAudit(order.id)} className="text-xs font-bold text-purple-600 hover:underline flex items-center gap-1">
-              <ShieldAlert className="w-3.5 h-3.5" /> Change history
-            </button>
+            <AdminButton variant="ghost" onClick={() => onViewAudit(order.id)}>
+              <History className="size-4" /> Change history
+            </AdminButton>
           ) : <span />}
-          <Button onClick={onClose} variant="outline" className="text-sm py-2 px-5 font-bold rounded-xl">Close</Button>
+          <AdminButton onClick={onClose}>Close</AdminButton>
         </div>
       </div>
 

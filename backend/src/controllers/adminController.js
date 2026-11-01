@@ -30,6 +30,12 @@ const getDashboardStats = async (req, res, next) => {
     ]);
     const revenue = revenueAggregation.length > 0 ? Number(revenueAggregation[0].totalRevenue.toFixed(2)) : 0;
 
+    // Orders per status, for the dashboard's order mix
+    const statusAgg = await Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }]);
+    const ordersByStatus = statusAgg
+      .map((s) => ({ status: s._id || 'Unknown', count: s.count }))
+      .sort((a, b) => b.count - a.count);
+
     // 3. Low stock products (stock <= 5)
     const lowStockProducts = await Product.find({ stock: { $lte: 5 }, active: true })
       .select('title stock price thumbnail SKU')
@@ -104,9 +110,11 @@ const getDashboardStats = async (req, res, next) => {
         totalSales: revenue, // Total sales revenue
         revenue,
         ordersCount: totalOrdersCount,
+        activeOrdersCount,
         customersCount,
         productsCount
       },
+      ordersByStatus,
       monthlyRevenue,
       topSellingProducts,
       recentOrders,

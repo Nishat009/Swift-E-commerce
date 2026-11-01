@@ -2,11 +2,9 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Dropdown from '@/components/ui/Dropdown';
-import { RefreshCw, Search, ShieldAlert } from 'lucide-react';
+import { ChevronDown, RefreshCw, ScrollText, X } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { AdminButton, AdminEmpty, FilterTabs, Pill, SearchField, table } from './AdminUI';
 
 interface ActivityEntry {
   id: string;
@@ -73,14 +71,38 @@ const REQUEST_ROLE_OPTIONS = [
   { value: 'guest', label: 'Signed out' },
 ];
 
-const ROLE_BADGE: Record<string, string> = {
-  admin: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300',
-  customer: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  system: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  guest: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+const VIEW_OPTIONS: { value: View; label: string }[] = [
+  { value: 'activity', label: 'Activity' },
+  { value: 'requests', label: 'API requests' },
+];
+
+const ROLE_PILL: Record<string, { tone: 'violet' | 'info' | 'neutral'; label: string }> = {
+  admin: { tone: 'violet', label: 'Staff' },
+  customer: { tone: 'info', label: 'Customer' },
+  system: { tone: 'neutral', label: 'System' },
+  guest: { tone: 'neutral', label: 'Signed out' },
 };
-const statusClass = (code: number) =>
-  code >= 500 ? 'bg-red-100 text-red-700' : code >= 400 ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700';
+const statusTone = (code: number) => (code >= 500 ? 'danger' : code >= 400 ? 'warning' : 'success');
+
+const fieldCls =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark]';
+
+function SelectField({ value, onChange, options, className, ...rest }: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+  'aria-label'?: string;
+}) {
+  return (
+    <div className={`relative ${className || ''}`}>
+      <select {...rest} value={value} onChange={(e) => onChange(e.target.value)} className={`${fieldCls} cursor-pointer appearance-none pr-8`}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+    </div>
+  );
+}
 
 /** System logs: business events from staff, customers and the system, plus the raw API request trail */
 export default function ActivityLogsAdmin() {
@@ -143,101 +165,98 @@ export default function ActivityLogsAdmin() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3.5 mb-4">
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5 text-[#8b6f47]" /> System Logs
-        </h2>
-        <Button variant="outline" size="sm" onClick={() => load(page)} className="flex items-center gap-1.5">
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterTabs options={VIEW_OPTIONS} value={view} onChange={switchView} />
+        <AdminButton variant="ghost" onClick={() => load(page)}>
+          <RefreshCw className="size-4" /> Refresh
+        </AdminButton>
       </div>
-
-      <div className="inline-flex rounded-xl border border-gray-200 dark:border-gray-800 p-1 bg-gray-50 dark:bg-gray-950">
-        {([['activity', 'Activity'], ['requests', 'API requests']] as [View, string][]).map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => switchView(id)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${view === id ? 'bg-white dark:bg-gray-900 text-[#8b6f47] shadow-sm' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-sm text-stone-500 dark:text-stone-400">
         {view === 'activity'
           ? 'What happened in the store: staff actions, customer actions (orders, returns, refund answers) and automatic jobs (payments, expired orders), with who did it and when.'
           : 'Every API call that changed something, and every call that failed, with who made it and how it ended. Kept for 90 days. Request contents are never stored.'}
       </p>
 
-      <div className={`grid grid-cols-2 gap-2 ${view === 'activity' ? 'lg:grid-cols-4' : 'lg:grid-cols-5'}`}>
-        <div className="relative col-span-full">
-          <Input
-            type="text"
-            placeholder={view === 'activity' ? 'Search action, detail, name or email...' : 'Search path, email or IP...'}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full text-sm pl-8"
-          />
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={view === 'activity' ? 'Search action, detail, name or email' : 'Search path, email or IP'}
+          className="w-full xl:flex-1"
+        />
+        <div className={`grid grid-cols-2 gap-2 ${view === 'activity' ? 'sm:grid-cols-4' : 'sm:grid-cols-5'} xl:flex xl:items-center`}>
+          <SelectField aria-label="Who" value={role} onChange={setRole} options={view === 'activity' ? ROLE_OPTIONS : REQUEST_ROLE_OPTIONS} className="xl:w-36" />
+          {view === 'activity' ? (
+            <SelectField aria-label="Category" value={category} onChange={setCategory} options={CATEGORY_OPTIONS} className="xl:w-40" />
+          ) : (
+            <>
+              <SelectField aria-label="Method" value={method} onChange={setMethod} options={METHOD_OPTIONS} className="xl:w-40" />
+              <SelectField aria-label="Result" value={status} onChange={setStatus} options={STATUS_OPTIONS} className="xl:w-44" />
+            </>
+          )}
+          <input type="date" aria-label="From" title="From" value={from} onChange={(e) => setFrom(e.target.value)} className={`${fieldCls} xl:w-36`} />
+          <input type="date" aria-label="To" title="To" value={to} onChange={(e) => setTo(e.target.value)} className={`${fieldCls} xl:w-36`} />
         </div>
-        <Dropdown aria-label="Who" value={role} onChange={setRole} options={view === 'activity' ? ROLE_OPTIONS : REQUEST_ROLE_OPTIONS} />
-        {view === 'activity' ? (
-          <Dropdown aria-label="Category" value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
-        ) : (
-          <>
-            <Dropdown aria-label="Method" value={method} onChange={setMethod} options={METHOD_OPTIONS} />
-            <Dropdown aria-label="Result" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
-          </>
+        {filtered && (
+          <AdminButton variant="ghost" size="sm" onClick={clearFilters} className="self-start xl:self-auto">
+            <X className="size-3.5" /> Clear filters
+          </AdminButton>
         )}
-        <Input type="date" aria-label="From" value={from} onChange={(e) => setFrom(e.target.value)} className="text-sm" />
-        <Input type="date" aria-label="To" value={to} onChange={(e) => setTo(e.target.value)} className="text-sm" />
       </div>
-      {filtered && <button onClick={clearFilters} className="text-[11px] font-bold text-[#8b6f47] underline">Clear filters</button>}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
-          <RefreshCw className="w-5 h-5 animate-spin text-[#8b6f47]" /> Loading logs...
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-stone-500 dark:text-stone-400">
+          <RefreshCw className="size-4 animate-spin" /> Loading logs...
         </div>
       ) : error ? (
-        <div className="p-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-400/[0.07] dark:text-red-300">{error}</div>
       ) : view === 'activity' ? (
-        <div className="overflow-x-auto border rounded-2xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px]">
+        <div className={table.wrap}>
+          <table className={table.table}>
+            <thead className={table.thead}>
               <tr>
-                <th className="p-3">When</th>
-                <th className="p-3">Who</th>
-                <th className="p-3">Action</th>
-                <th className="p-3">Details</th>
-                <th className="p-3">IP</th>
+                <th className={table.th}>When</th>
+                <th className={table.th}>Who</th>
+                <th className={table.th}>Action</th>
+                <th className={table.th}>Details</th>
+                <th className={table.th}>IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className={table.tbody}>
               {rows.length === 0 && (
-                <tr><td colSpan={5} className="p-8 text-center text-gray-400">No log entries{filtered ? ' match these filters' : ''}.</td></tr>
+                <tr>
+                  <td colSpan={5}>
+                    <AdminEmpty icon={ScrollText} title={`No log entries${filtered ? ' match these filters' : ''}`} description={filtered ? 'Try a different search or date range.' : undefined} />
+                  </td>
+                </tr>
               )}
               {(rows as ActivityEntry[]).map((l) => {
                 const who = l.actorRole || 'admin';
+                const rolePill = ROLE_PILL[who] || ROLE_PILL.guest;
                 return (
-                  <tr key={l.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 align-top">
-                    <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">{new Date(l.createdAt).toLocaleString()}</td>
-                    <td className="p-3 text-xs">
-                      <span className={`inline-block mb-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ROLE_BADGE[who]}`}>{who === 'admin' ? 'Staff' : who}</span>
+                  <tr key={l.id} className={`${table.tr} align-top`}>
+                    <td className={`${table.td} whitespace-nowrap text-xs text-stone-500 dark:text-stone-400`}>{new Date(l.createdAt).toLocaleString()}</td>
+                    <td className={table.td}>
                       {who === 'system' ? (
-                        <span className="block text-gray-500">Automatic</span>
+                        <span className="flex items-center gap-2 text-stone-500 dark:text-stone-400">
+                          Automatic <Pill tone={rolePill.tone}>{rolePill.label}</Pill>
+                        </span>
                       ) : (
                         <>
-                          <span className="block font-bold text-gray-800 dark:text-gray-200">{l.adminUser?.name || 'Deleted user'}</span>
-                          <span className="block text-[10px] text-gray-400">{l.adminUser?.email}</span>
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-medium text-stone-900 dark:text-stone-100">{l.adminUser?.name || 'Deleted user'}</span>
+                            <Pill tone={rolePill.tone}>{rolePill.label}</Pill>
+                          </span>
+                          <span className="block text-xs text-stone-400">{l.adminUser?.email}</span>
                         </>
                       )}
                     </td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#8b6f47]/10 text-[#8b6f47] whitespace-nowrap">{l.action.replace(/_/g, ' ')}</span>
-                      {l.category && l.category !== 'other' && <span className="block mt-1 text-[9px] uppercase text-gray-400">{l.category}</span>}
+                    <td className={table.td}>
+                      <Pill>{l.action.replace(/_/g, ' ')}</Pill>
+                      {l.category && l.category !== 'other' && <span className="mt-1 block text-[11px] capitalize text-stone-400">{l.category}</span>}
                     </td>
-                    <td className="p-3 text-xs text-gray-700 dark:text-gray-300 max-w-[340px] break-words">{l.details}</td>
-                    <td className="p-3 font-mono text-[10px] text-gray-400">{l.ipAddress}</td>
+                    <td className={`${table.td} max-w-[340px] break-words text-stone-700 dark:text-stone-300`}>{l.details}</td>
+                    <td className={`${table.td} whitespace-nowrap font-mono text-[11px] text-stone-400`}>{l.ipAddress}</td>
                   </tr>
                 );
               })}
@@ -245,49 +264,56 @@ export default function ActivityLogsAdmin() {
           </table>
         </div>
       ) : (
-        <div className="overflow-x-auto border rounded-2xl">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[9px]">
+        <div className={table.wrap}>
+          <table className={table.table}>
+            <thead className={table.thead}>
               <tr>
-                <th className="p-3">When</th>
-                <th className="p-3">Request</th>
-                <th className="p-3">Result</th>
-                <th className="p-3">Who</th>
-                <th className="p-3">IP</th>
+                <th className={table.th}>When</th>
+                <th className={table.th}>Request</th>
+                <th className={table.th}>Result</th>
+                <th className={table.th}>Who</th>
+                <th className={table.th}>IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className={table.tbody}>
               {rows.length === 0 && (
-                <tr><td colSpan={5} className="p-8 text-center text-gray-400">No requests{filtered ? ' match these filters' : ''}.</td></tr>
-              )}
-              {(rows as RequestEntry[]).map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 align-top">
-                  <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">{new Date(r.createdAt).toLocaleString()}</td>
-                  <td className="p-3 text-xs">
-                    <span className="font-mono font-bold text-gray-800 dark:text-gray-200 mr-2">{r.method}</span>
-                    <span className="font-mono text-gray-600 dark:text-gray-400 break-all">{r.path}</span>
+                <tr>
+                  <td colSpan={5}>
+                    <AdminEmpty icon={ScrollText} title={`No requests${filtered ? ' match these filters' : ''}`} description={filtered ? 'Try a different search or date range.' : undefined} />
                   </td>
-                  <td className="p-3 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${statusClass(r.statusCode)}`}>{r.statusCode}</span>
-                    <span className="ml-2 text-[10px] text-gray-400">{r.durationMs} ms</span>
-                  </td>
-                  <td className="p-3 text-xs">
-                    <span className={`inline-block mb-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${ROLE_BADGE[r.userRole] || ROLE_BADGE.guest}`}>{r.userRole === 'admin' ? 'Staff' : r.userRole === 'guest' ? 'Signed out' : r.userRole}</span>
-                    {r.userEmail && <span className="block text-[10px] text-gray-500">{r.userEmail}</span>}
-                  </td>
-                  <td className="p-3 font-mono text-[10px] text-gray-400">{r.ipAddress}</td>
                 </tr>
-              ))}
+              )}
+              {(rows as RequestEntry[]).map((r) => {
+                const rolePill = ROLE_PILL[r.userRole] || { tone: 'neutral' as const, label: r.userRole };
+                return (
+                  <tr key={r.id} className={`${table.tr} align-top`}>
+                    <td className={`${table.td} whitespace-nowrap text-xs text-stone-500 dark:text-stone-400`}>{new Date(r.createdAt).toLocaleString()}</td>
+                    <td className={`${table.td} text-xs`}>
+                      <span className="mr-2 font-mono font-semibold text-stone-900 dark:text-stone-100">{r.method}</span>
+                      <span className="break-all font-mono text-stone-600 dark:text-stone-400">{r.path}</span>
+                    </td>
+                    <td className={`${table.td} whitespace-nowrap`}>
+                      <Pill tone={statusTone(r.statusCode)} className="tabular-nums">{r.statusCode}</Pill>
+                      <span className="ml-2 text-xs tabular-nums text-stone-400">{r.durationMs} ms</span>
+                    </td>
+                    <td className={table.td}>
+                      <Pill tone={rolePill.tone} className="capitalize">{rolePill.label}</Pill>
+                      {r.userEmail && <span className="mt-1 block text-xs text-stone-500 dark:text-stone-400">{r.userEmail}</span>}
+                    </td>
+                    <td className={`${table.td} whitespace-nowrap font-mono text-[11px] text-stone-400`}>{r.ipAddress}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>{total} {total === 1 ? 'entry' : 'entries'} &middot; Page {page} of {pages}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500 dark:text-stone-400">
+        <span className="tabular-nums">{total} {total === 1 ? 'entry' : 'entries'} &middot; Page {page} of {pages}</span>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          <AdminButton size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>Previous</AdminButton>
+          <AdminButton size="sm" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)}>Next</AdminButton>
         </div>
       </div>
     </div>

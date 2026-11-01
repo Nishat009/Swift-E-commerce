@@ -1,14 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import AccountLayout from '@/components/layout/AccountLayout';
+import { ExternalLink, Loader2, PackageX } from 'lucide-react';
 import AdminOnly from '@/components/admin/AdminOnly';
+import AdminFrame from '@/components/admin/AdminFrame';
+import { AdminButton, AdminEmpty, adminCard } from '@/components/admin/AdminUI';
 import ProductForm from '@/components/product/ProductForm';
 import { productService } from '@/services/productService';
-import Loading from '@/components/ui/Loading';
 import { Product } from '@/types';
 import { useToast } from '@/context/ToastContext';
+
+const frameProps = { active: 'products' as const, backHref: '/admin?tab=products', backLabel: 'All products' };
 
 function EditProductPageContent() {
   const params = useParams();
@@ -45,26 +49,49 @@ function EditProductPageContent() {
 
   if (loading) {
     return (
-      <AccountLayout activeTabName="/dashboard">
-        <Loading />
-      </AccountLayout>
+      <AdminFrame {...frameProps} title="Edit product">
+        <div className={`${adminCard} flex items-center justify-center gap-2 px-6 py-16 text-sm text-stone-500 dark:text-stone-400`} role="status">
+          <Loader2 className="size-4 animate-spin" />
+          Loading product...
+        </div>
+      </AdminFrame>
     );
   }
 
   if (!product) {
     return (
-      <AccountLayout activeTabName="/dashboard">
-        <div className="p-8 text-center text-text-muted">
-          Product not found.
+      <AdminFrame {...frameProps} title="Edit product">
+        <div className={adminCard}>
+          <AdminEmpty
+            icon={PackageX}
+            title="Product not found"
+            description="It may have been removed, or the link is wrong."
+            action={
+              <Link href="/admin?tab=products">
+                <AdminButton tabIndex={-1}>Back to products</AdminButton>
+              </Link>
+            }
+          />
         </div>
-      </AccountLayout>
+      </AdminFrame>
     );
   }
 
   return (
-    <AccountLayout activeTabName="/dashboard">
+    <AdminFrame
+      {...frameProps}
+      title="Edit product"
+      description={product.title || product.name}
+      actions={
+        <Link href={`/product/${product.id}`} target="_blank">
+          <AdminButton tabIndex={-1}>
+            <ExternalLink className="size-4" /> View in store
+          </AdminButton>
+        </Link>
+      }
+    >
       <ProductForm initialData={product} isEditMode={true} />
-    </AccountLayout>
+    </AdminFrame>
   );
 }
 

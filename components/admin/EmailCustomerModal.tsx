@@ -3,9 +3,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
-import Button from '@/components/ui/Button';
-import { X, Mail, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { X, Mail, CheckCircle2, AlertTriangle, ExternalLink, Loader2, ChevronDown } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { AdminButton, Pill } from './AdminUI';
 
 interface Customer {
   id: string;
@@ -38,6 +38,8 @@ interface Props {
 }
 
 const SIGN_OFF = '\n\nBest regards,\nThe SwiftCart team';
+const labelClass = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const inputClass = 'w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100 dark:[color-scheme:dark]';
 const money = (n: unknown) => `$${Number(n || 0).toFixed(2)}`;
 
 // Ready-made messages; the email itself already starts with "Hi <name>,"
@@ -155,119 +157,125 @@ export default function EmailCustomerModal({ customer, order, onClose }: Props) 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="email-customer-title"
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-xl overflow-y-auto max-h-[92vh] shadow-2xl p-6 relative"
+        className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-xl border border-line bg-surface p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 p-2 bg-gray-50 dark:bg-gray-950 rounded-full text-gray-400 hover:text-gray-700">
-          <X className="w-4 h-4" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-white/[0.06] dark:hover:text-stone-200 cursor-pointer"
+        >
+          <X className="size-4" />
         </button>
 
-        <h3 id="email-customer-title" className="font-serif text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <Mail className="w-5 h-5 text-[#8b6f47]" /> Email customer
-        </h3>
-        <p className="text-xs text-gray-500 mt-1 mb-4 border-b pb-3">
-          To <strong className="text-gray-800 dark:text-gray-200">{customer.name}</strong> &lt;{customer.email}&gt;
-          {order && <> &middot; about order <span className="font-mono">{order.orderNumber || order.id}</span></>}
+        <h3 id="email-customer-title" className="pr-8 text-base font-semibold text-stone-900 dark:text-white">Email customer</h3>
+        <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+          To <span className="font-medium text-stone-800 dark:text-stone-200">{customer.name}</span> &lt;{customer.email}&gt;
+          {order && <> &middot; about order <span className="font-mono text-xs">{order.orderNumber || order.id}</span></>}
         </p>
 
         {!canEmail && (
-          <div className="mb-4 flex gap-2 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 p-3 text-xs text-amber-800 dark:text-amber-300">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="mt-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>The shared demo admin cannot email real customers. Sign in with your own admin account to send emails.</span>
           </div>
         )}
 
-        <form onSubmit={send} className="space-y-4">
+        <form onSubmit={send} className="mt-5 space-y-4">
           <div>
-            <label htmlFor="email-template" className="block text-[10px] font-black text-gray-400 uppercase mb-1">Template</label>
-            <select
-              id="email-template"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5"
-            >
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
+            <label htmlFor="email-template" className={labelClass}>Template</label>
+            <div className="relative">
+              <select
+                id="email-template"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+                className={`${inputClass} h-9 cursor-pointer appearance-none pr-9`}
+              >
+                {templates.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+            </div>
           </div>
           <div>
-            <label htmlFor="email-subject" className="block text-[10px] font-black text-gray-400 uppercase mb-1">Subject</label>
+            <label htmlFor="email-subject" className={labelClass}>Subject</label>
             <input
               id="email-subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               maxLength={150}
-              className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5"
+              className={`${inputClass} h-9`}
               placeholder="What is this email about?"
             />
           </div>
           <div>
-            <label htmlFor="email-message" className="block text-[10px] font-black text-gray-400 uppercase mb-1">Message</label>
+            <label htmlFor="email-message" className={labelClass}>Message</label>
             <textarea
               id="email-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               maxLength={5000}
               rows={7}
-              className="w-full text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg p-2.5 leading-relaxed"
+              className={`${inputClass} py-2 leading-relaxed`}
               placeholder="Write your message. A blank line starts a new paragraph."
             />
-            <p className="text-[10px] text-gray-400 mt-1">The email starts with &ldquo;Hi {customer.name.split(' ')[0] || customer.name},&rdquo; and uses the store&apos;s branded layout. Replies come back to the store inbox.</p>
+            <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">The email starts with &ldquo;Hi {customer.name.split(' ')[0] || customer.name},&rdquo; and uses the store&apos;s branded layout. Replies come back to the store inbox.</p>
           </div>
 
-          <div className="flex flex-col gap-2 text-xs text-gray-700 dark:text-gray-300">
+          <div className="flex flex-col gap-2 text-sm text-stone-700 dark:text-stone-300">
             {order && (
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={includeOrder} onChange={(e) => setIncludeOrder(e.target.checked)} className="accent-[#8b6f47]" />
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={includeOrder} onChange={(e) => setIncludeOrder(e.target.checked)} className="size-4 accent-[#8b6f47]" />
                 Include the order summary (items, totals, address)
               </label>
             )}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={notifyInApp} onChange={(e) => setNotifyInApp(e.target.checked)} className="accent-[#8b6f47]" />
+            <label className="flex cursor-pointer items-center gap-2">
+              <input type="checkbox" checked={notifyInApp} onChange={(e) => setNotifyInApp(e.target.checked)} className="size-4 accent-[#8b6f47]" />
               Also show it in the customer&apos;s notifications
             </label>
           </div>
 
           {previewUrl && (
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/40 p-3 text-xs text-green-800 dark:text-green-300">
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
               <span>Sent to the free test inbox (no mail server is set up yet).</span>
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline flex items-center gap-1 shrink-0">
-                Open the email <ExternalLink className="w-3 h-3" />
+              <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center gap-1 font-medium underline">
+                Open the email <ExternalLink className="size-3.5" />
               </a>
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="text-sm py-2 px-5 font-bold rounded-xl">Close</Button>
-            <Button type="submit" loading={sending} disabled={!canEmail} className="text-sm py-2 px-5 font-bold rounded-xl bg-[#8b6f47] text-white flex items-center gap-1.5">
-              <Mail className="w-4 h-4" /> Send email
-            </Button>
+          <div className="flex justify-end gap-2 border-t border-line pt-4">
+            <AdminButton onClick={onClose}>Close</AdminButton>
+            <AdminButton type="submit" variant="primary" disabled={!canEmail || sending}>
+              {sending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />} Send email
+            </AdminButton>
           </div>
         </form>
 
-        <div className="mt-6 border-t pt-4">
-          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">
+        <div className="mt-6 border-t border-line pt-4">
+          <h4 className="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">
             {order ? 'Already sent about this order' : 'Already sent to this customer'}
           </h4>
           {history.length === 0 ? (
-            <p className="text-xs text-gray-400">Nothing yet.</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Nothing yet.</p>
           ) : (
-            <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
               {history.map((h) => (
-                <li key={h.id} className="rounded-xl border border-gray-100 dark:border-gray-800 p-2.5 text-xs">
+                <li key={h.id} className="rounded-lg border border-line p-3 text-sm">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-bold text-gray-800 dark:text-gray-200">{h.subject}</span>
-                    <span className={`shrink-0 flex items-center gap-1 text-[10px] font-bold ${h.delivered ? 'text-green-600' : 'text-amber-600'}`}>
-                      {h.delivered ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    <span className="font-medium text-stone-900 dark:text-stone-100">{h.subject}</span>
+                    <Pill tone={h.delivered ? 'success' : 'warning'} className="shrink-0">
+                      {h.delivered ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
                       {h.delivered ? 'Emailed' : h.inApp ? 'In-app only' : 'Not delivered'}
-                    </span>
+                    </Pill>
                   </div>
-                  <p className="text-gray-500 line-clamp-2 mt-0.5 whitespace-pre-line">{h.message}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">{new Date(h.createdAt).toLocaleString()}{h.sentByName ? ` by ${h.sentByName}` : ''}</p>
+                  <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-stone-500 dark:text-stone-400">{h.message}</p>
+                  <p className="mt-1 text-xs text-stone-400">{new Date(h.createdAt).toLocaleString()}{h.sentByName ? ` by ${h.sentByName}` : ''}</p>
                 </li>
               ))}
             </ul>

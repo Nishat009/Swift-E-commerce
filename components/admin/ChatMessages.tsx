@@ -3,14 +3,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Archive, Bot, CheckCheck, RefreshCw, Trash2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
-import Button from '@/components/ui/Button';
 import { useToast } from '@/context/ToastContext';
 import { errMsg } from './adminUtils';
+import { AdminButton, AdminEmpty, Pill, SectionHeader } from './AdminUI';
 
 type Status = 'unread' | 'read' | 'archived';
 type Chat = {
   id: string; sessionId: string; name: string; email: string; message: string;
   assistantReply: string; status: Status; createdAt: string;
+};
+
+const badge: Record<Status, { label: string; tone: 'warning' | 'neutral' }> = {
+  unread: { label: 'Unread', tone: 'warning' },
+  read: { label: 'Read', tone: 'neutral' },
+  archived: { label: 'Archived', tone: 'neutral' },
 };
 
 export default function ChatMessages({ onUnreadChange }: { onUnreadChange?: () => void }) {
@@ -57,38 +63,77 @@ export default function ChatMessages({ onUnreadChange }: { onUnreadChange?: () =
   };
 
   return (
-    <section className="space-y-4 pt-8 border-t border-gray-200 dark:border-gray-800">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-serif font-bold flex items-center gap-2"><Bot className="w-5 h-5 text-[#8b6f47]" /> AI Chat Conversations</h2>
-        <Button onClick={load} variant="outline" className="text-xs font-bold flex items-center gap-2">
-          <RefreshCw className={'w-3.5 h-3.5 ' + (loading ? 'animate-spin' : '')} /> Refresh
-        </Button>
-      </div>
-      {!loading && messages.length === 0 && <p className="text-sm text-gray-500 py-6 text-center">No AI chat messages yet.</p>}
-      <ul className="space-y-3">
-        {messages.map((message) => (
-          <li key={message.id} className="border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
-            <button type="button" onClick={() => toggle(message)} className="w-full text-left px-4 py-3 flex justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/40">
-              <div className="min-w-0">
-                <p className={'text-sm truncate ' + (message.status === 'unread' ? 'font-bold' : 'font-medium')}>{message.message}</p>
-                <p className="text-xs text-gray-500 truncate">{message.name}{message.email ? ` · ${message.email}` : ' · Guest'} · {new Date(message.createdAt).toLocaleString()}</p>
-              </div>
-              <span className="text-[10px] uppercase font-bold text-amber-700">{message.status}</span>
-            </button>
-            {openId === message.id && (
-              <div className="px-4 pb-4 pt-3 border-t border-gray-100 dark:border-gray-800 space-y-3">
-                <div><p className="text-[10px] font-bold uppercase text-gray-500 mb-1">Customer</p><p className="text-sm whitespace-pre-wrap">{message.message}</p></div>
-                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 p-3"><p className="text-[10px] font-bold uppercase text-amber-700 mb-1">AI reply</p><p className="text-sm whitespace-pre-wrap">{message.assistantReply}</p></div>
-                <div className="flex gap-2">
-                  {message.status !== 'unread' && <button onClick={() => setStatus(message.id, 'unread')} className="inline-flex items-center gap-1 text-xs border rounded-xl px-3 py-2"><CheckCheck className="w-3.5 h-3.5" /> Mark unread</button>}
-                  {message.status !== 'archived' && <button onClick={() => setStatus(message.id, 'archived')} className="inline-flex items-center gap-1 text-xs border rounded-xl px-3 py-2"><Archive className="w-3.5 h-3.5" /> Archive</button>}
-                  <button onClick={() => remove(message.id)} className="inline-flex items-center gap-1 text-xs text-red-600 border border-red-200 rounded-xl px-3 py-2"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
-                </div>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+    <section className="space-y-4 border-t border-line pt-8">
+      <SectionHeader
+        title="AI stylist conversations"
+        description="What shoppers asked the AI stylist, and how it replied."
+        actions={
+          <AdminButton size="sm" onClick={load}>
+            <RefreshCw className={'size-3.5 ' + (loading ? 'animate-spin' : '')} /> Refresh
+          </AdminButton>
+        }
+      />
+
+      {!loading && messages.length === 0 ? (
+        <div className="rounded-lg border border-line">
+          <AdminEmpty icon={Bot} title="No AI stylist conversations yet" description="Questions shoppers ask the AI stylist will appear here." />
+        </div>
+      ) : messages.length > 0 && (
+        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line">
+          {messages.map((message) => {
+            const open = openId === message.id;
+            const unread = message.status === 'unread';
+            return (
+              <li key={message.id} className={open ? 'bg-stone-50/60 dark:bg-white/[0.02]' : undefined}>
+                <button
+                  type="button"
+                  onClick={() => toggle(message)}
+                  aria-expanded={open}
+                  className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 dark:hover:bg-white/[0.03] cursor-pointer"
+                >
+                  <span className="flex min-w-0 items-start gap-2.5">
+                    <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${unread ? 'bg-[#8b6f47] dark:bg-[#c9a96b]' : 'bg-transparent'}`} aria-hidden />
+                    <span className="min-w-0">
+                      <span className={`block truncate text-sm ${unread ? 'font-semibold text-stone-900 dark:text-white' : 'font-medium text-stone-700 dark:text-stone-300'}`}>{message.message}</span>
+                      <span className="block truncate text-xs text-stone-500 dark:text-stone-400">{message.name}{message.email ? ` · ${message.email}` : ' · Guest'} · {new Date(message.createdAt).toLocaleString()}</span>
+                    </span>
+                  </span>
+                  <Pill tone={badge[message.status]?.tone || 'neutral'} className="shrink-0">{badge[message.status]?.label || message.status}</Pill>
+                </button>
+                {open && (
+                  <div className="space-y-3 px-4 pb-4 pl-8">
+                    <div>
+                      <p className="mb-1 text-xs font-medium text-stone-500 dark:text-stone-400">Shopper</p>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-800 dark:text-stone-200">{message.message}</p>
+                    </div>
+                    <div className="rounded-lg border border-line bg-surface p-3">
+                      <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-stone-500 dark:text-stone-400">
+                        <Bot className="size-3.5 text-[#8b6f47] dark:text-[#c9a96b]" /> AI stylist reply
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700 dark:text-stone-300">{message.assistantReply}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {message.status !== 'unread' && (
+                        <AdminButton size="sm" onClick={() => setStatus(message.id, 'unread')}>
+                          <CheckCheck className="size-3.5" /> Mark unread
+                        </AdminButton>
+                      )}
+                      {message.status !== 'archived' && (
+                        <AdminButton size="sm" onClick={() => setStatus(message.id, 'archived')}>
+                          <Archive className="size-3.5" /> Archive
+                        </AdminButton>
+                      )}
+                      <AdminButton size="sm" variant="danger" onClick={() => remove(message.id)}>
+                        <Trash2 className="size-3.5" /> Delete
+                      </AdminButton>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

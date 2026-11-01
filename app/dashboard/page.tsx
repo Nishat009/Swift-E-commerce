@@ -8,14 +8,9 @@ import { Product, Order } from '@/types';
 import AccountLayout from '@/components/layout/AccountLayout';
 import { StatsSkeleton, OrderSkeleton } from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
-import {
-  Package,
-  Heart,
-  ShoppingCart,
-  Calendar,
-  ChevronRight,
-  TrendingUp
-} from 'lucide-react';
+import { Package } from 'lucide-react';
+import StatusPill, { ORDER_STATUS_TONE } from '@/components/orders/StatusPill';
+import Button from '@/components/ui/Button';
 import Link from 'next/link';
 
 export default function DashboardOverviewPage() {
@@ -58,148 +53,109 @@ export default function DashboardOverviewPage() {
     : new Date().getFullYear();
 
   const stats = [
-    { label: 'Total Orders', value: orders.length, icon: Package, color: 'blue', link: '/orders' },
-    { label: 'Wishlist Items', value: wishlistCount, icon: Heart, color: 'red', link: '/wishlist' },
-    { label: 'Cart Items', value: cartItems.reduce((acc, item) => acc + item.quantity, 0), icon: ShoppingCart, color: 'purple', link: '/cart' },
+    { label: 'Total Orders', value: orders.length, link: '/orders' },
+    { label: 'Wishlist Items', value: wishlistCount, link: '/wishlist' },
+    { label: 'Cart Items', value: cartItems.reduce((acc, item) => acc + item.quantity, 0), link: '/cart' },
   ];
 
   const recentOrders = orders.slice(0, 3);
+  const eyebrow = 'text-[11px] uppercase tracking-[0.22em] text-stone-500 dark:text-stone-400';
 
   return (
     <AccountLayout activeTabName="/dashboard">
-      <div className="space-y-8">
-        
+      <div className="space-y-12">
+
         {/* Welcome Section */}
-        <div className="bg-gradient-to-br from-[#8b6f47] to-[#c9a96b] rounded-3xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="z-10 space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-bold font-serif leading-tight">
-              Welcome back, {user?.name}!
-            </h2>
-            <p className="text-xs text-white/80 max-w-md">
-              Here is what is happening with your account today. Check your order statuses or browse new arrivals.
-            </p>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl text-center z-10">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-white/60">Member Since</span>
-            <span className="font-serif font-bold text-sm">{memberYear}</span>
-          </div>
+        <div className="border-b border-line pb-8">
+          <p className={eyebrow + ' mb-3'}>Member since {memberYear}</p>
+          <h2 className="text-3xl sm:text-4xl font-serif font-medium tracking-tight text-ink leading-tight">
+            Welcome back, {user?.name}
+          </h2>
+          <p className="text-sm text-stone-600 dark:text-stone-400 max-w-md mt-3 leading-relaxed">
+            Here is what is happening with your account today. Check your order statuses or browse new arrivals.
+          </p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats */}
         <div>
-          <h3 className="text-base font-serif font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
+          <h3 className="text-2xl font-serif font-medium tracking-tight text-ink mb-5">
             Activity Overview
           </h3>
           {loading ? (
             <StatsSkeleton />
           ) : loadError ? (
-            <div className="text-center py-6 text-sm text-text-muted space-y-3">
+            <div className="py-6 text-sm text-stone-500 dark:text-stone-400 space-y-3">
               <p>We could not load your account activity.</p>
-              <button onClick={loadDashboardStats} className="text-xs font-bold border border-gray-200 dark:border-gray-700 rounded-full px-5 py-1.5">Try again</button>
+              <Button variant="outline" size="sm" onClick={loadDashboardStats}>Try again</Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {stats.map((stat, idx) => {
-                const Icon = stat.icon;
-                const colors = {
-                  blue: 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30',
-                  red: 'bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30',
-                  purple: 'bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-900/30',
-                };
-                return (
-                  <Link href={stat.link} key={idx} className="block group">
-                    <div className="bg-[#faf9f6] dark:bg-gray-850 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-6 flex items-center justify-between gap-4 shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300">
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-text-muted uppercase tracking-wider">{stat.label}</p>
-                        <p className="text-3xl font-black text-gray-900 dark:text-white">{stat.value}</p>
-                      </div>
-                      <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-transform group-hover:scale-110 ${colors[stat.color as keyof typeof colors]}`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line border-y border-line">
+              {stats.map((stat, idx) => (
+                <Link href={stat.link} key={idx} className="block group py-6 sm:px-6 first:pl-0 hover:bg-surface-muted transition-colors">
+                  <p className={eyebrow}>{stat.label}</p>
+                  <p className="mt-2 text-4xl font-serif font-medium tabular-nums text-ink">{stat.value}</p>
+                </Link>
+              ))}
             </div>
           )}
         </div>
 
         {/* Recent Orders */}
         <div>
-          <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
-            <h3 className="text-base font-serif font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+          <div className="flex items-end justify-between mb-2 gap-4">
+            <h3 className="text-2xl font-serif font-medium tracking-tight text-ink">
               Recent Orders
             </h3>
             {orders.length > 3 && (
-              <Link href="/orders" className="text-xs font-bold text-[#8b6f47] dark:text-[#c9a96b] hover:underline flex items-center gap-0.5">
-                <span>View all orders</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+              <Link href="/orders" className="text-sm text-ink underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600 hover:decoration-ink whitespace-nowrap">
+                View all orders
               </Link>
             )}
           </div>
 
           {loading ? (
-            <div className="space-y-4">
-              <OrderSkeleton />
-            </div>
+            <OrderSkeleton />
           ) : loadError ? null : recentOrders.length === 0 ? (
-            <div className="bg-[#faf9f6] dark:bg-gray-850 rounded-3xl border border-gray-150/30 dark:border-gray-800/80 p-8">
-              <EmptyState
-                icon={Package}
-                title="No orders yet"
-                description="Once you place an order, it will appear here along with live tracking statuses."
-                actionText="Start Shopping"
-                actionLink="/products"
-              />
-            </div>
+            <EmptyState
+              icon={Package}
+              title="No orders yet"
+              description="Once you place an order, it will appear here along with live tracking statuses."
+              actionText="Start Shopping"
+              actionLink="/products"
+            />
           ) : (
-            <div className="space-y-4">
+            <div className="divide-y divide-line border-t border-line">
               {recentOrders.map((order) => {
                 const status = order.orderStatus || 'Pending';
                 const itemsCount = order.products
                   ? order.products.reduce((acc, p) => acc + p.quantity, 0)
                   : 0;
-
-                const statusStyles = {
-                  Confirmed: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-                  Packed: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
-                  Returned: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-                  Delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-                  Shipped: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                  Processing: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-                  Cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                  Pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-                };
+                const first = order.products?.[0]?.product;
+                const thumb = first?.thumbnail || first?.image;
 
                 return (
                   <div
                     key={order.id}
-                    className="bg-[#faf9f6] dark:bg-gray-850 border border-gray-150/40 dark:border-gray-800/80 rounded-3xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-xs transition duration-200"
+                    className="py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
                   >
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-xs font-bold text-gray-900 dark:text-white font-serif">
-                          Order #{order.orderNumber || order.id.slice(-8).toUpperCase()}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${statusStyles[status as keyof typeof statusStyles] || 'bg-gray-100 text-gray-800'}`}>
-                          {status}
-                        </span>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-14 aspect-[3/4] shrink-0 rounded-sm overflow-hidden bg-surface-muted">
+                        {thumb && <img src={thumb} alt={first?.title || ''} className="w-full h-full object-cover" />}
                       </div>
-                      <div className="flex items-center gap-4 text-[10px] text-text-muted">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          <span className="text-sm font-medium text-ink tabular-nums">
+                            Order #{order.orderNumber || order.id.slice(-8).toUpperCase()}
+                          </span>
+                          <StatusPill tone={ORDER_STATUS_TONE[status] || 'neutral'}>{status}</StatusPill>
                         </div>
-                        <span>•</span>
-                        <span>{itemsCount} item{itemsCount > 1 ? 's' : ''}</span>
-                        <span>•</span>
-                        <span className="font-bold text-gray-900 dark:text-white">${order.total.toFixed(2)}</span>
+                        <p className="text-xs text-stone-500 dark:text-stone-400 tabular-nums">
+                          {new Date(order.createdAt).toLocaleDateString()} &middot; {itemsCount} item{itemsCount > 1 ? 's' : ''} &middot; <span className="font-medium text-ink">${order.total.toFixed(2)}</span>
+                        </p>
                       </div>
                     </div>
-                    <Link href={`/orders`}>
-                      <button className="text-[10px] font-bold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 py-1.5 px-4 rounded-full transition shadow-xs">
-                        Details
-                      </button>
+                    <Link href="/orders">
+                      <Button variant="outline" size="sm">Details</Button>
                     </Link>
                   </div>
                 );
