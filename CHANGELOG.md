@@ -5,6 +5,14 @@ All notable changes to SwiftCart are listed here, newest first.
 ## 2026-11-02
 ### Fixed
 - Dressing Room: garments photographed on a model or against a busy/non-studio background (most of the current catalog's stock photos) no longer get smeared across the mannequin as a messy collage. The cutout detector now also checks how much of the photo's border actually sits on a plain backdrop, not just how smooth that border is, so busy real-world photos correctly fall back to the plain-fabric silhouette instead of being treated as a flat-lay.
+- `npm audit`: removed the unused `next-auth` dependency (the app uses its own Express/JWT auth) and updated the lockfile, which also cleared a high-severity `follow-redirects` advisory.
+- README: prerequisites and badges now say Node.js 20.9+ (matching `engines` in both `package.json` files) instead of the stale Node 18+.
+
+### Changed
+- `register`, `login` and `verify-otp` now issue their session through the same `sendSession()` helper the Google and demo logins already use, instead of each repeating the token/cookie/response logic inline.
+- The refresh token is now read through a single `getRefreshTokenFromRequest()` helper (cookie first, body fallback for non-browser clients) shared by `/auth/refresh` and `/auth/logout`, and it's rejected unless it's actually a string.
+- The Google sign-in client-id check is now a single `getGoogleClientId()` helper shared by the challenge and verify steps.
+- Stopped tracking the 20 demo product photos under `backend/uploads/` in git — they're exact duplicates of the seed images already in `public/images/dress-room/` and were only there because the `.gitignore` rule was added after they'd been committed. They stay on disk; the runtime uploads folder keeps only `.gitkeep`.
 
 ## 2026-10-28 (third update)
 ### Security
