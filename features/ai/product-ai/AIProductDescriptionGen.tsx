@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { AdminAIDescriptionOutput } from '@/types/ai';
-import { Sparkles, Wand2, Check, Copy, FileText } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import { Sparkles, Wand2 } from 'lucide-react';
+import { AdminButton, Panel, Pill } from '@/components/admin/AdminUI';
 
 interface AIProductDescriptionGenProps {
   onApplyGenerated?: (output: AdminAIDescriptionOutput) => void;
 }
+
+const labelCls = 'mb-1.5 block text-xs font-medium text-stone-600 dark:text-stone-300';
+const fieldCls =
+  'h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#8b6f47]/60 focus:outline-none focus:ring-2 focus:ring-[#8b6f47]/20 dark:text-stone-100';
+const outputLabelCls = 'text-xs font-medium text-stone-500 dark:text-stone-400';
+const outputBoxCls = 'rounded-lg border border-line bg-stone-50 px-3 py-2.5 text-sm text-stone-700 dark:bg-white/[0.03] dark:text-stone-300';
 
 export default function AIProductDescriptionGen({ onApplyGenerated }: AIProductDescriptionGenProps) {
   const [category, setCategory] = useState('Shirt');
@@ -39,87 +44,80 @@ export default function AIProductDescriptionGen({ onApplyGenerated }: AIProductD
   };
 
   return (
-    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-amber-500" />
-            Product Description & SEO Draft
-          </h3>
-          <p className="text-xs text-gray-500">
-            Prepare an editable copy draft from the product details you enter.
-          </p>
+    <Panel
+      title={<span className="flex items-center gap-2"><Wand2 className="size-4 text-[#8b6f47] dark:text-[#c9a96b]" /> Product description & SEO draft</span>}
+      description="Prepare an editable copy draft from the product details you enter."
+    >
+      <form onSubmit={handleGenerate} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div>
+            <label htmlFor="copy-category" className={labelCls}>Category</label>
+            <input id="copy-category" value={category} onChange={(e) => setCategory(e.target.value)} className={fieldCls} />
+          </div>
+          <div>
+            <label htmlFor="copy-material" className={labelCls}>Material</label>
+            <input id="copy-material" value={material} onChange={(e) => setMaterial(e.target.value)} className={fieldCls} />
+          </div>
+          <div>
+            <label htmlFor="copy-color" className={labelCls}>Color</label>
+            <input id="copy-color" value={color} onChange={(e) => setColor(e.target.value)} className={fieldCls} />
+          </div>
+          <div>
+            <label htmlFor="copy-brand" className={labelCls}>Brand</label>
+            <input id="copy-brand" value={brand} onChange={(e) => setBrand(e.target.value)} className={fieldCls} />
+          </div>
         </div>
-      </div>
-
-      <form onSubmit={handleGenerate} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Category</label>
-          <Input value={category} onChange={(e) => setCategory(e.target.value)} className="text-xs mt-1" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Material</label>
-          <Input value={material} onChange={(e) => setMaterial(e.target.value)} className="text-xs mt-1" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Color</label>
-          <Input value={color} onChange={(e) => setColor(e.target.value)} className="text-xs mt-1" />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Brand</label>
-          <Input value={brand} onChange={(e) => setBrand(e.target.value)} className="text-xs mt-1" />
-        </div>
-        <div className="col-span-full">
-          <Button type="submit" disabled={isGenerating} className="w-full justify-center gap-2 text-xs py-2.5">
-            <Sparkles className="w-4 h-4" />
-            {isGenerating ? 'Preparing draft...' : 'Create Product Copy Draft'}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {error ? <p className="text-xs text-red-600 dark:text-red-400">{error}</p> : <span />}
+          <AdminButton type="submit" variant="primary" disabled={isGenerating}>
+            <Sparkles className="size-4" />
+            {isGenerating ? 'Preparing draft...' : 'Create copy draft'}
+          </AdminButton>
         </div>
       </form>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
-
       {result && (
-        <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800 text-xs">
-          <div className="space-y-1">
-            <span className="font-bold text-gray-500 uppercase text-[10px]">Generated Product Title</span>
-            <p className="text-sm font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="mt-5 space-y-4 border-t border-line pt-5">
+          <div className="space-y-1.5">
+            <span className={outputLabelCls}>Product title</span>
+            <p className={`${outputBoxCls} font-medium text-stone-900 dark:text-white`}>
               {result.title}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="font-bold text-gray-500 uppercase text-[10px]">Short Description</span>
-            <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 leading-relaxed">
+          <div className="space-y-1.5">
+            <span className={outputLabelCls}>Short description</span>
+            <p className={`${outputBoxCls} leading-relaxed`}>
               {result.shortDescription}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="font-bold text-gray-500 uppercase text-[10px]">SEO Meta Description</span>
-            <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="space-y-1.5">
+            <span className={outputLabelCls}>SEO meta description</span>
+            <p className={outputBoxCls}>
               {result.seoDescription}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="font-bold text-gray-500 uppercase text-[10px]">Product Highlights</span>
-            <ul className="list-disc list-inside space-y-1 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+          <div className="space-y-1.5">
+            <span className={outputLabelCls}>Highlights</span>
+            <ul className={`${outputBoxCls} list-inside list-disc space-y-1`}>
               {result.highlights.map((h, i) => (
                 <li key={i}>{h}</li>
               ))}
             </ul>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {result.tags.map((t, idx) => (
-              <span key={idx} className="bg-amber-500/10 text-amber-900 dark:text-amber-300 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-amber-500/20">
-                #{t}
-              </span>
-            ))}
+          <div className="space-y-1.5">
+            <span className={outputLabelCls}>Tags</span>
+            <div className="flex flex-wrap gap-1.5">
+              {result.tags.map((t, idx) => (
+                <Pill key={idx}>#{t}</Pill>
+              ))}
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </Panel>
   );
 }

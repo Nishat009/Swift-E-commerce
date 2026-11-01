@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import apiClient from '@/lib/apiClient';
-import { Upload, Sparkles, Image as ImageIcon, Layers, RefreshCw, Check } from 'lucide-react';
+import { Upload, Image as ImageIcon, RefreshCw, Check } from 'lucide-react';
 import Image from 'next/image';
-import Button from '@/components/ui/Button';
+import { AdminButton, Panel, Pill } from '@/components/admin/AdminUI';
 
 export default function AIImageEnhancer() {
   const [rawImage, setRawImage] = useState<string | null>(null);
@@ -34,68 +34,61 @@ export default function AIImageEnhancer() {
   };
 
   return (
-    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xl space-y-6">
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-amber-500" />
-            Product Image Asset Presets
-          </h3>
-          <p className="text-xs text-gray-500">
-            Create real crop and size variants for product cards and banners.
-          </p>
-        </div>
-      </div>
-
+    <Panel
+      title={<span className="flex items-center gap-2"><ImageIcon className="size-4 text-[#8b6f47] dark:text-[#c9a96b]" /> Product image presets</span>}
+      description="Create real crop and size variants for product cards and banners."
+    >
       {!rawImage ? (
-        <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl p-8 hover:border-amber-500 transition-colors text-center flex flex-col items-center justify-center space-y-3 bg-gray-50/50 dark:bg-gray-900/50">
-          <Upload className="w-10 h-10 text-amber-500 animate-bounce" />
+        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300 bg-stone-50/60 px-6 py-10 text-center transition-colors hover:border-stone-400 dark:border-white/15 dark:bg-white/[0.02] dark:hover:border-white/25">
+          <span className="flex size-10 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-white/[0.06] dark:text-stone-400">
+            <Upload className="size-5" />
+          </span>
           <div>
-            <p className="text-sm font-bold text-gray-900 dark:text-white">Upload Raw Product Photo</p>
-            <p className="text-xs text-gray-500">PNG, JPG or WebP up to 5 MB</p>
+            <p className="text-sm font-medium text-stone-900 dark:text-white">Upload a product photo</p>
+            <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">PNG, JPG or WebP up to 5 MB</p>
           </div>
-          <label className="cursor-pointer bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all shadow-md">
-            Browse File
-            <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+          <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-stone-700 shadow-xs transition-colors focus-within:ring-2 focus-within:ring-[#8b6f47]/30 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-200 dark:hover:bg-white/[0.06]">
+            Choose file
+            <input type="file" accept="image/*" onChange={handleUpload} className="sr-only" />
           </label>
         </div>
       ) : isProcessing ? (
-        <div className="py-12 flex flex-col items-center justify-center space-y-3">
-          <RefreshCw className="w-8 h-8 text-amber-500 animate-spin" />
-          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+        <div className="flex flex-col items-center justify-center gap-3 py-12" role="status">
+          <RefreshCw className="size-6 animate-spin text-stone-400" />
+          <p className="text-sm text-stone-600 dark:text-stone-400">
             Processing image presets...
           </p>
         </div>
       ) : enhancements ? (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <Check className="w-4 h-4" /> 4 Image Presets Ready
-            </span>
-            <Button size="sm" variant="secondary" onClick={() => { if (rawImage) URL.revokeObjectURL(rawImage); setRawImage(null); setEnhancements(null); }} className="text-xs">
-              Upload New Image
-            </Button>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Pill tone="success">
+              <Check className="size-3" /> 4 presets ready
+            </Pill>
+            <AdminButton size="sm" onClick={() => { if (rawImage) URL.revokeObjectURL(rawImage); setRawImage(null); setEnhancements(null); }}>
+              <Upload className="size-3.5" /> Upload new image
+            </AdminButton>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[
-              { title: '1. Clean E-commerce', src: enhancements?.ecommerceClean },
-              { title: '2. Portrait Crop', src: enhancements?.lifestyle },
-              { title: '3. Social Banner', src: enhancements?.socialBanner },
-              { title: '4. Product Thumbnail', src: enhancements?.thumbnail },
+              { title: 'Clean e-commerce', src: enhancements?.ecommerceClean },
+              { title: 'Portrait crop', src: enhancements?.lifestyle },
+              { title: 'Social banner', src: enhancements?.socialBanner },
+              { title: 'Product thumbnail', src: enhancements?.thumbnail },
             ].map((asset, idx) => (
-              <div key={idx} className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-2 border border-gray-200 dark:border-gray-700 space-y-2">
-                <div className="relative h-32 w-full rounded-xl overflow-hidden">
+              <div key={idx} className="space-y-2 rounded-lg border border-line p-2">
+                <div className="relative h-32 w-full overflow-hidden rounded-md bg-stone-100 dark:bg-white/[0.04]">
                   <Image src={asset.src || rawImage} alt={asset.title} fill unoptimized className="object-cover" />
                 </div>
-                <p className="text-[11px] font-bold text-gray-900 dark:text-white line-clamp-1 text-center">
+                <p className="line-clamp-1 text-center text-xs font-medium text-stone-700 dark:text-stone-300">
                   {asset.title}
                 </p>
               </div>
             ))}
           </div>
         </div>
-      ) : <p className="text-xs text-red-600">{error}</p>}
-    </div>
+      ) : <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+    </Panel>
   );
 }

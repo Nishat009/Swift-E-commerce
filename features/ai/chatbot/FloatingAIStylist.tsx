@@ -127,25 +127,25 @@ export default function FloatingAIStylist() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-xs px-4 py-3.5 rounded-full shadow-2xl hover:shadow-amber-500/25 transition-all transform hover:scale-105"
+          className="group flex items-center gap-2 bg-ink text-paper text-xs font-medium tracking-wide pl-3.5 pr-4 py-3 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 cursor-pointer"
         >
-          <Sparkles className="w-4 h-4 animate-spin" style={{ animationDuration: '4s' }} />
+          <Sparkles className="w-4 h-4 text-[#c9a96b]" />
           <span>Swift Style Assistant</span>
         </button>
       )}
 
       {/* Floating Chat Modal */}
       {isOpen && (
-        <div className="w-[90vw] sm:w-[390px] h-[540px] bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5">
+        <div className="w-[90vw] sm:w-[390px] h-[540px] bg-surface border border-line rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5">
           {/* Header */}
-          <div className="bg-gradient-to-r from-amber-600 to-amber-700 p-4 text-white flex items-center justify-between">
+          <div className="bg-stone-950 p-4 text-white flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-xs">
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-sm font-bold leading-tight">Swift Style Assistant</h3>
-                <p className="text-[10px] text-amber-100 flex items-center gap-1">
+                <h3 className="font-sans text-sm font-medium leading-tight">Swift Style Assistant</h3>
+                <p className="text-[11px] text-stone-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Live Catalog Recommendations
                 </p>
@@ -160,12 +160,12 @@ export default function FloatingAIStylist() {
           </div>
 
           {/* Prompt Chips */}
-          <div className="p-2.5 bg-amber-500/5 border-b border-amber-500/10 flex gap-1.5 overflow-x-auto shrink-0">
+          <div className="no-scrollbar p-2.5 border-b border-line flex gap-1.5 overflow-x-auto shrink-0">
             {promptChips.map((chip, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSend(chip)}
-                className="whitespace-nowrap bg-white dark:bg-gray-800 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors shrink-0"
+                className="whitespace-nowrap bg-transparent hover:border-ink border border-line text-stone-700 dark:text-stone-300 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors shrink-0"
               >
                 {chip}
               </button>
@@ -180,8 +180,8 @@ export default function FloatingAIStylist() {
                 className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.sender === 'assistant' && (
-                  <div className="w-6 h-6 rounded-full bg-amber-600/10 border border-amber-600/30 flex items-center justify-center shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5 text-amber-600" />
+                  <div className="w-6 h-6 rounded-full bg-stone-100 dark:bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="w-3.5 h-3.5 text-stone-600 dark:text-stone-300" />
                   </div>
                 )}
 
@@ -189,29 +189,29 @@ export default function FloatingAIStylist() {
                   <div
                     className={`p-3 rounded-2xl ${
                       msg.sender === 'user'
-                        ? 'bg-amber-600 text-white rounded-tr-none'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none border border-gray-200 dark:border-gray-700'
+                        ? 'bg-ink text-paper rounded-tr-sm'
+                        : 'bg-stone-100 dark:bg-white/[0.06] text-stone-800 dark:text-stone-200 rounded-tl-sm'
                     }`}
                   >
                     <p className="leading-relaxed">{msg.text}</p>
-                    <span className="block text-[9px] opacity-70 text-right mt-1">{msg.timestamp}</span>
+                    <span className="block text-[10px] opacity-60 text-right mt-1">{msg.timestamp}</span>
                   </div>
 
                   {/* Suggested Outfit Card */}
                   {msg.suggestedOutfit && (
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 space-y-2">
+                    <div className="border border-line rounded-lg p-3 space-y-2">
                       <div className="flex justify-between items-baseline">
-                        <span className="font-bold text-amber-900 dark:text-amber-300">
+                        <span className="font-medium text-ink">
                           {msg.suggestedOutfit.title}
                         </span>
-                        <span className="font-extrabold text-amber-600">
+                        <span className="font-medium text-ink">
                           ${msg.suggestedOutfit.totalPrice.toFixed(2)}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-3 gap-1.5">
                         {msg.suggestedOutfit.items.map((item) => (
-                          <div key={item.id} className="relative h-16 rounded-lg overflow-hidden border border-amber-500/20">
+                          <div key={item.id} className="relative h-16 rounded-sm overflow-hidden bg-stone-100 dark:bg-stone-800">
                             <Image src={item.images?.[0] || item.thumbnail || item.image || '/placeholder-fashion.jpg'} alt={item.title} fill className="object-cover" />
                           </div>
                         ))}
@@ -233,23 +233,23 @@ export default function FloatingAIStylist() {
                       {msg.suggestedProducts.map((p) => (
                         <div
                           key={p.id}
-                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2 flex flex-col justify-between"
+                          className="border border-line rounded-lg p-2 flex flex-col justify-between"
                         >
-                          <div className="relative h-20 w-full rounded-lg overflow-hidden mb-1">
+                          <div className="relative h-20 w-full rounded-sm overflow-hidden mb-1 bg-stone-100 dark:bg-stone-800">
                             <Image src={p.images?.[0] || p.thumbnail || p.image || '/placeholder-fashion.jpg'} alt={p.title} fill className="object-cover" />
                           </div>
-                          <p className="font-bold text-[10px] line-clamp-1 text-gray-900 dark:text-white">{p.title}</p>
-                          <p className="text-[10px] font-extrabold text-amber-600">${(p.price * (1 - (p.discountPercentage || 0) / 100)).toFixed(2)}</p>
+                          <p className="font-medium text-[11px] line-clamp-1 text-ink">{p.title}</p>
+                          <p className="text-[11px] text-stone-600 dark:text-stone-400">${(p.price * (1 - (p.discountPercentage || 0) / 100)).toFixed(2)}</p>
                           <div className="flex gap-1 mt-1">
                             <button
                               onClick={() => addItem(p, 1)}
-                              className="flex-1 bg-amber-600 text-white rounded-md py-1 text-[9px] font-bold"
+                              className="flex-1 bg-ink text-paper rounded-md py-1 text-[10px] font-medium"
                             >
                               Add
                             </button>
                             <button
                               onClick={() => tryOnItem(p)}
-                              className="px-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md py-1 text-[9px]"
+                              className="px-1.5 bg-stone-100 dark:bg-white/10 text-stone-700 dark:text-stone-300 rounded-md py-1 text-[10px]"
                               title="Try On"
                             >
                               Try
@@ -265,7 +265,7 @@ export default function FloatingAIStylist() {
 
             {isTyping && (
               <div className="flex gap-2 items-center text-gray-400 text-xs">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-stone-400" />
                 <span>Finding available pieces...</span>
               </div>
             )}
@@ -273,7 +273,7 @@ export default function FloatingAIStylist() {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex gap-2">
+          <div className="p-3 border-t border-line flex gap-2">
             <input
               type="text"
               placeholder="Ask for styles (e.g. black shirt under $20)..."
@@ -281,12 +281,12 @@ export default function FloatingAIStylist() {
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               disabled={isTyping}
-              className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-amber-500"
+              className="flex-1 bg-transparent border border-line rounded-full px-4 py-2 text-xs text-ink placeholder:text-stone-400 focus:outline-none focus:border-ink"
             />
             <button
               onClick={() => handleSend()}
               disabled={isTyping || !inputVal.trim()}
-              className="bg-amber-600 hover:bg-amber-700 text-white p-2 rounded-xl transition-all shrink-0 disabled:opacity-50"
+              className="bg-ink text-paper p-2.5 rounded-full transition-opacity hover:opacity-85 shrink-0 disabled:opacity-40"
             >
               <Send className="w-4 h-4" />
             </button>
