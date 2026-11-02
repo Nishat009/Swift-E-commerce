@@ -16,8 +16,12 @@ const DEMO_ACCOUNTS = {
 
 const enabledRoles = () => {
   if (String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() !== 'true') return [];
-  return String(process.env.DEMO_LOGIN_ROLES || 'customer,admin')
+  const roles = String(process.env.DEMO_LOGIN_ROLES || 'customer,admin')
     .split(',').map((r) => r.trim()).filter((r) => DEMO_ACCOUNTS[r]);
+  // Even if an operator misconfigures DEMO_LOGIN_ROLES on a live deployment, never hand out
+  // a public admin session in production.
+  if (process.env.NODE_ENV === 'production') return roles.filter((r) => r !== 'admin');
+  return roles;
 };
 
 const demoPassword = () => (process.env.DEMO_PASSWORD || '').length >= 8 ? process.env.DEMO_PASSWORD : '';
