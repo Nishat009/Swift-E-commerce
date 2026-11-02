@@ -14,12 +14,15 @@ All notable changes to SwiftCart are listed here, newest first.
 - The backend logs a loud startup warning whenever the public demo admin login is enabled.
 - Dressing Room: garments photographed on a model or against a busy/non-studio background (most of the current catalog's stock photos) no longer get smeared across the mannequin as a messy collage. The cutout detector now also checks how much of the photo's border actually sits on a plain backdrop, not just how smooth that border is, so busy real-world photos correctly fall back to the plain-fabric silhouette instead of being treated as a flat-lay.
 - `npm audit`: removed the unused `next-auth` dependency (the app uses its own Express/JWT auth) and updated the lockfile, which also cleared a high-severity `follow-redirects` advisory.
-- README: prerequisites and badges now say Node.js 20.9+ (matching `engines` in both `package.json` files) instead of the stale Node 18+.
 - `POST /api/auth/register` no longer confirms whether an email is already registered ("User already exists" let an attacker enumerate accounts); it now returns a generic 409 message.
 - The shared demo-admin login (`DEMO_LOGIN_ENABLED`) can no longer hand out an admin session when `NODE_ENV=production`, even if `DEMO_LOGIN_ROLES` is misconfigured to include `admin` on a live deployment.
 - `/api/auth/refresh` and `/api/auth/logout` (cookie-authenticated) now reject cross-site requests that don't carry the site's own `Origin` header, closing a CSRF gap on those two endpoints (mirrors the `requireGoogleOrigin` check already used on the Google sign-in routes). Non-browser clients that pass the refresh token in the request body are unaffected.
 
 ### Changed
+- Business logic moved out of route files: chat, contact, newsletter, recommendation, wardrobe and hero routes now only wire paths and middleware to new handlers in `backend/src/controllers/` (`chatController`, `contactController`, `newsletterController`, `recommendationController`, `wardrobeController`, `heroController`). Behaviour is unchanged.
+- Login page: the failed-attempt lockout and the reset-link modal state moved into `hooks/useLoginLockout.ts` and `hooks/useResetTokenModal.ts`.
+- Added indexes on `StockAlert.user` and `AuthChallenge.user`, which are queried when an account is deleted; `database/schema.json` regenerated.
+- Removed the stale "Node.js 20.9+" changelog line; the project consistently requires Node.js 22+ (`engines`, `.nvmrc`, README, HowToSetup).
 - `blockDemoCredentialChange` moved from `authRoutes.js` into `middleware/demoPrivacy.js`; route files only wire routes.
 - Challenge lifetime, remember-me cookie age and the OTP attempt limit are now named constants in `config/security.js` instead of repeated literals.
 - `@types/node` bumped to `^22` to match the Node 22 runtime; added `.nvmrc` (22). README now names one frontend port (3001); HowToSetup notes the 32-character JWT secret check and the test prerequisites.
@@ -103,7 +106,7 @@ All notable changes to SwiftCart are listed here, newest first.
 
 ### Changed
 - Deleting a customer also removes their notifications, stock alerts, wardrobe and pending sign-in challenges. Orders, tickets and reviews are kept.
-- Node.js 20.9 or newer is required (`engines` in both package.json files); the setup guide now lists versions and how to start and check MongoDB.
+- Node.js 20.9 or newer was required at the time (since raised to Node.js 22+, see 2026-11-02); the setup guide now lists versions and how to start and check MongoDB.
 - `backend/uploads/` is no longer tracked in git.
 - Admin panel: "Refresh Dashboard" now reloads whichever tab is open, and "Inspect Session" shows a customer's orders without first opening the Orders tab.
 - Sign-up form errors are shown in red again.
