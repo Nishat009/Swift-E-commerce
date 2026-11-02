@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const AuthChallenge = require('../models/AuthChallenge');
 const { cookieOptions, requestSecondFactor, challengeQuery, clearChallenge, sendSession } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendLoginOtp } = require('../services/emailService');
-const { LOGIN_MAX_FAILURES, LOGIN_LOCK_MS, devCodesAllowed } = require('../config/security');
+const { LOGIN_MAX_FAILURES, LOGIN_LOCK_MS, OTP_MAX_ATTEMPTS, devCodesAllowed } = require('../config/security');
 
 const recordFailedLogin = async (userId) => {
   const updated = await User.findOneAndUpdate(
@@ -28,7 +28,9 @@ const recordFailedLogin = async (userId) => {
 // @route   POST /api/auth/register
 // @access  Public
 const register = async (req, res, next) => {
-  const { name, email, password, phone } = req.body;
+  const { name, password, phone } = req.body;
+  // String() so a {$ne: ...} object can never reach a Mongo filter
+  const email = String(req.body.email || '');
 
   try {
     const userExists = await User.findOne({ email });
@@ -56,7 +58,8 @@ const register = async (req, res, next) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = async (req, res, next) => {
-  const { email, password, rememberMe } = req.body;
+  const { password, rememberMe } = req.body;
+  const email = String(req.body.email || '');
 
   try {
     const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes +lockUntil');
@@ -131,7 +134,7 @@ const refreshToken = async (req, res, next) => {
 // @route   POST /api/auth/request-otp
 // @access  Public
 const requestOTP = async (req, res, next) => {
-  const { email } = req.body;
+  const email = String(req.body.email || '');
   try {
     const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts +otpRequestedAt');
     const genericMessage = 'If an eligible account exists, an OTP has been sent to its email.';
@@ -166,21 +169,22 @@ const requestOTP = async (req, res, next) => {
 // @route   POST /api/auth/verify-otp
 // @access  Public
 const verifyOTP = async (req, res, next) => {
-  const { email, otp, rememberMe } = req.body;
+  const { otp, rememberMe } = req.body;
+  const email = String(req.body.email || '');
   try {
     const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts');
     if (!user) {
       return sendError(res, 'Invalid OTP code', 400);
     }
 
-    if ((user.otpAttempts || 0) >= 5) {
+    if ((user.otpAttempts || 0) >= OTP_MAX_ATTEMPTS) {
       return sendError(res, 'Too many invalid OTP attempts. Request a new code.', 429);
     }
 
     const otpHash = crypto.createHash('sha256').update(String(otp).trim()).digest('hex');
     if (!user.otpCode || user.otpCode !== otpHash) {
-      user.otpAttempts = (user.otpAttempts || 0) + 1;
-      await user.save({ validateBeforeSave: false });
+      // Atomic, so parallel guesses can't each read the same count and slip past the limit
+      await User.updateOne({ _id: user._id }, { $inc: { otpAttempts: 1 } });
       return sendError(res, 'Invalid OTP code', 400);
     }
 

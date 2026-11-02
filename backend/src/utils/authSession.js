@@ -3,6 +3,7 @@ const AuthChallenge = require('../models/AuthChallenge');
 const { generateAccessToken } = require('./generateTokens');
 const { issueRefreshToken } = require('../services/refreshSessions');
 const { sendSuccess, sendError } = require('./response');
+const { CHALLENGE_TTL_MS, REMEMBER_ME_MS } = require('../config/security');
 
 const allowedOrigins = () => (process.env.FRONTEND_URL || 'http://localhost:3001')
   .split(',').map((value) => value.trim().replace(/\/$/, ''));
@@ -23,7 +24,7 @@ const cookieOptions = (rememberMe = false) => ({
   secure: process.env.NODE_ENV === 'production',
   sameSite: process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === 'production' ? 'none' : 'lax'),
   path: '/',
-  ...(rememberMe ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : {}),
+  ...(rememberMe ? { maxAge: REMEMBER_ME_MS } : {}),
 });
 
 const challengeCookie = (purpose) => purpose === 'google' ? 'googleChallenge' : 'twoFactorChallenge';
@@ -44,9 +45,9 @@ const createChallenge = async (req, res, purpose, data = {}) => {
     ...data,
     purpose,
     digest: digest(secret),
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS),
   });
-  res.cookie(challengeCookie(purpose), secret, { ...cookieOptions(), maxAge: 10 * 60 * 1000 });
+  res.cookie(challengeCookie(purpose), secret, { ...cookieOptions(), maxAge: CHALLENGE_TTL_MS });
 };
 
 const clearChallenge = (res, purpose) => res.clearCookie(challengeCookie(purpose), cookieOptions());
