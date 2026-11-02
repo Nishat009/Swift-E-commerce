@@ -301,7 +301,7 @@ Versions below describe the repository manifests, not a promise about future rel
 
 | Area | Main technologies | Purpose |
 | --- | --- | --- |
-| Frontend framework | Next.js 16.0.7, React 19.2.0 | Pages, layouts, client interaction, and server routing. |
+| Frontend framework | Next.js 16.4.3, React 19.2.0 | Pages, layouts, client interaction, and server routing. |
 | Frontend language | TypeScript | Types for components, API data, and application state. |
 | Styling | Tailwind CSS 4 | Styling and responsive layouts. |
 | UI and motion | Framer Motion, Lucide, React Icons | Animation and interface icons. |
