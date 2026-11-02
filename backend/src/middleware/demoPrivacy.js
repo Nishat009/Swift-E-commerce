@@ -60,4 +60,13 @@ const maskForDemoAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { maskForDemoAdmin, redact };
+// Demo users may edit their name/address, but not the email or password everyone signs in with
+const blockDemoCredentialChange = (req, res, next) => {
+  const changesLogin = req.body.password || (req.body.email && String(req.body.email).toLowerCase() !== String(req.user.email).toLowerCase());
+  if (changesLogin && isDemoAccount(req.user)) {
+    return res.status(403).json({ success: false, message: 'The demo account email and password cannot be changed.' });
+  }
+  next();
+};
+
+module.exports = { maskForDemoAdmin, redact, blockDemoCredentialChange };

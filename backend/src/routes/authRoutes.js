@@ -11,18 +11,11 @@ const {
   requestOtpRules, verifyOtpRules, verify2FARules
 } = require('../validations/authValidation');
 const { signInLimiter, verifyLimiter, otpRequestLimiter, sessionLimiter } = require('../config/rateLimits');
-const { getDemoLoginStatus, demoLogin, isDemoAccount, blockDemoAdmin } = require('../controllers/demoAuthController');
+const { getDemoLoginStatus, demoLogin, blockDemoAdmin } = require('../controllers/demoAuthController');
+const { blockDemoCredentialChange } = require('../middleware/demoPrivacy');
 const { requireOriginForCookieAuth } = require('../utils/authSession');
-
-// Demo users may edit their name/address, but not the email or password everyone signs in with
-const blockDemoCredentialChange = (req, res, next) => {
-  const changesLogin = req.body.password || (req.body.email && String(req.body.email).toLowerCase() !== String(req.user.email).toLowerCase());
-  if (changesLogin && isDemoAccount(req.user)) {
-    return res.status(403).json({ success: false, message: 'The demo account email and password cannot be changed.' });
-  }
-  next();
-};
 const { requireGoogleOrigin, googleChallenge, verifyGoogleCredential, googleLogin, linkGoogle } = require('../controllers/googleAuthController');
+
 
 router.post('/google/challenge', signInLimiter, requireGoogleOrigin, googleChallenge);
 router.post('/google', signInLimiter, requireGoogleOrigin, verifyGoogleCredential, googleLogin);
@@ -47,9 +40,9 @@ router.post('/verify-otp', verifyLimiter, verifyOtpRules, validate, verifyOTP);
 router.get('/profile', protect, getProfile);
 router.put('/profile', protect, blockDemoCredentialChange, profileRules, validate, updateProfile);
 router.post('/2fa/setup', protect, blockDemoAdmin, setup2FA);
-router.post('/2fa/enable', verifyLimiter, protect, verifyAndEnable2FA);
-router.post('/2fa/disable', verifyLimiter, protect, disable2FA);
-router.post('/2fa/recovery-codes', verifyLimiter, protect, regenerateRecoveryCodes);
+router.post('/2fa/enable', verifyLimiter, protect, blockDemoAdmin, verifyAndEnable2FA);
+router.post('/2fa/disable', verifyLimiter, protect, blockDemoAdmin, disable2FA);
+router.post('/2fa/recovery-codes', verifyLimiter, protect, blockDemoAdmin, regenerateRecoveryCodes);
 
 // Addresses CRUD routes
 router.post('/addresses', protect, addAddress);

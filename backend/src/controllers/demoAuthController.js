@@ -43,6 +43,9 @@ const findOrCreateDemoUser = async (role) => {
 
 // Creates the enabled demo accounts at startup so the shared credentials work before anyone clicks a button
 const ensureDemoAccounts = async () => {
+  if (enabledRoles().includes('admin')) {
+    console.warn('[security] WARNING: the public demo ADMIN login is enabled (DEMO_LOGIN_ENABLED=true). Anyone can sign in as admin; never enable it on a shop with real data.');
+  }
   if (!demoPassword()) return;
   for (const role of enabledRoles()) await findOrCreateDemoUser(role);
 };

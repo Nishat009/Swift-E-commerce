@@ -67,27 +67,27 @@ Regenerate after changing a router: `npm --prefix backend run routes:doc`.
 | POST | `/api/admin/users/:id/email` | `protect` + `authorize('admin')` + `blockDemoAdmin` | [adminRoutes.js:44](backend/src/routes/adminRoutes.js#L44) |
 | PUT | `/api/admin/users/:id/role` | `protect` + `authorize('admin')` + `blockDemoAdmin` | [adminRoutes.js:39](backend/src/routes/adminRoutes.js#L39) |
 | POST | `/api/admin/wallet/adjust` | `protect` + `authorize('admin')` + `requireSuperAdmin` | [adminRoutes.js:49](backend/src/routes/adminRoutes.js#L49) |
-| POST | `/api/auth/2fa/disable` | `protect` + own records only | [authRoutes.js:51](backend/src/routes/authRoutes.js#L51) |
-| POST | `/api/auth/2fa/enable` | `protect` + own records only | [authRoutes.js:50](backend/src/routes/authRoutes.js#L50) |
-| POST | `/api/auth/2fa/recovery-codes` | `protect` + own records only | [authRoutes.js:52](backend/src/routes/authRoutes.js#L52) |
-| POST | `/api/auth/2fa/setup` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:49](backend/src/routes/authRoutes.js#L49) |
-| POST | `/api/auth/addresses` | `protect` + own records only | [authRoutes.js:55](backend/src/routes/authRoutes.js#L55) |
-| DELETE | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:57](backend/src/routes/authRoutes.js#L57) |
-| PUT | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:56](backend/src/routes/authRoutes.js#L56) |
-| POST | `/api/auth/demo-login` | public: One-click demo login, only when DEMO_LOGIN_ENABLED (sign-in rate limit) | [authRoutes.js:32](backend/src/routes/authRoutes.js#L32) |
-| POST | `/api/auth/forgot-password` | public: Emails a reset code (OTP rate limit; same answer for unknown emails) | [authRoutes.js:38](backend/src/routes/authRoutes.js#L38) |
-| POST | `/api/auth/google` | public: Google sign-in (sign-in rate limit, origin and nonce check) | [authRoutes.js:28](backend/src/routes/authRoutes.js#L28) |
-| POST | `/api/auth/google/challenge` | public: Google sign-in step 1 (sign-in rate limit, origin check) | [authRoutes.js:27](backend/src/routes/authRoutes.js#L27) |
-| POST | `/api/auth/google/link` | `protect` + own records only | [authRoutes.js:29](backend/src/routes/authRoutes.js#L29) |
-| POST | `/api/auth/login` | public: Password sign-in (sign-in rate limit, account lock after 3 failures) | [authRoutes.js:35](backend/src/routes/authRoutes.js#L35) |
-| POST | `/api/auth/logout` | public: Ends the caller's own session (session rate limit) | [authRoutes.js:36](backend/src/routes/authRoutes.js#L36) |
-| PUT | `/api/auth/profile` | `protect` + own records only | [authRoutes.js:48](backend/src/routes/authRoutes.js#L48) |
-| POST | `/api/auth/refresh` | public: Rotates the caller's refresh session (session rate limit) | [authRoutes.js:37](backend/src/routes/authRoutes.js#L37) |
-| POST | `/api/auth/register` | public: Create an account (sign-in rate limit, validation) | [authRoutes.js:34](backend/src/routes/authRoutes.js#L34) |
-| POST | `/api/auth/request-otp` | public: Emails a sign-in code (OTP rate limit) | [authRoutes.js:43](backend/src/routes/authRoutes.js#L43) |
-| POST | `/api/auth/reset-password` | public: Reset with the emailed code (verify rate limit) | [authRoutes.js:39](backend/src/routes/authRoutes.js#L39) |
-| POST | `/api/auth/verify-2fa` | public: Second sign-in step, needs the pending challenge cookie (verify rate limit) | [authRoutes.js:42](backend/src/routes/authRoutes.js#L42) |
-| POST | `/api/auth/verify-otp` | public: Sign in with the emailed code (verify rate limit) | [authRoutes.js:44](backend/src/routes/authRoutes.js#L44) |
+| POST | `/api/auth/2fa/disable` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:44](backend/src/routes/authRoutes.js#L44) |
+| POST | `/api/auth/2fa/enable` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:43](backend/src/routes/authRoutes.js#L43) |
+| POST | `/api/auth/2fa/recovery-codes` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:45](backend/src/routes/authRoutes.js#L45) |
+| POST | `/api/auth/2fa/setup` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:42](backend/src/routes/authRoutes.js#L42) |
+| POST | `/api/auth/addresses` | `protect` + own records only | [authRoutes.js:48](backend/src/routes/authRoutes.js#L48) |
+| DELETE | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:50](backend/src/routes/authRoutes.js#L50) |
+| PUT | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:49](backend/src/routes/authRoutes.js#L49) |
+| POST | `/api/auth/demo-login` | public: One-click demo login, only when DEMO_LOGIN_ENABLED (sign-in rate limit) | [authRoutes.js:25](backend/src/routes/authRoutes.js#L25) |
+| POST | `/api/auth/forgot-password` | public: Emails a reset code (OTP rate limit; same answer for unknown emails) | [authRoutes.js:31](backend/src/routes/authRoutes.js#L31) |
+| POST | `/api/auth/google` | public: Google sign-in (sign-in rate limit, origin and nonce check) | [authRoutes.js:21](backend/src/routes/authRoutes.js#L21) |
+| POST | `/api/auth/google/challenge` | public: Google sign-in step 1 (sign-in rate limit, origin check) | [authRoutes.js:20](backend/src/routes/authRoutes.js#L20) |
+| POST | `/api/auth/google/link` | `protect` + own records only | [authRoutes.js:22](backend/src/routes/authRoutes.js#L22) |
+| POST | `/api/auth/login` | public: Password sign-in (sign-in rate limit, account lock after 3 failures) | [authRoutes.js:28](backend/src/routes/authRoutes.js#L28) |
+| POST | `/api/auth/logout` | public: Ends the caller's own session (session rate limit) | [authRoutes.js:29](backend/src/routes/authRoutes.js#L29) |
+| PUT | `/api/auth/profile` | `protect` + own records only | [authRoutes.js:41](backend/src/routes/authRoutes.js#L41) |
+| POST | `/api/auth/refresh` | public: Rotates the caller's refresh session (session rate limit) | [authRoutes.js:30](backend/src/routes/authRoutes.js#L30) |
+| POST | `/api/auth/register` | public: Create an account (sign-in rate limit, validation) | [authRoutes.js:27](backend/src/routes/authRoutes.js#L27) |
+| POST | `/api/auth/request-otp` | public: Emails a sign-in code (OTP rate limit) | [authRoutes.js:36](backend/src/routes/authRoutes.js#L36) |
+| POST | `/api/auth/reset-password` | public: Reset with the emailed code (verify rate limit) | [authRoutes.js:32](backend/src/routes/authRoutes.js#L32) |
+| POST | `/api/auth/verify-2fa` | public: Second sign-in step, needs the pending challenge cookie (verify rate limit) | [authRoutes.js:35](backend/src/routes/authRoutes.js#L35) |
+| POST | `/api/auth/verify-otp` | public: Sign in with the emailed code (verify rate limit) | [authRoutes.js:37](backend/src/routes/authRoutes.js#L37) |
 | POST | `/api/campaigns/:id/buy` | `protect` + own records only | [campaignRoutes.js:38](backend/src/routes/campaignRoutes.js#L38) |
 | PUT | `/api/campaigns/admin/:id` | `protect` + `authorize('admin')` | [campaignRoutes.js:30](backend/src/routes/campaignRoutes.js#L30) |
 | PUT | `/api/campaigns/admin/:id/delivery` | `protect` + `authorize('admin')` | [campaignRoutes.js:34](backend/src/routes/campaignRoutes.js#L34) |
@@ -172,6 +172,17 @@ Links that are GET by necessity but change state (they are opened from an email 
 | `GET /api/newsletter/unsubscribe?token=` | Needs the subscriber's random 128-bit token from the email; removes only that subscription |
 | `GET /api/payments/bkash/callback`, `GET /api/payments/card/return` | Ignore the status in the URL: the order is marked paid only after the server asks bKash / Stripe and the paid amount matches |
 | `GET /api/payments/mock/checkout` | Development only: 404 unless `PAYMENT_MOCK=true` and `NODE_ENV` is not `production` |
+
+## Dependency audit
+
+Last run 2026-11-02 with `npm audit --omit=dev`:
+
+| Project | Result |
+| :--- | :--- |
+| Frontend (`package.json`) | 0 vulnerabilities |
+| Backend (`backend/package.json`) | 0 vulnerabilities (the `glob`/`minimatch` advisories pulled in by `swagger-jsdoc` are fixed with an `overrides` entry pinning `glob@^14.0.3`) |
+
+Both lockfiles are committed; deploy with `npm ci` so installs match them exactly.
 
 ## Reporting a vulnerability
 
