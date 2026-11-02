@@ -13,6 +13,8 @@ import DemoLoginButtons from '@/components/auth/DemoLoginButtons';
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal';
 import { safeRedirectPath } from '@/lib/safeRedirect';
 import { requiredError } from '@/lib/formValidation';
+import { useLoginLockout } from '@/hooks/useLoginLockout';
+import { useResetTokenModal } from '@/hooks/useResetTokenModal';
 
 // The backend only returns dev codes when ALLOW_DEV_AUTH_CODES is on outside production;
 // a production build never shows them either way.
@@ -60,17 +62,8 @@ function LoginFormContent() {
   const [twoFactorUserId, setTwoFactorUserId] = useState('');
   const [testOtpNotice, setTestOtpNotice] = useState('');
 
-  // Forgot / reset password modal: null when closed, otherwise what it opens with.
-  // Arriving from the emailed reset link opens it on the new-password step.
-  const [forgotModal, setForgotModal] = useState<{ email: string; token: string } | null>(() => {
-    const resetToken = searchParams?.get('resetToken') || '';
-    return resetToken ? { email: '', token: resetToken } : null;
-  });
-
-  // Enterprise account lock simulation state
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
+  const { forgotModal, openForgotModal, closeForgotModal } = useResetTokenModal();
+  const { isLocked, cooldown, recordFailure, resetFailures } = useLoginLockout();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,35 +96,10 @@ function LoginFormContent() {
       } else {
         toast.success('Logged in successfully!');
       }
-      setFailedAttempts(0);
+      resetFailures();
     } catch (error: any) {
       console.error('Login error:', error);
-      // The server is the source of truth for lockouts (429 + retryAfter seconds)
-      const serverLocked = error.status === 429;
-      const nextFailCount = serverLocked ? 3 : failedAttempts + 1;
-      setFailedAttempts(nextFailCount);
-
-      if (nextFailCount >= 3) {
-        const seconds = serverLocked && error.retryAfter ? error.retryAfter : 30;
-        setIsLocked(true);
-        setCooldown(seconds);
-        toast.error(serverLocked ? error.message : `Too many failed attempts. Login is locked for ${seconds} seconds.`);
-
-        const interval = setInterval(() => {
-          setCooldown((prev) => {
-            if (prev <= 1) {
-              setIsLocked(false);
-              setFailedAttempts(0);
-              clearInterval(interval);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      } else {
-        toast.error(`Invalid email or password. Attempt ${nextFailCount}/3 before lockout.`);
-      }
-
+      toast.error(recordFailure(error));
       setErrors({ form: error.message || 'Invalid credentials' });
     } finally {
       setLoading(false);
@@ -359,7 +327,7 @@ function LoginFormContent() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setForgotModal({ email: formData.email || '', token: '' })}
+                  onClick={() => openForgotModal(formData.email || '')}
                   className={linkClass}
                 >
                   Forgot password?
@@ -459,7 +427,7 @@ function LoginFormContent() {
         <ForgotPasswordModal
           initialEmail={forgotModal.email}
           initialToken={forgotModal.token}
-          onClose={() => setForgotModal(null)}
+          onClose={closeForgotModal}
           onPasswordReset={(email, password) => setFormData((prev) => ({ ...prev, email, password }))}
         />
       )}
