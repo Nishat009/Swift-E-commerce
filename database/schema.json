@@ -129,7 +129,23 @@
         "type": "Date"
       }
     },
-    "indexes": []
+    "indexes": [
+      {
+        "keys": {
+          "entityType": 1,
+          "entityId": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "changedBy": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
   },
   "AuthChallenge": {
     "collection": "authchallenges",
@@ -177,6 +193,12 @@
           "digest": 1
         },
         "unique": true,
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1
+        },
         "background": true
       },
       {
@@ -342,7 +364,16 @@
         "type": "Date"
       }
     },
-    "indexes": []
+    "indexes": [
+      {
+        "keys": {
+          "visibility": 1,
+          "status": 1,
+          "createdAt": -1
+        },
+        "background": true
+      }
+    ]
   },
   "Cart": {
     "collection": "carts",
@@ -541,7 +572,7 @@
         ],
         "default": "unread"
       },
-      "ip": {
+      "ipHash": {
         "type": "String",
         "default": ""
       },
@@ -566,6 +597,20 @@
         "keys": {
           "status": 1
         },
+        "background": true
+      },
+      {
+        "keys": {
+          "user": 1,
+          "createdAt": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "createdAt": 1
+        },
+        "expireAfterSeconds": 15552000,
         "background": true
       }
     ]
@@ -1344,6 +1389,101 @@
           "returnRequest.status": 1
         },
         "background": true
+      },
+      {
+        "keys": {
+          "orderStatus": 1,
+          "paymentStatus": 1,
+          "paymentMethod": 1,
+          "createdAt": 1
+        },
+        "background": true
+      }
+    ]
+  },
+  "PaymentSettings": {
+    "collection": "paymentsettings",
+    "timestamps": true,
+    "fields": {
+      "key": {
+        "type": "String",
+        "unique": true,
+        "default": "default"
+      },
+      "cod.enabled": {
+        "type": "Boolean",
+        "default": true
+      },
+      "bkash.enabled": {
+        "type": "Boolean",
+        "default": true
+      },
+      "bkash.mode": {
+        "type": "String",
+        "enum": [
+          "",
+          "sandbox",
+          "live"
+        ],
+        "default": ""
+      },
+      "bkash.credentials.appKey": {
+        "type": "String",
+        "default": ""
+      },
+      "bkash.credentials.appSecret": {
+        "type": "String",
+        "default": ""
+      },
+      "bkash.credentials.username": {
+        "type": "String",
+        "default": ""
+      },
+      "bkash.credentials.password": {
+        "type": "String",
+        "default": ""
+      },
+      "card.enabled": {
+        "type": "Boolean",
+        "default": true
+      },
+      "card.credentials.secretKey": {
+        "type": "String",
+        "default": ""
+      },
+      "card.credentials.webhookSecret": {
+        "type": "String",
+        "default": ""
+      },
+      "bdtPerUsd": {
+        "type": "Number",
+        "default": null
+      },
+      "updatedBy": {
+        "type": "ObjectId",
+        "ref": "User"
+      },
+      "updatedByName": {
+        "type": "String",
+        "default": ""
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "key": 1
+        },
+        "unique": true,
+        "background": true
       }
     ]
   },
@@ -1928,6 +2068,73 @@
       }
     ]
   },
+  "RefreshSession": {
+    "collection": "refreshsessions",
+    "timestamps": true,
+    "fields": {
+      "user": {
+        "type": "ObjectId",
+        "ref": "User",
+        "required": true
+      },
+      "tokenHash": {
+        "type": "String",
+        "required": true
+      },
+      "previousTokenHash": {
+        "type": "String",
+        "default": ""
+      },
+      "rotatedAt": {
+        "type": "Date",
+        "default": null
+      },
+      "rememberMe": {
+        "type": "Boolean",
+        "default": false
+      },
+      "userAgent": {
+        "type": "String",
+        "default": ""
+      },
+      "revokedAt": {
+        "type": "Date",
+        "default": null
+      },
+      "revokedReason": {
+        "type": "String",
+        "default": ""
+      },
+      "expiresAt": {
+        "type": "Date",
+        "required": true
+      },
+      "_id": {
+        "type": "ObjectId"
+      },
+      "createdAt": {
+        "type": "Date"
+      },
+      "updatedAt": {
+        "type": "Date"
+      }
+    },
+    "indexes": [
+      {
+        "keys": {
+          "user": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "expiresAt": 1
+        },
+        "expireAfterSeconds": 0,
+        "background": true
+      }
+    ]
+  },
   "RequestLog": {
     "collection": "requestlogs",
     "timestamps": true,
@@ -2163,6 +2370,12 @@
       }
     },
     "indexes": [
+      {
+        "keys": {
+          "user": 1
+        },
+        "background": true
+      },
       {
         "keys": {
           "product": 1,

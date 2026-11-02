@@ -5,7 +5,7 @@ const StockAlertSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     email: { type: String, required: true, trim: true, lowercase: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     pending: { type: Boolean, default: true },
     notifiedAt: { type: Date, default: null },
   },
