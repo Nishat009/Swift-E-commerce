@@ -257,7 +257,7 @@ test('changing the password signs out other sessions but keeps this one signed i
   assert.ok(changed.data.accessToken, 'this session receives a fresh token');
 
   assert.equal((await api('GET', '/api/auth/profile', phone.token)).status, 401, 'old access token is rejected');
-  const phoneRefresh = await fetch(`${BASE}/api/auth/refresh`, { method: 'POST', headers: { Cookie: phone.cookie } });
+  const phoneRefresh = await fetch(`${BASE}/api/auth/refresh`, { method: 'POST', headers: { Cookie: phone.cookie, Origin: process.env.FRONTEND_URL } });
   assert.equal(phoneRefresh.status, 401, 'old refresh token is rejected');
   assert.equal((await api('GET', '/api/auth/profile', changed.data.accessToken)).status, 200);
 });
@@ -268,7 +268,7 @@ test('refresh keeps a session cookie a session cookie when "remember me" was off
     body: JSON.stringify({ email: 'admin@test.dev', password: 'Password123!', rememberMe: false }),
   });
   const cookie = res.headers.get('set-cookie').split(';')[0];
-  const refreshed = await fetch(`${BASE}/api/auth/refresh`, { method: 'POST', headers: { Cookie: cookie } });
+  const refreshed = await fetch(`${BASE}/api/auth/refresh`, { method: 'POST', headers: { Cookie: cookie, Origin: process.env.FRONTEND_URL } });
   assert.equal(refreshed.status, 200);
   assert.doesNotMatch(refreshed.headers.get('set-cookie'), /Max-Age/i);
 });

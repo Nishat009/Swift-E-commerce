@@ -333,7 +333,7 @@ test('the demo admin can browse but cannot change roles, delete users or touch d
 
 // ---- Refresh sessions: stored server-side, rotated, revoked on logout, replay ends every session
 const cookieCall = async (path, cookie) => {
-  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: '{}' });
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: process.env.FRONTEND_URL, ...(cookie ? { Cookie: cookie } : {}) }, body: '{}' });
   const set = (res.headers.getSetCookie?.() || []).find((c) => c.startsWith('refreshToken='));
   const value = set ? set.split(';')[0] : null;
   return { status: res.status, json: await res.json().catch(() => null), cookie: value && value !== 'refreshToken=' ? value : null };

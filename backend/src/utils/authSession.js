@@ -2,7 +2,21 @@ const crypto = require('crypto');
 const AuthChallenge = require('../models/AuthChallenge');
 const { generateAccessToken } = require('./generateTokens');
 const { issueRefreshToken } = require('../services/refreshSessions');
-const { sendSuccess } = require('./response');
+const { sendSuccess, sendError } = require('./response');
+
+const allowedOrigins = () => (process.env.FRONTEND_URL || 'http://localhost:3001')
+  .split(',').map((value) => value.trim().replace(/\/$/, ''));
+
+// CSRF guard for cookie-authenticated mutating routes (refresh, logout): the refresh cookie is
+// sent cross-site, so a forged <form> POST from another origin must be rejected. Non-browser
+// clients that pass the token in the body (no cookie set) are unaffected and skip this check.
+const requireOriginForCookieAuth = (req, res, next) => {
+  if (!req.cookies?.refreshToken) return next();
+  if (!req.get('origin') || !allowedOrigins().includes(req.get('origin'))) {
+    return sendError(res, 'This request must come from the SwiftCart website.', 403);
+  }
+  next();
+};
 
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
@@ -69,4 +83,4 @@ const requestSecondFactor = async (req, res, user, rememberMe) => {
   return sendSuccess(res, '2FA code required to login', { require2FA: true, userId: user.id });
 };
 
-module.exports = { noteSignIn, cookieOptions, publicUser, sendSession, createChallenge, clearChallenge, challengeQuery, requestSecondFactor };
+module.exports = { noteSignIn, cookieOptions, publicUser, sendSession, createChallenge, clearChallenge, challengeQuery, requestSecondFactor, requireOriginForCookieAuth };
