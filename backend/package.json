@@ -21,7 +21,7 @@
     "routes:doc": "node scripts/routeReport.js --write"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
