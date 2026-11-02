@@ -182,7 +182,17 @@ Last run 2026-11-02 with `npm audit --omit=dev`:
 | Frontend (`package.json`) | 0 vulnerabilities |
 | Backend (`backend/package.json`) | 0 vulnerabilities (the `glob`/`minimatch` advisories pulled in by `swagger-jsdoc` are fixed with an `overrides` entry pinning `glob@^14.0.3`) |
 
-Both lockfiles are committed; deploy with `npm ci` so installs match them exactly.
+Production dependencies are pinned to exact versions in both `package.json` files (no caret ranges); both
+lockfiles are committed, so deploy with `npm ci`. Key versions at this audit: next 16.4.4, react 19.2.0,
+express 4.22.3 (latest 4.x; 5.x is a major upgrade, not a security fix), multer 2.5.0 (latest),
+nodemailer 10.3.1 (latest), mongoose 8.24.7, jsonwebtoken 9.0.3, helmet 8.3.0.
+
+```text
+$ npm audit --omit=dev
+found 0 vulnerabilities
+$ npm --prefix backend audit --omit=dev
+found 0 vulnerabilities
+```
 
 ## Reporting a vulnerability
 

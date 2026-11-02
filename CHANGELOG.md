@@ -4,6 +4,7 @@ All notable changes to SwiftCart are listed here, newest first.
 
 ## 2026-11-02
 ### Fixed
+- Dependency audit: `npm audit --omit=dev` reports **0 vulnerabilities** for both the frontend and the backend. Upgraded next and eslint-config-next 16.4.3 → 16.4.4 and nodemailer 10.2.1 → 10.3.1. Every production dependency in both `package.json` files is now pinned to an exact version (no caret ranges). Full result in SECURITY.md.
 - Shared demo accounts can no longer enable or disable 2FA or regenerate recovery codes (`blockDemoAdmin` now guards `/2fa/enable`, `/2fa/disable` and `/2fa/recovery-codes`, like `/2fa/setup`), so nobody can lock everyone else out of the demo.
 - Wrong email-code (OTP) guesses are now counted with an atomic `$inc`, so parallel guesses can't slip past the 5-attempt limit.
 - Auth controllers cast `email` to a string before querying, so an operator object can never reach a Mongo filter even if validation is bypassed.
