@@ -106,25 +106,25 @@ Regenerate after changing a router: `npm --prefix backend run routes:doc`.
 | POST | `/api/categories` | `protect` + `authorize('admin')` | [categoryRoutes.js:17](backend/src/routes/categoryRoutes.js#L17) |
 | DELETE | `/api/categories/:id` | `protect` + `authorize('admin')` | [categoryRoutes.js:19](backend/src/routes/categoryRoutes.js#L19) |
 | PUT | `/api/categories/:id` | `protect` + `authorize('admin')` | [categoryRoutes.js:18](backend/src/routes/categoryRoutes.js#L18) |
-| POST | `/api/chat` | public: Shopping assistant message (chat rate limit) | [chatRoutes.js:17](backend/src/routes/chatRoutes.js#L17) |
-| DELETE | `/api/chat/:id` | `protect` + `authorize('admin')` | [chatRoutes.js:75](backend/src/routes/chatRoutes.js#L75) |
-| PUT | `/api/chat/:id` | `protect` + `authorize('admin')` | [chatRoutes.js:62](backend/src/routes/chatRoutes.js#L62) |
-| POST | `/api/contact` | public: Contact form (5 per hour per IP) | [contactRoutes.js:17](backend/src/routes/contactRoutes.js#L17) |
-| DELETE | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:98](backend/src/routes/contactRoutes.js#L98) |
-| PUT | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:79](backend/src/routes/contactRoutes.js#L79) |
+| POST | `/api/chat` | public: Shopping assistant message (chat rate limit) | [chatRoutes.js:9](backend/src/routes/chatRoutes.js#L9) |
+| DELETE | `/api/chat/:id` | `protect` + `authorize('admin')` | [chatRoutes.js:17](backend/src/routes/chatRoutes.js#L17) |
+| PUT | `/api/chat/:id` | `protect` + `authorize('admin')` | [chatRoutes.js:15](backend/src/routes/chatRoutes.js#L15) |
+| POST | `/api/contact` | public: Contact form (5 per hour per IP) | [contactRoutes.js:9](backend/src/routes/contactRoutes.js#L9) |
+| DELETE | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:15](backend/src/routes/contactRoutes.js#L15) |
+| PUT | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:13](backend/src/routes/contactRoutes.js#L13) |
 | POST | `/api/coupons` | `protect` + `authorize('admin')` | [couponRoutes.js:20](backend/src/routes/couponRoutes.js#L20) |
 | DELETE | `/api/coupons/:id` | `protect` + `authorize('admin')` | [couponRoutes.js:22](backend/src/routes/couponRoutes.js#L22) |
 | PUT | `/api/coupons/:id` | `protect` + `authorize('admin')` | [couponRoutes.js:21](backend/src/routes/couponRoutes.js#L21) |
 | POST | `/api/currencies` | `protect` + `authorize('admin')` | [currencyRoutes.js:16](backend/src/routes/currencyRoutes.js#L16) |
 | DELETE | `/api/currencies/:id` | `protect` + `authorize('admin')` | [currencyRoutes.js:18](backend/src/routes/currencyRoutes.js#L18) |
 | PUT | `/api/currencies/:id` | `protect` + `authorize('admin')` | [currencyRoutes.js:17](backend/src/routes/currencyRoutes.js#L17) |
-| POST | `/api/hero/:key` | `protect` + `authorize('admin')` | [heroRoutes.js:18](backend/src/routes/heroRoutes.js#L18) |
+| POST | `/api/hero/:key` | `protect` + `authorize('admin')` | [heroRoutes.js:10](backend/src/routes/heroRoutes.js#L10) |
 | POST | `/api/image-assets` | `protect` + `authorize('admin')` | [imageAssetRoutes.js:14](backend/src/routes/imageAssetRoutes.js#L14) |
 | POST | `/api/languages` | `protect` + `authorize('admin')` | [languageRoutes.js:21](backend/src/routes/languageRoutes.js#L21) |
 | DELETE | `/api/languages/:id` | `protect` + `authorize('admin')` | [languageRoutes.js:23](backend/src/routes/languageRoutes.js#L23) |
 | PUT | `/api/languages/:id` | `protect` + `authorize('admin')` | [languageRoutes.js:22](backend/src/routes/languageRoutes.js#L22) |
-| POST | `/api/newsletter/subscribe` | public: Newsletter sign-up (rate-limited) | [newsletterRoutes.js:15](backend/src/routes/newsletterRoutes.js#L15) |
-| DELETE | `/api/newsletter/subscriptions/:id` | `protect` + `authorize('admin')` | [newsletterRoutes.js:70](backend/src/routes/newsletterRoutes.js#L70) |
+| POST | `/api/newsletter/subscribe` | public: Newsletter sign-up (rate-limited) | [newsletterRoutes.js:9](backend/src/routes/newsletterRoutes.js#L9) |
+| DELETE | `/api/newsletter/subscriptions/:id` | `protect` + `authorize('admin')` | [newsletterRoutes.js:15](backend/src/routes/newsletterRoutes.js#L15) |
 | PUT | `/api/notifications/:id/read` | `protect` + own records only | [notificationRoutes.js:14](backend/src/routes/notificationRoutes.js#L14) |
 | PUT | `/api/notifications/read-all` | `protect` + own records only | [notificationRoutes.js:13](backend/src/routes/notificationRoutes.js#L13) |
 | POST | `/api/orders` | `protect` + own records only | [orderRoutes.js:27](backend/src/routes/orderRoutes.js#L27) |
@@ -150,8 +150,8 @@ Regenerate after changing a router: `npm --prefix backend run routes:doc`.
 | PUT | `/api/reviews/:id` | `protect` + own records only | [reviewRoutes.js:25](backend/src/routes/reviewRoutes.js#L25) |
 | POST | `/api/reviews/:id/helpful` | `protect` + own records only | [reviewRoutes.js:24](backend/src/routes/reviewRoutes.js#L24) |
 | POST | `/api/uploads` | `protect` + `authorize('admin')` | [uploadRoutes.js:12](backend/src/routes/uploadRoutes.js#L12) |
-| PUT | `/api/wardrobe` | `protect` + own records only | [wardrobeRoutes.js:23](backend/src/routes/wardrobeRoutes.js#L23) |
-| POST | `/api/wardrobe/challenges/:id/complete` | `protect` + own records only | [wardrobeRoutes.js:38](backend/src/routes/wardrobeRoutes.js#L38) |
+| PUT | `/api/wardrobe` | `protect` + own records only | [wardrobeRoutes.js:10](backend/src/routes/wardrobeRoutes.js#L10) |
+| POST | `/api/wardrobe/challenges/:id/complete` | `protect` + own records only | [wardrobeRoutes.js:12](backend/src/routes/wardrobeRoutes.js#L12) |
 | POST | `/api/wishlist` | `protect` + own records only | [wishlistRoutes.js:25](backend/src/routes/wishlistRoutes.js#L25) |
 | DELETE | `/api/wishlist/:productId` | `protect` + own records only | [wishlistRoutes.js:32](backend/src/routes/wishlistRoutes.js#L32) |
 | PUT | `/api/wishlist/alerts/:productId` | `protect` + own records only | [wishlistRoutes.js:31](backend/src/routes/wishlistRoutes.js#L31) |
