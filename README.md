@@ -11,7 +11,7 @@
 [![Swagger API](https://img.shields.io/badge/Swagger-API_Docs-85EA2D?style=flat-square&logo=swagger)](http://localhost:5000/api-docs)
 
 > **Live Demo:** [https://swift-e-commerce-eta.vercel.app/](https://swift-e-commerce-eta.vercel.app/)
-> **Local Preview:** [http://localhost:3000](http://localhost:3000) (or `http://localhost:3001`)  
+> **Local Preview:** [http://localhost:3001](http://localhost:3001)  
 > **API Documentation (Swagger):** [http://localhost:5000/api-docs](http://localhost:5000/api-docs)  
 > **Backend REST API:** [http://localhost:5000/api](http://localhost:5000/api)
 

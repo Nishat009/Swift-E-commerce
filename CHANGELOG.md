@@ -4,6 +4,11 @@ All notable changes to SwiftCart are listed here, newest first.
 
 ## 2026-11-02
 ### Fixed
+- Shared demo accounts can no longer enable or disable 2FA or regenerate recovery codes (`blockDemoAdmin` now guards `/2fa/enable`, `/2fa/disable` and `/2fa/recovery-codes`, like `/2fa/setup`), so nobody can lock everyone else out of the demo.
+- Wrong email-code (OTP) guesses are now counted with an atomic `$inc`, so parallel guesses can't slip past the 5-attempt limit.
+- Auth controllers cast `email` to a string before querying, so an operator object can never reach a Mongo filter even if validation is bypassed.
+- Backend `npm audit` is clean: `swagger-jsdoc`'s vulnerable `glob`/`minimatch` are overridden with `glob@^14.0.3`. Results are recorded in SECURITY.md.
+- The backend logs a loud startup warning whenever the public demo admin login is enabled.
 - Dressing Room: garments photographed on a model or against a busy/non-studio background (most of the current catalog's stock photos) no longer get smeared across the mannequin as a messy collage. The cutout detector now also checks how much of the photo's border actually sits on a plain backdrop, not just how smooth that border is, so busy real-world photos correctly fall back to the plain-fabric silhouette instead of being treated as a flat-lay.
 - `npm audit`: removed the unused `next-auth` dependency (the app uses its own Express/JWT auth) and updated the lockfile, which also cleared a high-severity `follow-redirects` advisory.
 - README: prerequisites and badges now say Node.js 20.9+ (matching `engines` in both `package.json` files) instead of the stale Node 18+.
@@ -12,6 +17,9 @@ All notable changes to SwiftCart are listed here, newest first.
 - `/api/auth/refresh` and `/api/auth/logout` (cookie-authenticated) now reject cross-site requests that don't carry the site's own `Origin` header, closing a CSRF gap on those two endpoints (mirrors the `requireGoogleOrigin` check already used on the Google sign-in routes). Non-browser clients that pass the refresh token in the request body are unaffected.
 
 ### Changed
+- `blockDemoCredentialChange` moved from `authRoutes.js` into `middleware/demoPrivacy.js`; route files only wire routes.
+- Challenge lifetime, remember-me cookie age and the OTP attempt limit are now named constants in `config/security.js` instead of repeated literals.
+- `@types/node` bumped to `^22` to match the Node 22 runtime; added `.nvmrc` (22). README now names one frontend port (3001); HowToSetup notes the 32-character JWT secret check and the test prerequisites.
 - `register`, `login` and `verify-otp` now issue their session through the same `sendSession()` helper the Google and demo logins already use, instead of each repeating the token/cookie/response logic inline.
 - The refresh token is now read through a single `getRefreshTokenFromRequest()` helper (cookie first, body fallback for non-browser clients) shared by `/auth/refresh` and `/auth/logout`, and it's rejected unless it's actually a string.
 - The Google sign-in client-id check is now a single `getGoogleClientId()` helper shared by the challenge and verify steps.

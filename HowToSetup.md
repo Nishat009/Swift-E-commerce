@@ -4,7 +4,7 @@ These steps take a clean machine to a running shop with demo data.
 
 ## 1. Prerequisites
 
-- **Node.js 22 or newer** (includes npm), the current LTS line. Check with `node -v`. Download: https://nodejs.org
+- **Node.js 22 or newer** (includes npm), the current LTS line. Check with `node -v`. Download: https://nodejs.org. The repo has an `.nvmrc`, so `nvm use` picks the right version.
 - **MongoDB 6 or newer** (MongoDB 8 recommended), running locally on `mongodb://127.0.0.1:27017`, or a MongoDB Atlas connection string. Download: https://www.mongodb.com/try/download/community
 
 No other services are required. Payments, Google sign-in, email and image hosting are optional and stay off until you add their keys.
@@ -53,7 +53,7 @@ JWT_SECRET=<random string, 32+ characters>
 JWT_REFRESH_SECRET=<a different random string, 32+ characters>
 ```
 
-You can generate one with:
+The backend **refuses to start** if either is missing or shorter than 32 characters. You can generate one with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
@@ -112,7 +112,7 @@ These accounts are for local demos only. Never run the seed scripts against a pr
 
 ## 7. Run the tests (optional)
 
-MongoDB must be running. The tests use their own `swiftcart_*_test` databases and never touch `swiftcart`.
+Prerequisites: steps 1–3 done (Node 22+, `npm install` in both folders, `backend/.env` with the JWT secrets) and MongoDB running on `MONGO_URI`; the tests do not use an in-memory database. The tests use their own `swiftcart_*_test` databases and never touch `swiftcart`.
 
 ```bash
 npm --prefix backend test          # all backend tests, including the route-guard policy check
