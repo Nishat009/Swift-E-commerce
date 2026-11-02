@@ -451,7 +451,7 @@ Swift-E-commerce/
 
 ### Requirements
 
-Use Node.js **20.9.0 or newer**, npm, and a reachable MongoDB instance. The Node minimum comes from the installed Next.js 16 package. External credentials are needed only for the integrations you intend to use.
+Use Node.js **22 or newer**, npm, and a reachable MongoDB instance. External credentials are needed only for the integrations you intend to use.
 
 ### Step 1: Install dependencies
 

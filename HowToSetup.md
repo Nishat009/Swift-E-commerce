@@ -4,7 +4,7 @@ These steps take a clean machine to a running shop with demo data.
 
 ## 1. Prerequisites
 
-- **Node.js 20.9 or newer** (includes npm), required by Next.js 16. Check with `node -v`. Download: https://nodejs.org
+- **Node.js 22 or newer** (includes npm), the current LTS line. Check with `node -v`. Download: https://nodejs.org
 - **MongoDB 6 or newer** (MongoDB 8 recommended), running locally on `mongodb://127.0.0.1:27017`, or a MongoDB Atlas connection string. Download: https://www.mongodb.com/try/download/community
 
 No other services are required. Payments, Google sign-in, email and image hosting are optional and stay off until you add their keys.
