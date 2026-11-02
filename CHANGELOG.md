@@ -7,12 +7,18 @@ All notable changes to SwiftCart are listed here, newest first.
 - Dressing Room: garments photographed on a model or against a busy/non-studio background (most of the current catalog's stock photos) no longer get smeared across the mannequin as a messy collage. The cutout detector now also checks how much of the photo's border actually sits on a plain backdrop, not just how smooth that border is, so busy real-world photos correctly fall back to the plain-fabric silhouette instead of being treated as a flat-lay.
 - `npm audit`: removed the unused `next-auth` dependency (the app uses its own Express/JWT auth) and updated the lockfile, which also cleared a high-severity `follow-redirects` advisory.
 - README: prerequisites and badges now say Node.js 20.9+ (matching `engines` in both `package.json` files) instead of the stale Node 18+.
+- `POST /api/auth/register` no longer confirms whether an email is already registered ("User already exists" let an attacker enumerate accounts); it now returns a generic 409 message.
+- The shared demo-admin login (`DEMO_LOGIN_ENABLED`) can no longer hand out an admin session when `NODE_ENV=production`, even if `DEMO_LOGIN_ROLES` is misconfigured to include `admin` on a live deployment.
+- `/api/auth/refresh` and `/api/auth/logout` (cookie-authenticated) now reject cross-site requests that don't carry the site's own `Origin` header, closing a CSRF gap on those two endpoints (mirrors the `requireGoogleOrigin` check already used on the Google sign-in routes). Non-browser clients that pass the refresh token in the request body are unaffected.
 
 ### Changed
 - `register`, `login` and `verify-otp` now issue their session through the same `sendSession()` helper the Google and demo logins already use, instead of each repeating the token/cookie/response logic inline.
 - The refresh token is now read through a single `getRefreshTokenFromRequest()` helper (cookie first, body fallback for non-browser clients) shared by `/auth/refresh` and `/auth/logout`, and it's rejected unless it's actually a string.
 - The Google sign-in client-id check is now a single `getGoogleClientId()` helper shared by the challenge and verify steps.
 - Stopped tracking the 20 demo product photos under `backend/uploads/` in git — they're exact duplicates of the seed images already in `public/images/dress-room/` and were only there because the `.gitignore` rule was added after they'd been committed. They stay on disk; the runtime uploads folder keeps only `.gitkeep`.
+- Raised the minimum Node.js version to 22 (current LTS) across both `package.json` files, the README, `HowToSetup.md` and `docs/PROJECT_OVERVIEW.md`.
+- `@types/react` / `@types/react-dom` are now pinned to `~19.2.0` to match the installed `react`/`react-dom` 19.2.0 runtime (they had drifted to `^19.3.0`), and `lucide-react` is now pinned exactly to `0.556.0` instead of a caret range.
+- README's "Live Preview & Demo" link now points at the deployed site (`https://swift-e-commerce-eta.vercel.app/`) instead of only `localhost`, and the project-structure tree now lists `services/`.
 
 ## 2026-10-28 (third update)
 ### Security
