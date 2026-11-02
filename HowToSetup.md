@@ -2,6 +2,37 @@
 
 These steps take a clean machine to a running shop with demo data.
 
+## Quick start (in order)
+
+Needs **Node.js 22+** (`.nvmrc` says 22; both `package.json` files declare `"engines": { "node": ">=22" }`) and **MongoDB 6+**.
+
+```bash
+# 1. install (root = frontend, backend/ = API)
+npm install
+npm --prefix backend install
+
+# 2. environment
+cp backend/.env.example backend/.env    # Windows: copy
+#    In backend/.env set JWT_SECRET and JWT_REFRESH_SECRET (32+ random chars each) and
+#    MONGO_URI (default mongodb://127.0.0.1:27017/swiftcart, or your Atlas URI)
+
+# 3. database
+npm --prefix backend run db:init        # collections + indexes, deletes nothing
+npm --prefix backend run seed           # demo catalog (local DB only)
+npm --prefix backend run seed:admin     # demo admin + customer, prints the password
+
+# 4. run
+npm run dev                             # shop http://localhost:3001, API http://localhost:5000/api
+
+# 5. check
+npm --prefix backend test               # 78 tests, needs MongoDB
+```
+
+The submission ZIP is built by `npm run package:zip` from the files tracked in git, so it never contains
+`node_modules`, `.next`, build output or `.env` files. Step 2 above recreates them.
+
+The sections below explain each step.
+
 ## 1. Prerequisites
 
 - **Node.js 22 or newer** (includes npm), the current LTS line. Check with `node -v`. Download: https://nodejs.org. The repo has an `.nvmrc`, so `nvm use` picks the right version.

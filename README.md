@@ -23,10 +23,11 @@
 3. [Technology Stack](#-technology-stack)
 4. [Architecture & Project Structure](#-architecture--project-structure)
 5. [Getting Started & Installation](#-getting-started--installation)
-6. [Default Demo Credentials](#-default-demo-credentials)
-7. [API Endpoints Overview](#-api-endpoints-overview)
-8. [Environment Configuration](#-environment-configuration)
-9. [License](#-license)
+6. [Live Demo & Demo Credentials](#-live-demo--demo-credentials)
+7. [Authorization on Every Route That Changes Data](#-authorization-on-every-route-that-changes-data)
+8. [API Endpoints Overview](#-api-endpoints-overview)
+9. [Environment Configuration](#-environment-configuration)
+10. [License](#-license)
 
 ---
 
@@ -246,14 +247,55 @@ On Windows PowerShell, if execution policy blocks `npm.ps1`, use `npm.cmd run de
 
 ---
 
-## 🔑 Default Demo Credentials
+## 🔑 Live Demo & Demo Credentials
 
-You can use the pre-configured accounts created during `npm run seed:admin`:
+**Live site:** https://swift-e-commerce-eta.vercel.app (frontend on Vercel). The frontend proxies `/api/backend/*`
+to the Express API on Render (`https://swift-e-commerce.onrender.com/api`, set by `BACKEND_API_URL`).
 
-| Role | Email | Password | Access Level |
-| :--- | :--- | :--- | :--- |
-| **Master Admin** | `admin@email.com` | `12345678` | Full access to `/admin` Console, Products, Orders & Analytics |
-| **Customer User** | `user@email.com` | `12345678` | Storefront browsing, 3D Studio, Cart, Wishlist & Orders |
+**Sign in without a password:** open [/auth/login](https://swift-e-commerce-eta.vercel.app/auth/login) and click
+**Guest login** (shopper) or **Admin login** (admin panel at `/admin`). Checked on 2026-11-02:
+
+```text
+GET  /api/backend/health             -> 200 {"status":"ok"}
+GET  /api/backend/auth/demo-login    -> 200 {"roles":["customer","admin"]}
+POST /api/backend/auth/demo-login {"role":"customer"} -> 200 "Signed in as a guest shopper"
+POST /api/backend/auth/demo-login {"role":"admin"}    -> 200 "Signed in as the demo admin"
+```
+
+The demo admin is read-mostly: customer emails, phones and addresses are masked, and it cannot change roles,
+delete users, change order status, touch payment settings or turn on 2FA (see [SECURITY.md](SECURITY.md)).
+The demo is reset-safe because it uses its own `guest@swiftcart.demo` / `admin@swiftcart.demo` accounts.
+
+**Local accounts** (created by `npm --prefix backend run seed:admin`):
+
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| Admin | `admin@email.com` | your `SEED_PASSWORD`, or the random one `seed:admin` prints |
+| Customer | `user@email.com` | your `SEED_PASSWORD`, or the random one `seed:admin` prints |
+
+Locally, set `DEMO_LOGIN_ENABLED=true` in `backend/.env` to get the same one-click buttons.
+
+---
+
+## 🔒 Authorization on Every Route That Changes Data
+
+Every POST/PUT/PATCH/DELETE route is guarded, and a test enforces it:
+
+- **101 mutating routes:** 43 admin-only (`protect` + `authorize('admin')`), 41 signed-in and scoped to the caller's own records (`protect`), 17 public by design (sign-in, register, password reset, contact form, newsletter, chat, back-in-stock alerts and the Stripe webhook; each is rate-limited or signature-checked).
+- The policy lives in [backend/src/config/routePolicy.js](backend/src/config/routePolicy.js). Anything not listed there as public or signed-in must be admin-only.
+- The full per-route table, with file and line, is in [SECURITY.md](SECURITY.md#routes-that-change-data). It is generated from the routers and checked by a test, so it can't drift from the code.
+
+```text
+$ npm --prefix backend run test:routes
+✔ every mutating route has the guard its policy requires
+✔ the public and signed-in lists only name routes that exist
+✔ every route is mounted and found in its source file
+✔ the route table in SECURITY.md matches the code
+ℹ tests 4  ℹ pass 4  ℹ fail 0
+```
+
+The whole backend suite (`npm --prefix backend test`) passes 78/78. It includes API tests where guests and
+customers get 401/403 on admin routes, and one customer cannot pay for another customer's order.
 
 ---
 
