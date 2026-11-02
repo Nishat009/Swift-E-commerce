@@ -33,7 +33,8 @@ const register = async (req, res, next) => {
   try {
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return sendError(res, 'User already exists', 400);
+      // Generic wording: confirming "this email is taken" lets an attacker enumerate accounts.
+      return sendError(res, 'Unable to create an account with this information. If you already have one, try signing in instead.', 409);
     }
 
     const user = await User.create({
