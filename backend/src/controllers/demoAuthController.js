@@ -7,12 +7,12 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { sendSuccess, sendError } = require('../utils/response');
 const { sendSession } = require('../utils/authSession');
-const { DEMO_ROLES, demoAccount, enabledRoles, demoPassword, showDemoCredentials, isProduction } = require('../config/demo');
+const { DEMO_ROLES, demoAccount, demoPolicy } = require('../config/demo');
 
 // Finds or creates a demo account, keeping its password equal to DEMO_PASSWORD when that is set
 const findOrCreateDemoUser = async (role) => {
   const account = demoAccount(role);
-  const password = demoPassword();
+  const { password } = demoPolicy();
   const user = await User.findOne({ email: account.email }).select('+password');
   if (!user) {
     return User.create({ ...account, password: password || crypto.randomBytes(24).toString('hex') });
@@ -27,12 +27,13 @@ const findOrCreateDemoUser = async (role) => {
 // Creates the enabled demo accounts at startup so the shared credentials work before anyone clicks a button.
 // Never in production: there an account is only created by a demo-login click, when demo login is on.
 const ensureDemoAccounts = async () => {
-  if (isProduction()) return;
-  if (enabledRoles().includes('admin')) {
+  const policy = demoPolicy();
+  if (policy.production) return;
+  if (policy.adminEnabled) {
     console.warn('[security] WARNING: the public demo ADMIN login is enabled (DEMO_LOGIN_ENABLED=true, DEMO_ALLOW_ADMIN=true). Anyone can sign in as admin; never enable it on a shop with real data.');
   }
-  if (!demoPassword()) return;
-  for (const role of enabledRoles()) await findOrCreateDemoUser(role);
+  if (!policy.password) return;
+  for (const role of policy.roles) await findOrCreateDemoUser(role);
 };
 
 // @desc    Which demo buttons the login page should show, plus the shared credentials when
@@ -40,9 +41,8 @@ const ensureDemoAccounts = async () => {
 // @route   GET /api/auth/demo-login
 // @access  Public
 const getDemoLoginStatus = (req, res) => {
-  const roles = enabledRoles();
-  const password = demoPassword();
-  const credentials = showDemoCredentials() ? roles.map((role) => ({ role, email: demoAccount(role).email, password })) : [];
+  const { roles, password, showCredentials } = demoPolicy();
+  const credentials = showCredentials ? roles.map((role) => ({ role, email: demoAccount(role).email, password })) : [];
   return sendSuccess(res, 'Demo login status', { roles, credentials });
 };
 
@@ -52,7 +52,7 @@ const getDemoLoginStatus = (req, res) => {
 const demoLogin = async (req, res, next) => {
   try {
     const role = typeof req.body.role === 'string' ? req.body.role : '';
-    if (!enabledRoles().includes(role)) {
+    if (!demoPolicy().roles.includes(role)) {
       return sendError(res, 'Demo login is not available.', 404);
     }
     const account = demoAccount(role);
@@ -80,4 +80,4 @@ const blockDemoAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { getDemoLoginStatus, demoLogin, enabledRoles, ensureDemoAccounts, isDemoAccount, blockDemoAdmin };
+module.exports = { getDemoLoginStatus, demoLogin, ensureDemoAccounts, isDemoAccount, blockDemoAdmin };

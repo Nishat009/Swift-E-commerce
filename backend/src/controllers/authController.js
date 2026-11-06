@@ -9,20 +9,8 @@ const { sendSuccess, sendError } = require('../utils/response');
 const AuthChallenge = require('../models/AuthChallenge');
 const { cookieOptions, requestSecondFactor, challengeQuery, clearChallenge, sendSession } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendLoginOtp } = require('../services/emailService');
-const { LOGIN_MAX_FAILURES, LOGIN_LOCK_MS, devCodesAllowed } = require('../config/security');
-
-// One atomic update: count the failure and, on reaching the limit, set the lock and reset the
-// counter in the same write, so concurrent failures can never leave a half-applied state.
-const recordFailedLogin = (userId) => {
-  const attempts = { $add: [{ $ifNull: ['$failedLoginAttempts', 0] }, 1] };
-  const reachedLimit = { $gte: [attempts, LOGIN_MAX_FAILURES] };
-  return User.updateOne({ _id: userId }, [{
-    $set: {
-      failedLoginAttempts: { $cond: [reachedLimit, 0, attempts] },
-      lockUntil: { $cond: [reachedLimit, new Date(Date.now() + LOGIN_LOCK_MS), '$lockUntil'] },
-    },
-  }]);
-};
+const { devCodesAllowed } = require('../config/security');
+const { lockedForSeconds, recordFailedLogin, clearFailedLogins } = require('../services/loginLockout');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -63,15 +51,15 @@ const login = async (req, res, next) => {
 
   try {
     const user = await User.findOne({ email }).select('+password +twoFactorSecret +twoFactorRecoveryCodes +lockUntil');
-    if (user && user.lockUntil && user.lockUntil > new Date()) {
-      const seconds = Math.ceil((user.lockUntil - Date.now()) / 1000);
+    const seconds = lockedForSeconds(user);
+    if (seconds) {
       return sendError(res, `Too many failed attempts. Try again in ${seconds} seconds.`, 429, { retryAfter: seconds });
     }
     if (!user || !(await user.matchPassword(password))) {
       if (user) await recordFailedLogin(user._id);
       return sendError(res, 'Invalid email or password', 401);
     }
-    await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: 1 } });
+    await clearFailedLogins(user._id);
 
     // Check if 2FA is enabled
     if (user.twoFactorEnabled) {

@@ -9,8 +9,10 @@ const validateEnv = () => {
     }
   }
 
-  if (process.env.PAYMENT_SETTINGS_KEY && process.env.PAYMENT_SETTINGS_KEY.length < 32) {
-    problems.push('PAYMENT_SETTINGS_KEY must be at least 32 characters');
+  for (const name of ['PAYMENT_SETTINGS_KEY', 'CHAT_HASH_KEY']) {
+    if (process.env[name] && process.env[name].length < 32) {
+      problems.push(`${name} must be at least 32 characters`);
+    }
   }
 
   if (isProd) {
@@ -18,6 +20,10 @@ const validateEnv = () => {
     if (!process.env.FRONTEND_URL) problems.push('FRONTEND_URL must be set in production');
     if ((process.env.FRONTEND_URL || '').split(',').some((url) => url.trim() === '*')) {
       problems.push('FRONTEND_URL cannot be "*" because the API sends credentials');
+    }
+    // A shared password would let anyone sign in to the demo accounts with the normal form
+    if (process.env.DEMO_PASSWORD) {
+      problems.push('DEMO_PASSWORD must not be set in production (the shared demo password is for local and review setups only)');
     }
   }
 

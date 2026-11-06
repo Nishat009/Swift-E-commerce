@@ -37,4 +37,17 @@ const demoPassword = () => ((process.env.DEMO_PASSWORD || '').length >= 8 ? proc
 // The shared password is only ever returned by the public status endpoint outside production
 const showDemoCredentials = () => !isProduction() && Boolean(demoPassword());
 
-module.exports = { DEMO_ROLES, demoAccount, enabledRoles, demoPassword, showDemoCredentials, isProduction };
+// Every flag above resolved into one read-only answer. Controllers read only this object;
+// it is rebuilt per call so a restart with new values (or a test) takes effect immediately.
+const demoPolicy = () => {
+  const roles = enabledRoles();
+  return Object.freeze({
+    production: isProduction(),
+    roles: Object.freeze(roles),
+    adminEnabled: roles.includes('admin'),
+    password: demoPassword(),
+    showCredentials: showDemoCredentials(),
+  });
+};
+
+module.exports = { DEMO_ROLES, demoAccount, demoPolicy, enabledRoles, demoPassword, showDemoCredentials, isProduction };
