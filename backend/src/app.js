@@ -10,6 +10,7 @@ const setupSwagger = require('./utils/swagger');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { apiLimiter } = require('./config/rateLimits');
 const { maskForDemoAdmin } = require('./middleware/demoPrivacy');
+const { rejectOperatorKeys } = require('./middleware/sanitizeMiddleware');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -98,6 +99,8 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+// Bodies with MongoDB operator keys ({"email": {"$ne": null}}) or __proto__ keys are refused with 422
+app.use(rejectOperatorKeys);
 
 // Query strings are plain text: "a[]=x&a[]=y" becomes "x,y", and operator objects like ?price[$gt]=0 are refused
 app.use((req, res, next) => {
