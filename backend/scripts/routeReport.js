@@ -21,13 +21,10 @@ const END = '<!-- route-table:end -->';
 // "cartRoutes.js" -> "cart"
 const routerName = (file) => file.replace(/Routes\.js$/, '');
 
-// Mount path of each route file, read from app.js: app.use('/api/cart', cartRoutes)
+// Mount path of each route file, read from the manifest routes/index.js: ['/api/cart', require('./cartRoutes')]
 const mountPaths = () => {
-  const app = fs.readFileSync(path.join(SRC, 'app.js'), 'utf8');
-  const variableToFile = Object.fromEntries([...app.matchAll(/const (\w+) = require\('\.\/routes\/(\w+)'\)/g)].map((m) => [m[1], `${m[2]}.js`]));
-  return Object.fromEntries([...app.matchAll(/app\.use\('([^']+)', (\w+)\)/g)]
-    .filter((m) => variableToFile[m[2]])
-    .map((m) => [variableToFile[m[2]], m[1]]));
+  const manifest = fs.readFileSync(path.join(ROUTES_DIR, 'index.js'), 'utf8');
+  return Object.fromEntries([...manifest.matchAll(/\['([^']+)', require\('\.\/(\w+)'\)\]/g)].map((m) => [`${m[2]}.js`, m[1]]));
 };
 
 // Line of `router.<method>('<path>'` in the route file
@@ -41,7 +38,7 @@ const lineOf = (source, method, routePath) => {
 const collectMutatingRoutes = () => {
   const mounts = mountPaths();
   const routes = [];
-  for (const file of fs.readdirSync(ROUTES_DIR).filter((f) => f.endsWith('.js')).sort()) {
+  for (const file of fs.readdirSync(ROUTES_DIR).filter((f) => f.endsWith('Routes.js')).sort()) {
     const router = require(path.join(ROUTES_DIR, file));
     const source = fs.readFileSync(path.join(ROUTES_DIR, file), 'utf8');
     const name = routerName(file);

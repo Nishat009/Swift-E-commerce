@@ -35,7 +35,7 @@ npm run package:zip                           # submission ZIP from git HEAD
 | `lib/`, `services/`, `hooks/`, `context/`, `stores/` | API client, helpers, state |
 | `backend/server.js` | Backend entry point |
 | `backend/src/app.js` | Express app and route mounting |
-| `backend/src/routes/` | One router per resource |
+| `backend/src/routes/` | One router per resource; `routes/index.js` lists every router and its mount path |
 | `backend/src/controllers/` | Route handlers |
 | `backend/src/models/` | Mongoose models (the database schema) |
 | `backend/src/middleware/` | `protect` (auth), `authorize` (roles), validation, uploads, errors |

@@ -1,0 +1,27 @@
+// Every API router and the path it is mounted on. app.js mounts them in this order;
+// scripts/routeReport.js reads this file to list each route's full URL in SECURITY.md.
+module.exports = [
+  ['/api/auth', require('./authRoutes')],
+  ['/api/products', require('./productRoutes')],
+  ['/api/categories', require('./categoryRoutes')],
+  ['/api/cart', require('./cartRoutes')],
+  ['/api/wishlist', require('./wishlistRoutes')],
+  ['/api/orders', require('./orderRoutes')],
+  ['/api/coupons', require('./couponRoutes')],
+  ['/api/reviews', require('./reviewRoutes')],
+  ['/api/admin', require('./adminRoutes')],
+  ['/api/newsletter', require('./newsletterRoutes')],
+  ['/api/campaigns', require('./campaignRoutes')],
+  ['/api/notifications', require('./notificationRoutes')],
+  ['/api/enterprise', require('./enterpriseRoutes')],
+  ['/api/currencies', require('./currencyRoutes')],
+  ['/api/languages', require('./languageRoutes')],
+  ['/api/hero', require('./heroRoutes')],
+  ['/api/uploads', require('./uploadRoutes')],
+  ['/api/payments', require('./paymentRoutes')],
+  ['/api/contact', require('./contactRoutes')],
+  ['/api/chat', require('./chatRoutes')],
+  ['/api/wardrobe', require('./wardrobeRoutes')],
+  ['/api/recommendations', require('./recommendationRoutes')],
+  ['/api/image-assets', require('./imageAssetRoutes')],
+];

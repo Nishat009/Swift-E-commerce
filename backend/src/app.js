@@ -12,30 +12,7 @@ const { apiLimiter } = require('./config/rateLimits');
 const { maskForDemoAdmin } = require('./middleware/demoPrivacy');
 const { rejectOperatorKeys } = require('./middleware/sanitizeMiddleware');
 
-// Route imports
-const authRoutes = require('./routes/authRoutes');
-const productRoutes = require('./routes/productRoutes');
-const categoryRoutes = require('./routes/categoryRoutes');
-const cartRoutes = require('./routes/cartRoutes');
-const wishlistRoutes = require('./routes/wishlistRoutes');
-const orderRoutes = require('./routes/orderRoutes');
-const couponRoutes = require('./routes/couponRoutes');
-const reviewRoutes = require('./routes/reviewRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const newsletterRoutes = require('./routes/newsletterRoutes');
-const campaignRoutes = require('./routes/campaignRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const enterpriseRoutes = require('./routes/enterpriseRoutes');
-const currencyRoutes = require('./routes/currencyRoutes');
-const languageRoutes = require('./routes/languageRoutes');
-const heroRoutes = require('./routes/heroRoutes');
-const uploadRoutes = require('./routes/uploadRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-const contactRoutes = require('./routes/contactRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const wardrobeRoutes = require('./routes/wardrobeRoutes');
-const recommendationRoutes = require('./routes/recommendationRoutes');
-const imageAssetRoutes = require('./routes/imageAssetRoutes');
+const apiRoutes = require('./routes');
 const { metricsMiddleware } = require('./utils/metrics');
 const { requestLogger } = require('./utils/activityLog');
 
@@ -126,29 +103,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // The shared demo admin never receives real customer contact details
 app.use('/api', maskForDemoAdmin);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/coupons', couponRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/newsletter', newsletterRoutes);
-app.use('/api/campaigns', campaignRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/enterprise', enterpriseRoutes);
-app.use('/api/currencies', currencyRoutes);
-app.use('/api/languages', languageRoutes);
-app.use('/api/hero', heroRoutes);
-app.use('/api/uploads', uploadRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/wardrobe', wardrobeRoutes);
-app.use('/api/recommendations', recommendationRoutes);
-app.use('/api/image-assets', imageAssetRoutes);
+// Every router and its mount path is listed in routes/index.js
+for (const [mountPath, router] of apiRoutes) app.use(mountPath, router);
 
 // 8. Swagger documentation endpoint
 if (process.env.NODE_ENV !== 'production') setupSwagger(app);
