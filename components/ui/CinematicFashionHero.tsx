@@ -20,7 +20,7 @@ const fragments = Array.from({ length: 150 }, (_, index) => {
 const slides = [
   { motion: 'atelier', label: 'Camel coat editorial', eyebrow: 'The Atelier Edit', title: 'Wear the story.', opening: 'From thread. To form.', description: 'From the first fold of fabric to a silhouette made for you.', image: '/hero-atelier-desktop.webp', mobile: '/hero-atelier-portrait.webp', href: '/products', action: 'Shop Collection' },
   { motion: 'runway', label: 'Runway fashion editorial', eyebrow: 'The Runway Edit', title: 'Find your moment.', opening: 'A new mood. In motion.', description: 'Expressive silhouettes and enduring pieces for every entrance.', image: '/banner-runway.jpg', mobile: '/banner-runway.jpg', href: '/products?category=dress', action: 'Explore the Edit' },
-  { motion: 'editorial', label: 'Everyday fashion editorial', eyebrow: 'The Everyday Edit', title: 'Style for every day.', opening: 'Made to move. Made to last.', description: 'Considered layers and quiet details for the way you live.', image: '/hero-everyday-editorial.png', mobile: '/hero-everyday-editorial.png', href: '/products', action: 'Discover More' },
+  { motion: 'editorial', label: 'Everyday fashion editorial', eyebrow: 'The Everyday Edit', title: 'Style for every day.', opening: 'Made to move. Made to last.', description: 'Considered layers and quiet details for the way you live.', image: '/hero-everyday-editorial.jpg', mobile: '/hero-everyday-editorial.jpg', href: '/products', action: 'Discover More' },
 ];
 const CYCLE_MS = 11000;
 const FADE_MS = 1000;

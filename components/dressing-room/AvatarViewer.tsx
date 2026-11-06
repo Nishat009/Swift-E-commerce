@@ -445,84 +445,6 @@ export default function AvatarViewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- DYNAMIC MODEL LOADER & COLOR COUPLER ---
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!scene) return;
-
-    const avatarUrl = process.env.NEXT_PUBLIC_AVATAR_GLB_URL;
-    if (!avatarUrl) {
-      setLoading(false);
-      setUsingFallback(true);
-      if (fallbackGroupRef.current) fallbackGroupRef.current.visible = true;
-      applyLocalFallbackMannequinStyles();
-      return;
-    }
-    setLoading(true);
-    setLoadingProgress(0);
-
-    const loader = new GLTFLoader();
-    
-    loader.load(
-      avatarUrl,
-      (gltf) => {
-        // Success: Hide Fallback Mannequin
-        setUsingFallback(false);
-        if (fallbackGroupRef.current) {
-          fallbackGroupRef.current.visible = false;
-        }
-
-        // Clear previous GLTF model
-        if (rpmModelRef.current) {
-          scene.remove(rpmModelRef.current);
-        }
-
-        const model = gltf.scene;
-        model.scale.set(1.0, 1.0, 1.0);
-        model.position.set(0, -0.85, 0);
-        
-        model.traverse((child) => {
-          if ((child as any).isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-
-        scene.add(model);
-        rpmModelRef.current = model as any;
-        setLoading(false);
-
-        // Apply dynamic realistic clothing textures
-        applyGarmentColors();
-      },
-      (xhr) => {
-        if (xhr.total > 0) {
-          setLoadingProgress(Math.round((xhr.loaded / xhr.total) * 100));
-        }
-      },
-      (err) => {
-        console.warn('GLTF load error (likely CORS/network block), rendering fallback 3D mannequin:', err);
-        setLoading(false);
-        setUsingFallback(true);
-
-        // Clear previous GLTF model
-        if (rpmModelRef.current) {
-          scene.remove(rpmModelRef.current);
-          rpmModelRef.current = null;
-        }
-
-        // Reveal Local Fallback Mannequin
-        if (fallbackGroupRef.current) {
-          fallbackGroupRef.current.visible = true;
-        }
-
-        applyLocalFallbackMannequinStyles();
-      }
-    );
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [avatar.gender]);
-
   // Apply clothing colors to Ready Player Me mesh materials
   const applyGarmentColors = () => {
     const model = rpmModelRef.current;
@@ -773,6 +695,84 @@ export default function AvatarViewer() {
       rightShoe.visible = false;
     }
   };
+
+  // --- DYNAMIC MODEL LOADER & COLOR COUPLER ---
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    const avatarUrl = process.env.NEXT_PUBLIC_AVATAR_GLB_URL;
+    if (!avatarUrl) {
+      setLoading(false);
+      setUsingFallback(true);
+      if (fallbackGroupRef.current) fallbackGroupRef.current.visible = true;
+      applyLocalFallbackMannequinStyles();
+      return;
+    }
+    setLoading(true);
+    setLoadingProgress(0);
+
+    const loader = new GLTFLoader();
+    
+    loader.load(
+      avatarUrl,
+      (gltf) => {
+        // Success: Hide Fallback Mannequin
+        setUsingFallback(false);
+        if (fallbackGroupRef.current) {
+          fallbackGroupRef.current.visible = false;
+        }
+
+        // Clear previous GLTF model
+        if (rpmModelRef.current) {
+          scene.remove(rpmModelRef.current);
+        }
+
+        const model = gltf.scene;
+        model.scale.set(1.0, 1.0, 1.0);
+        model.position.set(0, -0.85, 0);
+        
+        model.traverse((child) => {
+          if ((child as any).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        scene.add(model);
+        rpmModelRef.current = model as any;
+        setLoading(false);
+
+        // Apply dynamic realistic clothing textures
+        applyGarmentColors();
+      },
+      (xhr) => {
+        if (xhr.total > 0) {
+          setLoadingProgress(Math.round((xhr.loaded / xhr.total) * 100));
+        }
+      },
+      (err) => {
+        console.warn('GLTF load error (likely CORS/network block), rendering fallback 3D mannequin:', err);
+        setLoading(false);
+        setUsingFallback(true);
+
+        // Clear previous GLTF model
+        if (rpmModelRef.current) {
+          scene.remove(rpmModelRef.current);
+          rpmModelRef.current = null;
+        }
+
+        // Reveal Local Fallback Mannequin
+        if (fallbackGroupRef.current) {
+          fallbackGroupRef.current.visible = true;
+        }
+
+        applyLocalFallbackMannequinStyles();
+      }
+    );
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatar.gender]);
 
   // Re-run color mapper when clothing sets or falls change
   useEffect(() => {

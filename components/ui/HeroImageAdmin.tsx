@@ -5,7 +5,7 @@ import apiClient from '@/lib/apiClient';
 const slides = [
   { key: 'atelier', name: 'Slide 1 · Atelier', fallback: '/hero-atelier-desktop.webp' },
   { key: 'runway', name: 'Slide 2 · Runway', fallback: '/banner-runway.jpg' },
-  { key: 'editorial', name: 'Slide 3 · Everyday', fallback: '/hero-everyday-editorial.png' },
+  { key: 'editorial', name: 'Slide 3 · Everyday', fallback: '/hero-everyday-editorial.jpg' },
 ];
 
 export default function HeroImageAdmin() {
