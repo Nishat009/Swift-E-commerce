@@ -111,9 +111,9 @@ Regenerate after changing a router: `npm --prefix backend run routes:doc`.
 | POST | `/api/chat` | public: Shopping assistant message (chat rate limit) | [chatRoutes.js:9](backend/src/routes/chatRoutes.js#L9) |
 | DELETE | `/api/chat/:id` | `protect` + `authorize('admin')` | [chatRoutes.js:17](backend/src/routes/chatRoutes.js#L17) |
 | PUT | `/api/chat/:id` | `protect` + `authorize('admin')` | [chatRoutes.js:15](backend/src/routes/chatRoutes.js#L15) |
-| POST | `/api/contact` | public: Contact form (5 per hour per IP) | [contactRoutes.js:9](backend/src/routes/contactRoutes.js#L9) |
-| DELETE | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:15](backend/src/routes/contactRoutes.js#L15) |
-| PUT | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:13](backend/src/routes/contactRoutes.js#L13) |
+| POST | `/api/contact` | public: Contact form (5 per hour per IP) | [contactRoutes.js:12](backend/src/routes/contactRoutes.js#L12) |
+| DELETE | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:18](backend/src/routes/contactRoutes.js#L18) |
+| PUT | `/api/contact/:id` | `protect` + `authorize('admin')` | [contactRoutes.js:16](backend/src/routes/contactRoutes.js#L16) |
 | POST | `/api/coupons` | `protect` + `authorize('admin')` | [couponRoutes.js:20](backend/src/routes/couponRoutes.js#L20) |
 | DELETE | `/api/coupons/:id` | `protect` + `authorize('admin')` | [couponRoutes.js:22](backend/src/routes/couponRoutes.js#L22) |
 | PUT | `/api/coupons/:id` | `protect` + `authorize('admin')` | [couponRoutes.js:21](backend/src/routes/couponRoutes.js#L21) |
@@ -177,12 +177,16 @@ Links that are GET by necessity but change state (they are opened from an email 
 
 ## Dependency audit
 
-Last run 2026-11-06 with `npm audit --omit=dev`:
+Last run 2026-11-06, with and without dev dependencies:
 
-| Project | Result |
-| :--- | :--- |
-| Frontend (`package.json`) | 0 vulnerabilities |
-| Backend (`backend/package.json`) | 0 vulnerabilities (the `glob`/`minimatch` advisories pulled in by `swagger-jsdoc` are fixed with an `overrides` entry pinning `glob@^14.0.3`) |
+| Project | `npm audit --omit=dev` | `npm audit` (incl. dev) |
+| :--- | :--- | :--- |
+| Frontend (`package.json`) | 0 vulnerabilities | 0 vulnerabilities (`minimatch` overridden to `^11.0.1`; it was pulled in by `eslint-config-next` → `typescript-eslint`, GHSA-g3hv-75wg-m249) |
+| Backend (`backend/package.json`) | 0 vulnerabilities (`swagger-jsdoc`'s `glob`/`minimatch` fixed by an `overrides` entry, `glob@^14.0.3`) | 0 vulnerabilities (`nodemon` removed; `npm run dev` uses Node's built-in `node --watch`, so the backend has no dev dependencies) |
+
+`express-rate-limit` was upgraded 7.5.1 → 8.7.3 (current major). 8.x keys IPv6 clients by subnet, so one client cannot dodge a
+limit by rotating addresses. All limiters (sign-in, OTP, contact, chat, API) passed the test suite, and the contact limiter was
+checked by hand: requests 1–5 return 200, the 6th returns 429.
 
 Production dependencies are pinned to exact versions in both `package.json` files (no caret ranges); both
 lockfiles are committed, so deploy with `npm ci`. Exact pins are deliberate: patch updates are applied on purpose
@@ -193,9 +197,9 @@ newer release renames icons and is a deliberate upgrade). The `glob` override wa
 `npm --prefix backend ls glob` (glob@14.0.3) and `/api-docs` loads (HTTP 200).
 
 ```text
-$ npm audit --omit=dev
+$ npm audit
 found 0 vulnerabilities
-$ npm --prefix backend audit --omit=dev
+$ npm --prefix backend audit
 found 0 vulnerabilities
 ```
 

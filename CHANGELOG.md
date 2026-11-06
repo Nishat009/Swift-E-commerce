@@ -4,6 +4,11 @@ All notable changes to SwiftCart are listed here, newest first.
 
 ## 2026-11-06
 ### Security
+- In production the backend refuses to start when `DEMO_PASSWORD` is set, so a shared demo password can never reach a live shop. Test added.
+- Chat sender IPs are hashed with an optional dedicated `CHAT_HASH_KEY` (32+ characters); without it the startup-checked `JWT_SECRET` is used, never an undefined key.
+- Admin user lookups (`/users/:id`, `/cart`, `/wishlist`, `/role`) reject malformed ids with 404 before querying. Cart and wishlist lookups return only the product fields the admin view shows.
+- New tests: chat and contact inboxes return 401 without a token and 403 for customers.
+- Dependency audit: `npm audit` (dev dependencies included) is now **0 vulnerabilities** in both projects. The backend dropped `nodemon` for Node's built-in `node --watch`; the frontend overrides `minimatch` to `^11.0.1` (pulled in by the ESLint TypeScript plugin).
 - The one-click demo **admin** now needs `DEMO_ALLOW_ADMIN=true` as well as `DEMO_LOGIN_ENABLED=true`, and stays off whenever `NODE_ENV=production`. In production the login page is never sent the shared `DEMO_PASSWORD`, and no demo account is created at startup. Settings live in `backend/src/config/demo.js`.
 - Every request body with a MongoDB operator key (`$ne`, `$gt`, ...) or a `__proto__`/`constructor` key is refused with 422 before it reaches a controller (`middleware/sanitizeMiddleware.js`).
 - Failed sign-ins are counted and the account locked in one atomic pipeline update, so parallel wrong passwords can't leave the counter and the lock out of step.
@@ -11,6 +16,15 @@ All notable changes to SwiftCart are listed here, newest first.
 - Saved-address changes have their own rate limit (60 per 15 minutes).
 
 ### Changed
+- `express-rate-limit` 7.5.1 → 8.7.3 (current major; IPv6 clients are limited per subnet). All rate-limit tests pass.
+- Admin chat and contact inboxes load 50 messages at a time with a **Load more** button; marking or deleting a message updates the list in place instead of reloading it.
+- Backend structure: the sign-in lockout rules live in `services/loginLockout.js`; every router and its mount path is listed once in `routes/index.js` (app.js mounts from it, and the SECURITY.md route report reads it); `config/demo.js` resolves the demo flags into one frozen `demoPolicy()` object that the demo controller reads.
+- Dressing Room: fixed the two `npm run lint` errors in `AvatarViewer.tsx` (the model-loader effect now sits below the helpers it calls). Lint reports 0 errors.
+- Contact form input is validated by `validations/contactValidation.js` (express-validator) like every other endpoint; the honeypot runs first. The contact page shows the server's field message.
+- Admin chat and contact inboxes are paginated (`?page`, `?limit`, default 100, max 200) and return `pagination`; both collections have a `{ status: 1, createdAt: -1 }` index.
+- Admin dashboard queries moved to `services/adminStats.js` and run in parallel; top-selling products are loaded in one query instead of one per product.
+- Chat and contact controllers use the shared `sendSuccess` / `sendError` response helpers.
+- Images: the 17 largest storefront photos were re-encoded (13.6 MB → 1.8 MB, same dimensions); the hero PNG is now a JPG. Removed the unused `app/image.png` and the duplicate `app/swiftcart-cover.png`; the marketing covers in `docs/` are left out of the submission ZIP (`.gitattributes` `export-ignore`).
 - The email-code (OTP) sign-in logic moved from `authController` to `services/otpService.js`. `authRoutes.js` uses shared middleware chains.
 - New `npm run install:all` installs the frontend and the backend in one step. README setup now lists both `.env` copies, the required variables, `db:init`, MongoDB 6.0+ and port 5000, and says that `database/*.sql` is not used at runtime.
 - React and react-dom 19.2.0 → 19.2.9. `npm audit --omit=dev` still reports 0 vulnerabilities in both packages. The `swagger-jsdoc` glob override was checked and `/api-docs` loads.
@@ -36,7 +50,7 @@ All notable changes to SwiftCart are listed here, newest first.
 - Business logic moved out of route files: chat, contact, newsletter, recommendation, wardrobe and hero routes now only wire paths and middleware to new handlers in `backend/src/controllers/` (`chatController`, `contactController`, `newsletterController`, `recommendationController`, `wardrobeController`, `heroController`). Behaviour is unchanged.
 - Login page: the failed-attempt lockout and the reset-link modal state moved into `hooks/useLoginLockout.ts` and `hooks/useResetTokenModal.ts`.
 - Added indexes on `StockAlert.user` and `AuthChallenge.user`, which are queried when an account is deleted; `database/schema.json` regenerated.
-- Removed the stale "Node.js 20.9+" changelog line; the project consistently requires Node.js 22+ (`engines`, `.nvmrc`, README, HowToSetup).
+- Removed a stale changelog line with the old Node.js minimum; the project consistently requires Node.js 22+ (`engines`, `.nvmrc`, README, HowToSetup).
 - `blockDemoCredentialChange` moved from `authRoutes.js` into `middleware/demoPrivacy.js`; route files only wire routes.
 - Challenge lifetime, remember-me cookie age and the OTP attempt limit are now named constants in `config/security.js` instead of repeated literals.
 - `@types/node` bumped to `^22` to match the Node 22 runtime; added `.nvmrc` (22). README now names one frontend port (3001); HowToSetup notes the 32-character JWT secret check and the test prerequisites.
@@ -120,7 +134,7 @@ All notable changes to SwiftCart are listed here, newest first.
 
 ### Changed
 - Deleting a customer also removes their notifications, stock alerts, wardrobe and pending sign-in challenges. Orders, tickets and reviews are kept.
-- Node.js 20.9 or newer was required at the time (since raised to Node.js 22+, see 2026-11-02); the setup guide now lists versions and how to start and check MongoDB.
+- The setup guide now lists the required versions (today Node.js 22+ and MongoDB 6+) and how to start and check MongoDB.
 - `backend/uploads/` is no longer tracked in git.
 - Admin panel: "Refresh Dashboard" now reloads whichever tab is open, and "Inspect Session" shows a customer's orders without first opening the Orders tab.
 - Sign-up form errors are shown in red again.

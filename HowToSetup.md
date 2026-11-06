@@ -36,6 +36,7 @@ The sections below explain each step.
 
 - **Node.js 22 or newer** (includes npm), the current LTS line. Check with `node -v`. Download: https://nodejs.org. The repo has an `.nvmrc`, so `nvm use` picks the right version.
 - **MongoDB 6 or newer** (MongoDB 8 recommended), running locally on `mongodb://127.0.0.1:27017`, or a MongoDB Atlas connection string. Download: https://www.mongodb.com/try/download/community
+  A plain local `mongod` is enough. Account deletion uses a MongoDB transaction when the server supports one (Atlas, or any replica set); on a standalone server `backend/src/utils/transaction.js` detects that and runs the same writes one after another, so nothing needs configuring.
 
 No other services are required. Payments, Google sign-in, email and image hosting are optional and stay off until you add their keys.
 
@@ -94,6 +95,17 @@ If MongoDB is not at the default local address, also change `MONGO_URI`. To choo
 Optional, but required in production if you want to save payment gateway keys from **Admin → Payment Settings**: set `PAYMENT_SETTINGS_KEY` to a third random string (32+ characters, same command as above). Locally it falls back to `JWT_SECRET`.
 
 The frontend's `.env.local` is optional: by default the frontend talks to the backend at `http://localhost:5000/api` (`BACKEND_API_URL`).
+
+Which file each part reads:
+
+| File | Read by | Must contain |
+| :--- | :--- | :--- |
+| `backend/.env` (from `backend/.env.example`) | Express API on port **5000** (`backend/server.js`) | `JWT_SECRET`, `JWT_REFRESH_SECRET`; `MONGO_URI` if not local; `FRONTEND_URL=http://localhost:3001` (CORS) |
+| `.env.local` (from `.env.example`) | Next.js frontend on port **3001** | Nothing locally. In production: `BACKEND_API_URL=https://<your-api>/api` |
+
+The browser never calls the API directly: it calls the frontend's same-origin proxy (`/api/backend/*`), which forwards to `BACKEND_API_URL`, so there is no `NEXT_PUBLIC_` API variable.
+
+For a production backend (`NODE_ENV=production`) the server also refuses to start without `MONGO_URI` and `FRONTEND_URL`, or when `DEMO_PASSWORD` is set.
 
 ## 4. Create the database and load demo data
 
