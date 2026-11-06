@@ -11,6 +11,7 @@ const RefreshSession = require('../models/RefreshSession');
 const { sendSuccess } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
 const { isDemoAccount } = require('./demoAuthController');
+const { withTransaction } = require('../utils/transaction');
 
 // @desc    Get Admin Dashboard Statistics
 // @route   GET /api/admin/dashboard
@@ -193,16 +194,14 @@ const deleteUser = async (req, res, next) => {
     // MongoDB has no foreign keys, so remove the account's personal data here. Orders, lucky-draw
     // tickets, reviews, chat logs and audit logs are kept on purpose: they are store records
     // (sales, refunds, product ratings) and the UI shows a missing customer as "Deleted user".
-    await Promise.all([
-      Cart.deleteMany({ user: user._id }),
-      Wishlist.deleteMany({ user: user._id }),
-      Notification.deleteMany({ user: user._id }),
-      StockAlert.deleteMany({ user: user._id }),
-      Wardrobe.deleteMany({ user: user._id }),
-      AuthChallenge.deleteMany({ user: user._id }),
-      RefreshSession.deleteMany({ user: user._id })
-    ]);
-    await user.deleteOne();
+    // Every filter is this account's id only, and all of it is one transaction where the server
+    // supports transactions (Atlas), so a failure part-way never leaves a half-deleted account.
+    await withTransaction(async (options) => {
+      for (const Model of [Cart, Wishlist, Notification, StockAlert, Wardrobe, AuthChallenge, RefreshSession]) {
+        await Model.deleteMany({ user: user._id }, options);
+      }
+      await user.deleteOne(options);
+    });
     await logAudit(req, 'User', user._id, `Deleted account ${user.email}`, { email: user.email, name: user.name, role: user.role }, { deleted: true });
     await logActivity(req, 'User Deleted', `Deleted account ${user.email}`);
     return sendSuccess(res, 'User deleted successfully');

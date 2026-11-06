@@ -109,6 +109,14 @@ test('three wrong passwords lock the account for 30 seconds', async () => {
   const User = require('../src/models/User');
   await User.updateOne({ email: 'alice@test.dev' }, { $set: { lockUntil: new Date(Date.now() - 1000) } });
   assert.equal((await login('Password123!')).status, 200, 'login works again once the lock expires');
+
+  // Parallel failures: the count and the lock are written together, so the account ends up locked
+  // with a counter that never runs past the limit
+  await Promise.all(Array.from({ length: 5 }, () => login('wrong-password')));
+  const after = await User.findOne({ email: 'alice@test.dev' }).select('+lockUntil +failedLoginAttempts');
+  assert.ok(after.lockUntil > new Date(), 'locked after parallel failures');
+  assert.ok(after.failedLoginAttempts < 3, `counter stays below the limit (${after.failedLoginAttempts})`);
+  await User.updateOne({ email: 'alice@test.dev' }, { $set: { failedLoginAttempts: 0 }, $unset: { lockUntil: 1 } });
 });
 
 test('OTP and 2FA endpoints reject query operators instead of passing them to MongoDB', async () => {
@@ -163,11 +171,16 @@ test('demo login: off by default, signs in to fixed demo accounts only when enab
   assert.deepEqual((await api('GET', '/api/auth/demo-login')).json.data.roles, []);
 
   process.env.DEMO_LOGIN_ENABLED = 'true';
-  process.env.DEMO_LOGIN_ROLES = 'customer';
+  process.env.DEMO_LOGIN_ROLES = 'customer,admin';
   try {
+    assert.deepEqual((await api('GET', '/api/auth/demo-login')).json.data.roles, ['customer'], 'admin needs DEMO_ALLOW_ADMIN as well');
+    assert.equal((await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).status, 404);
+
+    process.env.DEMO_ALLOW_ADMIN = 'true';
+    process.env.DEMO_LOGIN_ROLES = 'customer';
     assert.deepEqual((await api('GET', '/api/auth/demo-login')).json.data.roles, ['customer']);
     assert.equal((await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).status, 404, 'admin not enabled');
-    assert.equal((await api('POST', '/api/auth/demo-login', null, { role: { $ne: '' } })).status, 404);
+    assert.equal((await api('POST', '/api/auth/demo-login', null, { role: { $ne: '' } })).status, 422, 'operator keys in the body are refused');
     const guest = await api('POST', '/api/auth/demo-login', null, { role: 'customer' });
     assert.equal(guest.status, 200);
     assert.equal(guest.json.data.user.role, 'customer');
@@ -180,12 +193,41 @@ test('demo login: off by default, signs in to fixed demo accounts only when enab
     assert.deepEqual((await api('GET', '/api/auth/demo-login')).json.data.credentials, [], 'no shared password, no credentials');
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
     delete process.env.DEMO_LOGIN_ROLES;
+  }
+});
+
+test('in production the demo admin, the shared password and startup demo accounts are all off', async () => {
+  const demo = require('../src/config/demo');
+  const { ensureDemoAccounts } = require('../src/controllers/demoAuthController');
+  const User = require('../src/models/User');
+  const saved = { NODE_ENV: process.env.NODE_ENV, DEMO_PASSWORD: process.env.DEMO_PASSWORD };
+  process.env.DEMO_LOGIN_ENABLED = 'true';
+  process.env.DEMO_ALLOW_ADMIN = 'true';
+  process.env.DEMO_PASSWORD = 'demo-pass-123';
+  process.env.DEMO_CUSTOMER_EMAIL = 'prod-guest@swiftcart.demo';
+  try {
+    assert.deepEqual(demo.enabledRoles(), ['customer', 'admin']);
+    assert.equal(demo.showDemoCredentials(), true);
+
+    process.env.NODE_ENV = 'production';
+    assert.deepEqual(demo.enabledRoles(), ['customer'], 'DEMO_ALLOW_ADMIN is ignored in production');
+    assert.equal(demo.showDemoCredentials(), false, 'the shared password is never returned in production');
+    await ensureDemoAccounts();
+    assert.equal(await User.countDocuments({ email: 'prod-guest@swiftcart.demo' }), 0, 'no demo account is created at startup');
+  } finally {
+    process.env.NODE_ENV = saved.NODE_ENV;
+    if (saved.DEMO_PASSWORD === undefined) delete process.env.DEMO_PASSWORD; else process.env.DEMO_PASSWORD = saved.DEMO_PASSWORD;
+    delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
+    delete process.env.DEMO_CUSTOMER_EMAIL;
   }
 });
 
 test('the demo admin cannot change order status, email customers or call payment gateways', async () => {
   process.env.DEMO_LOGIN_ENABLED = 'true';
+  process.env.DEMO_ALLOW_ADMIN = 'true';
   try {
     const demo = (await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).json.data.accessToken;
     const someId = new mongoose.Types.ObjectId().toString();
@@ -202,6 +244,7 @@ test('the demo admin cannot change order status, email customers or call payment
     assert.equal((await api('GET', '/api/admin/orders', demo)).status, 200, 'the demo admin can still look around');
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
   }
 });
 
@@ -255,6 +298,7 @@ test('in production, gateway keys need their own PAYMENT_SETTINGS_KEY (no JWT_SE
 
 test('demo login with DEMO_PASSWORD: shared credentials work in the form and cannot be reset', async () => {
   process.env.DEMO_LOGIN_ENABLED = 'true';
+  process.env.DEMO_ALLOW_ADMIN = 'true';
   process.env.DEMO_PASSWORD = 'demo-pass-123';
   try {
     const { ensureDemoAccounts } = require('../src/controllers/demoAuthController');
@@ -278,6 +322,7 @@ test('demo login with DEMO_PASSWORD: shared credentials work in the form and can
     assert.equal(reset.status, 403);
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
     delete process.env.DEMO_PASSWORD;
   }
 });
@@ -294,6 +339,19 @@ test('operator-shaped query strings get 400 (not 500) and oversized bodies get 4
   assert.equal(big.status, 413);
   const bad = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not json' });
   assert.equal(bad.status, 400);
+});
+
+test('request bodies with operator or __proto__ keys are refused on every route', async () => {
+  const nested = await api('PUT', '/api/auth/profile', tokens.alice, { name: 'alice', preferences: { size: { $gt: '' } } });
+  assert.equal(nested.status, 422);
+  assert.match(nested.json.message, /preferences\.size\.\$gt/);
+  assert.equal((await api('POST', '/api/auth/login', null, { email: 'alice@test.dev', password: { $ne: null } })).status, 422);
+  const proto = await fetch(`${BASE}/api/auth/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: '{"email":"alice@test.dev","password":"x","__proto__":{"isAdmin":true}}',
+  });
+  assert.equal(proto.status, 422);
+  assert.equal((await api('PUT', '/api/auth/profile', tokens.alice, { name: 'alice' })).status, 200, 'normal bodies pass');
 });
 
 test('OTP endpoints do not reveal which emails exist or belong to staff; reset token must be a string', async () => {
@@ -313,6 +371,7 @@ test('OTP endpoints do not reveal which emails exist or belong to staff; reset t
 
 test('the demo admin can browse but cannot change roles, delete users or touch demo accounts', async () => {
   process.env.DEMO_LOGIN_ENABLED = 'true';
+  process.env.DEMO_ALLOW_ADMIN = 'true';
   try {
     const demo = (await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).json.data;
     const guest = (await api('POST', '/api/auth/demo-login', null, { role: 'customer' })).json.data;
@@ -328,6 +387,7 @@ test('the demo admin can browse but cannot change roles, delete users or touch d
     assert.equal((await api('PUT', '/api/auth/profile', guest.accessToken, { name: 'Renamed Guest' })).status, 200, 'harmless edits are fine');
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
   }
 });
 
@@ -384,6 +444,7 @@ test('the demo admin sees customer contact details masked and cannot read email 
   const User = require('../src/models/User');
   await User.create({ name: 'Carla Customer', email: 'carla.private@test.dev', password: 'Password123!', role: 'customer', phone: '+8801712345678' });
   process.env.DEMO_LOGIN_ENABLED = 'true';
+  process.env.DEMO_ALLOW_ADMIN = 'true';
   try {
     const demo = (await api('POST', '/api/auth/demo-login', null, { role: 'admin' })).json.data.accessToken;
     const users = JSON.stringify((await api('GET', '/api/admin/users?limit=200', demo)).json);
@@ -402,6 +463,7 @@ test('the demo admin sees customer contact details masked and cannot read email 
     assert.equal((await fetch(`${BASE}/api/admin/wallet/statement.csv`, { headers: { Authorization: `Bearer ${demo}` } })).status, 403);
   } finally {
     delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
   }
 });
 
@@ -429,4 +491,29 @@ test('shoppers only see categories that have products; an admin with ?all=true s
   assert.ok(!publicList.includes('Sofa'), 'an empty category is hidden from the store');
   assert.ok(!names(await api('GET', '/api/categories?all=true', tokens.alice)).includes('Sofa'), 'customers cannot ask for all');
   assert.ok(names(await api('GET', '/api/categories?all=true', tokens.admin)).includes('Sofa'), 'admins manage every category');
+});
+
+test("deleting one customer's account removes only that customer's data", async () => {
+  const User = require('../src/models/User');
+  const Cart = require('../src/models/Cart');
+  const Wishlist = require('../src/models/Wishlist');
+  const Notification = require('../src/models/Notification');
+  const [gone, kept] = await User.create([
+    { name: 'Gone Customer', email: 'gone@test.dev', password: 'Password123!', role: 'customer' },
+    { name: 'Kept Customer', email: 'kept@test.dev', password: 'Password123!', role: 'customer' },
+  ]);
+  for (const user of [gone, kept]) {
+    await Cart.create({ user: user._id, items: [] });
+    await Wishlist.create({ user: user._id });
+    await Notification.create({ user: user._id, title: 'Hi', message: 'Hello' });
+  }
+
+  assert.equal((await api('DELETE', `/api/admin/users/${gone.id}`, tokens.admin)).status, 200);
+
+  assert.equal(await User.countDocuments({ _id: gone._id }), 0);
+  for (const Model of [Cart, Wishlist, Notification]) {
+    assert.equal(await Model.countDocuments({ user: gone._id }), 0, `${Model.modelName} of the deleted account is gone`);
+    assert.equal(await Model.countDocuments({ user: kept._id }), 1, `${Model.modelName} of the other account is untouched`);
+  }
+  assert.equal(await User.countDocuments({ _id: kept._id }), 1);
 });
