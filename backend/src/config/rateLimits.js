@@ -11,6 +11,8 @@ const LIMITS = {
   verify: { windowMs: 15 * MINUTE, max: 20, message: 'Too many verification attempts. Please try again later.' },
   // Session refresh and logout: a page load refreshes at most once, so this only stops floods
   session: { windowMs: 15 * MINUTE, max: 120, message: 'Too many session requests. Please try again in a few minutes.' },
+  // Saved-address changes from a signed-in account
+  accountWrite: { windowMs: 15 * MINUTE, max: 60, message: 'Too many changes in a short time. Please wait a few minutes.' },
   otpRequest: { windowMs: 15 * MINUTE, max: 10, message: 'Too many requests. Please try again later.' },
   customerEmail: { windowMs: 15 * MINUTE, max: 30, message: 'Too many emails sent in a short time. Please wait a few minutes.' },
   chat: { windowMs: 15 * MINUTE, max: 60, message: 'Too many chat messages. Please wait a moment and try again.' },
@@ -33,6 +35,7 @@ module.exports = {
   signInLimiter: limiter(LIMITS.signIn),
   verifyLimiter: limiter(LIMITS.verify),
   sessionLimiter: limiter(LIMITS.session),
+  accountWriteLimiter: limiter(LIMITS.accountWrite),
   otpRequestLimiter: limiter(LIMITS.otpRequest),
   customerEmailLimiter: limiter(LIMITS.customerEmail),
   chatLimiter: limiter(LIMITS.chat),

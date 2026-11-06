@@ -1,27 +1,27 @@
 // Sign-in and session: register, password login, email-code login, refresh and logout.
-// Profile, password reset and two-factor settings live in their own controllers.
+// Profile, password reset and two-factor settings live in their own controllers; the
+// email-code (OTP) logic lives in services/otpService.js.
 const User = require('../models/User');
 const { generateAccessToken } = require('../utils/generateTokens');
 const { rotateRefreshToken, revokeRefreshToken, getRefreshTokenFromRequest } = require('../services/refreshSessions');
+const { issueLoginOtp, checkLoginOtp } = require('../services/otpService');
 const { sendSuccess, sendError } = require('../utils/response');
-const crypto = require('crypto');
 const AuthChallenge = require('../models/AuthChallenge');
 const { cookieOptions, requestSecondFactor, challengeQuery, clearChallenge, sendSession } = require('../utils/authSession');
 const { fire: fireEmail, sendWelcome, sendLoginOtp } = require('../services/emailService');
-const { LOGIN_MAX_FAILURES, LOGIN_LOCK_MS, OTP_MAX_ATTEMPTS, devCodesAllowed } = require('../config/security');
+const { LOGIN_MAX_FAILURES, LOGIN_LOCK_MS, devCodesAllowed } = require('../config/security');
 
-const recordFailedLogin = async (userId) => {
-  const updated = await User.findOneAndUpdate(
-    { _id: userId },
-    { $inc: { failedLoginAttempts: 1 } },
-    { new: true, projection: { failedLoginAttempts: 1 } }
-  );
-  if (updated && updated.failedLoginAttempts >= LOGIN_MAX_FAILURES) {
-    await User.updateOne(
-      { _id: userId },
-      { $set: { failedLoginAttempts: 0, lockUntil: new Date(Date.now() + LOGIN_LOCK_MS) } }
-    );
-  }
+// One atomic update: count the failure and, on reaching the limit, set the lock and reset the
+// counter in the same write, so concurrent failures can never leave a half-applied state.
+const recordFailedLogin = (userId) => {
+  const attempts = { $add: [{ $ifNull: ['$failedLoginAttempts', 0] }, 1] };
+  const reachedLimit = { $gte: [attempts, LOGIN_MAX_FAILURES] };
+  return User.updateOne({ _id: userId }, [{
+    $set: {
+      failedLoginAttempts: { $cond: [reachedLimit, 0, attempts] },
+      lockUntil: { $cond: [reachedLimit, new Date(Date.now() + LOGIN_LOCK_MS), '$lockUntil'] },
+    },
+  }]);
 };
 
 // @desc    Register a new user
@@ -136,22 +136,10 @@ const refreshToken = async (req, res, next) => {
 const requestOTP = async (req, res, next) => {
   const email = String(req.body.email || '');
   try {
-    const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts +otpRequestedAt');
     const genericMessage = 'If an eligible account exists, an OTP has been sent to its email.';
+    const { user, otp, tooSoon } = await issueLoginOtp(email);
+    if (tooSoon) return sendError(res, 'Please wait one minute before requesting another OTP', 429);
     if (!user) return sendSuccess(res, genericMessage);
-
-    if (user.role !== 'customer') return sendSuccess(res, genericMessage);
-
-    if (user.otpRequestedAt && Date.now() - user.otpRequestedAt.getTime() < 60 * 1000) {
-      return sendError(res, 'Please wait one minute before requesting another OTP', 429);
-    }
-
-    const otp = crypto.randomInt(100000, 1000000).toString();
-    user.otpCode = crypto.createHash('sha256').update(otp).digest('hex');
-    user.otpExpires = Date.now() + 5 * 60 * 1000;
-    user.otpAttempts = 0;
-    user.otpRequestedAt = new Date();
-    await user.save();
 
     fireEmail(sendLoginOtp(user, otp));
 
@@ -172,30 +160,8 @@ const verifyOTP = async (req, res, next) => {
   const { otp, rememberMe } = req.body;
   const email = String(req.body.email || '');
   try {
-    const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts');
-    if (!user) {
-      return sendError(res, 'Invalid OTP code', 400);
-    }
-
-    if ((user.otpAttempts || 0) >= OTP_MAX_ATTEMPTS) {
-      return sendError(res, 'Too many invalid OTP attempts. Request a new code.', 429);
-    }
-
-    const otpHash = crypto.createHash('sha256').update(String(otp).trim()).digest('hex');
-    if (!user.otpCode || user.otpCode !== otpHash) {
-      // Atomic, so parallel guesses can't each read the same count and slip past the limit
-      await User.updateOne({ _id: user._id }, { $inc: { otpAttempts: 1 } });
-      return sendError(res, 'Invalid OTP code', 400);
-    }
-
-    if (Date.now() > user.otpExpires) {
-      return sendError(res, 'OTP code expired. Please request a new one', 400);
-    }
-
-    user.otpCode = '';
-    user.otpExpires = null;
-    user.otpAttempts = 0;
-    await user.save();
+    const { user, error, status } = await checkLoginOtp(email, otp);
+    if (error) return sendError(res, error, status);
 
     if (user.twoFactorEnabled) {
       return await requestSecondFactor(req, res, user, !!rememberMe);
