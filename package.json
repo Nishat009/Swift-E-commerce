@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "install:all": "npm install && npm --prefix backend install",
     "dev": "concurrently --kill-others --names frontend,backend \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "next dev -p 3001",
     "dev:backend": "npm --prefix backend run dev",
@@ -26,8 +27,8 @@
     "lucide-react": "0.556.0",
     "next": "16.4.4",
     "qrcode": "1.5.4",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
     "react-icons": "5.7.0",
     "tailwind-merge": "3.7.0",
     "three": "0.185.1",
