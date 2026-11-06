@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Archive, Bot, CheckCheck, RefreshCw, Trash2 } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
+import { usePagedInbox } from './usePagedInbox';
 import { useToast } from '@/context/ToastContext';
 import { errMsg } from './adminUtils';
 import { AdminButton, AdminEmpty, Pill, SectionHeader } from './AdminUI';
@@ -21,29 +22,19 @@ const badge: Record<Status, { label: string; tone: 'warning' | 'neutral' }> = {
 
 export default function ChatMessages({ onUnreadChange }: { onUnreadChange?: () => void }) {
   const toast = useToast();
-  const [messages, setMessages] = useState<Chat[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items: messages, total, hasMore, loading, error, reload, loadMore, updateLocal, removeLocal } = usePagedInbox<Chat>('/chat');
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get('/chat');
-      setMessages(response.data?.data || []);
-      onUnreadChange?.();
-    } catch (error) {
-      toast.error(errMsg(error, 'Failed to load AI conversations.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [onUnreadChange, toast]);
-
-  useEffect(() => { void load(); }, [load]);
+  const load = async () => {
+    await reload();
+    onUnreadChange?.();
+  };
 
   const setStatus = async (id: string, status: Status) => {
     try {
       await apiClient.put(`/chat/${id}`, { status });
-      await load();
+      updateLocal(id, { status });
+      onUnreadChange?.();
     } catch (error) { toast.error(errMsg(error)); }
   };
 
@@ -52,7 +43,8 @@ export default function ChatMessages({ onUnreadChange }: { onUnreadChange?: () =
     try {
       await apiClient.delete(`/chat/${id}`);
       toast.success('Chat message deleted');
-      await load();
+      removeLocal(id);
+      onUnreadChange?.();
     } catch (error) { toast.error(errMsg(error)); }
   };
 
@@ -74,7 +66,11 @@ export default function ChatMessages({ onUnreadChange }: { onUnreadChange?: () =
         }
       />
 
-      {!loading && messages.length === 0 ? (
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">{error}</p>
+      )}
+
+      {!loading && !error && messages.length === 0 ? (
         <div className="rounded-lg border border-line">
           <AdminEmpty icon={Bot} title="No AI stylist conversations yet" description="Questions shoppers ask the AI stylist will appear here." />
         </div>
@@ -133,6 +129,14 @@ export default function ChatMessages({ onUnreadChange }: { onUnreadChange?: () =
             );
           })}
         </ul>
+      )}
+      {hasMore && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-stone-500 dark:text-stone-400">Showing {messages.length} of {total}</p>
+          <AdminButton size="sm" onClick={loadMore} disabled={loading}>
+            {loading ? 'Loading…' : 'Load more'}
+          </AdminButton>
+        </div>
       )}
     </section>
   );

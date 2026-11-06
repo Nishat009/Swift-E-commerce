@@ -27,6 +27,9 @@ ChatMessageSchema.set('toJSON', {
   },
 });
 
+// Admin inbox: filter by status, newest first
+ChatMessageSchema.index({ status: 1, createdAt: -1 });
+
 // A signed-in customer's history (GET /api/chat/mine)
 ChatMessageSchema.index({ user: 1, createdAt: 1 });
 // Chat logs are deleted automatically after CHAT_RETENTION_DAYS (default 180)

@@ -12,6 +12,9 @@ const ContactMessageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Admin inbox: filter by status, newest first
+ContactMessageSchema.index({ status: 1, createdAt: -1 });
+
 ContactMessageSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {

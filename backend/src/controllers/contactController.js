@@ -1,38 +1,27 @@
+// Contact form. Routes (routes/contactRoutes.js): POST /api/contact is public and rate-limited;
+// GET, PUT /:id and DELETE /:id use protect + authorize('admin').
 const mongoose = require('mongoose');
 const ContactMessage = require('../models/ContactMessage');
+const { sendSuccess, sendError } = require('../utils/response');
+const { parsePage, pageMeta } = require('../utils/pagination');
 
 const STATUSES = ['unread', 'read', 'replied', 'archived'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
-// @desc    Submit a contact message
+// Honeypot: bots fill the hidden "website" field. Pretend success without storing anything.
+// Runs before validation so a bot never learns which field it got wrong.
+const honeypot = (req, res, next) => {
+  if (str(req.body.website)) return sendSuccess(res, 'Thanks! Your message has been sent.', {}, 201);
+  next();
+};
+
+// @desc    Submit a contact message (fields checked by validations/contactValidation.js)
 // @route   POST /api/contact
-// @access  Public
+// @access  Public (rate-limited)
 const submitContactMessage = async (req, res, next) => {
   try {
-    // Honeypot: bots fill the hidden "website" field. Pretend success.
-    if (str(req.body.website)) {
-      return res.status(201).json({ success: true, message: 'Thanks! Your message has been sent.' });
-    }
-
-    const name = str(req.body.name);
-    const email = str(req.body.email).toLowerCase();
-    const subject = str(req.body.subject);
-    const message = str(req.body.message);
-
-    if (name.length < 2 || name.length > 100) {
-      return res.status(400).json({ success: false, message: 'Please enter your name (2-100 characters).' });
-    }
-    if (!EMAIL_RE.test(email) || email.length > 200) {
-      return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
-    }
-    if (subject.length < 3 || subject.length > 200) {
-      return res.status(400).json({ success: false, message: 'Please enter a subject (3-200 characters).' });
-    }
-    if (message.length < 10 || message.length > 5000) {
-      return res.status(400).json({ success: false, message: 'Message must be between 10 and 5000 characters.' });
-    }
-
+    const { name, email, subject, message } = req.body;
     const doc = await ContactMessage.create({ name, email, subject, message, ip: req.ip || '' });
 
     try {
@@ -44,24 +33,25 @@ const submitContactMessage = async (req, res, next) => {
       console.error('[contact] notification email failed:', mailErr.message);
     }
 
-    res.status(201).json({ success: true, message: 'Thanks! Your message has been sent. We usually reply within 1-2 business days.' });
+    return sendSuccess(res, 'Thanks! Your message has been sent. We usually reply within 1-2 business days.', {}, 201);
   } catch (err) {
     next(err);
   }
 };
 
-// @desc    List contact messages
-// @route   GET /api/contact?status=unread
+// @desc    List contact messages, newest first (?status, ?page, ?limit)
+// @route   GET /api/contact
 // @access  Private/Admin
 const getContactMessages = async (req, res, next) => {
   try {
-    const filter = {};
-    if (req.query.status && STATUSES.includes(req.query.status)) filter.status = req.query.status;
-    const [messages, unreadCount] = await Promise.all([
-      ContactMessage.find(filter).sort({ createdAt: -1 }).limit(500),
+    const filter = STATUSES.includes(req.query.status) ? { status: req.query.status } : {};
+    const paging = parsePage(req.query, { defaultLimit: 100, maxLimit: 200 });
+    const [messages, total, unreadCount] = await Promise.all([
+      ContactMessage.find(filter).sort({ createdAt: -1 }).skip(paging.skip).limit(paging.limit),
+      ContactMessage.countDocuments(filter),
       ContactMessage.countDocuments({ status: 'unread' })
     ]);
-    res.status(200).json({ success: true, data: messages, unreadCount });
+    return sendSuccess(res, 'Contact messages loaded', messages, 200, { unreadCount, pagination: pageMeta(paging, total) });
   } catch (err) {
     next(err);
   }
@@ -73,14 +63,14 @@ const getContactMessages = async (req, res, next) => {
 const updateContactMessageStatus = async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(404).json({ success: false, message: 'Message not found' });
+      return sendError(res, 'Message not found', 404);
     }
     if (!STATUSES.includes(req.body.status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
+      return sendError(res, 'Invalid status', 400);
     }
     const msg = await ContactMessage.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
-    if (!msg) return res.status(404).json({ success: false, message: 'Message not found' });
-    res.status(200).json({ success: true, data: msg });
+    if (!msg) return sendError(res, 'Message not found', 404);
+    return sendSuccess(res, 'Message updated', msg);
   } catch (err) {
     next(err);
   }
@@ -92,14 +82,14 @@ const updateContactMessageStatus = async (req, res, next) => {
 const deleteContactMessage = async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(404).json({ success: false, message: 'Message not found' });
+      return sendError(res, 'Message not found', 404);
     }
     const msg = await ContactMessage.findByIdAndDelete(req.params.id);
-    if (!msg) return res.status(404).json({ success: false, message: 'Message not found' });
-    res.status(200).json({ success: true, message: 'Message deleted' });
+    if (!msg) return sendError(res, 'Message not found', 404);
+    return sendSuccess(res, 'Message deleted');
   } catch (err) {
     next(err);
   }
 };
 
-module.exports = { submitContactMessage, getContactMessages, updateContactMessageStatus, deleteContactMessage };
+module.exports = { honeypot, submitContactMessage, getContactMessages, updateContactMessageStatus, deleteContactMessage };

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import apiClient from '@/lib/apiClient';
 import { useToast } from '@/context/ToastContext';
 import { RefreshCw, Mail, Trash2, Archive, CheckCheck, Reply } from 'lucide-react';
 import { errMsg } from './adminUtils';
+import { usePagedInbox } from './usePagedInbox';
 import { AdminButton, AdminEmpty, FilterTabs, Pill, SectionHeader } from './AdminUI';
 
 type Status = 'unread' | 'read' | 'replied' | 'archived';
@@ -36,34 +37,22 @@ const badge: Record<Status, { label: string; tone: 'warning' | 'neutral' | 'succ
 
 export default function ContactMessages({ onUnreadChange }: { onUnreadChange?: (n: number) => void }) {
   const toast = useToast();
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [filter, setFilter] = useState<Status | 'all'>('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    items: messages, total, hasMore, unreadCount, loading, error, reload: load, loadMore, refreshUnread, updateLocal, removeLocal,
+  } = usePagedInbox<Msg>('/contact', filter === 'all' ? undefined : filter);
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await apiClient.get('/contact', { params: filter === 'all' ? {} : { status: filter } });
-      setMessages(res.data?.data || []);
-      onUnreadChange?.(res.data?.unreadCount ?? 0);
-    } catch (err) {
-      setError(errMsg(err, 'Failed to load messages.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, onUnreadChange]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Keep the sidebar badge in step with the server's unread count
+  useEffect(() => { onUnreadChange?.(unreadCount); }, [unreadCount, onUnreadChange]);
 
   const setStatus = async (id: string, status: Status) => {
     try {
       await apiClient.put('/contact/' + id, { status });
-      await load();
+      // Under a status filter, a message that no longer matches leaves the list
+      if (filter !== 'all' && status !== filter) removeLocal(id);
+      else updateLocal(id, { status });
+      await refreshUnread();
     } catch (err) {
       toast.error(errMsg(err));
     }
@@ -74,7 +63,8 @@ export default function ContactMessages({ onUnreadChange }: { onUnreadChange?: (
     try {
       await apiClient.delete('/contact/' + id);
       toast.success('Message deleted');
-      await load();
+      removeLocal(id);
+      await refreshUnread();
     } catch (err) {
       toast.error(errMsg(err));
     }
@@ -163,6 +153,14 @@ export default function ContactMessages({ onUnreadChange }: { onUnreadChange?: (
             );
           })}
         </ul>
+      )}
+      {hasMore && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-stone-500 dark:text-stone-400">Showing {messages.length} of {total}</p>
+          <AdminButton size="sm" onClick={loadMore} disabled={loading}>
+            {loading ? 'Loading…' : 'Load more'}
+          </AdminButton>
+        </div>
       )}
     </section>
   );

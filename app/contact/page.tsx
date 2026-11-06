@@ -41,7 +41,10 @@ export default function ContactPage() {
       setDone(true);
       setForm({ name: '', email: '', subject: '', message: '', website: '' });
     } catch (err: any) {
-      setServerError(err?.response?.data?.message || 'Could not send your message. Please try again later.');
+      // A 422 from the server carries the first failing field in data.errors
+      const data = err?.response?.data;
+      const fieldError = data?.errors ? Object.values(data.errors)[0] : '';
+      setServerError(String(fieldError || data?.message || 'Could not send your message. Please try again later.'));
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
-const Order = require('../models/Order');
+// Admin dashboard and user management. Every handler here is mounted in routes/adminRoutes.js after
+// router.use(protect) and router.use(authorize('admin')), so only a signed-in admin reaches them.
+const mongoose = require('mongoose');
 const User = require('../models/User');
-const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const Wishlist = require('../models/Wishlist');
 const Notification = require('../models/Notification');
@@ -12,115 +13,18 @@ const { sendSuccess } = require('../utils/response');
 const { logActivity, logAudit } = require('../utils/activityLog');
 const { isDemoAccount } = require('./demoAuthController');
 const { withTransaction } = require('../utils/transaction');
+const { getDashboardData } = require('../services/adminStats');
+
+// Product fields the admin customer view shows for cart and wishlist items
+const PRODUCT_SUMMARY = 'title brand price thumbnail SKU';
+const userNotFound = (res) => res.status(404).json({ success: false, message: 'User not found' });
 
 // @desc    Get Admin Dashboard Statistics
 // @route   GET /api/admin/dashboard
 // @access  Private/Admin
 const getDashboardStats = async (req, res, next) => {
   try {
-    // 1. Core counters
-    const activeOrdersCount = await Order.countDocuments({ orderStatus: { $ne: 'Cancelled' } });
-    const totalOrdersCount = await Order.countDocuments();
-    const customersCount = await User.countDocuments({ role: 'customer' });
-    const productsCount = await Product.countDocuments({ active: true });
-
-    // 2. Revenue calculation (Sum totals of non-cancelled orders)
-    const revenueAggregation = await Order.aggregate([
-      { $match: { orderStatus: { $ne: 'Cancelled' } } },
-      { $group: { _id: null, totalRevenue: { $sum: '$total' } } }
-    ]);
-    const revenue = revenueAggregation.length > 0 ? Number(revenueAggregation[0].totalRevenue.toFixed(2)) : 0;
-
-    // Orders per status, for the dashboard's order mix
-    const statusAgg = await Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }]);
-    const ordersByStatus = statusAgg
-      .map((s) => ({ status: s._id || 'Unknown', count: s.count }))
-      .sort((a, b) => b.count - a.count);
-
-    // 3. Low stock products (stock <= 5)
-    const lowStockProducts = await Product.find({ stock: { $lte: 5 }, active: true })
-      .select('title stock price thumbnail SKU')
-      .limit(10);
-
-    // 4. Recent orders
-    const recentOrders = await Order.find()
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    // 5. Monthly Revenue (last 6 months)
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-    sixMonthsAgo.setDate(1); // Start of month
-
-    const monthlyRevenueAgg = await Order.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: sixMonthsAgo },
-          orderStatus: { $ne: 'Cancelled' }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          revenue: { $sum: '$total' }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
-
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthlyRevenue = monthlyRevenueAgg.map((item) => ({
-      month: `${monthNames[item._id.month - 1]} ${item._id.year}`,
-      revenue: Number(item.revenue.toFixed(2))
-    }));
-
-    // 6. Top Selling Products
-    const topProductsAgg = await Order.aggregate([
-      { $match: { orderStatus: { $ne: 'Cancelled' } } },
-      { $unwind: '$products' },
-      {
-        $group: {
-          _id: '$products.product',
-          totalQuantity: { $sum: '$products.quantity' },
-          totalSales: { $sum: { $multiply: ['$products.quantity', '$products.price'] } }
-        }
-      },
-      { $sort: { totalQuantity: -1 } },
-      { $limit: 5 }
-    ]);
-
-    // Populate top products details
-    const topSellingProducts = [];
-    for (const item of topProductsAgg) {
-      const product = await Product.findById(item._id).select('title price thumbnail brand category');
-      if (product) {
-        topSellingProducts.push({
-          product,
-          totalQuantity: item.totalQuantity,
-          totalSales: Number(item.totalSales.toFixed(2))
-        });
-      }
-    }
-
-    return sendSuccess(res, 'Dashboard statistics loaded successfully', {
-      stats: {
-        totalSales: revenue, // Total sales revenue
-        revenue,
-        ordersCount: totalOrdersCount,
-        activeOrdersCount,
-        customersCount,
-        productsCount
-      },
-      ordersByStatus,
-      monthlyRevenue,
-      topSellingProducts,
-      recentOrders,
-      lowStockProducts
-    });
+    return sendSuccess(res, 'Dashboard statistics loaded successfully', await getDashboardData());
   } catch (error) {
     next(error);
   }
@@ -155,10 +59,9 @@ const updateUserRole = async (req, res, next) => {
   }
 
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return userNotFound(res);
     const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
+    if (!user) return userNotFound(res);
     if (isDemoAccount(user)) {
       return res.status(403).json({ success: false, message: 'Demo accounts cannot be changed' });
     }
@@ -178,10 +81,9 @@ const updateUserRole = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return userNotFound(res);
     const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
+    if (!user) return userNotFound(res);
     if (isDemoAccount(user)) {
       return res.status(403).json({ success: false, message: 'Demo accounts cannot be deleted' });
     }
@@ -212,7 +114,8 @@ const deleteUser = async (req, res, next) => {
 
 const getUserCart = async (req, res, next) => {
   try {
-    const cart = await Cart.findOne({ user: req.params.id }).populate('products.product');
+    if (!mongoose.isValidObjectId(req.params.id)) return userNotFound(res);
+    const cart = await Cart.findOne({ user: req.params.id }).populate({ path: 'products.product', select: PRODUCT_SUMMARY });
     return sendSuccess(res, 'User cart loaded successfully', cart || { products: [], subtotal: 0 });
   } catch (error) {
     next(error);
@@ -221,7 +124,8 @@ const getUserCart = async (req, res, next) => {
 
 const getUserWishlist = async (req, res, next) => {
   try {
-    const wishlist = await Wishlist.findOne({ user: req.params.id }).populate('products');
+    if (!mongoose.isValidObjectId(req.params.id)) return userNotFound(res);
+    const wishlist = await Wishlist.findOne({ user: req.params.id }).populate({ path: 'products', select: PRODUCT_SUMMARY });
     return sendSuccess(res, 'User wishlist loaded successfully', wishlist || { products: [] });
   } catch (error) {
     next(error);

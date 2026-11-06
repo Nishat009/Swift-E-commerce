@@ -214,6 +214,8 @@ test('in production the demo admin, the shared password and startup demo account
     process.env.NODE_ENV = 'production';
     assert.deepEqual(demo.enabledRoles(), ['customer'], 'DEMO_ALLOW_ADMIN is ignored in production');
     assert.equal(demo.showDemoCredentials(), false, 'the shared password is never returned in production');
+    assert.equal(demo.demoPolicy().adminEnabled, false, 'the resolved policy agrees');
+    assert.ok(Object.isFrozen(demo.demoPolicy()));
     await ensureDemoAccounts();
     assert.equal(await User.countDocuments({ email: 'prod-guest@swiftcart.demo' }), 0, 'no demo account is created at startup');
   } finally {
@@ -516,4 +518,64 @@ test("deleting one customer's account removes only that customer's data", async 
     assert.equal(await Model.countDocuments({ user: kept._id }), 1, `${Model.modelName} of the other account is untouched`);
   }
   assert.equal(await User.countDocuments({ _id: kept._id }), 1);
+});
+
+test('in production the server refuses to start with a shared DEMO_PASSWORD', () => {
+  const { validateEnv } = require('../src/config/env');
+  const saved = { ...process.env };
+  try {
+    Object.assign(process.env, { NODE_ENV: 'production', MONGO_URI: 'mongodb://127.0.0.1:27017/x', FRONTEND_URL: 'https://shop.example' });
+    delete process.env.DEMO_PASSWORD;
+    assert.doesNotThrow(() => validateEnv());
+    process.env.DEMO_PASSWORD = 'demo-pass-123';
+    assert.throws(() => validateEnv(), /DEMO_PASSWORD must not be set in production/);
+    process.env.NODE_ENV = 'test';
+    assert.doesNotThrow(() => validateEnv(), 'allowed outside production');
+  } finally {
+    for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+    Object.assign(process.env, saved);
+  }
+});
+
+test('contact form: validated with express-validator, honeypot answered without storing anything', async () => {
+  const ContactMessage = require('../src/models/ContactMessage');
+  const valid = { name: 'Ada', email: 'Ada@Example.com', subject: 'Sizing', message: 'Does the coat run small?' };
+
+  const bad = await api('POST', '/api/contact', null, { ...valid, email: 'not-an-email' });
+  assert.equal(bad.status, 422);
+  assert.equal(bad.json.errors.email, 'Please enter a valid email address.');
+
+  assert.equal((await api('POST', '/api/contact', null, { ...valid, website: 'spam.example' })).status, 201);
+  assert.equal(await ContactMessage.countDocuments(), 0, 'the honeypot stores nothing');
+
+  assert.equal((await api('POST', '/api/contact', null, valid)).status, 201);
+  const saved = await ContactMessage.findOne();
+  assert.equal(saved.email, 'ada@example.com');
+
+  const list = await api('GET', '/api/contact?limit=1', tokens.admin);
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.json.pagination, { page: 1, limit: 1, total: 1, pages: 1 });
+  assert.equal(list.json.unreadCount, 1);
+});
+
+test('chat and contact inboxes are admin-only', async () => {
+  for (const path of ['/api/chat', '/api/contact']) {
+    assert.equal((await api('GET', path)).status, 401, `${path} without a token`);
+    assert.equal((await api('GET', path, tokens.alice)).status, 403, `${path} as a customer`);
+    assert.equal((await api('GET', path, tokens.admin)).status, 200, `${path} as an admin`);
+  }
+});
+
+test('admin customer lookups reject malformed ids with 404 instead of a cast error', async () => {
+  for (const path of ['/api/admin/users/not-an-id/cart', '/api/admin/users/not-an-id/wishlist']) {
+    assert.equal((await api('GET', path, tokens.admin)).status, 404, path);
+  }
+  assert.equal((await api('PUT', '/api/admin/users/not-an-id/role', tokens.admin, { role: 'customer' })).status, 404);
+  assert.equal((await api('DELETE', '/api/admin/users/not-an-id', tokens.admin)).status, 404);
+
+  const dashboard = await api('GET', '/api/admin/dashboard', tokens.admin);
+  assert.equal(dashboard.status, 200);
+  for (const key of ['stats', 'ordersByStatus', 'monthlyRevenue', 'topSellingProducts', 'recentOrders', 'lowStockProducts']) {
+    assert.ok(key in dashboard.json.data, `dashboard has ${key}`);
+  }
 });

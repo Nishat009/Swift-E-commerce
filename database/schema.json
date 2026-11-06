@@ -601,6 +601,13 @@
       },
       {
         "keys": {
+          "status": 1,
+          "createdAt": -1
+        },
+        "background": true
+      },
+      {
+        "keys": {
           "user": 1,
           "createdAt": 1
         },
@@ -663,6 +670,13 @@
       {
         "keys": {
           "status": 1
+        },
+        "background": true
+      },
+      {
+        "keys": {
+          "status": 1,
+          "createdAt": -1
         },
         "background": true
       }
