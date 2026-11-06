@@ -32,8 +32,11 @@ const validateEnv = () => {
     console.warn('[config] PAYMENT_SETTINGS_KEY is not set: gateway keys cannot be saved from the admin panel (environment keys still work).');
   }
 
-  if (isProd && String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() === 'true' && String(process.env.DEMO_LOGIN_ROLES || 'customer,admin').includes('admin')) {
-    console.warn('[config] DEMO_LOGIN_ENABLED is on with the admin role: anyone visiting the site can open the admin panel.');
+  if (isProd && String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() === 'true') {
+    console.warn('[config] DEMO_LOGIN_ENABLED is on in production: anyone visiting the site can sign in as the shared demo customer. The demo admin stays off in production.');
+  }
+  if (isProd && String(process.env.DEMO_ALLOW_ADMIN).toLowerCase() === 'true') {
+    console.warn('[config] DEMO_ALLOW_ADMIN is ignored when NODE_ENV=production.');
   }
 
   if (problems.length) {
