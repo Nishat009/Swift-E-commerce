@@ -15,7 +15,7 @@ Setup steps are in [HowToSetup.md](HowToSetup.md). Feature overview is in [docs/
 ## Commands
 
 ```bash
-npm install && npm --prefix backend install   # install
+npm run install:all                           # install (root + backend)
 npm run dev                                   # frontend :3001 + backend :5000
 npm run build                                 # frontend production build
 npm run lint                                  # frontend lint

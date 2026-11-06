@@ -2,6 +2,20 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-11-06
+### Security
+- The one-click demo **admin** now needs `DEMO_ALLOW_ADMIN=true` as well as `DEMO_LOGIN_ENABLED=true`, and stays off whenever `NODE_ENV=production`. In production the login page is never sent the shared `DEMO_PASSWORD`, and no demo account is created at startup. Settings live in `backend/src/config/demo.js`.
+- Every request body with a MongoDB operator key (`$ne`, `$gt`, ...) or a `__proto__`/`constructor` key is refused with 422 before it reaches a controller (`middleware/sanitizeMiddleware.js`).
+- Failed sign-ins are counted and the account locked in one atomic pipeline update, so parallel wrong passwords can't leave the counter and the lock out of step.
+- Deleting a customer runs in one MongoDB transaction where the server supports it (Atlas). A new test checks that it never touches another account's data.
+- Saved-address changes have their own rate limit (60 per 15 minutes).
+
+### Changed
+- The email-code (OTP) sign-in logic moved from `authController` to `services/otpService.js`. `authRoutes.js` uses shared middleware chains.
+- New `npm run install:all` installs the frontend and the backend in one step. README setup now lists both `.env` copies, the required variables, `db:init`, MongoDB 6.0+ and port 5000, and says that `database/*.sql` is not used at runtime.
+- React and react-dom 19.2.0 → 19.2.9. `npm audit --omit=dev` still reports 0 vulnerabilities in both packages. The `swagger-jsdoc` glob override was checked and `/api-docs` loads.
+- `data/fashionCatalog.ts` and `data/mockData.ts` are actually deleted now. An earlier entry listed them as removed, but the files were still in the repo. The catalog has one source: `backend/scripts/fashionProductsData.js`.
+
 ## 2026-11-02
 ### Fixed
 - README listed `12345678` as the demo password, but the seed generates a random one unless `SEED_PASSWORD` is set. It now explains the live one-click demo login (verified against the deployed backend) and the local seed accounts correctly.

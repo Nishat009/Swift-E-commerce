@@ -174,9 +174,16 @@ Swift-E-commerce/
 ## 🚀 Getting Started & Installation
 
 ### Prerequisites
-* **Node.js** >= 22
-* **MongoDB** (Local instance at `mongodb://127.0.0.1:27017` or MongoDB Atlas URI)
-* **npm** or **pnpm** / **yarn**
+* **Node.js** >= 22 (`.nvmrc` says 22)
+* **MongoDB 6.0 or newer** (local instance at `mongodb://127.0.0.1:27017` or a MongoDB Atlas URI)
+* **npm** (the lockfiles are npm lockfiles; use `npm ci` for deployments)
+
+The full, ordered setup with troubleshooting is in [HowToSetup.md](HowToSetup.md).
+
+> **About `database/*.sql`:** SwiftCart runs on MongoDB. `database/schema.sql` and `database/seed.sql` are
+> **not used at runtime**; they are a pointer note and a generated SQL copy of the demo data for reviewers.
+> The real schema is the Mongoose models in `backend/src/models/` plus `npm --prefix backend run db:init`
+> (collections and indexes). See [database/README.md](database/README.md).
 
 ---
 
@@ -189,34 +196,43 @@ cd Swift-E-commerce
 ---
 
 ### Step 2: Set Up Backend Server
-1. Navigate to the `backend` directory and install dependencies:
+1. Install the dependencies of both packages (frontend at the root, API in `backend/`):
+   ```bash
+   npm run install:all        # = npm install && npm --prefix backend install
+   ```
+
+2. Copy both environment files (Windows: `copy` instead of `cp`):
+   ```bash
+   cp backend/.env.example backend/.env
+   cp .env.example .env.local        # optional, frontend
+   ```
+   In `backend/.env` set **`JWT_SECRET`** and **`JWT_REFRESH_SECRET`** (32+ random characters each),
+   **`MONGO_URI`** (default `mongodb://127.0.0.1:27017/swiftcart`, or your Atlas URI) and
+   **`FRONTEND_URL`** (default `http://localhost:3001`).
+
+3. Create the collections and indexes, then load the demo data:
    ```bash
    cd backend
-   npm install
+   npm run db:init            # collections + indexes, deletes nothing
+   npm run seed               # catalog, categories, coupons (local DB only)
+   npm run seed:admin         # demo admin + customer, prints the password
    ```
 
-2. Seed the MongoDB Database with high-fashion catalog items, categories, and master accounts:
-   ```bash
-   npm run seed
-   npm run seed:admin
-   ```
-
-3. Start the backend API server:
+4. Start the backend API server:
    ```bash
    npm run dev
    ```
-   * The API server will be available at: **[http://localhost:5001](http://localhost:5001)** in this workspace configuration (or the value of `PORT` in `backend/.env`)
-   * Swagger Documentation is mounted at: **[http://localhost:5001/api-docs](http://localhost:5001/api-docs)**
+   * The API server will be available at: **[http://localhost:5000](http://localhost:5000)** (or the value of `PORT` in `backend/.env`)
+   * Swagger Documentation is mounted at: **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**
 
 > Note: the frontend dev server is configured with an explicit Turbopack root and the backend must not keep a self-referential `swiftcart` dependency from `file:..`. Otherwise Next.js can loop on a symlinked project root and fail to render `/auth/login`.
 
 ---
 
 ### Step 3: Set Up Frontend (Next.js)
-1. In a new terminal, navigate back to the root directory and install dependencies:
+1. In a new terminal, go back to the project root (dependencies are already installed by `install:all`):
    ```bash
    cd ..
-   npm install
    ```
 
 2. Start only the Next.js development server (if the backend is already running):
@@ -235,7 +251,7 @@ After installing dependencies in both the root and `backend` directories and con
 npm run dev
 ```
 
-This starts the frontend at **http://localhost:3001** and the backend at **http://localhost:5001** for this workspace (unless `PORT` is overridden in `backend/.env`). MongoDB must be available using the configured `MONGO_URI`.
+This starts the frontend at **http://localhost:3001** and the backend at **http://localhost:5000** (unless `PORT` is overridden in `backend/.env`). MongoDB must be available using the configured `MONGO_URI`.
 
 If a symlinked backend dependency is created again, remove it before starting the frontend (`backend/node_modules/swiftcart` should not point back to the repo root). The project also pins the frontend to its actual workspace root in `next.config.ts` so Turbopack does not recurse into the backend dependency tree.
 
@@ -273,7 +289,9 @@ The demo is reset-safe because it uses its own `guest@swiftcart.demo` / `admin@s
 | Admin | `admin@email.com` | your `SEED_PASSWORD`, or the random one `seed:admin` prints |
 | Customer | `user@email.com` | your `SEED_PASSWORD`, or the random one `seed:admin` prints |
 
-Locally, set `DEMO_LOGIN_ENABLED=true` in `backend/.env` to get the same one-click buttons.
+Locally, set `DEMO_LOGIN_ENABLED=true` in `backend/.env` to get the same one-click buttons; the **Admin login**
+button also needs `DEMO_ALLOW_ADMIN=true`. The demo admin, the shared `DEMO_PASSWORD` in the login page and the
+startup demo accounts are always off when `NODE_ENV=production`. On a real shop leave `DEMO_LOGIN_ENABLED` unset.
 
 ---
 

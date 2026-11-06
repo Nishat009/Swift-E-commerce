@@ -12,8 +12,10 @@ the routers themselves and checked by a test, so it cannot drift from the code.
 | `protect` | [authMiddleware.js:21](backend/src/middleware/authMiddleware.js#L21) | Requires a valid access token (15 min JWT) whose `tokenVersion` still matches the user; otherwise 401 |
 | `authorize('admin')` | [roleMiddleware.js:4](backend/src/middleware/roleMiddleware.js#L4) | Requires the `admin` role; otherwise 403 |
 | `requireSuperAdmin` | [roleMiddleware.js:34](backend/src/middleware/roleMiddleware.js#L34) | Refunds, status overrides, wallet adjustments, payment settings: a real (non-demo) admin, optionally limited to `SUPER_ADMIN_EMAILS` |
-| `blockDemoAdmin` | [demoAuthController.js:83](backend/src/controllers/demoAuthController.js#L83) | The shared one-click demo admin cannot change roles, delete users, change order status, read or send customer emails, export statements or test gateways |
+| `blockDemoAdmin` | [demoAuthController.js:76](backend/src/controllers/demoAuthController.js#L76) | The shared one-click demo admin cannot change roles, delete users, change order status, read or send customer emails, export statements or test gateways |
 | Demo privacy | [demoPrivacy.js:52](backend/src/middleware/demoPrivacy.js#L52) | Everything sent to the demo admin has customer emails, phones, street addresses, IPs and surnames masked |
+| Demo switches | [config/demo.js](backend/src/config/demo.js) | The demo admin button needs `DEMO_LOGIN_ENABLED` **and** `DEMO_ALLOW_ADMIN`, and is always off when `NODE_ENV=production`. In production the shared `DEMO_PASSWORD` is never returned and no demo account is created at startup |
+| `rejectOperatorKeys` | [sanitizeMiddleware.js:23](backend/src/middleware/sanitizeMiddleware.js#L23) | Every request body with a MongoDB operator key (`$ne`, `$gt`, ...) or a `__proto__`/`constructor` key, at any depth, is refused with 422. Query strings with operator objects get 400 ([app.js](backend/src/app.js)) |
 
 **Ownership.** Signed-in routes act only on the caller's own records. Cart, wishlist, wardrobe and
 notifications query by `user: req.user.id`. Orders are checked against the owner (view, cancel,
@@ -67,27 +69,27 @@ Regenerate after changing a router: `npm --prefix backend run routes:doc`.
 | POST | `/api/admin/users/:id/email` | `protect` + `authorize('admin')` + `blockDemoAdmin` | [adminRoutes.js:44](backend/src/routes/adminRoutes.js#L44) |
 | PUT | `/api/admin/users/:id/role` | `protect` + `authorize('admin')` + `blockDemoAdmin` | [adminRoutes.js:39](backend/src/routes/adminRoutes.js#L39) |
 | POST | `/api/admin/wallet/adjust` | `protect` + `authorize('admin')` + `requireSuperAdmin` | [adminRoutes.js:49](backend/src/routes/adminRoutes.js#L49) |
-| POST | `/api/auth/2fa/disable` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:44](backend/src/routes/authRoutes.js#L44) |
-| POST | `/api/auth/2fa/enable` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:43](backend/src/routes/authRoutes.js#L43) |
-| POST | `/api/auth/2fa/recovery-codes` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:45](backend/src/routes/authRoutes.js#L45) |
-| POST | `/api/auth/2fa/setup` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:42](backend/src/routes/authRoutes.js#L42) |
-| POST | `/api/auth/addresses` | `protect` + own records only | [authRoutes.js:48](backend/src/routes/authRoutes.js#L48) |
-| DELETE | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:50](backend/src/routes/authRoutes.js#L50) |
-| PUT | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:49](backend/src/routes/authRoutes.js#L49) |
-| POST | `/api/auth/demo-login` | public: One-click demo login, only when DEMO_LOGIN_ENABLED (sign-in rate limit) | [authRoutes.js:25](backend/src/routes/authRoutes.js#L25) |
-| POST | `/api/auth/forgot-password` | public: Emails a reset code (OTP rate limit; same answer for unknown emails) | [authRoutes.js:31](backend/src/routes/authRoutes.js#L31) |
-| POST | `/api/auth/google` | public: Google sign-in (sign-in rate limit, origin and nonce check) | [authRoutes.js:21](backend/src/routes/authRoutes.js#L21) |
-| POST | `/api/auth/google/challenge` | public: Google sign-in step 1 (sign-in rate limit, origin check) | [authRoutes.js:20](backend/src/routes/authRoutes.js#L20) |
-| POST | `/api/auth/google/link` | `protect` + own records only | [authRoutes.js:22](backend/src/routes/authRoutes.js#L22) |
-| POST | `/api/auth/login` | public: Password sign-in (sign-in rate limit, account lock after 3 failures) | [authRoutes.js:28](backend/src/routes/authRoutes.js#L28) |
-| POST | `/api/auth/logout` | public: Ends the caller's own session (session rate limit) | [authRoutes.js:29](backend/src/routes/authRoutes.js#L29) |
-| PUT | `/api/auth/profile` | `protect` + own records only | [authRoutes.js:41](backend/src/routes/authRoutes.js#L41) |
-| POST | `/api/auth/refresh` | public: Rotates the caller's refresh session (session rate limit) | [authRoutes.js:30](backend/src/routes/authRoutes.js#L30) |
-| POST | `/api/auth/register` | public: Create an account (sign-in rate limit, validation) | [authRoutes.js:27](backend/src/routes/authRoutes.js#L27) |
-| POST | `/api/auth/request-otp` | public: Emails a sign-in code (OTP rate limit) | [authRoutes.js:36](backend/src/routes/authRoutes.js#L36) |
-| POST | `/api/auth/reset-password` | public: Reset with the emailed code (verify rate limit) | [authRoutes.js:32](backend/src/routes/authRoutes.js#L32) |
-| POST | `/api/auth/verify-2fa` | public: Second sign-in step, needs the pending challenge cookie (verify rate limit) | [authRoutes.js:35](backend/src/routes/authRoutes.js#L35) |
-| POST | `/api/auth/verify-otp` | public: Sign in with the emailed code (verify rate limit) | [authRoutes.js:37](backend/src/routes/authRoutes.js#L37) |
+| POST | `/api/auth/2fa/disable` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:50](backend/src/routes/authRoutes.js#L50) |
+| POST | `/api/auth/2fa/enable` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:49](backend/src/routes/authRoutes.js#L49) |
+| POST | `/api/auth/2fa/recovery-codes` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:51](backend/src/routes/authRoutes.js#L51) |
+| POST | `/api/auth/2fa/setup` | `protect` + `blockDemoAdmin` + own records only | [authRoutes.js:48](backend/src/routes/authRoutes.js#L48) |
+| POST | `/api/auth/addresses` | `protect` + own records only | [authRoutes.js:54](backend/src/routes/authRoutes.js#L54) |
+| DELETE | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:56](backend/src/routes/authRoutes.js#L56) |
+| PUT | `/api/auth/addresses/:addressId` | `protect` + own records only | [authRoutes.js:55](backend/src/routes/authRoutes.js#L55) |
+| POST | `/api/auth/demo-login` | public: One-click demo login, only when DEMO_LOGIN_ENABLED (sign-in rate limit) | [authRoutes.js:30](backend/src/routes/authRoutes.js#L30) |
+| POST | `/api/auth/forgot-password` | public: Emails a reset code (OTP rate limit; same answer for unknown emails) | [authRoutes.js:36](backend/src/routes/authRoutes.js#L36) |
+| POST | `/api/auth/google` | public: Google sign-in (sign-in rate limit, origin and nonce check) | [authRoutes.js:26](backend/src/routes/authRoutes.js#L26) |
+| POST | `/api/auth/google/challenge` | public: Google sign-in step 1 (sign-in rate limit, origin check) | [authRoutes.js:25](backend/src/routes/authRoutes.js#L25) |
+| POST | `/api/auth/google/link` | `protect` + own records only | [authRoutes.js:27](backend/src/routes/authRoutes.js#L27) |
+| POST | `/api/auth/login` | public: Password sign-in (sign-in rate limit, account lock after 3 failures) | [authRoutes.js:33](backend/src/routes/authRoutes.js#L33) |
+| POST | `/api/auth/logout` | public: Ends the caller's own session (session rate limit) | [authRoutes.js:34](backend/src/routes/authRoutes.js#L34) |
+| PUT | `/api/auth/profile` | `protect` + own records only | [authRoutes.js:47](backend/src/routes/authRoutes.js#L47) |
+| POST | `/api/auth/refresh` | public: Rotates the caller's refresh session (session rate limit) | [authRoutes.js:35](backend/src/routes/authRoutes.js#L35) |
+| POST | `/api/auth/register` | public: Create an account (sign-in rate limit, validation) | [authRoutes.js:32](backend/src/routes/authRoutes.js#L32) |
+| POST | `/api/auth/request-otp` | public: Emails a sign-in code (OTP rate limit) | [authRoutes.js:42](backend/src/routes/authRoutes.js#L42) |
+| POST | `/api/auth/reset-password` | public: Reset with the emailed code (verify rate limit) | [authRoutes.js:37](backend/src/routes/authRoutes.js#L37) |
+| POST | `/api/auth/verify-2fa` | public: Second sign-in step, needs the pending challenge cookie (verify rate limit) | [authRoutes.js:41](backend/src/routes/authRoutes.js#L41) |
+| POST | `/api/auth/verify-otp` | public: Sign in with the emailed code (verify rate limit) | [authRoutes.js:43](backend/src/routes/authRoutes.js#L43) |
 | POST | `/api/campaigns/:id/buy` | `protect` + own records only | [campaignRoutes.js:38](backend/src/routes/campaignRoutes.js#L38) |
 | PUT | `/api/campaigns/admin/:id` | `protect` + `authorize('admin')` | [campaignRoutes.js:30](backend/src/routes/campaignRoutes.js#L30) |
 | PUT | `/api/campaigns/admin/:id/delivery` | `protect` + `authorize('admin')` | [campaignRoutes.js:34](backend/src/routes/campaignRoutes.js#L34) |
@@ -175,7 +177,7 @@ Links that are GET by necessity but change state (they are opened from an email 
 
 ## Dependency audit
 
-Last run 2026-11-02 with `npm audit --omit=dev`:
+Last run 2026-11-06 with `npm audit --omit=dev`:
 
 | Project | Result |
 | :--- | :--- |
@@ -183,9 +185,12 @@ Last run 2026-11-02 with `npm audit --omit=dev`:
 | Backend (`backend/package.json`) | 0 vulnerabilities (the `glob`/`minimatch` advisories pulled in by `swagger-jsdoc` are fixed with an `overrides` entry pinning `glob@^14.0.3`) |
 
 Production dependencies are pinned to exact versions in both `package.json` files (no caret ranges); both
-lockfiles are committed, so deploy with `npm ci`. Key versions at this audit: next 16.4.4, react 19.2.0,
+lockfiles are committed, so deploy with `npm ci`. Exact pins are deliberate: patch updates are applied on purpose
+(`npm outdated`, then bump and re-run the audit), not silently on install. Key versions at this audit: next 16.4.4, react 19.2.9,
 express 4.22.3 (latest 4.x; 5.x is a major upgrade, not a security fix), multer 2.5.0 (latest),
-nodemailer 10.3.1 (latest), mongoose 8.24.7, jsonwebtoken 9.0.3, helmet 8.3.0.
+nodemailer 10.3.1 (latest), mongoose 8.24.7, jsonwebtoken 9.0.3, helmet 8.3.0. lucide-react stays on 0.556.0 (icons only; a
+newer release renames icons and is a deliberate upgrade). The `glob` override was checked with
+`npm --prefix backend ls glob` (glob@14.0.3) and `/api-docs` loads (HTTP 200).
 
 ```text
 $ npm audit --omit=dev

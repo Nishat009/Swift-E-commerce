@@ -248,7 +248,7 @@ Storefront extras: multi-currency (USD, EUR, GBP, BDT), language switcher, dark 
 **Built into the frontend (not editable from admin)**
 - Hero section animation and its images
 - The "lookbook" looks (images in `public/images/dress-room/`)
-- Dressing-room clothing catalogue (`data/fashionCatalog.ts`) and chat/stylist content
+- Dressing-room clothing catalogue (`backend/scripts/fashionProductsData.js`) and chat/stylist content
 - All AI behaviour, the `/products` page's mock data, and text translations
 - Fallbacks: if the API is down, the app shows the local catalogue and a default category list
 
@@ -312,7 +312,7 @@ Several items in A8 are now fixed or changed: order confirmation emails exist (N
 10. Real bKash/Stripe accounts and webhook setup must be tested end to end (only the mock gateway has been tested automatically).
 11. The API returns HTTP 200 for every success and 422 for every error (`utils/response.js`), including 401/403/404. Clients cannot tell auth errors from validation errors by status code. Decide whether to keep this.
 12. Remaining items from A8 that were not touched (reviews always "verified", wishlist stored twice, seed script mismatch, broken image file, docs drift, dead code).
-13. Cleanup: `data/mockData.ts` and `data/fashionCatalog.ts` are no longer imported and can be deleted.
+13. Done: `data/mockData.ts` and `data/fashionCatalog.ts` were deleted; the catalog lives only in `backend/scripts/fashionProductsData.js`.
 
 **Known bug — Google sign-in does not work (to investigate)**
 14. "Sign in with Google" currently fails. `GOOGLE_CLIENT_ID` is set in `backend/.env`, so the likely causes are on the Google Cloud / environment side. Check in this order:

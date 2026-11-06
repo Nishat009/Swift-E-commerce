@@ -301,7 +301,7 @@ Versions below describe the repository manifests, not a promise about future rel
 
 | Area | Main technologies | Purpose |
 | --- | --- | --- |
-| Frontend framework | Next.js 16.4.4, React 19.2.0 | Pages, layouts, client interaction, and server routing. |
+| Frontend framework | Next.js 16.4.4, React 19.2.9 | Pages, layouts, client interaction, and server routing. |
 | Frontend language | TypeScript | Types for components, API data, and application state. |
 | Styling | Tailwind CSS 4 | Styling and responsive layouts. |
 | UI and motion | Framer Motion, Lucide, React Icons | Animation and interface icons. |
@@ -550,7 +550,7 @@ The backend template is [backend/.env.example](../backend/.env.example). The tab
 | Returns | `RETURN_WINDOW_DAYS`, `FULL_REFUND_DAYS`, `LATE_RETURN_FEE_PERCENT` | Return eligibility and proposed deductions. |
 | Restricted administration | `SUPER_ADMIN_EMAILS` | Optional list of administrators allowed restricted actions. |
 | Internal accounts | `STORE_WALLET_OPENING_BALANCE` | Opening ledger balance on first wallet creation. |
-| Demo access | `DEMO_LOGIN_ENABLED`, `DEMO_LOGIN_ROLES`, `DEMO_CUSTOMER_EMAIL`, `DEMO_ADMIN_EMAIL` | Optional demonstration logins. |
+| Demo access | `DEMO_LOGIN_ENABLED`, `DEMO_LOGIN_ROLES`, `DEMO_ALLOW_ADMIN`, `DEMO_PASSWORD`, `DEMO_CUSTOMER_EMAIL`, `DEMO_ADMIN_EMAIL` | Optional demonstration logins. The demo admin needs `DEMO_ALLOW_ADMIN=true` and is always off in production. |
 | Request handling | `COOKIE_SAMESITE`, `TRUST_PROXY`, `API_RATE_LIMIT` | Cookie behavior, proxy trust, and general API request limits. |
 | Frontend proxy | `BACKEND_API_URL` | Backend API destination, including `/api`. |
 | Frontend identity | `NEXT_PUBLIC_SITE_NAME` | Public store name. |

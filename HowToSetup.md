@@ -8,8 +8,7 @@ Needs **Node.js 22+** (`.nvmrc` says 22; both `package.json` files declare `"eng
 
 ```bash
 # 1. install (root = frontend, backend/ = API)
-npm install
-npm --prefix backend install
+npm run install:all                     # = npm install && npm --prefix backend install
 
 # 2. environment
 cp backend/.env.example backend/.env    # Windows: copy
@@ -25,7 +24,7 @@ npm --prefix backend run seed:admin     # demo admin + customer, prints the pass
 npm run dev                             # shop http://localhost:3001, API http://localhost:5000/api
 
 # 5. check
-npm --prefix backend test               # 78 tests, needs MongoDB
+npm --prefix backend test               # 81 tests, needs MongoDB
 ```
 
 The submission ZIP is built by `npm run package:zip` from the files tracked in git, so it never contains
