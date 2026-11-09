@@ -5,7 +5,9 @@
 // DEMO_LOGIN_ENABLED=true   turns the one-click demo buttons on (off by default).
 // DEMO_LOGIN_ROLES          limits which buttons work (default "customer,admin").
 // DEMO_ALLOW_ADMIN=true     is also required before the demo ADMIN button works. It is ignored when
-//                           NODE_ENV=production, so a production build never hands out a public admin session.
+//                           NODE_ENV=production, so a production build never hands out a public admin session...
+// DEMO_SITE=true            ...unless the deployment is declared a public showcase holding demo data only
+//                           (e.g. the marketplace live demo). Never set it on a shop with real customers.
 // DEMO_PASSWORD             (optional, 8+ characters) lets the demo accounts sign in with the normal form too.
 
 const DEMO_ACCOUNT_DEFAULTS = {
@@ -16,6 +18,7 @@ const DEMO_ACCOUNT_DEFAULTS = {
 const DEMO_ROLES = Object.keys(DEMO_ACCOUNT_DEFAULTS);
 
 const isProduction = () => process.env.NODE_ENV === 'production';
+const isDemoSite = () => String(process.env.DEMO_SITE).toLowerCase() === 'true';
 
 // The account for a demo role, with the email override from the environment applied
 const demoAccount = (role) => {
@@ -23,7 +26,7 @@ const demoAccount = (role) => {
   return { email: (process.env[emailVar] || email).toLowerCase(), name, role };
 };
 
-const adminDemoAllowed = () => String(process.env.DEMO_ALLOW_ADMIN).toLowerCase() === 'true' && !isProduction();
+const adminDemoAllowed = () => String(process.env.DEMO_ALLOW_ADMIN).toLowerCase() === 'true' && (!isProduction() || isDemoSite());
 
 const enabledRoles = () => {
   if (String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() !== 'true') return [];
@@ -50,4 +53,4 @@ const demoPolicy = () => {
   });
 };
 
-module.exports = { DEMO_ROLES, demoAccount, demoPolicy, enabledRoles, demoPassword, showDemoCredentials, isProduction };
+module.exports = { DEMO_ROLES, demoAccount, demoPolicy, enabledRoles, demoPassword, showDemoCredentials, isProduction, isDemoSite };

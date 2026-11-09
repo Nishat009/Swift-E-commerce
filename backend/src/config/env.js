@@ -39,10 +39,12 @@ const validateEnv = () => {
   }
 
   if (isProd && String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() === 'true') {
-    console.warn('[config] DEMO_LOGIN_ENABLED is on in production: anyone visiting the site can sign in as the shared demo customer. The demo admin stays off in production.');
+    console.warn('[config] DEMO_LOGIN_ENABLED is on in production: anyone visiting the site can sign in as the shared demo customer. The demo admin stays off in production unless DEMO_SITE=true.');
   }
   if (isProd && String(process.env.DEMO_ALLOW_ADMIN).toLowerCase() === 'true') {
-    console.warn('[config] DEMO_ALLOW_ADMIN is ignored when NODE_ENV=production.');
+    console.warn(String(process.env.DEMO_SITE).toLowerCase() === 'true'
+      ? '[config] DEMO_SITE and DEMO_ALLOW_ADMIN are on in production: anyone can open the admin panel as the shared demo admin. Only use this on a showcase deployment with demo data.'
+      : '[config] DEMO_ALLOW_ADMIN is ignored when NODE_ENV=production (set DEMO_SITE=true only on a public showcase with demo data).');
   }
 
   if (problems.length) {

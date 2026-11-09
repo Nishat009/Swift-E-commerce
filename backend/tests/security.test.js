@@ -218,7 +218,15 @@ test('in production the demo admin, the shared password and startup demo account
     assert.ok(Object.isFrozen(demo.demoPolicy()));
     await ensureDemoAccounts();
     assert.equal(await User.countDocuments({ email: 'prod-guest@swiftcart.demo' }), 0, 'no demo account is created at startup');
+
+    // A showcase deployment opts in explicitly; the shared password still stays hidden
+    process.env.DEMO_SITE = 'true';
+    assert.deepEqual(demo.enabledRoles(), ['customer', 'admin'], 'DEMO_SITE lets the demo admin work in production');
+    assert.equal(demo.showDemoCredentials(), false, 'DEMO_SITE never exposes the shared password');
+    process.env.DEMO_ALLOW_ADMIN = 'false';
+    assert.deepEqual(demo.enabledRoles(), ['customer'], 'DEMO_SITE alone does not enable the demo admin');
   } finally {
+    delete process.env.DEMO_SITE;
     process.env.NODE_ENV = saved.NODE_ENV;
     if (saved.DEMO_PASSWORD === undefined) delete process.env.DEMO_PASSWORD; else process.env.DEMO_PASSWORD = saved.DEMO_PASSWORD;
     delete process.env.DEMO_LOGIN_ENABLED;
