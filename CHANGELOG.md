@@ -10,6 +10,8 @@ All notable changes to SwiftCart are listed here, newest first.
 
 ### Security
 - New `DEMO_SITE=true` setting for a public showcase deployment with demo data only: it lets the one-click demo **admin** work when `NODE_ENV=production` (with `DEMO_LOGIN_ENABLED=true` and `DEMO_ALLOW_ADMIN=true`). Off by default; the shared `DEMO_PASSWORD` is still never sent in production. Test added.
+- The project's own live demo (a backend whose `FRONTEND_URL` is `swift-e-commerce-eta.vercel.app`) has customer and admin demo login on without any `DEMO_*` flags. Any other deployment is unchanged. `/api/health` now reports the deployed commit.
+- The Customer and Admin demo buttons are always shown on the landing page and both login screens.
 
 ## 2026-11-06
 ### Security

@@ -18,7 +18,15 @@ const DEMO_ACCOUNT_DEFAULTS = {
 const DEMO_ROLES = Object.keys(DEMO_ACCOUNT_DEFAULTS);
 
 const isProduction = () => process.env.NODE_ENV === 'production';
-const isDemoSite = () => String(process.env.DEMO_SITE).toLowerCase() === 'true';
+// The project's own public live demo (the marketplace preview). A backend serving this frontend is
+// always a showcase with demo data, so demo login is on there without any DEMO_* flags. A buyer's
+// shop has its own FRONTEND_URL and is unaffected.
+const OFFICIAL_DEMO_HOSTS = ['swift-e-commerce-eta.vercel.app'];
+const isOfficialDemo = () => {
+  const frontends = String(process.env.FRONTEND_URL || '').toLowerCase();
+  return OFFICIAL_DEMO_HOSTS.some((host) => frontends.includes(host));
+};
+const isDemoSite = () => String(process.env.DEMO_SITE).toLowerCase() === 'true' || isOfficialDemo();
 
 // The account for a demo role, with the email override from the environment applied
 const demoAccount = (role) => {
@@ -26,10 +34,11 @@ const demoAccount = (role) => {
   return { email: (process.env[emailVar] || email).toLowerCase(), name, role };
 };
 
-const adminDemoAllowed = () => String(process.env.DEMO_ALLOW_ADMIN).toLowerCase() === 'true' && (!isProduction() || isDemoSite());
+const adminDemoAllowed = () => isOfficialDemo()
+  || (String(process.env.DEMO_ALLOW_ADMIN).toLowerCase() === 'true' && (!isProduction() || isDemoSite()));
 
 const enabledRoles = () => {
-  if (String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() !== 'true') return [];
+  if (String(process.env.DEMO_LOGIN_ENABLED).toLowerCase() !== 'true' && !isOfficialDemo()) return [];
   const roles = String(process.env.DEMO_LOGIN_ROLES || 'customer,admin')
     .split(',').map((r) => r.trim()).filter((r) => DEMO_ACCOUNT_DEFAULTS[r]);
   return adminDemoAllowed() ? roles : roles.filter((r) => r !== 'admin');

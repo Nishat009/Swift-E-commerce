@@ -111,7 +111,9 @@ if (process.env.NODE_ENV !== 'production') setupSwagger(app);
 
 // Health check route
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, status: 'ok', timestamp: new Date().toISOString() });
+  // RENDER_GIT_COMMIT is set by Render; it shows which commit is live after a deploy
+  const commit = (process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '').slice(0, 7) || undefined;
+  res.json({ success: true, status: 'ok', commit, timestamp: new Date().toISOString() });
 });
 
 // Default test route

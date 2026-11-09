@@ -202,7 +202,7 @@ test('in production the demo admin, the shared password and startup demo account
   const demo = require('../src/config/demo');
   const { ensureDemoAccounts } = require('../src/controllers/demoAuthController');
   const User = require('../src/models/User');
-  const saved = { NODE_ENV: process.env.NODE_ENV, DEMO_PASSWORD: process.env.DEMO_PASSWORD };
+  const saved = { NODE_ENV: process.env.NODE_ENV, DEMO_PASSWORD: process.env.DEMO_PASSWORD, FRONTEND_URL: process.env.FRONTEND_URL };
   process.env.DEMO_LOGIN_ENABLED = 'true';
   process.env.DEMO_ALLOW_ADMIN = 'true';
   process.env.DEMO_PASSWORD = 'demo-pass-123';
@@ -225,7 +225,18 @@ test('in production the demo admin, the shared password and startup demo account
     assert.equal(demo.showDemoCredentials(), false, 'DEMO_SITE never exposes the shared password');
     process.env.DEMO_ALLOW_ADMIN = 'false';
     assert.deepEqual(demo.enabledRoles(), ['customer'], 'DEMO_SITE alone does not enable the demo admin');
+
+    // The project's own live demo turns both demos on with no DEMO_* flags; any other frontend does not
+    delete process.env.DEMO_SITE;
+    delete process.env.DEMO_LOGIN_ENABLED;
+    delete process.env.DEMO_ALLOW_ADMIN;
+    process.env.FRONTEND_URL = 'https://swift-e-commerce-eta.vercel.app';
+    assert.deepEqual(demo.enabledRoles(), ['customer', 'admin'], 'the official live demo enables both demo logins');
+    assert.equal(demo.showDemoCredentials(), false);
+    process.env.FRONTEND_URL = 'https://buyer-shop.example.com';
+    assert.deepEqual(demo.enabledRoles(), [], "a buyer's shop keeps demo login off");
   } finally {
+    if (saved.FRONTEND_URL === undefined) delete process.env.FRONTEND_URL; else process.env.FRONTEND_URL = saved.FRONTEND_URL;
     delete process.env.DEMO_SITE;
     process.env.NODE_ENV = saved.NODE_ENV;
     if (saved.DEMO_PASSWORD === undefined) delete process.env.DEMO_PASSWORD; else process.env.DEMO_PASSWORD = saved.DEMO_PASSWORD;
