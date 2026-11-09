@@ -191,7 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.post('/auth/demo-login', { role });
+      // Long timeout: the first click may have to wait for the hosted API to wake from sleep
+      const response = await apiClient.post('/auth/demo-login', { role }, { timeout: 60000 });
       const { user: loggedInUser, accessToken } = response.data.data;
       setAccessToken(accessToken);
       localStorage.setItem('accessToken', accessToken);
