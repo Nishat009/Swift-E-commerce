@@ -44,17 +44,17 @@ export function useDemoAccess() {
   return access;
 }
 
-// "Guest login" / "Admin login" one-click buttons. Hidden once the backend says demo login is off.
+// Every role that gets a one-click demo button. The buttons are always shown; the backend still
+// decides whether a demo sign-in is allowed (POST /auth/demo-login answers 404 when it is off).
+export const DEMO_BUTTON_ROLES: DemoRole[] = ['customer', 'admin'];
+
+// "Customer demo" / "Admin demo" one-click buttons
 export default function DemoLoginButtons({ disabled = false }: { disabled?: boolean }) {
   const { demoLogin } = useAuth();
   const toast = useToast();
-  const { roles, credentials, loading } = useDemoAccess();
+  const { credentials } = useDemoAccess();
   const [busy, setBusy] = useState<DemoRole | null>(null);
-
-  if (!loading && !roles.length) return null;
-
-  // While the API wakes up, show both buttons (disabled) so visitors can see demo access exists
-  const shown: DemoRole[] = loading ? ['customer', 'admin'] : roles;
+  const shown = DEMO_BUTTON_ROLES;
 
   const signIn = async (role: DemoRole) => {
     setBusy(role);
@@ -69,7 +69,7 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
   };
 
   const base = 'flex h-10 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-50';
-  const label = (role: DemoRole, text: string) => (busy === role ? 'Signing in…' : loading ? 'Connecting…' : text);
+  const label = (role: DemoRole, text: string) => (busy === role ? 'Signing in…' : text);
 
   return (
     <div className="space-y-2">
@@ -83,7 +83,7 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
           <button
             type="button"
             onClick={() => signIn('customer')}
-            disabled={disabled || loading || busy !== null}
+            disabled={disabled || busy !== null}
             className={`${base} border-ink/25 bg-transparent text-ink hover:border-ink`}
           >
             <UserIcon className="w-3.5 h-3.5" /> {label('customer', 'Customer demo')}
@@ -93,14 +93,14 @@ export default function DemoLoginButtons({ disabled = false }: { disabled?: bool
           <button
             type="button"
             onClick={() => signIn('admin')}
-            disabled={disabled || loading || busy !== null}
+            disabled={disabled || busy !== null}
             className={`${base} border-ink bg-ink text-paper hover:bg-ink/85`}
           >
             <ShieldCheck className="w-3.5 h-3.5" /> {label('admin', 'Admin demo')}
           </button>
         )}
       </div>
-      {loading && <p className="text-center text-[11px] text-stone-500">Waking the demo server, this can take up to a minute…</p>}
+      {busy && <p className="text-center text-[11px] text-stone-500">The first sign-in can take up to a minute while the demo server wakes up…</p>}
       {credentials.length > 0 && (
         <ul className="space-y-0.5 text-center text-[11px] text-stone-500">
           {credentials.map((c) => (

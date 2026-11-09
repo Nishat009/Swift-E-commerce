@@ -87,7 +87,7 @@ const STATS = [
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { roles: demoRoles, credentials, loading: demoLoading } = useDemoAccess();
+  const { credentials } = useDemoAccess();
   const credentialFor = (role: DemoRole) => credentials.find((c) => c.role === role);
   const { demoLogin } = useAuth();
   const toast = useToast();
@@ -279,8 +279,6 @@ export default function LandingPage() {
               { role: 'admin' as const, icon: ShieldCheck, title: 'Admin demo', text: 'Dashboard, products, orders, campaigns, customers and reports.', href: ADMIN_LOGIN_HREF, cta: 'Demo login as Admin', link: 'Admin login page' },
             ].map(({ role, icon: Icon, title, text, href, cta, link }) => {
               const cred = credentialFor(role);
-              // Shown (disabled) while the API wakes up; hidden only once the server says this demo is off
-              const oneClick = demoLoading || demoRoles.includes(role);
               return (
                 <div key={role} className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-7">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#c9a96b]/15 text-[#c9a96b]">
@@ -294,25 +292,17 @@ export default function LandingPage() {
                     </p>
                   )}
                   <div className="mt-auto pt-6">
-                    {oneClick ? (
-                      <button
-                        type="button"
-                        onClick={() => signInDemo(role)}
-                        disabled={demoLoading || demoBusy !== null}
-                        className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-6 py-3 text-sm font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {demoBusy === role ? 'Signing in…' : demoLoading ? 'Connecting to demo…' : cta} <ArrowRight className="h-4 w-4" />
-                      </button>
-                    ) : (
-                      <Link href={href} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-6 py-3 text-sm font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80]">
-                        {link} <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    )}
-                    {oneClick && (
-                      <Link href={href} className="mt-3 block text-center text-xs text-[#d9cdbd] underline-offset-4 hover:text-white hover:underline">
-                        or open the {link.toLowerCase()}
-                      </Link>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => signInDemo(role)}
+                      disabled={demoBusy !== null}
+                      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#c9a96b] px-6 py-3 text-sm font-bold text-[#17110f] transition-colors hover:bg-[#d8bb80] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {demoBusy === role ? 'Signing in…' : cta} <ArrowRight className="h-4 w-4" />
+                    </button>
+                    <Link href={href} className="mt-3 block text-center text-xs text-[#d9cdbd] underline-offset-4 hover:text-white hover:underline">
+                      or open the {link.toLowerCase()}
+                    </Link>
                   </div>
                 </div>
               );

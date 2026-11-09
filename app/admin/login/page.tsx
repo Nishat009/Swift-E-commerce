@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, BarChart3, Eye, EyeOff, Megaphone, Package, ShieldCheck, ShoppingBag, User as UserIcon, Wallet } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { useDemoAccess, DemoRole } from '@/components/auth/DemoLoginButtons';
+import { useDemoAccess, DemoRole, DEMO_BUTTON_ROLES } from '@/components/auth/DemoLoginButtons';
 
 const HIGHLIGHTS = [
   { icon: BarChart3, label: 'Live sales dashboard and reports' },
@@ -20,9 +20,9 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const toast = useToast();
   const { user, loading: authLoading, login, demoLogin } = useAuth();
-  const { roles: liveRoles, credentials, loading: demoLoading } = useDemoAccess();
-  // While the API wakes up, show both demo buttons (disabled) instead of hiding them
-  const roles: DemoRole[] = demoLoading ? ['admin', 'customer'] : liveRoles;
+  const { credentials } = useDemoAccess();
+  // The demo buttons are always shown; the backend decides whether a demo sign-in is allowed
+  const roles: DemoRole[] = DEMO_BUTTON_ROLES;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -103,7 +103,6 @@ export default function AdminLoginPage() {
             <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">Manage products, orders, customers and campaigns.</p>
           </div>
 
-          {roles.length > 0 && (
             <section className="space-y-3 rounded-lg border border-line bg-surface-muted p-4">
               <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">One-click demo access</p>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -111,24 +110,24 @@ export default function AdminLoginPage() {
                   <button
                     type="button"
                     onClick={() => signInDemo('admin')}
-                    disabled={demoLoading || busy !== null}
+                    disabled={busy !== null}
                     className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-xs font-semibold uppercase tracking-[0.08em] text-paper transition-colors hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <ShieldCheck className="h-4 w-4" /> {busy === 'admin' ? 'Signing in…' : demoLoading ? 'Connecting…' : 'Login as Admin'}
+                    <ShieldCheck className="h-4 w-4" /> {busy === 'admin' ? 'Signing in…' : 'Login as Admin'}
                   </button>
                 )}
                 {roles.includes('customer') && (
                   <button
                     type="button"
                     onClick={() => signInDemo('customer')}
-                    disabled={demoLoading || busy !== null}
+                    disabled={busy !== null}
                     className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-ink/25 text-xs font-semibold uppercase tracking-[0.08em] text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <UserIcon className="h-4 w-4" /> {busy === 'customer' ? 'Signing in…' : demoLoading ? 'Connecting…' : 'Login as Customer'}
+                    <UserIcon className="h-4 w-4" /> {busy === 'customer' ? 'Signing in…' : 'Login as Customer'}
                   </button>
                 )}
               </div>
-              {demoLoading && <p className="text-[11px] text-stone-500">Waking the demo server, this can take up to a minute…</p>}
+              {(busy === 'admin' || busy === 'customer') && <p className="text-[11px] text-stone-500">The first sign-in can take up to a minute while the demo server wakes up…</p>}
               {adminCredential && (
                 <div className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-xs">
                   <div className="min-w-0 text-stone-600 dark:text-stone-300">
@@ -145,7 +144,6 @@ export default function AdminLoginPage() {
                 </div>
               )}
             </section>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
