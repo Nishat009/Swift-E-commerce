@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ArrowUp } from 'lucide-react';
+import { ArrowRight, ArrowUp, ShieldCheck, User as UserIcon } from 'lucide-react';
 import apiClient from '@/lib/apiClient';
 import { cachedGet, peekCached } from '@/lib/cachedGet';
 
@@ -112,6 +112,14 @@ export default function Footer() {
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-stone-500">
             Considered fashion, made to be worn for years. Try every piece on in 3D before it ships.
           </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link href="/auth/login?demo=1" className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/25 px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink transition-colors hover:border-ink">
+              <UserIcon className="size-3.5" /> Login
+            </Link>
+            <Link href="/admin/login" className="inline-flex h-9 items-center gap-1.5 rounded-full bg-ink px-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-paper transition-colors hover:bg-ink/85">
+              <ShieldCheck className="size-3.5" /> Admin Login
+            </Link>
+          </div>
         </div>
 
         <div>
@@ -160,7 +168,7 @@ export default function Footer() {
           <nav className="flex flex-wrap items-center gap-x-5 gap-y-2" aria-label="Legal">
             <Link href="/terms" className="hover:text-ink">Terms</Link>
             <Link href="/privacy" className="hover:text-ink">Privacy</Link>
-            <Link href="/admin/login" className="hover:text-ink">Admin sign in</Link>
+            <Link href="/admin/login" className="hover:text-ink">Admin Login</Link>
             <button
               type="button"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
