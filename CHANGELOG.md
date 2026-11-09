@@ -2,6 +2,15 @@
 
 All notable changes to SwiftCart are listed here, newest first.
 
+## 2026-11-09
+### Fixed
+- The landing page at `/` is back (a merge had replaced it with the old storefront home). Its header, hero and footer have **Live Demo** (opens `/shop`), **Login** and **Admin Login** buttons, and the "Try SwiftCart now" cards sign in to the demo customer or demo admin in one click.
+- Demo login buttons no longer vanish while the hosted API wakes from sleep: they show as "Connecting…", the status check waits up to a minute and retries once, and a demo sign-in waits up to a minute too.
+- The shop footer has visible **Login** and **Admin Login** buttons.
+
+### Security
+- New `DEMO_SITE=true` setting for a public showcase deployment with demo data only: it lets the one-click demo **admin** work when `NODE_ENV=production` (with `DEMO_LOGIN_ENABLED=true` and `DEMO_ALLOW_ADMIN=true`). Off by default; the shared `DEMO_PASSWORD` is still never sent in production. Test added.
+
 ## 2026-11-06
 ### Security
 - In production the backend refuses to start when `DEMO_PASSWORD` is set, so a shared demo password can never reach a live shop. Test added.

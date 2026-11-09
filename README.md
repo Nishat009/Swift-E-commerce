@@ -15,8 +15,9 @@
 > **API Documentation (Swagger):** [http://localhost:5000/api-docs](http://localhost:5000/api-docs)  
 > **Backend REST API:** [http://localhost:5000/api](http://localhost:5000/api)
 
-> **For reviewers:** open [/auth/login](https://swift-e-commerce-eta.vercel.app/auth/login) on the live demo and click
-> **Guest login** (shopper) or **Admin login** (admin panel at `/admin`); no password needed. Verified 2026-11-06:
+> **For reviewers:** open the [landing page](https://swift-e-commerce-eta.vercel.app/) and use **Live Demo** (the shop),
+> **Login**, **Admin Login**, or the one-click **Demo login as Customer / Admin** buttons; no password needed.
+> The same one-click buttons are on [/auth/login](https://swift-e-commerce-eta.vercel.app/auth/login) and [/admin/login](https://swift-e-commerce-eta.vercel.app/admin/login). Verified 2026-11-06:
 > `POST /api/backend/auth/demo-login {"role":"customer"}` → 200 "Signed in as a guest shopper".
 > Every data-changing route and its guard is listed in [SECURITY.md](SECURITY.md#routes-that-change-data);
 > setup on a clean machine is in [HowToSetup.md](HowToSetup.md).
